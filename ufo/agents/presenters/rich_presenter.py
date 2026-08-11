@@ -314,7 +314,7 @@ class RichPresenter(BasePresenter):
 
         # Screenshot saving
         screenshot_saving = response.save_screenshot
-        if screenshot_saving.get("save", False):
+        if isinstance(screenshot_saving, dict) and screenshot_saving.get("save", False):
             reason = screenshot_saving.get("reason")
             self.console.print(
                 Panel(

@@ -691,10 +691,11 @@ class HostLLMInteractionStrategy(BaseProcessingStrategy):
                         if "bash_command" not in args:
                             args["bash_command"] = val
 
-                    if "app_name" in args:
-                        val = args.pop("app_name")
-                        if "name" not in args:
-                            args["name"] = val
+                plan_val = response_dict.get("plan")
+                if isinstance(plan_val, str):
+                    response_dict["plan"] = [plan_val] if plan_val.strip() else []
+                elif plan_val is None:
+                    response_dict["plan"] = []
 
             # Create structured response object
             parsed_response = HostAgentResponse.model_validate(response_dict)

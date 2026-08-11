@@ -145,6 +145,9 @@ class Session(WindowsBaseSession):
             else:
                 return interactor.first_request()
         else:
+            if self._init_request:
+                self._finish = True
+                return ""
             request, iscomplete = interactor.new_request()
             if iscomplete:
                 self._finish = True

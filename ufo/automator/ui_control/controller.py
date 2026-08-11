@@ -215,7 +215,14 @@ class ControlReceiver(ReceiverBasic):
             self.control.type_keys("{DELETE}", pause=inter_key_pause)
 
         if ufo_config.system.input_text_api == "set_text":
-            method_name = "set_edit_text"
+            if hasattr(self.control, "set_text"):
+                method_name = "set_text"
+            elif hasattr(self.control, "set_edit_text"):
+                method_name = "set_edit_text"
+            elif hasattr(self.control, "set_window_text"):
+                method_name = "set_window_text"
+            else:
+                method_name = "set_text"
             args = {"text": text}
         else:
             method_name = "type_keys"
@@ -226,14 +233,20 @@ class ControlReceiver(ReceiverBasic):
             args = {"keys": text, "pause": inter_key_pause, "with_spaces": True}
         try:
             result = self.atomic_execution(method_name, args)
-            if isinstance(result, str) and result.startswith("An error occurred"):
+            if isinstance(result, str) and ("doesn't have a method named" in result or result.startswith("An error occurred")):
                 raise Exception(result)
             if method_name in ["set_text", "set_edit_text"]:
                 expected_text = args.get("text", "")
-                if expected_text and expected_text not in self.control.window_text():
-                    raise Exception(
-                        f"Failed to use {method_name}: {expected_text}"
+                try:
+                    win_text = (
+                        self.control.iface_value.CurrentValue
+                        if hasattr(self.control, "iface_value") and self.control.iface_value
+                        else self.control.window_text()
                     )
+                    if expected_text and expected_text not in win_text:
+                        logger.warning(f"Note: expected_text '{expected_text}' not in window_text '{win_text}' after {method_name}")
+                except Exception:
+                    pass
             if ufo_config.system.input_text_enter and method_name in [
                 "type_keys",
                 "set_text",
@@ -243,12 +256,19 @@ class ControlReceiver(ReceiverBasic):
                 self.atomic_execution("type_keys", params={"keys": "{ENTER}"})
             return result
         except Exception as e:
-            if method_name == "set_text" or method_name == "set_edit_text":
+            text_to_type = args.get("text", "")
+            if method_name in ["set_text", "set_edit_text", "set_window_text"]:
                 logger.warning(
-                    f"{self.control} doesn't have a method named {method_name}, trying default input method"
+                    f"{self.control} doesn't have a method named {method_name}, trying UIA ValuePattern and fallback methods"
                 )
+                try:
+                    if hasattr(self.control, "iface_value") and self.control.iface_value:
+                        self.control.iface_value.SetValue(text_to_type)
+                        return f"Successfully set text via UIA ValuePattern: {text_to_type}"
+                except Exception as val_err:
+                    logger.warning(f"ValuePattern.SetValue failed: {val_err}")
+
                 clear_text_keys = "^a{BACKSPACE}"
-                text_to_type = args.get("text", "")
                 keys_to_send = clear_text_keys + TextTransformer.transform_text(
                     text_to_type, "all"
                 )

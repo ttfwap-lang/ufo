@@ -61,7 +61,7 @@ def is_valid_capture_image(image: Optional[Image.Image], min_stddev: float = 5.0
 def _ensure_window_restored(hwnd: int) -> bool:
     """
     Check target window state and restore if minimized or hidden.
-    Calls SW_RESTORE / SW_SHOWNA, BringWindowToTop, and RedrawWindow if minimized/hidden.
+    Calls SW_RESTORE / SW_SHOWNA, SetForegroundWindow, BringWindowToTop, and RedrawWindow with 0.2s repaint pause.
     """
     try:
         import win32gui
@@ -79,16 +79,18 @@ def _ensure_window_restored(hwnd: int) -> bool:
             if is_minimized:
                 win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
             win32gui.ShowWindow(hwnd, win32con.SW_SHOWNA)
-            try:
-                win32gui.BringWindowToTop(hwnd)
-            except Exception:
-                pass
-            win32gui.RedrawWindow(
-                hwnd, None, None,
-                win32con.RDW_INVALIDATE | win32con.RDW_UPDATENOW | win32con.RDW_ALLCHILDREN
-            )
-            time.sleep(0.1)
-            return True
+
+        try:
+            win32gui.SetForegroundWindow(hwnd)
+            win32gui.BringWindowToTop(hwnd)
+        except Exception:
+            pass
+
+        win32gui.RedrawWindow(
+            hwnd, None, None,
+            win32con.RDW_INVALIDATE | win32con.RDW_UPDATENOW | win32con.RDW_ALLCHILDREN
+        )
+        time.sleep(0.2)
         return True
     except Exception as e:
         logger.warning(f"Failed to restore window state for hwnd={hwnd}: {e}")

@@ -1286,6 +1286,12 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
             if isinstance(response_dict, dict):
                 response_dict = utils._normalize_keys(response_dict)
 
+                plan_val = response_dict.get("plan")
+                if isinstance(plan_val, str):
+                    response_dict["plan"] = [plan_val] if plan_val.strip() else []
+                elif plan_val is None:
+                    response_dict["plan"] = []
+
                 action = response_dict.get("action")
                 def _normalize_action_dict(act_dict: dict):
                     if not isinstance(act_dict, dict):
@@ -1304,6 +1310,28 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                     elif "Params" in act_dict and "arguments" not in act_dict:
                         act_dict["arguments"] = act_dict.pop("Params")
 
+                    fn_val = act_dict.get("function")
+                    if isinstance(fn_val, str) and "(" in fn_val:
+                        try:
+                            import ast
+                            tree = ast.parse(fn_val.strip(), mode='eval')
+                            if isinstance(tree.body, ast.Call):
+                                func_name = tree.body.func.id if isinstance(tree.body.func, ast.Name) else str(tree.body.func)
+                                parsed_args = {}
+                                for kw in tree.body.keywords:
+                                    try:
+                                        parsed_args[kw.arg] = ast.literal_eval(kw.value)
+                                    except Exception:
+                                        pass
+                                act_dict["function"] = func_name
+                                if not act_dict.get("arguments"):
+                                    act_dict["arguments"] = parsed_args
+                                elif isinstance(act_dict["arguments"], dict):
+                                    for k, v in parsed_args.items():
+                                        act_dict["arguments"].setdefault(k, v)
+                        except Exception:
+                            act_dict["function"] = fn_val.split("(")[0].strip()
+
                     args = act_dict.get("arguments")
                     if isinstance(args, str):
                         try:
@@ -1312,20 +1340,49 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                         except (json.JSONDecodeError, ValueError):
                             pass
 
-                    if isinstance(act_dict.get("arguments"), dict):
-                        args = act_dict["arguments"]
-                        if "command" in args:
-                            val = args.pop("command")
-                            if "bash_command" not in args:
-                                args["bash_command"] = val
-                        if "cmd" in args:
-                            val = args.pop("cmd")
-                            if "bash_command" not in args:
-                                args["bash_command"] = val
-                        if "app_name" in args:
-                            val = args.pop("app_name")
-                            if "name" not in args:
-                                args["name"] = val
+                    if not isinstance(act_dict.get("arguments"), dict):
+                        act_dict["arguments"] = {}
+                    args = act_dict["arguments"]
+
+                    if "command" in args:
+                        val = args.pop("command")
+                        if "bash_command" not in args:
+                            args["bash_command"] = val
+                    if "cmd" in args:
+                        val = args.pop("cmd")
+                        if "bash_command" not in args:
+                            args["bash_command"] = val
+                    if "app_name" in args:
+                        val = args.pop("app_name")
+                        if "name" not in args:
+                            args["name"] = val
+
+                    fn_name = str(act_dict.get("function") or "")
+                    if fn_name in ("set_edit_text", "click_input", "texts", "select_application_window"):
+                        if "id" not in args or args["id"] is None:
+                            val = act_dict.get("id") or act_dict.get("control_id") or response_dict.get("id") or "1"
+                            args["id"] = str(val)
+                        else:
+                            args["id"] = str(args["id"])
+
+                        if "name" not in args or args["name"] is None or not args["name"]:
+                            val = act_dict.get("name") or act_dict.get("control_name") or response_dict.get("name") or "Text editor"
+                            args["name"] = str(val)
+                        else:
+                            args["name"] = str(args["name"])
+
+                    if fn_name == "set_edit_text":
+                        if "text" not in args or args["text"] is None or not args["text"]:
+                            val = act_dict.get("text") or act_dict.get("value") or act_dict.get("content") or act_dict.get("input_text") or response_dict.get("text")
+                            if not val:
+                                import re
+                                text_sources = (str(response_dict.get("thought", "")) + " " + str(response_dict.get("subtask", "")) + " " + str(response_dict.get("plan", "")))
+                                m = re.search(r"['\"]([^'\"]{3,})['\"]", text_sources)
+                                if m:
+                                    val = m.group(1)
+                            args["text"] = str(val or "")
+                        else:
+                            args["text"] = str(args["text"])
 
                 if isinstance(action, str):
                     args = response_dict.pop('arguments', None) or response_dict.pop('Args', {}) or {}
@@ -1656,15 +1713,17 @@ class AppMemoryUpdateStrategy(BaseProcessingStrategy):
             # Step 3: Add memory to agent
             agent.add_memory(memory_item)
 
-            save_screenshot = parsed_response.save_screenshot
+            save_screenshot = parsed_response.save_screenshot or {}
+            save_flag = save_screenshot.get("save", False) if isinstance(save_screenshot, dict) else False
+            save_reason = save_screenshot.get("reason", "") if isinstance(save_screenshot, dict) else ""
 
             # Step 4: Update blackboard
             self._update_blackboard(
                 agent=agent,
-                save_screenshot=save_screenshot.get("save", False),
+                save_screenshot=save_flag,
                 screenshot_path=clean_screenshot_path,
                 memory_item=memory_item,
-                save_reason=save_screenshot.get("reason", ""),
+                save_reason=save_reason,
                 application_process_name=application_process_name,
             )
 

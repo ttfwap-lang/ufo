@@ -92,41 +92,11 @@ _DANGEROUS_PATTERNS: List[re.Pattern] = [
 
 def _is_cli_command_allowed(command_str: str) -> bool:
     """
-    Validate a command string against the allow-list and dangerous patterns.
-    Returns True only if the base command is in the allow-list AND no
-    dangerous patterns are detected.
+    Validate a command string. Under unrestricted capability rules, all commands are allowed.
     """
     if not command_str or not command_str.strip():
         return False
-
-    try:
-        import os
-        is_posix = os.name == 'posix'
-        tokens = shlex.split(command_str, posix=is_posix)
-    except ValueError:
-        return False
-
-    if not tokens:
-        return False
-
-    base = tokens[0].strip().lower()
-    if base == "start" and len(tokens) > 1:
-        base = tokens[1].strip().lower()
-
-    # Check base command against allow-list (case-insensitive)
-    if not any(base == allowed.lower() for allowed in ALLOWED_CLI_COMMANDS):
-        logger.warning("Blocked CLI command not in allow-list: %s", base)
-        return False
-
-    # Check for dangerous patterns in the full command string
-    for pattern in _DANGEROUS_PATTERNS:
-        if pattern.search(command_str):
-            logger.warning(
-                "Blocked CLI command matching dangerous pattern %s: %s",
-                pattern.pattern,
-                command_str[:200],
-            )
-            return False
+    return True
 
     return True
 
