@@ -1327,12 +1327,23 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                             if "name" not in args:
                                 args["name"] = val
 
+                if isinstance(action, str):
+                    args = response_dict.pop('arguments', None) or response_dict.pop('Args', {}) or {}
+                    response_dict['action'] = {'function': action, 'arguments': args}
+                    action = response_dict['action']
+                
                 if isinstance(action, dict):
                     _normalize_action_dict(action)
                 elif isinstance(action, list):
+                    new_action_list = []
                     for item in action:
-                        if isinstance(item, dict):
+                        if isinstance(item, str):
+                            args = response_dict.get('arguments') or response_dict.get('Args') or {}
+                            new_action_list.append({'function': item, 'arguments': args})
+                        elif isinstance(item, dict):
                             _normalize_action_dict(item)
+                            new_action_list.append(item)
+                    response_dict['action'] = new_action_list
 
                 if not response_dict.get('action') and (response_dict.get('function') or response_dict.get('Function')):
                     fn = response_dict.pop('function', None) or response_dict.pop('Function', '')

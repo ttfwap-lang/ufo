@@ -238,6 +238,8 @@ class AppAgentPrompter(BasicPrompter):
             system_key = "system"
         if not self.is_visual:
             system_key += "_nonvisual"
+        if system_key not in self.prompt_template:
+            system_key = "system_as" if ufo_config.system.action_sequence else "system"
 
         return self.prompt_template[system_key].format(apis=apis, examples=examples)
 
@@ -269,7 +271,15 @@ class AppAgentPrompter(BasicPrompter):
         if last_success_actions is None:
             last_success_actions = []
 
-        prompt = self.prompt_template["user"].format(
+        user_template = self.prompt_template.get(
+            "user",
+            "<Available Controls ({current_application}):> {control_item}\n"
+            "<Subtask:> {subtask}\n"
+            "<Request:> {user_request}\n"
+            "<Your response:>"
+        )
+
+        prompt = user_template.format(
             control_item=json.dumps(control_item, separators=(",", ":")),
             prev_subtask=json.dumps(prev_subtask, separators=(",", ":")),
             prev_plan=json.dumps(prev_plan, separators=(",", ":")),

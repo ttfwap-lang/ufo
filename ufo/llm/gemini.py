@@ -1,5 +1,6 @@
 import functools
 import base64
+import json
 import logging
 import re
 import time
@@ -7,6 +8,7 @@ import random
 from typing import Any, Dict, List, Optional
 
 from google import genai
+from google.genai import types, errors
 from google.genai.types import GenerateContentConfig, Part, GenerateContentResponse
 
 from ufo.llm.base import BaseService
@@ -69,43 +71,62 @@ class GeminiService(BaseService):
         )
         top_p = top_p if top_p is not None else self.config["TOP_P"]
         max_tokens = max_tokens if max_tokens is not None else self.config["MAX_TOKENS"]
-        genai_config = GenerateContentConfig(
-            max_output_tokens=max_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            response_mime_type="application/json",
-        )
 
         processed_messages = self.process_messages(messages)
 
+        is_computer_use_model = (
+            "computer-use" in self.model.lower() or "computer_use" in self.model.lower()
+        )
+        use_computer_use = is_computer_use_model
+
         # Default parameters from OpenAI
-        # Ref: _calculate_retry_timeout from https://github.com/openai/openai-python/blob/main/src/openai/_base_client.pys
+        # Ref: _calculate_retry_timeout from https://github.com/openai/openai-python/blob/main/src/openai/_base_client.py
         initial_delay = 0.5
         max_delay = 8.0
         jitter_factor = 0.25
 
+        response = None
+        cost = 0.0
+
         for attempt in range(self.max_retry):
-            try:
+            genai_config_args: Dict[str, Any] = {
+                "max_output_tokens": max_tokens,
+                "temperature": temperature,
+                "top_p": top_p,
+            }
+
+            if use_computer_use:
+                genai_config_args["tools"] = [
+                    types.Tool(
+                        computer_use=types.ComputerUse(
+                            environment=types.Environment.ENVIRONMENT_DESKTOP
+                        )
+                    )
+                ]
+            else:
+                genai_config_args["response_mime_type"] = "application/json"
                 if self.json_schema_enabled:
                     response_format = {
                         AgentType.HOST: HostAgentResponse,
                         AgentType.APP: AppAgentResponse,
                         AgentType.EVALUATION: EvaluationResponse,
                     }.get(self.agent_type, None)
-                    genai_config.response_schema = response_format
-                    response = self.client.models.generate_content(
-                        model=self.model,
-                        contents=processed_messages,
-                        config=genai_config,
-                    )
-                else:
-                    response = self.client.models.generate_content(
-                        model=self.model,
-                        contents=processed_messages,
-                        config=genai_config,
-                    )
-                prompt_tokens = response.usage_metadata.prompt_token_count
-                completion_tokens = response.usage_metadata.candidates_token_count
+                    if response_format:
+                        genai_config_args["response_schema"] = response_format
+
+            genai_config = GenerateContentConfig(**genai_config_args)
+
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=processed_messages,
+                    config=genai_config,
+                )
+                usage = getattr(response, "usage_metadata", None)
+                prompt_tokens = getattr(usage, "prompt_token_count", 0) if usage else 0
+                completion_tokens = (
+                    getattr(usage, "candidates_token_count", 0) if usage else 0
+                )
                 cost = self.get_cost_estimator(
                     self.api_type,
                     self.model,
@@ -115,6 +136,66 @@ class GeminiService(BaseService):
                 )
                 break
             except Exception as e:
+                is_client_error = (
+                    isinstance(e, (errors.ClientError, errors.APIError))
+                    or getattr(e, "code", None) in (400, 403, 404)
+                    or any(
+                        code_str in str(e)
+                        for code_str in (
+                            "400",
+                            "403",
+                            "404",
+                            "INVALID_ARGUMENT",
+                            "FORBIDDEN",
+                        )
+                    )
+                )
+                if use_computer_use and is_client_error:
+                    logger.warning(
+                        f"ClientError ({getattr(e, 'code', 'N/A')}) encountered with computer_use tools: {e}. "
+                        "Stripping tools parameter, restoring application/json response mode, and retrying..."
+                    )
+                    use_computer_use = False
+                    try:
+                        fallback_config_args: Dict[str, Any] = {
+                            "max_output_tokens": max_tokens,
+                            "temperature": temperature,
+                            "top_p": top_p,
+                            "response_mime_type": "application/json",
+                        }
+                        if self.json_schema_enabled:
+                            response_format = {
+                                AgentType.HOST: HostAgentResponse,
+                                AgentType.APP: AppAgentResponse,
+                                AgentType.EVALUATION: EvaluationResponse,
+                            }.get(self.agent_type, None)
+                            if response_format:
+                                fallback_config_args["response_schema"] = response_format
+
+                        fallback_config = GenerateContentConfig(**fallback_config_args)
+                        response = self.client.models.generate_content(
+                            model=self.model,
+                            contents=processed_messages,
+                            config=fallback_config,
+                        )
+                        usage = getattr(response, "usage_metadata", None)
+                        prompt_tokens = (
+                            getattr(usage, "prompt_token_count", 0) if usage else 0
+                        )
+                        completion_tokens = (
+                            getattr(usage, "candidates_token_count", 0) if usage else 0
+                        )
+                        cost = self.get_cost_estimator(
+                            self.api_type,
+                            self.model,
+                            self.prices,
+                            prompt_tokens,
+                            completion_tokens,
+                        )
+                        break
+                    except Exception as retry_e:
+                        e = retry_e
+
                 # Calculate backoff with jitter
                 delay = min(initial_delay * (2**attempt), max_delay)
                 jitter = random.uniform(-jitter_factor * delay, 0)
@@ -180,57 +261,80 @@ class GeminiService(BaseService):
         self, response: GenerateContentResponse
     ) -> List[Optional[str]]:
         """
-        Extracts the concatenated text content from each candidate in the response.
+        Extracts the concatenated text content from each candidate in the response,
+        including function_call parts returned by computer-use models.
 
         Args:
             response: The GenerateContentResponse object from the Gemini API call.
 
         Returns:
             A list where each element is the concatenated text from a candidate,
-            or None if a candidate has no text parts.
+            or None if a candidate has no text or function_call parts.
         """
         all_texts = []
-        if not response or not response.candidates:
-            print("Warning: Response object does not contain candidates.")
+        if not response or not getattr(response, "candidates", None):
+            logger.warning("Response object does not contain candidates.")
             return all_texts
 
         for i, candidate in enumerate(response.candidates):
             candidate_text: str = ""
-            any_text_part_found: bool = False
+            any_content_found: bool = False
             non_text_parts_found: List[str] = []
 
             if not candidate or not candidate.content or not candidate.content.parts:
                 # Handle cases where a candidate might be empty (e.g., safety blocked)
-                print(
-                    f"Warning: Candidate {i} has no content or parts. Finish Reason: {getattr(candidate, 'finish_reason', 'N/A')}"
+                logger.warning(
+                    f"Candidate {i} has no content or parts. Finish Reason: {getattr(candidate, 'finish_reason', 'N/A')}"
                 )
                 all_texts.append(None)
                 continue
 
             for part in candidate.content.parts:
-                # Check for non-text parts (similar to _get_text logic)
-                for field_name, field_value in part.model_dump(
-                    exclude={"text", "thought"}
-                ).items():
+                # Check for non-text/non-function_call parts
+                part_dump = (
+                    part.model_dump(exclude={"text", "thought", "function_call"})
+                    if hasattr(part, "model_dump")
+                    else {}
+                )
+                for field_name, field_value in part_dump.items():
                     if field_value is not None:
-                        if field_name not in non_text_parts_found:  # Avoid duplicates
+                        if field_name not in non_text_parts_found:
                             non_text_parts_found.append(field_name)
 
-                # Check if the part has text and it's not just internal 'thought'
-                if isinstance(part.text, str):
-                    # Skip parts marked as internal 'thought' if the attribute exists
+                # Check text part
+                if isinstance(part.text, str) and part.text:
                     if isinstance(part.thought, bool) and part.thought:
                         continue
-                    any_text_part_found = True
+                    any_content_found = True
                     candidate_text += part.text
 
+                # Check function_call part (for computer_use preview model)
+                function_call = getattr(part, "function_call", None)
+                if function_call is not None:
+                    if isinstance(function_call, dict):
+                        fc_name = function_call.get("name")
+                        fc_args = function_call.get("args")
+                    else:
+                        fc_name = getattr(function_call, "name", None)
+                        fc_args = getattr(function_call, "args", None)
+
+                    if fc_name is not None or fc_args is not None:
+                        any_content_found = True
+                        fc_dict = {
+                            "name": fc_name,
+                            "args": fc_args if fc_args is not None else {},
+                        }
+                        fc_json = json.dumps({"function_call": fc_dict})
+                        if candidate_text and not candidate_text.endswith("\n"):
+                            candidate_text += "\n"
+                        candidate_text += fc_json
+
             if non_text_parts_found:
-                print(
-                    f"Warning: Candidate {i}: Contains non-text parts: {non_text_parts_found}. "
-                    "Returning concatenated text from text parts only for this candidate."
+                logger.warning(
+                    f"Candidate {i}: Contains unhandled non-text parts: {non_text_parts_found}."
                 )
 
-            all_texts.append(candidate_text if any_text_part_found else None)
+            all_texts.append(candidate_text if any_content_found else None)
 
         return all_texts
 
@@ -243,3 +347,4 @@ class GeminiService(BaseService):
         :return: A Gemini client instance.
         """
         return genai.Client(api_key=api_key)
+

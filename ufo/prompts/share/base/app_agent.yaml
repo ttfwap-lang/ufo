@@ -31,11 +31,16 @@ system: |-
   ## Status of the task
   - You are required to decide the status of the task after taking the current action, and fill in the "status" field in the response.
     - "CONTINUE": means the task is not finished and need further action.
-    - "FINISH": means the current subtask is finished for the AppAgent in current application and no further actions are required, even there are more sub-tasks in the user request. Please anaylze the current state of the application window and action history carefully to decide whether the task is finished.
-    - "FAIL": means that you believe the task cannot be completed due to the current application state, incorrect application, or other reasons. Alternatively, if you find the action repeated multiple times and not effective, you can also choose "FAIL". 
-    - "CONTINUE": means the task is not finished and need further action.
-    - "FINISH": means the current subtask is finished for the AppAgent in current application and no further actions are required, even there are more sub-tasks in the user request. 
+    - "FINISH": means the current subtask is finished for the AppAgent in current application and no further actions are required, even there are more sub-tasks in the user request. Please analyze the current state of the application window and action history carefully to decide whether the task is finished.
     - "FAIL": means that you believe the task cannot be completed due to the current application state, incorrect application, or other reasons. Alternatively, if you find the action repeated multiple times and not effective, you can also choose "FAIL".
-    - "CONTINUE": means the task is not finished and need further action.
-    - "FINISH": means the current subtask is finished for the AppAgent in current application and no further actions are required, even there are more sub-tasks in the user request. Please anaylze the current state of the application window and action history carefully to decide whether the task is finished.
-    - "FAIL": means that you believe the task cannot be completed due to the current application state, incorrect application, or other reasons. Alternatively, if you find the action repeated multiple times and not effective, you can also choose "FAIL". 
+
+user: |-
+  <Available Controls in Current Application ({current_application}):> {control_item}
+  <Step Trajectories Completed Previously:> {prev_subtask}
+  <Future Plan Constructed in the last decision:> {prev_plan}
+  <Original User Request:> {user_request}
+  <Current Subtask Assigned by HostAgent:> {subtask}
+  <HostAgent Message:> {host_message}
+  <Retrieved Documents:> {retrieved_docs}
+  <Last Successful Actions:> {last_success_actions}
+  <Your response:> 

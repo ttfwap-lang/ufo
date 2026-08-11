@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from io import BytesIO
 from typing import Dict, List, Optional, Tuple, TYPE_CHECKING, Any
 
-from PIL import Image, ImageDraw, ImageFont, ImageGrab
+from PIL import Image, ImageDraw, ImageFont, ImageGrab, ImageStat
 
 # Conditional imports for Windows-specific packages
 if TYPE_CHECKING or platform.system() == "Windows":
@@ -31,6 +31,129 @@ ufo_config = get_ufo_config()
 logger = logging.getLogger(__name__)
 
 DEFAULT_PNG_COMPRESS_LEVEL = int(ufo_config.system.default_png_compress_level)
+
+
+def is_valid_capture_image(image: Optional[Image.Image], min_stddev: float = 5.0) -> bool:
+    """
+    Validate whether a captured image is usable and non-empty.
+    Rejects None, tiny images (<=1x1), all-black images (getbbox() is None),
+    and low-entropy/solid-color blank renders (pixel RGB stddev <= min_stddev).
+    """
+    if image is None:
+        return False
+    try:
+        w, h = image.size
+        if w <= 1 or h <= 1:
+            return False
+        if image.getbbox() is None:
+            return False
+        stat = ImageStat.Stat(image.convert("RGB"))
+        max_stddev = max(stat.stddev) if stat.stddev else 0.0
+        if max_stddev <= min_stddev:
+            logger.warning(f"Captured image failed stddev check: max stddev={max_stddev:.2f} <= {min_stddev}")
+            return False
+        return True
+    except Exception as e:
+        logger.warning(f"Error validating image quality: {e}")
+        return False
+
+
+def _ensure_window_restored(hwnd: int) -> bool:
+    """
+    Check target window state and restore if minimized or hidden.
+    Calls SW_RESTORE / SW_SHOWNA, BringWindowToTop, and RedrawWindow if minimized/hidden.
+    """
+    try:
+        import win32gui
+        import win32con
+        import time
+
+        if not hwnd or not win32gui.IsWindow(hwnd):
+            return False
+
+        is_minimized = win32gui.IsIconic(hwnd)
+        is_visible = win32gui.IsWindowVisible(hwnd)
+
+        if is_minimized or not is_visible:
+            logger.info(f"Target window hwnd={hwnd} is minimized/hidden (is_minimized={is_minimized}, is_visible={is_visible}). Restoring window state.")
+            if is_minimized:
+                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+            win32gui.ShowWindow(hwnd, win32con.SW_SHOWNA)
+            try:
+                win32gui.BringWindowToTop(hwnd)
+            except Exception:
+                pass
+            win32gui.RedrawWindow(
+                hwnd, None, None,
+                win32con.RDW_INVALIDATE | win32con.RDW_UPDATENOW | win32con.RDW_ALLCHILDREN
+            )
+            time.sleep(0.1)
+            return True
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to restore window state for hwnd={hwnd}: {e}")
+        return False
+
+
+def _crop_desktop_rect(hwnd: int, rect: Tuple[int, int, int, int]) -> Optional[Image.Image]:
+    """
+    Crops primary DWM desktop screenshot for GPU swap-chain windows.
+    :param hwnd: Target window handle.
+    :param rect: Target window bounding box tuple (left, top, right, bottom).
+    :return: Cropped PIL Image, or None on failure.
+    """
+    try:
+        import win32gui
+        import win32con
+        import time
+
+        if hwnd and win32gui.IsWindow(hwnd):
+            win32gui.ShowWindow(hwnd, win32con.SW_SHOWNA)
+            try:
+                win32gui.BringWindowToTop(hwnd)
+            except Exception:
+                pass
+            time.sleep(0.05)
+
+        desktop_photographer = DesktopPhotographer(all_screens=False)
+        desktop_img = desktop_photographer.capture()
+
+        if is_valid_capture_image(desktop_img):
+            left, top, right, bottom = rect
+            w, h = desktop_img.size
+            left = max(0, min(left, w - 1))
+            top = max(0, min(top, h - 1))
+            right = max(left + 1, min(right, w))
+            bottom = max(top + 1, min(bottom, h))
+
+            if right > left and bottom > top:
+                cropped = desktop_img.crop((left, top, right, bottom))
+                if is_valid_capture_image(cropped):
+                    logger.info(f"Successfully captured GPU window via Desktop DC cropping ({cropped.size})")
+                    return cropped
+    except Exception as e:
+        logger.warning(f"Desktop DC cropping fallback failed for hwnd={hwnd}: {e}")
+    return None
+
+
+def _create_diagnostic_error_frame() -> Image.Image:
+    """
+    Synthesize an informative 800x600 warning banner frame instead of a 1x1 black placeholder.
+    """
+    img = Image.new("RGB", (800, 600), (30, 30, 35))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([(10, 10), (790, 590)], outline=(220, 50, 50), width=4)
+    title = "UFO SCREENSHOT CAPTURE WARNING"
+    body = (
+        "All screenshot capture methods (ImageGrab, BitBlt, PrintWindow, Relay) failed\n"
+        "or produced an empty/black screen render.\n\n"
+        "Diagnostic Info:\n"
+        "- Target window or desktop could not be captured cleanly.\n"
+        "- Please check Windows display session / RDP / desktop isolation status."
+    )
+    draw.text((40, 40), title, fill=(255, 100, 100))
+    draw.text((40, 90), body, fill=(240, 240, 240))
+    return img
 
 
 class Photographer(ABC):
@@ -82,50 +205,57 @@ class ControlPhotographer(Photographer):
     def capture(self, save_path: str = None, scalar: List[int] = None) -> Image.Image:
         """
         Capture a screenshot of the control window.
-        Falls back through: pywinauto -> PrintWindow -> desktop screenshot.
+        Falls back through: pywinauto -> PrintWindow -> _crop_desktop_rect -> desktop screenshot.
         :param save_path: The path to save the screenshot.
+        :param scalar: Scale dimensions [width, height].
         :return: The screenshot.
         """
         screenshot = None
+        hwnd = getattr(self.control, "handle", None)
+
+        if hwnd:
+            _ensure_window_restored(hwnd)
 
         # Attempt 1: capture via pywinauto
         try:
             screenshot = self.control.capture_as_image()
+            if not is_valid_capture_image(screenshot):
+                logger.warning("control.capture_as_image() returned invalid/black image")
+                screenshot = None
         except Exception as e:
             logger.warning(f"control.capture_as_image() failed: {e}")
 
-        # Validate the captured image
-        if screenshot is not None:
-            try:
-                w, h = screenshot.size
-                if w <= 1 or h <= 1:
-                    logger.warning("control.capture_as_image() returned a tiny image, treating as invalid")
-                    screenshot = None
-            except Exception:
-                screenshot = None
-
         # Attempt 2: PrintWindow API (works on disconnected RDP sessions)
-        if screenshot is None:
+        if screenshot is None and hwnd:
             try:
-                hwnd = self.control.handle
-                if hwnd:
-                    logger.info("Trying PrintWindow for window capture (RDP-safe)")
-                    screenshot = _win32_print_window(hwnd)
-                    if screenshot is not None:
-                        w, h = screenshot.size
-                        if w <= 1 or h <= 1 or screenshot.getbbox() is None:
-                            logger.warning("PrintWindow returned empty/tiny image")
-                            screenshot = None
+                logger.info("Trying PrintWindow for window capture (RDP-safe)")
+                screenshot = _win32_print_window(hwnd)
+                if not is_valid_capture_image(screenshot):
+                    logger.warning("PrintWindow returned invalid/black image")
+                    screenshot = None
             except Exception as e:
                 logger.warning(f"PrintWindow fallback failed: {e}")
 
-        # Attempt 3: fall back to desktop capture
+        # Attempt 3: Desktop DC Bounding Box Crop (for GPU swap-chain windows)
+        if screenshot is None and hwnd:
+            try:
+                logger.info("Trying Desktop DC Bounding Box Crop for GPU window")
+                rect = self.control.rectangle()
+                crop_rect = (rect.left, rect.top, rect.right, rect.bottom)
+                screenshot = _crop_desktop_rect(hwnd, crop_rect)
+                if not is_valid_capture_image(screenshot):
+                    logger.warning("_crop_desktop_rect returned invalid image")
+                    screenshot = None
+            except Exception as e:
+                logger.warning(f"Desktop DC Bounding Box Crop failed: {e}")
+
+        # Attempt 4: fall back to desktop screenshot
         if screenshot is None:
             logger.info("Falling back to desktop screenshot for window capture")
             desktop = DesktopPhotographer(all_screens=False)
             screenshot = desktop.capture()
 
-        if scalar is not None:
+        if scalar is not None and screenshot is not None:
             screenshot = self.rescale_image(screenshot, scalar)
 
         if save_path is not None and screenshot is not None:
@@ -198,7 +328,9 @@ def _win32_print_window(hwnd: int) -> Optional[Image.Image]:
         win32gui.ReleaseDC(hwnd, hwnd_dc)
         win32gui.DeleteObject(bmp.GetHandle())
 
-        return screenshot
+        if is_valid_capture_image(screenshot):
+            return screenshot
+        return None
     except Exception as e:
         logger.warning(f"PrintWindow capture failed for hwnd={hwnd}: {e}")
         return None
@@ -248,11 +380,10 @@ def _win32_grab_screen() -> Optional[Image.Image]:
         win32gui.ReleaseDC(hdesktop, desktop_dc)
         win32gui.DeleteObject(screenshot_bmp.GetHandle())
 
-        # Validate: check it's not all-black (common on disconnected RDP)
-        if screenshot.getbbox() is not None:
+        if is_valid_capture_image(screenshot):
             return screenshot
         else:
-            logger.warning("BitBlt returned all-black image (likely disconnected RDP)")
+            logger.warning("BitBlt returned invalid/black image (likely disconnected RDP)")
     except Exception as e:
         logger.warning(f"win32 BitBlt screen grab failed: {e}")
 
@@ -261,27 +392,52 @@ def _win32_grab_screen() -> Optional[Image.Image]:
         import win32gui
         hdesktop = win32gui.GetDesktopWindow()
         screenshot = _win32_print_window(hdesktop)
-        if screenshot is not None and screenshot.getbbox() is not None:
+        if is_valid_capture_image(screenshot):
             return screenshot
         else:
-            logger.warning("PrintWindow on desktop returned empty image")
+            logger.warning("PrintWindow on desktop returned empty/invalid image")
     except Exception as e:
         logger.warning(f"PrintWindow desktop capture failed: {e}")
 
-    # Attempt 3: PrintWindow on the foreground window as a best-effort
-    # desktop substitute (works on disconnected RDP for GUI windows)
+    # Attempt 3: Virtual Desktop Reconstruction
     try:
         import win32gui
-        fg_hwnd = win32gui.GetForegroundWindow()
-        if fg_hwnd and fg_hwnd != 0:
-            logger.info("Trying PrintWindow on foreground window as desktop fallback")
-            screenshot = _win32_print_window(fg_hwnd)
-            if screenshot is not None and screenshot.getbbox() is not None:
-                return screenshot
-            else:
-                logger.warning("PrintWindow on foreground window returned empty image")
+        import win32con
+        import win32api
+        
+        logger.info("Attempting Virtual Desktop Reconstruction fallback")
+        width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
+        height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
+        if width == 0: width = win32api.GetSystemMetrics(win32con.SM_CXSCREEN)
+        if height == 0: height = win32api.GetSystemMetrics(win32con.SM_CYSCREEN)
+        if width == 0: width, height = 1920, 1080
+        
+        desktop_img = Image.new("RGB", (width, height), (0, 0, 0))
+        windows = []
+        
+        def callback(hwnd, windows_list):
+            if win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd):
+                rect = win32gui.GetWindowRect(hwnd)
+                # Filter out minimized/invisible bounds
+                if rect[2] - rect[0] > 0 and rect[3] - rect[1] > 0:
+                    img = _win32_print_window(hwnd)
+                    if img and is_valid_capture_image(img):
+                        windows_list.append((rect, img))
+            return True
+            
+        win32gui.EnumWindows(callback, windows)
+        
+        if not windows:
+            logger.info("Virtual Desktop Reconstruction yielded no windows.")
+            
+        # Paint windows from back to front (reversed enum order)
+        for rect, img in reversed(windows):
+            desktop_img.paste(img, (rect[0], rect[1]))
+            
+        if is_valid_capture_image(desktop_img):
+            return desktop_img
     except Exception as e:
-        logger.warning(f"PrintWindow foreground window capture failed: {e}")
+        logger.warning(f"Virtual Desktop Reconstruction failed: {e}")
 
     logger.error("All win32 screen grab methods failed")
     return None
@@ -302,8 +458,9 @@ class DesktopPhotographer(Photographer):
     def capture(self, save_path: str = None, scalar: List[int] = None) -> Image.Image:
         """
         Capture a screenshot with fallbacks.
-        Tries: ImageGrab(all_screens) -> ImageGrab(primary only) -> win32 API.
+        Tries: ImageGrab(all_screens) -> ImageGrab(primary only) -> win32 API -> Relay -> Diagnostic Frame.
         :param save_path: The path to save the screenshot.
+        :param scalar: Scale dimensions [width, height].
         :return: The screenshot.
         """
         screenshot = None
@@ -311,6 +468,9 @@ class DesktopPhotographer(Photographer):
         # Attempt 1: ImageGrab with requested all_screens setting
         try:
             screenshot = ImageGrab.grab(all_screens=self.all_screens)
+            if not is_valid_capture_image(screenshot):
+                logger.warning(f"ImageGrab.grab(all_screens={self.all_screens}) returned invalid image")
+                screenshot = None
         except Exception as e:
             logger.warning(f"ImageGrab.grab(all_screens={self.all_screens}) failed: {e}")
 
@@ -319,6 +479,9 @@ class DesktopPhotographer(Photographer):
             try:
                 logger.info("Retrying screenshot with primary screen only")
                 screenshot = ImageGrab.grab(all_screens=False)
+                if not is_valid_capture_image(screenshot):
+                    logger.warning("ImageGrab.grab(all_screens=False) returned invalid image")
+                    screenshot = None
             except Exception as e:
                 logger.warning(f"ImageGrab.grab(all_screens=False) also failed: {e}")
 
@@ -326,6 +489,9 @@ class DesktopPhotographer(Photographer):
         if screenshot is None:
             logger.info("Falling back to win32 API screen capture")
             screenshot = _win32_grab_screen()
+            if not is_valid_capture_image(screenshot):
+                logger.warning("_win32_grab_screen returned invalid image")
+                screenshot = None
 
         # Attempt 4: Relay screenshot fallback for Session 0
         if screenshot is None:
@@ -349,20 +515,30 @@ print(base64.b64encode(buf.getvalue()).decode("utf-8"))
                     res_data = json.loads(response.read().decode('utf-8'))
                     if res_data['status'] == 'success':
                         b64_img = res_data['output'].strip()
-                        screenshot = Image.open(io.BytesIO(base64.b64decode(b64_img)))
-                        logger.info("Successfully captured screenshot via desktop relay.")
+                        candidate = Image.open(io.BytesIO(base64.b64decode(b64_img)))
+                        if is_valid_capture_image(candidate):
+                            screenshot = candidate
+                            logger.info("Successfully captured screenshot via desktop relay.")
             except Exception as e:
                 logger.warning(f"Desktop relay fallback failed: {e}")
 
+        # Final Fallback: Diagnostic Error Banner (replaces 1x1 black placeholder image)
         if screenshot is None:
-            logger.error("All screenshot capture methods failed; returning 1x1 placeholder image")
-            screenshot = Image.new("RGB", (1, 1), (0, 0, 0))
+            logger.error("All screenshot capture methods failed; generating diagnostic error frame")
+            screenshot = self._create_diagnostic_error_frame()
 
-        if scalar is not None:
+        if scalar is not None and screenshot is not None:
             screenshot = self.rescale_image(screenshot, scalar)
         if save_path is not None and screenshot is not None:
             screenshot.save(save_path, compress_level=DEFAULT_PNG_COMPRESS_LEVEL)
         return screenshot
+
+    @staticmethod
+    def _create_diagnostic_error_frame() -> Image.Image:
+        """
+        Synthesize an informative 800x600 warning banner frame instead of a 1x1 black placeholder.
+        """
+        return _create_diagnostic_error_frame()
 
 
 class PhotographerDecorator(Photographer):

@@ -514,16 +514,18 @@ class AppAgent(BasicAgent):
         )
 
         tool_list = result[0].result if result else None
+        if not isinstance(tool_list, list):
+            tool_list = []
 
         tool_name_list = (
-            [tool.get("tool_name") for tool in tool_list] if tool_list else []
+            [tool.get("tool_name") for tool in tool_list if isinstance(tool, dict)] if tool_list else []
         )
 
         self.logger.info(
             f"Loaded tool list: {tool_name_list} for the application {self._process_name}."
         )
 
-        tools_info = [MCPToolInfo(**tool) for tool in tool_list]
+        tools_info = [MCPToolInfo(**tool) for tool in tool_list if isinstance(tool, dict)]
 
         # Update the tool information in the context for future use
         context.update_dict(ContextNames.TOOL_INFO, {self._name: tools_info})

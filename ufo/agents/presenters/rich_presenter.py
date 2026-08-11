@@ -186,7 +186,7 @@ class RichPresenter(BasePresenter):
         :param plan: List of plan items
         """
         if plan:
-            plan_str = "\n".join(plan) if isinstance(plan, list) else str(plan)
+            plan_str = "\n".join([str(p) for p in plan if p is not None]) if isinstance(plan, list) else str(plan)
             self.console.print(
                 Panel(
                     self._safe_text(plan_str),
@@ -384,7 +384,7 @@ class RichPresenter(BasePresenter):
         thought = response.thought
         subtask = response.current_subtask
         result = response.result
-        message = "\n".join(response.message) if response.message else ""
+        message = "\n".join([str(m) for m in response.message if m is not None]) if isinstance(response.message, list) else str(response.message or "")
         plan = [subtask] + list(response.plan)
         plan_str = "\n".join([f"({i+1}) {str(item)}" for i, item in enumerate(plan)])
         status = response.status
