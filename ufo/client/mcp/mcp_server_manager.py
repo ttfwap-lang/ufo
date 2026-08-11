@@ -110,6 +110,8 @@ class LocalMCPServer(BaseMCPServer):
         Start the local MCP server and return the FastMCP instance.
         :return: FastMCP instance for local in-memory server.
         """
+        import ufo.client.mcp.local_servers
+        ufo.client.mcp.local_servers.load_all_servers()
         server_namespace = self._config.get("namespace", "default")
 
         try:
@@ -206,6 +208,8 @@ class MCPServerManager:
         :return: A string URL for HTTP servers or a FastMCP instance for local in-memory servers, or a StdioTransport instance.
         """
 
+        import ufo.client.mcp.local_servers
+        ufo.client.mcp.local_servers.load_all_servers()
         raw_type = mcp_config.get("type")
         if raw_type is None or str(raw_type).strip().lower() in ("none", "null", ""):
             server_type = "local"

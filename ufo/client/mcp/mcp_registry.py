@@ -45,6 +45,8 @@ class MCPRegistry:
         :return: FastMCP instance.
         :raises KeyError: If no server is registered under the given name.
         """
+        import ufo.client.mcp.local_servers
+        ufo.client.mcp.local_servers.load_all_servers()
         if name in cls._instances:
             return cls._instances[name]
         if name in cls._factories:
