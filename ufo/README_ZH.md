@@ -1,10 +1,10 @@
 <!-- markdownlint-disable MD033 MD041 -->
 
 <h1 align="center">
-  <b>UFO²</b> <img src="../assets/ufo_blue.png" alt="UFO logo" width="40"> :&nbsp;桌面操作系统智能体
+  <b>UFO³</b> <img src="assets/logo3.png" alt="UFO logo" width="70" style="vertical-align: -30px;"> : 编织数字智能体星系
 </h1>
-<parameter name="content">
-  <em>将自然语言请求转化为 Windows 上自动化、可靠的多应用程序工作流，超越以 UI 为中心。</em>
+<p align="center">
+  <em>从单设备智能体到多设备星系</em>
 </p>
 
 <p align="center">
@@ -14,434 +14,468 @@
 </p>
 
 <div align="center">
+<a href="https://trendshift.io/repositories/7874" target="_blank"><img src="https://trendshift.io/api/badge/repositories/7874" alt="microsoft%2FUFO | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<br/>
 
+[![arxiv](https://img.shields.io/badge/Paper-arXiv:2511.11332-b31b1b.svg)](https://arxiv.org/abs/2511.11332)&ensp;
 [![arxiv](https://img.shields.io/badge/Paper-arXiv:2504.14603-b31b1b.svg)](https://arxiv.org/abs/2504.14603)&ensp;
 ![Python Version](https://img.shields.io/badge/Python-3776AB?&logo=python&logoColor=white-blue&label=3.10%20%7C%203.11)&ensp;
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)&ensp;
 [![Documentation](https://img.shields.io/badge/Documentation-%230ABAB5?style=flat&logo=readthedocs&logoColor=black)](https://microsoft.github.io/UFO/)&ensp;
-[![YouTube](https://img.shields.io/badge/YouTube-white?logo=youtube&logoColor=%23FF0000)](https://www.youtube.com/watch?v=QT_OhygMVXU)&ensp;
-
+[![YouTube](https://img.shields.io/badge/YouTube-white?logo=youtube&logoColor=%23FF0000)](https://www.youtube.com/watch?v=NGrVWGcJL8o)&ensp;
 </div>
 
 <p align="center">
-  <strong>⬆️ 寻找 UFO³ (多设备星系)?</strong>
-  <a href="../README_ZH.md">🌌 返回 UFO³ 主 README</a>
+  <strong>📚 快速链接：</strong>
+  <a href="./galaxy/README_ZH.md">🌌 UFO³  中文文档</a> •
+  <a href="./ufo/README_ZH.md">🖥️ UFO² 中文文档</a> •
+  <a href="https://microsoft.github.io/UFO/">📖 完整文档</a>
 </p>
-
-<h1 align="center">
-    <img src="../assets/comparison.png" width="60%"/> 
-</h1>
 
 ---
 
-## ✨ 核心能力
+## 🎯 选择您的路径
+
+<table align="center">
+<tr>
+<td width="50%" valign="top">
+
+### <img src="assets/logo3.png" alt="Galaxy logo" width="40" style="vertical-align: -10px;"> **UFO³ 多设备智能体星系**
+<sub>**✨ 新功能 & 推荐**</sub>
+
+**适用于：**
+- 🔗 跨设备协作工作流
+- 📊 复杂的多步骤自动化  
+- 🎯 基于 DAG 的任务编排
+- 🌍 异构平台集成
+
+**关键功能：**
+- **星座（Constellation）**：任务分解为可执行 DAG
+- **动态 DAG 编辑**，自适应工作流演化
+- **异步执行**，并行任务协调
+- **统一 AIP 协议**，安全智能体通信
+
+**📖 [Galaxy 中文文档 →](./galaxy/README_ZH.md)**  
+**📖 [Galaxy 快速入门 →](https://microsoft.github.io/UFO/getting_started/quick_start_galaxy/)** ⭐ **在线文档**
+
+</td>
+<td width="50%" valign="top">
+
+### <img src="assets/ufo_blue.png" alt="UFO² logo" width="30" style="vertical-align: -5px;"> **UFO² 桌面智能体操作系统**
+<sub>**稳定 & 经过实战检验**</sub>
+
+**适用于：**
+- 💻 单个 Windows 自动化
+- ⚡ 快速任务执行
+- 🎓 学习智能体基础知识
+- 🛠️ 简单工作流
+
+**关键功能：**
+- 深度 Windows 操作系统集成
+- 混合 GUI + API 操作
+- 经过验证的可靠性
+- 易于设置
+- 可作为 Galaxy 设备智能体
+
+**📖 [UFO² 中文文档 →](./ufo/README_ZH.md)**
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🎬 观看 UFO³ Galaxy 实际操作
+
+观看 UFO³ Galaxy 如何跨多个设备编排复杂工作流：
+
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=NGrVWGcJL8o">
+    <img src="assets/poster_with_play.png" alt="UFO³ Galaxy 演示" width="90%">
+  </a>
+  <p><em>🎥 点击观看：使用 UFO³ Galaxy 进行跨设备任务编排</em></p>
+</div>
+
+---
+
+## 🌟 UFO³ 有什么新功能？
+
+### 演化时间线
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#E8F4F8','primaryTextColor':'#1A1A1A','primaryBorderColor':'#7CB9E8','lineColor':'#A8D5E2','secondaryColor':'#B8E6F0','tertiaryColor':'#D4F1F4','fontSize':'16px','fontFamily':'Microsoft YaHei, Segoe UI, Arial, sans-serif'}}}%%
+graph LR
+    A["<b>🎈 UFO</b><br/><span style='font-size:14px'>2024年2月</span><br/><span style='font-size:13px; color:#666'><i>Windows GUI 智能体</i></span>"] 
+    B["<b>🖥️ UFO²</b><br/><span style='font-size:14px'>2025年4月</span><br/><span style='font-size:13px; color:#666'><i>桌面智能体操作系统</i></span>"]
+    C["<b>🌌 UFO³ Galaxy</b><br/><span style='font-size:14px'>2025年11月</span><br/><span style='font-size:13px; color:#666'><i>多设备编排</i></span>"]
+    
+    A -->|演进| B
+    B -->|扩展| C
+    
+    style A fill:#E8F4F8,stroke:#7CB9E8,stroke-width:2.5px,color:#1A1A1A,rx:15,ry:15
+    style B fill:#C5E8F5,stroke:#5BA8D0,stroke-width:2.5px,color:#1A1A1A,rx:15,ry:15
+    style C fill:#A4DBF0,stroke:#3D96BE,stroke-width:2.5px,color:#1A1A1A,rx:15,ry:15
+```
+
+### 🚀 UFO³ = **Galaxy**（多设备编排）+ **UFO²**（设备智能体）
+
+UFO³ 引入了 **Galaxy**，这是一个革命性的多设备编排框架，可在异构平台上协调智能智能体。建立在五个紧密集成的设计原则之上：
+
+1. **🌟 声明式分解为动态 DAG** - 请求分解为带有 TaskStars 和依赖关系的结构化 DAG，支持自动调度和运行时重写
+
+2. **🔄 持续的结果驱动图演化** - 活动星座根据执行反馈通过受控重写和动态调整进行适应
+
+3. **⚡ 异构、异步与安全编排** - 基于能力的设备匹配，异步执行、安全锁定和形式化验证的正确性
+
+4. **🔌 统一的智能体交互协议（AIP）** - 基于 WebSocket 的安全协调层，具有容错和自动重连功能
+
+5. **🛠️ 模板驱动的 MCP 赋能设备智能体** - 用于快速智能体开发的轻量级工具包，集成 MCP 进行工具增强
+
+| 方面 | UFO² | UFO³ Galaxy |
+|--------|------|-------------|
+| **架构** | 单个 Windows 智能体 | 多设备编排 |
+| **任务模型** | 顺序 ReAct 循环 | 基于 DAG 的星座工作流 |
+| **范围** | 单设备，多应用 | 多设备，跨平台 |
+| **协调** | HostAgent + AppAgents | ConstellationAgent + TaskOrchestrator |
+| **设备支持** | Windows 桌面 | Windows、Linux、Android（更多平台即将推出） |
+| **任务规划** | 应用程序级别 | 设备级别，带依赖关系 |
+| **执行** | 顺序 | 并行 DAG 执行 |
+| **设备智能体角色** | 独立 | 可作为 Galaxy 设备智能体 |
+| **复杂性** | 简单到中等 | 简单到非常复杂 |
+| **学习曲线** | 低 | 中等 |
+| **跨设备协作** | ❌ 不支持 | ✅ 核心功能 |
+| **设置难度** | ✅ 简单 | ⚠️ 中等 |
+| **状态** | ✅ LTS（长期支持） | ⚡ 积极开发 |
+
+### 🎓 迁移路径
+
+**对于 UFO² 用户：**
+1. ✅ **继续使用 UFO²** – 完全支持，积极维护
+2. 🔄 **渐进式采用** – Galaxy 可以使用 UFO² 作为 Windows 设备智能体
+3. 📈 **扩展** – 当您需要多设备功能时迁移到 Galaxy
+4. 📚 **学习资源** – [迁移指南](./documents/docs/getting_started/migration_ufo2_to_galaxy.md)
+
+---
+
+## ✨ 功能概览
+
+### 🌌 Galaxy 框架 – 有什么不同？
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+#### 🌟 星座规划
+
+```
+用户请求
+     ↓
+星座智能体
+     ↓
+  [任务 DAG]
+   /   |   \
+任务1 任务2 任务3
+(Win) (Linux)(Mac)
+```
+
+**优势：**
+- 跨设备依赖关系跟踪
+- 并行执行优化
+- 跨设备数据流管理
+
+</td>
+<td width="33%" valign="top">
+
+#### 🎯 设备分配
+
+```
+选择标准
+  • 平台兼容性
+  • 资源可用性
+  • 任务要求
+  • 性能历史
+        ↓
+  自动分配
+        ↓
+  最佳设备
+```
+
+**智能匹配：**
+- 基于能力的选择
+- 实时资源监控
+- 动态重新分配
+
+</td>
+<td width="33%" valign="top">
+
+#### 📊 实时编排
+
+```
+任务1 → 运行中  ✅
+任务2 → 等待中  ⏸️
+任务3 → 运行中  🔄
+        ↓
+   完成汇总
+        ↓
+   最终报告
+```
+
+**编排功能：**
+- 实时状态更新
+- 自动错误恢复
+- 进度跟踪反馈
+
+</td>
+</tr>
+</table>
+
+---
+
+### 🪟 UFO² 桌面智能体操作系统 – 核心优势
+
+UFO² 扮演双重角色：**独立 Windows 自动化**和 Windows 平台的 **Galaxy 设备智能体**。
+
 <div align="center">
 
-| [深度操作系统集成](https://microsoft.github.io/UFO)  | 画中画桌面 *(即将推出)* | [混合 GUI + API 操作](https://microsoft.github.io/UFO/automator/overview) |
-|---------------------|-------------------------------------------|---------------------------|
-| 结合 Windows UIA、Win32 和 WinCOM 实现一流的控件检测和本地命令。 | 自动化在沙盒虚拟桌面中运行，您可以继续使用主屏幕。 | 优先使用原生 API，不可用时回退到点击/按键——快速*且*稳健。 |
-
-| [推测性多操作](https://microsoft.github.io/UFO/advanced_usage/multi_action) | [持续知识基底](https://microsoft.github.io/UFO/advanced_usage/reinforce_appagent/overview/) | [UIA + 视觉控件检测](https://microsoft.github.io/UFO/advanced_usage/control_detection/hybrid_detection) |
-|--------------------------|--------------------------------|--------------------------------|
-| 将多个预测步骤打包到一次 LLM 调用中，实时验证——**减少 51% 的查询次数**。 | 通过 RAG 混合文档、必应搜索、用户演示和执行轨迹，使智能体随时间学习。 | 使用混合 UIA + 视觉管道检测标准*和*自定义控件。 |
+| 功能 | 描述 | 文档 |
+|---------|-------------|---------------|
+| **深度操作系统集成** | Windows UIA、Win32、WinCOM 原生控件 | [了解更多](https://microsoft.github.io/UFO) |
+| **混合操作** | GUI 点击 + API 调用以获得最佳性能 | [了解更多](https://microsoft.github.io/UFO/automator/overview) |
+| **推测性多操作** | 批量预测 → **减少 51% 的 LLM 调用** | [了解更多](https://microsoft.github.io/UFO/advanced_usage/multi_action) |
+| **视觉 + UIA 检测** | 用于稳健性的混合控件检测 | [了解更多](https://microsoft.github.io/UFO/advanced_usage/control_detection/hybrid_detection) |
+| **知识基底** | 带有文档、演示、执行轨迹的 RAG | [了解更多](https://microsoft.github.io/UFO/advanced_usage/reinforce_appagent/overview/) |
+| **设备智能体角色** | 可作为 Galaxy 编排中的 Windows 执行器 | [了解更多](./galaxy/README_ZH.md) |
 
 </div>
 
-*查看[文档](https://microsoft.github.io/UFO/)了解完整详情。*
+**作为 Galaxy 设备智能体：**
+- 通过 Galaxy 编排层从 ConstellationAgent 接收任务
+- 使用经过验证的 UFO² 功能执行 Windows 特定的操作
+- 向 TaskOrchestrator 报告状态和结果
+- 无缝参与跨设备工作流
 
 ---
 
-## 📢 新闻
-- 📅 2025-04-19: 版本 **v2.0.0** 发布！我们很高兴宣布 **UFO²** 发布！UFO² 是对原始 UFO 的重大升级，具有增强的功能。它引入了 **AgentOS** 概念，能够无缝集成多个智能体以完成复杂任务。请查看我们的[新技术报告](https://arxiv.org/pdf/2504.14603)了解更多详情。
-- 📅 ...
-- 📅 2024-02-14: 我们的 UFO [技术报告](https://arxiv.org/abs/2402.07939)已上线！
-- 📅 2024-02-10: UFO 的第一个版本在 GitHub 上发布🎈。春节快乐🐉！
+## 🚀 快速入门指南
 
----
+选择您的路径并遵循详细的设置指南：
 
-## 🏗️ 架构概览
-<p align="center">
-  <img src="../assets/framework2.png"  width="80%" alt="UFO² 架构"/>
-</p>
+<table align="center">
+<tr>
+<td width="50%" valign="top">
 
+### 🌌 Galaxy 快速入门
 
-UFO² 作为**桌面操作系统智能体**运行，包含一个多智能体框架，包括：
+**用于跨设备编排**
 
-1. **HostAgent（主机智能体）** – 解析自然语言目标，启动必要的应用程序，启动/协调 AppAgents，并控制全局有限状态机（FSM）。
-2. **AppAgents（应用智能体）** – 每个应用程序一个；每个运行一个 ReAct 循环，具有多模态感知、混合控件检测、检索增强知识和选择 GUI 操作和原生 API 之间的 **Puppeteer** 执行器。
-3. **知识基底** – 将离线文档、在线搜索、演示和执行轨迹混合到向量存储中，在推理时实时检索。
-4. **推测性执行器** – 通过预测可能的操作批次并在一次调用中根据实时 UIA 状态验证它们，大幅降低 LLM 延迟。
-5. **画中画桌面** *(即将推出)* – 在隔离的虚拟桌面中运行智能体，因此您的主工作区和输入设备保持不变。
-
-有关深入了解，请参阅我们的[技术报告](https://arxiv.org/pdf/2504.14603)或[文档网站](https://microsoft.github.io/UFO)。
-
----
-
-## 🌐 媒体报道
-
-UFO 的出现引起了各种媒体的关注，包括：
-- [微软正式开源UFO²，Windows桌面迈入「AgentOS 时代」](https://www.jiqizhixin.com/articles/2025-05-06-13)
-- [Microsoft's UFO abducts traditional user interfaces for a smarter Windows experience](https://the-decoder.com/microsofts-ufo-abducts-traditional-user-interfaces-for-a-smarter-windows-experience/)
-- [🚀 UFO & GPT-4-V: Sit back and relax, mientras GPT lo hace todo🌌](https://www.linkedin.com/posts/gutierrezfrancois_ai-ufo-microsoft-activity-7176819900399652865-pLoo?utm_source=share&utm_medium=member_desktop)
-- [The AI PC - The Future of Computers? - Microsoft UFO](https://www.youtube.com/watch?v=1k4LcffCq3E)
-- [下一代Windows系统曝光：基于GPT-4V，Agent跨应用调度，代号UFO](https://baijiahao.baidu.com/s?id=1790938358152188625&wfr=spider&for=pc)
-- [下一代智能版 Windows 要来了？微软推出首个 Windows Agent，命名为 UFO！](https://blog.csdn.net/csdnnews/article/details/136161570)
-- [Microsoft発のオープンソース版「UFO」登場！　Windowsを自動操縦するAIエージェントを試す](https://internet.watch.impress.co.jp/docs/column/shimizu/1570581.html)
-- ...
-
-这些来源提供了对技术演变格局的见解，以及 UFO 现象对各种平台的影响。
-
----
-
-## 🚀 三分钟快速入门
-
-
-### 🛠️ 步骤 1：安装
-UFO 需要在 **Windows OS >= 10** 上运行 **Python >= 3.10**。可以通过运行以下命令进行安装：
 ```powershell
-# [可选：创建 conda 环境]
-# conda create -n ufo python=3.10
-# conda activate ufo
-
-# 克隆仓库
-git clone https://github.com/microsoft/UFO.git
-cd UFO
-# 安装依赖
+# 1. 安装依赖
 pip install -r requirements.txt
-# 如果想使用 Qwen 作为 LLM，请取消注释相关库。
+
+# 2. 配置 ConstellationAgent
+copy config\galaxy\agent.yaml.template config\galaxy\agent.yaml
+# 编辑配置文件，添加 API Key
+
+# 3. 配置设备
+# 编辑 config\galaxy\devices.yaml 注册您的设备
+
+# 4. 启动设备智能体（带平台标志）
+# Windows: 启动服务器 + 客户端
+# Linux: 启动服务器 + MCP 服务器 + 客户端  
+# Mobile (Android): 启动服务器 + MCP 服务器 + 客户端
+# 请参阅特定平台指南了解详细设置
+
+# 5. 启动 Galaxy
+python -m galaxy --interactive
 ```
 
-### ⚙️ 步骤 2：配置 LLM
+**📖 完整指南：**
+- [Galaxy 中文文档](./galaxy/README_ZH.md) – 架构和概念
+- [在线快速入门](https://microsoft.github.io/UFO/getting_started/quick_start_galaxy/) – 分步教程
+- [Windows 设备设置](https://microsoft.github.io/UFO/getting_started/quick_start_ufo2/)
+- [Linux 设备设置](https://microsoft.github.io/UFO/getting_started/quick_start_linux/)
+- [Mobile 设备设置](https://microsoft.github.io/UFO/getting_started/quick_start_mobile/) – Android 智能体设置
+- [配置](https://microsoft.github.io/UFO/configuration/system/galaxy_devices/) – 设备池配置
 
-> **📢 新配置系统（推荐）**  
-> UFO² 现在使用位于 `config/ufo/` 中的**新模块化配置系统**，具有自动发现和类型验证功能。虽然仍然支持传统的 `ufo/config/config.yaml` 以实现向后兼容，但我们强烈建议迁移到新系统以获得更好的可维护性。
+</td>
+<td width="50%" valign="top">
 
-#### **选项 1：新配置系统（推荐）**
+### 🪟 UFO² 快速入门
 
-新配置文件组织在 `config/ufo/` 中，不同组件使用单独的 YAML 文件：
+**用于 Windows 自动化**
 
 ```powershell
-# 复制模板以创建您的智能体配置文件（包含 API 密钥）
+# 1. 安装
+pip install -r requirements.txt
+
+# 2. 配置
 copy config\ufo\agents.yaml.template config\ufo\agents.yaml
-notepad config\ufo\agents.yaml   # 编辑您的 LLM API 凭据
+# 编辑并添加您的 API 密钥
+
+# 3. 运行
+python -m ufo --task <task_name>
 ```
 
-**目录结构：**
-```
-config/ufo/
-├── agents.yaml.template     # 模板：智能体配置（HOST_AGENT、APP_AGENT）- 复制并编辑此文件
-├── agents.yaml              # 您的智能体配置与 API 密钥（不要提交到 git）
-├── rag.yaml                 # RAG 和知识设置（默认值，如需要可编辑）
-├── system.yaml              # 系统设置（默认值，如需要可编辑）
-├── mcp.yaml                 # MCP 集成设置（默认值，如需要可编辑）
-└── ...                      # 其他具有默认值的模块化配置
-```
+**📖 完整指南：**
+- [UFO² 中文文档](./ufo/README_ZH.md) – 完整文档
+- [配置指南](./ufo/README_ZH.md#️-步骤-2配置-llm) – LLM 设置
+- [高级功能](https://microsoft.github.io/UFO/advanced_usage/overview/) – 多操作、RAG
 
-> 📝 **注意**：只有 `agents.yaml` 包含敏感信息（API 密钥）。其他配置文件具有默认值，仅在您想自定义设置时才需要编辑。
+</td>
+</tr>
+</table>
 
-**迁移优势：**
-- ✅ **类型安全**：使用 Pydantic 模式自动验证
-- ✅ **自动发现**：无需手动加载配置
-- ✅ **模块化**：将关注点分离到单独的文件中
-- ✅ **IDE 支持**：更好的自动完成和错误检测
+### 📋 常见配置
 
-**在代码中使用新配置：**
-```python
-from config.config_loader import get_ufo_config
+两个框架都需要 LLM API 配置。选择您的提供商：
 
-# 现代方法（类型安全、已验证）
-config = get_ufo_config()
-api_type = config.get("HOST_AGENT", "API_TYPE")
+<details>
+<summary><strong>OpenAI 配置</strong></summary>
 
-# 传统方法仍然有效（用于向后兼容）
-# from ufo.config import Config
-# configs = Config.get_instance().config_data
-```
-
-#### **选项 2：传统配置（向后兼容）**
-
-对于现有用户，旧配置路径仍然有效：
-
-```powershell
-copy ufo\config\config.yaml.template ufo\config\config.yaml
-notepad ufo\config\config.yaml   # 粘贴您的密钥和端点
-```
-
-> ⚠️ **注意**：如果旧配置和新配置都存在，`config/ufo/` 中的新配置将优先。启动期间将显示警告。
-
-#### OpenAI 配置
-
-**新配置 (`config/ufo/agents.yaml`)：**
+**对于 Galaxy (`config/galaxy/agent.yaml`)：**
 ```yaml
-HOST_AGENT:
-  VISUAL_MODE: true
+CONSTELLATION_AGENT:
+  REASONING_MODEL: false
   API_TYPE: "openai"
   API_BASE: "https://api.openai.com/v1/chat/completions"
-  API_KEY: "sk-YOUR_KEY_HERE"  # 替换为您的实际 API 密钥
-  API_VERSION: "2025-02-01-preview"
-  API_MODEL: "gpt-4o"
-
-APP_AGENT:
-  VISUAL_MODE: true
-  API_TYPE: "openai"
-  API_BASE: "https://api.openai.com/v1/chat/completions"
-  API_KEY: "sk-YOUR_KEY_HERE"  # 替换为您的实际 API 密钥
-  API_VERSION: "2025-02-01-preview"
+  API_KEY: "sk-your-key-here"
   API_MODEL: "gpt-4o"
 ```
 
-**传统配置 (`ufo/config/config.yaml`)：**
+**对于 UFO² (`config/ufo/agents.yaml`)：**
 ```yaml
-VISUAL_MODE: True, # 是否使用视觉模式
-API_TYPE: "openai" , # API 类型，OpenAI API 为 "openai"。
-API_BASE: "https://api.openai.com/v1/chat/completions", # OpenAI API 端点。
-API_KEY: "sk-",  # OpenAI API 密钥，以 sk- 开头
-API_VERSION: "2024-02-15-preview", # 默认为 "2024-02-15-preview"
-API_MODEL: "gpt-4o",  # 唯一的 OpenAI 模型
+VISUAL_MODE: True
+API_TYPE: "openai"
+API_BASE: "https://api.openai.com/v1/chat/completions"
+API_KEY: "sk-your-key-here"
+API_MODEL: "gpt-4o"
 ```
 
-#### Azure OpenAI (AOAI) 配置
+</details>
 
-**新配置 (`config/ufo/agents.yaml`)：**
+<details>
+<summary><strong>Azure OpenAI 配置</strong></summary>
+
+**对于 Galaxy (`config/galaxy/agent.yaml`)：**
 ```yaml
-HOST_AGENT:
-  VISUAL_MODE: true
+CONSTELLATION_AGENT:
+  REASONING_MODEL: false
   API_TYPE: "aoai"
-  API_BASE: "https://YOUR_RESOURCE.openai.azure.com"
-  API_KEY: "YOUR_AOAI_KEY"
-  API_VERSION: "2024-02-15-preview"
+  API_BASE: "https://YOUR-RESOURCE.openai.azure.com"
+  API_KEY: "your-azure-key"
   API_MODEL: "gpt-4o"
-  API_DEPLOYMENT_ID: "YOUR_DEPLOYMENT_ID"
-
-APP_AGENT:
-  VISUAL_MODE: true
-  API_TYPE: "aoai"
-  API_BASE: "https://YOUR_RESOURCE.openai.azure.com"
-  API_KEY: "YOUR_AOAI_KEY"
-  API_VERSION: "2024-02-15-preview"
-  API_MODEL: "gpt-4o"
-  API_DEPLOYMENT_ID: "YOUR_DEPLOYMENT_ID"
+  API_DEPLOYMENT_ID: "your-deployment-id"
 ```
 
-**传统配置 (`ufo/config/config.yaml`)：**
+**对于 UFO² (`config/ufo/agents.yaml`)：**
 ```yaml
-VISUAL_MODE: True, # 是否使用视觉模式
-API_TYPE: "aoai" , # API 类型，Azure OpenAI 为 "aoai"。
-API_BASE: "YOUR_ENDPOINT", # AOAI API 地址。格式：https://{your-resource-name}.openai.azure.com
-API_KEY: "YOUR_KEY",  # aoai API 密钥
-API_VERSION: "2024-02-15-preview", # 默认为 "2024-02-15-preview"
-API_MODEL: "gpt-4o",  # 唯一的 OpenAI 模型
-API_DEPLOYMENT_ID: "YOUR_AOAI_DEPLOYMENT", # AOAI API 的部署 ID
+VISUAL_MODE: True
+API_TYPE: "aoai"
+API_BASE: "https://YOUR-RESOURCE.openai.azure.com"
+API_KEY: "your-azure-key"
+API_MODEL: "gpt-4o"
+API_DEPLOYMENT_ID: "your-deployment-id"
 ```
 
-> 需要 Qwen、Gemini、非视觉 GPT-4，甚至 **OpenAI CUA Operator** 作为 AppAgent？请参阅[模型指南](https://microsoft.github.io/UFO/supported_models/overview/)。
+</details>
 
-### 📔 步骤 3：RAG 的附加设置（可选）。
-
-如果您想通过外部知识增强 UFO 的能力，可以选择使用外部数据库配置它以进行检索增强生成（RAG）。
-
-**对于新配置系统**：编辑 `config/ufo/rag.yaml`（已存在默认值）  
-**对于传统配置**：编辑 `ufo/config/config.yaml`
-
-我们为 RAG 提供以下选项以增强 UFO 的能力：
-- [离线帮助文档](https://microsoft.github.io/UFO/advanced_usage/reinforce_appagent/learning_from_help_document/) 使 UFO 能够从离线帮助文档中检索信息。
-- [在线必应搜索引擎](https://microsoft.github.io/UFO/advanced_usage/reinforce_appagent/learning_from_bing_search/)：利用最新的在线搜索结果增强 UFO 的能力。
-- [自我经验](https://microsoft.github.io/UFO/advanced_usage/reinforce_appagent/experience_learning/)：将任务完成轨迹保存到 UFO 的内存中以供将来参考。
-- [用户演示](https://microsoft.github.io/UFO/advanced_usage/reinforce_appagent/learning_from_demonstration/)：通过用户演示提升 UFO 的能力。
-
-**RAG 配置示例 (`config/ufo/rag.yaml`)：**
-```yaml
-# 启用必应搜索
-RAG_ONLINE_SEARCH: True
-BING_API_KEY: "YOUR_BING_API_KEY"  # 从 https://www.microsoft.com/en-us/bing/apis 获取
-
-# 启用经验学习
-RAG_EXPERIENCE: True
-```
-
-有关如何配置这些设置的更多信息，请查阅它们各自的文档。
-
-
-### 🎉 步骤 4：启动 UFO
-
-#### ⌨️ 您可以在 Windows 命令行（CLI）上执行以下操作：
-
-```powershell
-# 假设您在克隆的 UFO 文件夹中
-python -m ufo --task <your_task_name>
-```
-
-这将启动 UFO 进程，您可以通过命令行界面与其交互。
-如果一切顺利，您将看到以下消息：
-
-```powershell
-Welcome to use UFO🛸, A UI-focused Agent for Windows OS Interaction. 
- _   _  _____   ___
-| | | ||  ___| / _ \
-| | | || |_   | | | |
-| |_| ||  _|  | |_| |
- \___/ |_|     \___/
-Please enter your request to be completed🛸:
-```
-
-或者，您还可以通过使用以下命令直接使用特定任务和请求调用 UFO：
-
-```powershell
-python -m ufo --task <your_task_name> -r "<your_request>"
-```
-
-
-###  步骤 5 🎥：执行日志
-
-您可以在以下文件夹中找到拍摄的屏幕截图以及请求和响应日志：
-```
-./ufo/logs/<your_task_name>/
-```
-您可以使用它们来调试、重放或分析智能体输出。
-
-
-## ❓获取帮助
-* 请首先查看我们的文档[此处](https://microsoft.github.io/UFO/)。
-* ❔GitHub Issues（首选）
-* 对于其他通信，请联系 [ufo-agent@microsoft.com](mailto:ufo-agent@microsoft.com)。
+> 💡 **更多 LLM 选项：** 有关 Qwen、Gemini、Claude 等的信息，请参阅[模型配置指南](https://microsoft.github.io/UFO/supported_models/overview/)。
 
 ---
 
-## 🔄 迁移到新配置系统
+## 📚 文档结构
 
-如果您从使用 `ufo/config/config.yaml` 的旧版本 UFO 升级，我们提供了一个**自动转换工具**，可以智能地将您的传统单体配置转换为新的模块化结构。
+<table>
+<tr>
+<td width="50%" valign="top">
 
-### ⚡ 自动转换（推荐）
+### 🌌 Galaxy 文档
 
-**一键转换，格式转换：**
+- **[Galaxy 框架概述](./galaxy/README_ZH.md)** ⭐ **从这里开始** – 架构和技术概念
+- **[快速入门教程](https://microsoft.github.io/UFO/getting_started/quick_start_galaxy/)** – 几分钟内开始运行
+- **[Galaxy 客户端](https://microsoft.github.io/UFO/galaxy/client/overview/)** – 设备协调和 API
+- **[星座智能体](https://microsoft.github.io/UFO/galaxy/constellation_agent/overview/)** – 任务分解和规划
+- **[任务编排器](https://microsoft.github.io/UFO/galaxy/constellation_orchestrator/overview/)** – 执行引擎
+- **[任务星座](https://microsoft.github.io/UFO/galaxy/constellation/overview/)** – DAG 结构
+- **[智能体注册](https://microsoft.github.io/UFO/galaxy/agent_registration/overview/)** – 设备注册表
+- **[配置指南](https://microsoft.github.io/UFO/configuration/system/galaxy_devices/)** – 设置和设备池
 
-```powershell
-# 交互式转换，自动备份
-python -m ufo.tools.convert_config
+**📖 技术文档：**
+- [AIP 协议](https://microsoft.github.io/UFO/aip/overview/) – WebSocket 消息传递
+- [会话管理](https://microsoft.github.io/UFO/galaxy/session/overview/) – 会话生命周期
+- [可视化](https://microsoft.github.io/UFO/galaxy/visualization/overview/) – 实时监控
+- [事件和观察者](https://microsoft.github.io/UFO/galaxy/core/overview/) – 事件系统
 
-# 首先预览更改（试运行）
-python -m ufo.tools.convert_config --dry-run
+</td>
+<td width="50%" valign="top">
 
-# 强制转换，无需确认
-python -m ufo.tools.convert_config --force
-```
+### 🪟 UFO² 文档
 
-**转换工具的功能：**
-- ✅ **拆分**单体 `config.yaml` 到模块化文件（agents.yaml、rag.yaml、system.yaml）
-- ✅ **转换**流式 YAML（带大括号 `{}`）到标准块式 YAML
-- ✅ **映射**传统文件名（例如，`agent_mcp.yaml` → `mcp.yaml`，`config_prices.yaml` → `prices.yaml`）
-- ✅ **保留**所有配置值（由单元测试验证）
-- ✅ **创建**转换前的时间戳备份
-- ✅ **验证**输出文件可解析为 YAML
-- ✅ **提供**需要时的回滚说明
+- **[UFO² 概述](./ufo/README_ZH.md)** – 桌面智能体操作系统架构
+- **[安装](./ufo/README_ZH.md#️-步骤-1安装)** – 设置和依赖
+- **[配置](./ufo/README_ZH.md#️-步骤-2配置-llm)** – LLM 和 RAG 设置
+- **[使用指南](./ufo/README_ZH.md#-步骤-4启动-ufo)** – 运行 UFO²
+- **[高级功能](https://microsoft.github.io/UFO/advanced_usage/overview/)** – 多操作、RAG 等
+- **[自动化器指南](https://microsoft.github.io/UFO/automator/overview)** – 混合 GUI + API
+- **[基准测试](./ufo/README_ZH.md#-评估)** – WAA 和 OSWorld 结果
 
-**示例输出：**
-```
-🔧 Config Conversion
+**📖 在线文档：**
+- [完整文档](https://microsoft.github.io/UFO/)
+- [模型支持](https://microsoft.github.io/UFO/supported_models/overview/)
+- [RAG 配置](https://microsoft.github.io/UFO/advanced_usage/reinforce_appagent/overview/)
 
-Converting configurations...
-Processing: ufo\config\config.yaml
-Processing: ufo\config\agent_mcp.yaml
-Processing: ufo\config\config_prices.yaml
-Skipping: ufo\config\config_dev.yaml (environment-specific, use --env=dev)
-
-✓ Wrote: config\ufo\agents.yaml (6 keys)
-✓ Wrote: config\ufo\rag.yaml (11 keys)
-✓ Wrote: config\ufo\system.yaml (6 keys)
-✓ Wrote: config\ufo\mcp.yaml (5 keys)
-✓ Wrote: config\ufo\prices.yaml (1 keys)
-
-✨ Conversion Complete!
-```
-
-**转换详情：**
-
-| 传统文件 | → | 新文件 | 转换 |
-|-------------|---|-------------|----------------|
-| `config.yaml`（单体） | → | `agents.yaml` + `rag.yaml` + `system.yaml` | 智能字段拆分 |
-| `agent_mcp.yaml` | → | `mcp.yaml` | 重命名 + 格式转换 |
-| `config_prices.yaml` | → | `prices.yaml` | 重命名 + 格式转换 |
-| `config_dev.yaml` | → |（保持单独，使用 `--env=dev`）| 特定于环境 |
-
-**格式转换：**
-```yaml
-# 旧格式（流式，带大括号）
-HOST_AGENT: { API_TYPE: "azure_ad", API_KEY: "...", VISUAL_MODE: True }
-
-# 新格式（块式，带缩进）
-HOST_AGENT:
-  API_TYPE: azure_ad
-  API_KEY: YOUR_KEY
-  VISUAL_MODE: true
-```
-
-### 🛠️ 手动迁移步骤
-
-如果您更喜欢手动迁移或想了解转换工具的作用：
-
-1. **复制模板文件**以创建您的智能体配置：
-   ```powershell
-   copy config\ufo\agents.yaml.template config\ufo\agents.yaml
-   ```
-
-2. **将您的 API 凭据**从旧配置转移到新配置：
-   
-   **从** `ufo/config/config.yaml`：
-   ```yaml
-   HOST_AGENT: { API_TYPE: "azure_ad", API_KEY: "YOUR_KEY", ... }
-   ```
-   
-   **到** `config/ufo/agents.yaml`：
-   ```yaml
-   HOST_AGENT:
-     API_TYPE: azure_ad
-     API_KEY: YOUR_KEY
-     # ... 复制其他字段
-   ```
-
-3. **其他配置使用默认值** - 像 `rag.yaml`、`system.yaml`、`mcp.yaml` 这样的文件已经存在合理的默认值。仅在您想自定义设置时编辑它们（例如，启用必应搜索、更改 RAG 设置）。
-
-4. **验证转换**是否有效：
-   ```powershell
-   # 测试新配置是否正确加载
-   python -c "from config.config_loader import get_ufo_config; print('Config loaded:', len(get_ufo_config()), 'keys')"
-   ```
-
-### ⚙️ 向后兼容性
-
-- ✅ 旧配置路径 `ufo/config/config.yaml` **仍然有效**
-- ✅ 使用 `Config.get_instance().config_data` 的旧代码**仍然有效**
-- ✅ 支持渐进式迁移 - 两个系统可以暂时共存
-- ⚠️ **推荐**：转换后，将传统配置保留为备份，直到验证
-
-### 📚 详细迁移指南
-
-有关完整的迁移详细信息，包括代码示例、测试步骤、回滚说明和配置文件映射，请参阅：
-
-**📖 [完整迁移文档](https://microsoft.github.io/UFO/configuration/system/migration/)**
+</td>
+</tr>
+</table>
 
 ---
 
-## 📊 评估
+## 📢 最新更新
 
-UFO² 在两个公开可用的实时任务套件上进行了严格的基准测试：
+### 2025-11 – UFO³ Galaxy 框架发布 🌌
+**重大研究突破：** 多设备编排系统
 
-| 基准 | 范围 | 文档 |
-|-----------|-------|-------|
-| [**Windows Agent Arena (WAA)**](https://github.com/nice-mee/WindowsAgentArena) | 15 个应用程序（Office、Edge、文件资源管理器、VS Code 等）的 154 个真实 Windows 任务 | <https://microsoft.github.io/UFO/benchmark/windows_agent_arena/> |
-| [**OSWorld (Windows)**](https://github.com/nice-mee/WindowsAgentArena/tree/2020-qqtcg/osworld) | 49 个跨应用程序任务，混合 Office 365、浏览器和系统实用程序 | <https://microsoft.github.io/UFO/benchmark/osworld> |
+- 🌟 **声明式 DAG 分解**：TaskConstellation 结构实现工作流逻辑和依赖关系
+- 🔄 **动态图演化**：通过受控重写适应的活态星座
+- 🎯 **异构编排**：基于能力的设备匹配实现安全的异步执行
+- 🔌 **统一 AIP 协议**：基于 WebSocket 的安全智能体协调，具有容错能力
+- 🛠️ **支持 MCP 的智能体框架**：用于快速设备智能体开发的模板驱动工具包
+- 📄 **研究论文**：[UFO³: Weaving the Digital Agent Galaxy](https://arxiv.org/abs/2511.11332)
 
-这些基准与 UFO² 的集成在单独的存储库中。请遵循上述文档了解更多详情。
+**核心特性：**
+- 首个用于 GUI 智能体的多设备编排框架
+- 结果驱动的自适应执行，而非僵化的工作流
+- 模型上下文协议（MCP）集成用于工具增强
+- 经过形式化验证的正确性和并发安全保证
+
+### 2025-04 – UFO² v2.0.0
+- 📅 UFO² 桌面智能体操作系统发布
+- 🏗️ 具有 AgentOS 概念的增强架构
+- 📄 [技术报告](https://arxiv.org/pdf/2504.14603)发布
+- ✅ 进入长期支持（LTS）状态
+
+### 2024-02 – 原始 UFO
+- 🎈 第一个 UFO 版本 - Windows 的以 UI 为中心的智能体
+- 📄 [原始论文](https://arxiv.org/abs/2402.07939)
+- 🌍 广泛的媒体报道和采用
 
 ---
-
 
 ## 📚 引用
 
-如果您在此工作的基础上进行构建，请引用我们的 AgentOS 框架：
+如果您在研究中使用 UFO³ Galaxy 或 UFO²，请引用相关论文：
 
-**UFO² – 桌面操作系统智能体（2025）**  
-<https://arxiv.org/abs/2504.14603>
+### UFO³ Galaxy 框架（2025）
+```bibtex
+@article{zhang2025ufo3,
+  title={UFO$^3$: Weaving the Digital Agent Galaxy}, 
+  author = {Zhang, Chaoyun and Li, Liqun and Huang, He and Ni, Chiming and Qiao, Bo and Qin, Si and Kang, Yu and Ma, Minghua and Lin, Qingwei and Rajmohan, Saravan and Zhang, Dongmei},
+  journal = {arXiv preprint arXiv:2511.11332},
+  year    = {2025},
+}
+```
+
+### UFO² 桌面智能体操作系统（2025）
 ```bibtex
 @article{zhang2025ufo2,
   title   = {{UFO2: The Desktop AgentOS}},
@@ -451,8 +485,7 @@ UFO² 在两个公开可用的实时任务套件上进行了严格的基准测�
 }
 ```
 
-**UFO – 用于 Windows OS 交互的以 UI 为中心的智能体（2024）**  
-<https://arxiv.org/abs/2402.07939>
+### 原始 UFO（2024）
 ```bibtex
 @article{zhang2024ufo,
   title   = {{UFO: A UI-Focused Agent for Windows OS Interaction}},
@@ -462,47 +495,219 @@ UFO² 在两个公开可用的实时任务套件上进行了严格的基准测�
 }
 ```
 
+---
+
+## 🌐 媒体和社区
+
+**媒体报道：**
+- [微软正式开源UFO²，Windows桌面迈入「AgentOS 时代」](https://www.jiqizhixin.com/articles/2025-05-06-13)
+- [Microsoft's UFO: Smarter Windows Experience](https://the-decoder.com/microsofts-ufo-abducts-traditional-user-interfaces-for-a-smarter-windows-experience/)
+- [下一代Windows系统曝光](https://baijiahao.baidu.com/s?id=1790938358152188625)
+- **[更多报道 →](./ufo/README_ZH.md#-媒体报道)**
+
+**社区：**
+- 💬 [GitHub 讨论](https://github.com/microsoft/UFO/discussions)
+- 🐛 [问题跟踪器](https://github.com/microsoft/UFO/issues)
+- 📧 电子邮件：[ufo-agent@microsoft.com](mailto:ufo-agent@microsoft.com)
+- 📺 [YouTube 频道](https://www.youtube.com/watch?v=QT_OhygMVXU)
+
+---
+
+## 🎨 相关项目和研究
+
+**Microsoft Research：**
+- **[TaskWeaver](https://github.com/microsoft/TaskWeaver)** – 用于数据分析和任务自动化的代码优先 LLM 智能体框架
+
+**GUI 智能体研究：**
+- **[基于 LLM 的 GUI 智能体综述](https://github.com/vyokky/LLM-Brained-GUI-Agents-Survey)** – GUI 自动化智能体的全面综述
+- **[交互式综述网站](https://vyokky.github.io/LLM-Brained-GUI-Agents-Survey/)** – 探索最新的 GUI 智能体研究和发展
+
+**多智能体系统：**
+- **UFO³ Galaxy** 代表了多设备编排的新方法，引入了星座框架，用于跨平台协调异构智能体
+- 基于多智能体协调研究，同时解决跨设备 GUI 自动化的独特挑战
+
+**基准测试：**
+- **[Windows Agent Arena (WAA)](https://github.com/nice-mee/WindowsAgentArena)** – Windows 自动化智能体的评估基准
+- **[OSWorld](https://github.com/nice-mee/WindowsAgentArena/tree/2020-qqtcg/osworld)** – 跨应用程序任务评估套件
+
+---
+
+## 💡 常见问题
+
+<details>
+<summary><strong>🤔 我应该使用 Galaxy 还是 UFO²？</strong></summary>
+
+**从 UFO² 开始**，如果：
+- 您只需要 Windows 自动化
+- 您想要快速设置和学习
+- 任务相对简单
+
+**选择 Galaxy**，如果：
+- 您需要跨设备协调
+- 任务复杂且多步骤
+- 您想要高级编排
+- 您对积极开发感到满意
+
+**混合方法**，如果：
+- 您想要两全其美
+- 一些任务简单（UFO²），一些复杂（Galaxy）
+- 您正在逐步迁移
+
+</details>
+
+<details>
+<summary><strong>⚠️ UFO² 会被弃用吗？</strong></summary>
+
+**不会！** UFO² 已进入**长期支持（LTS）**状态：
+- ✅ 积极维护
+- ✅ 错误修复和安全更新
+- ✅ 性能改进
+- ✅ 完整的社区支持
+- ✅ 没有弃用计划
+
+UFO² 是 Windows 自动化的稳定、经过验证的解决方案。
+
+</details>
+
+<details>
+<summary><strong>🔄 如何从 UFO² 迁移到 Galaxy？</strong></summary>
+
+迁移是**渐进的和可选的**：
+
+1. **阶段 1：学习** – 了解 Galaxy 概念
+2. **阶段 2：实验** – 尝试使用 Galaxy 进行非关键任务
+3. **阶段 3：混合** – 同时使用两个框架
+4. **阶段 4：迁移** – 逐步将复杂任务移至 Galaxy
+
+**无强制迁移！** 只要满足您的需求，就继续使用 UFO²。
+
+有关详细信息，请参阅[迁移指南](./documents/docs/getting_started/migration_ufo2_to_galaxy.md)。
+
+</details>
+
+<details>
+<summary><strong>🎯 Galaxy 能做 UFO² 做的所有事情吗？</strong></summary>
+
+**功能上：是的。** Galaxy 可以使用 UFO² 作为 Windows 设备智能体。
+
+**实际上：这取决于。**
+- 对于**简单的 Windows 任务**：UFO² 独立更简单、更精简
+- 对于**复杂工作流**：Galaxy 编排 UFO² 与其他设备智能体
+
+**建议：** 使用正确的工具来完成工作。UFO² 可以独立工作或作为 Galaxy 的 Windows 设备智能体。
+
+</details>
+
+<details>
+<summary><strong>📊 Galaxy 有多成熟？</strong></summary>
+
+**状态：积极开发** 🚧
+
+**稳定：**
+- ✅ 核心架构
+- ✅ DAG 编排
+- ✅ 基本多设备支持
+- ✅ 事件系统
+
+**开发中：**
+- 🔨 高级设备类型
+- 🔨 增强监控
+- 🔨 性能优化
+- 🔨 扩展文档
+
+**建议：** 非常适合实验和非关键工作流。
+
+</details>
+
+<details>
+<summary><strong>🔧 我可以扩展或自定义吗？</strong></summary>
+
+**两个框架都是高度可扩展的：**
+
+**UFO²：**
+- 自定义操作和自动化器
+- 自定义知识源（RAG）
+- 自定义控件检测器
+- 自定义评估指标
+
+**Galaxy：**
+- 自定义智能体
+- 自定义设备类型
+- 自定义编排策略
+- 自定义可视化组件
+
+有关扩展指南，请参阅各自的文档。
+
+</details>
+
+<details>
+<summary><strong>🤝 我如何贡献？</strong></summary>
+
+我们欢迎对 UFO² 和 Galaxy 的贡献！
+
+**贡献方式：**
+- 🐛 报告错误和问题
+- 💡 建议功能和改进
+- 📝 改进文档
+- 🧪 添加测试和示例
+- 🔧 提交拉取请求
+
+有关指南，请参阅 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
+</details>
 
 
 ---
 
-## 📝 路线图
+## ⚠️ 免责声明和许可证
 
-UFO² 团队正在积极开发以下功能和改进：
+**免责声明：** 使用本软件即表示您承认并同意 [DISCLAIMER.md](./DISCLAIMER.md) 中的条款。
 
-- [ ] **画中画模式** – 开发中
-- [x] **AgentOS 即服务** – 已完成并集成到框架中
-- [ ] **自动调试工具包** – 开发中
-- [x] **与 MCP 集成** – 已完成并集成到框架中
+**许可证：** 本项目根据 [MIT 许可证](LICENSE) 授权。
 
+**商标：** Microsoft 商标的使用遵循 [Microsoft 商标指南](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general)。
 
 ---
 
-## 🎨 相关项目
-- **TaskWeaver** — 用于数据分析的代码优先 LLM 智能体：<https://github.com/microsoft/TaskWeaver>
-- **基于 LLM 的 GUI 智能体：综述**：<https://arxiv.org/abs/2411.18279> • [GitHub](https://github.com/vyokky/LLM-Brained-GUI-Agents-Survey) • [交互式网站](https://vyokky.github.io/LLM-Brained-GUI-Agents-Survey/)
+<div align="center">
+
+## 🚀 准备开始了吗？
+
+<table>
+<tr>
+<td align="center" width="50%">
+
+### 🌌 探索 Galaxy
+**多设备编排**
+
+[![开始 Galaxy](https://img.shields.io/badge/Start-Galaxy-blue?style=for-the-badge)](./galaxy/README_ZH.md)
+
+</td>
+<td align="center" width="50%">
+
+### 🪟 试试 UFO²
+**Windows 桌面智能体**
+
+[![开始 UFO²](https://img.shields.io/badge/Start-UFO²-green?style=for-the-badge)](./ufo/README_ZH.md)
+
+</td>
+</tr>
+</table>
 
 ---
 
+<sub>© Microsoft 2025 | UFO³ 是一个开源研究项目</sub>
 
-## ⚠️ 免责声明
-通过选择运行提供的代码，您承认并同意[DISCLAIMER.md](../DISCLAIMER.md)中有关功能和数据处理实践的以下条款和条件
+<sub>⭐ 在 GitHub 上给我们加星 | 🤝 贡献 | 📖 阅读文档 | 💬 加入讨论</sub>
 
-
-## <img src="../assets/ufo_blue.png" alt="logo" width="30"> 商标
-
-本项目可能包含项目、产品或服务的商标或徽标。Microsoft 商标或徽标的授权使用受
-[Microsoft 商标和品牌指南](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general)的约束并必须遵循。
-在本项目的修改版本中使用 Microsoft 商标或徽标不得引起混淆或暗示 Microsoft 赞助。
-任何第三方商标或徽标的使用均受这些第三方的政策约束。
-
+</div>
 
 ---
 
-## ⚖️ 许可证
-本存储库根据 [MIT 许可证](LICENSE)（SPDX 标识符：MIT）发布。  
-有关隐私和安全通知，请参阅 [DISCLAIMER.md](DISCLAIMER.md)。
-
----
-
-<p align="center"><sub>© Microsoft 2025 • UFO² 是一个开源项目，不是官方 Windows 功能。</sub></p>
+<p align="center">
+  <img src="assets/logo3.png" alt="UFO logo" width="60">
+  <br>
+  <em>从单智能体到数字星系</em>
+  <br>
+  <strong>UFO³ - 编织智能自动化的未来</strong>
+</p>
