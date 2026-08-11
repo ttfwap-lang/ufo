@@ -75,7 +75,7 @@ async def main(parsed_args: Optional[argparse.Namespace] = None):
     if not parsed_args.task:
         parsed_args.task = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
-    from ufo.logging.setup import setup_logger
+    from ufo.ufo_logging.setup import setup_logger
     setup_logger(parsed_args.log_level)
 
     from ufo.module.session_pool import SessionFactory, SessionPool

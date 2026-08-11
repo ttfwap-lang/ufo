@@ -10,7 +10,7 @@ from ufo.client.mcp.mcp_server_manager import MCPServerManager
 from ufo.client.ufo_client import UFOClient
 from ufo.client.websocket import UFOWebSocketClient
 from config.config_loader import get_ufo_config
-from ufo.logging.setup import setup_logger
+from ufo.ufo_logging.setup import setup_logger
 
 tracemalloc.start()
 
