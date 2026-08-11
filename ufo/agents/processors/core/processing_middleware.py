@@ -129,6 +129,73 @@ class EnhancedLoggingMiddleware(ProcessorMiddleware):
         else:
             self.logger.debug("ContextNames.LOGGER is None; skipping file log write.")
 
+        # Stream structured event record & render trajectory report
+        try:
+            log_dir = (
+                processor.processing_context.get_local("log_path")
+                or processor.processing_context.get_global(ContextNames.LOG_PATH)
+                or ""
+            )
+            if log_dir:
+                from datetime import datetime, timezone
+                from ufo.logging.enhanced_logger import (
+                    EnhancedActionLogRecord,
+                    JSONLEventStreamWriter,
+                )
+
+                ctx = processor.processing_context
+                verification_res = ctx.get_local("verification_result")
+
+                verification_passed = True
+                verification_confidence = 1.0
+                verification_status = "success"
+                verification_observed_changes = "No verification executed."
+
+                if verification_res:
+                    verification_passed = bool(getattr(verification_res, "verified", True))
+                    verification_confidence = float(getattr(verification_res, "confidence_score", 1.0))
+                    status_val = getattr(verification_res, "status", "success")
+                    verification_status = status_val.value if hasattr(status_val, "value") else str(status_val)
+                    verification_observed_changes = str(getattr(verification_res, "observed_visual_changes", ""))
+
+                record = EnhancedActionLogRecord(
+                    session_id=str(ctx.get("session_id", "") or getattr(processor.agent, "name", "AppAgent")),
+                    timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                    round_index=int(ctx.get("round_num", 0) or 0),
+                    step_index=int(ctx.get("session_step", 0) or 0),
+                    agent_name=str(getattr(processor.agent, "name", "AppAgent")),
+                    agent_type=str(getattr(processor.agent, "agent_type", "app_agent")),
+                    user_request=str(ctx.get("request", "") or ""),
+                    subtask=str(ctx.get("subtask", "") or ""),
+                    application_name=str(ctx.get("application_process_name", "") or ""),
+                    process_id=int(ctx.get("process_id", 0) or 0),
+                    window_title=str(ctx.get("window_title", "") or ""),
+                    observation=str(ctx.get("observation", "") or ""),
+                    thought=str(ctx.get("thought", "") or ""),
+                    plan=list(ctx.get("plan", []) or []),
+                    selected_action_name=str(ctx.get("action_type", "") or ""),
+                    action_parameters=dict(ctx.get("arguments", {}) or {}),
+                    target_control=dict(ctx.get_local("control_log", {}) or {}),
+                    pre_action_screenshot_path=str(ctx.get_local("clean_screenshot_path", "") or ""),
+                    post_action_screenshot_path=str(ctx.get_local("post_screenshot_path", "") or ""),
+                    annotated_screenshot_path=str(ctx.get_local("annotated_screenshot_path", "") or ""),
+                    clean_screenshot_path=str(ctx.get_local("clean_screenshot_path", "") or ""),
+                    ui_state_diff=dict(ctx.get_local("ui_state_diff", {}) or {}),
+                    verification_passed=verification_passed,
+                    verification_confidence=verification_confidence,
+                    verification_status=verification_status,
+                    verification_observed_changes=verification_observed_changes,
+                    execution_duration_ms=float(result.execution_time * 1000.0),
+                    llm_cost_usd=float(ctx.get("llm_cost", 0.0) or 0.0),
+                    error_stacktrace=str(result.error) if not result.success else None,
+                )
+
+                writer = JSONLEventStreamWriter(log_dir)
+                writer.write_event(record)
+                self.logger.info("Enhanced action log record written to events.jsonl")
+        except Exception as e:
+            self.logger.warning(f"Failed writing enhanced action log record: {str(e)}")
+
     async def on_error(self, processor: "ProcessorTemplate", error: Exception) -> None:
         """Enhanced error logging with context information."""
 

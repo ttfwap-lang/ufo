@@ -30,6 +30,7 @@ class ProcessingPhase(Enum):
     DATA_COLLECTION = "data_collection"
     LLM_INTERACTION = "llm_interaction"
     ACTION_EXECUTION = "action_execution"
+    LIVE_VERIFICATION = "live_verification"
     MEMORY_UPDATE = "memory_update"
     CLEANUP = "cleanup"
 

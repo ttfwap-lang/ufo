@@ -31,6 +31,9 @@ from ufo.agents.processors.strategies.app_agent_processing_strategy import (
     AppMemoryUpdateStrategy,
     AppScreenshotCaptureStrategy,
 )
+from ufo.agents.processors.strategies.live_verification_strategy import (
+    AppLiveVisualVerificationStrategy,
+)
 from ufo.agents.processors.strategies.processing_strategy import ComposedStrategy
 from ufo.module.context import Context, ContextNames
 
@@ -101,6 +104,11 @@ class AppAgentProcessor(ProcessorTemplate):
         # Action execution strategy
         self.strategies[ProcessingPhase.ACTION_EXECUTION] = AppActionExecutionStrategy(
             fail_fast=False  # Action failures can be handled gracefully
+        )
+
+        # Live visual verification strategy
+        self.strategies[ProcessingPhase.LIVE_VERIFICATION] = (
+            AppLiveVisualVerificationStrategy(fail_fast=False)
         )
 
         # Memory update strategy

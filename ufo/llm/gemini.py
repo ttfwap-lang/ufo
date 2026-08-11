@@ -74,8 +74,10 @@ class GeminiService(BaseService):
 
         processed_messages = self.process_messages(messages)
 
-        is_computer_use_model = (
-            "computer-use" in self.model.lower() or "computer_use" in self.model.lower()
+        model_lower = self.model.lower()
+        is_computer_use_model = any(
+            tag in model_lower
+            for tag in ("computer-use", "computer_use", "computeruse", "cua")
         )
         use_computer_use = is_computer_use_model
 
@@ -136,17 +138,23 @@ class GeminiService(BaseService):
                 )
                 break
             except Exception as e:
+                err_str = str(e).upper()
                 is_client_error = (
                     isinstance(e, (errors.ClientError, errors.APIError))
                     or getattr(e, "code", None) in (400, 403, 404)
                     or any(
-                        code_str in str(e)
+                        code_str in err_str
                         for code_str in (
                             "400",
                             "403",
                             "404",
                             "INVALID_ARGUMENT",
                             "FORBIDDEN",
+                            "INVALID_OPTION",
+                            "UNKNOWN_OPTION",
+                            "UNSUPPORTED",
+                            "NOT_FOUND",
+                            "PERMISSION_DENIED",
                         )
                     )
                 )
