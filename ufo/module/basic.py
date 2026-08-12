@@ -728,10 +728,10 @@ class BaseSession(ABC):
         return self._host_agent
 
     @property
-    def current_round(self) -> BaseRound:
+    def current_round(self) -> Optional[BaseRound]:
         """
         Get the current round of the session.
-        return: The current round of the session.
+        return: The current round of the session, or None if no rounds exist.
         """
         if self.total_rounds == 0:
             return None
@@ -932,6 +932,8 @@ class BaseSession(ABC):
         Get the class name of the current agent.
         return: The class name of the current agent.
         """
+        if self.current_round is None:
+            return "Unknown"
         return self.current_round.agent.__class__.__name__
 
     async def capture_last_snapshot(self) -> None:

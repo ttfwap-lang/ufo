@@ -79,8 +79,10 @@ class OmniparserGrounding(BasicGrounding):
                         item[item.index("{") : item.rindex("}") + 1]
                     )
                     list_of_grounding_results.append(item)
-                except Exception:
-                    pass
+                except (ValueError, SyntaxError) as parse_err:
+                    logger.debug(
+                        "Skipping unparseable OmniParser result item: %s", parse_err
+                    )
 
         return list_of_grounding_results
 

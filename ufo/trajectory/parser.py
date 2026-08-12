@@ -465,14 +465,24 @@ class Trajectory:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="UFO Trajectory Parser")
+    parser.add_argument("log_dir", help="Path to a UFO log directory containing response.log")
+    parser.add_argument("--output", "-o", help="Output markdown path (default: <log_dir>/output.md)")
+    args = parser.parse_args()
+
+    log_dir = args.log_dir
+    output_path = args.output or os.path.join(log_dir, "output.md")
 
     console.print("🔍 UFO Trajectory Parser", style="blue bold")
-    print("Searching for valid trajectory logs...\n")
-
-    # Try to find the most recent log directory with valid data
-    log_dirs = "./logs/2025-10-25-16-04-28/"
-    log = Trajectory(log_dirs).app_agent_log
-    for step in log:
-        print(step["ScreenshotImages"].keys())
-
-    # Trajectory(log_dirs).to_markdown(log_dirs + "output2.md")
+    try:
+        trajectory = Trajectory(log_dir)
+        console.print(
+            f"Loaded {trajectory.step_number} steps across {trajectory.round_number} rounds.",
+            style="green",
+        )
+        trajectory.to_markdown(output_path)
+    except ValueError as e:
+        console.print(f"[ERROR] {e}", style="red bold")
+        sys.exit(1)

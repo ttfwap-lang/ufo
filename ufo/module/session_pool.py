@@ -42,11 +42,24 @@ class SessionPool:
     async def run_all(self) -> None:
         """
         Run the batch UFO client.
+        If any session raises an exception, the other sessions continue to
+        completion and the errors are logged rather than killing the entire pool.
         """
 
         if not self.session_list:
             return
-        await asyncio.gather(*[session.run() for session in self.session_list])
+        results = await asyncio.gather(
+            *[session.run() for session in self.session_list],
+            return_exceptions=True,
+        )
+        _logger = logging.getLogger(__name__)
+        for i, result in enumerate(results):
+            if isinstance(result, BaseException):
+                _logger.error(
+                    "Session %d failed with %s: %s",
+                    i, type(result).__name__, result,
+                    exc_info=result,
+                )
 
     @property
     def session_list(self) -> List[BaseSession]:
@@ -63,11 +76,13 @@ class SessionPool:
         """
         self._session_list.append(session)
 
-    def next_session(self) -> BaseSession:
+    def next_session(self) -> Optional[BaseSession]:
         """
         Get the next session.
-        :return: The next session.
+        :return: The next session, or None if no sessions remain.
         """
+        if not self._session_list:
+            return None
         return self._session_list.pop(0)
 
 
@@ -362,13 +377,11 @@ class SessionFactory:
             )
             if not os.path.exists(file_path):
                 self.task_done = {f: False for f in file_names}
-                json.dump(
-                    self.task_done,
-                    open(file_path, "w"),
-                    indent=4,
-                )
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(self.task_done, f, indent=4)
             else:
-                self.task_done = json.load(open(file_path, "r"))
+                with open(file_path, "r", encoding="utf-8") as f:
+                    self.task_done = json.load(f)
                 is_done_files = [f for f in file_names if self.task_done.get(f, False)]
 
         sessions = [

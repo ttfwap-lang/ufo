@@ -170,8 +170,9 @@ class WebSocketCommandDispatcher(BasicCommandDispatcher):
         Register an observer task (deprecated - kept for compatibility).
         AIP protocol handles message sending internally.
         """
-        # Keep for backward compatibility but no longer needed
-        pass
+        self.logger.debug(
+            "register_observer() is deprecated; AIP protocol handles sending internally."
+        )
 
     def make_server_response(self, commands: List[Command]) -> ServerMessage:
         """

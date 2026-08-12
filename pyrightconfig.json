@@ -1,7 +1,11 @@
 {
-  "include": ["ufo"],
+  "exclude": [
+    "ufo/python_env",
+    "ufo/tests"
+  ],
   "extraPaths": [".", "ufo"],
   "pythonPlatform": "Windows",
+  "typeCheckingMode": "basic",
   "reportMissingImports": true,
   "reportMissingModuleSource": false
 }
