@@ -3,14 +3,15 @@
 
 import argparse
 import sys
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 # Ensure project root is in sys.path for direct script execution and prevent shadowing stdlib logging
 ufo_dir = str(Path(__file__).resolve().parent)
-if sys.path and sys.path[0] == ufo_dir:
-    sys.path.pop(0)
+if ufo_dir not in sys.path:
+    sys.path.insert(0, ufo_dir)
 
 UFO_ROOT = str(Path(__file__).resolve().parent.parent)
 if UFO_ROOT not in sys.path:
@@ -69,29 +70,43 @@ async def main(parsed_args: Optional[argparse.Namespace] = None):
     To use batch mode that follows a plan file or folder, run the following command:
     python -m ufo -t task_name -m batch_normal -p path_to_plan_file_or_folder
     """
+    
+    # Phase 1: Robust Telemetry Setup
+    from ufo.ufo_logging.setup import setup_logger
+    
     if parsed_args is None:
         parsed_args = parse_args()
 
     if not parsed_args.task:
         parsed_args.task = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
-    from ufo.ufo_logging.setup import setup_logger
     setup_logger(parsed_args.log_level)
+    logger = logging.getLogger("UFO_Main")
+    
+    try:
+        from ufo.module.session_pool import SessionFactory, SessionPool
 
-    from ufo.module.session_pool import SessionFactory, SessionPool
+        sessions = SessionFactory().create_session(
+            task=parsed_args.task,
+            mode=parsed_args.mode,
+            plan=parsed_args.plan,
+            request=parsed_args.request,
+        )
 
-    sessions = SessionFactory().create_session(
-        task=parsed_args.task,
-        mode=parsed_args.mode,
-        plan=parsed_args.plan,
-        request=parsed_args.request,
-    )
-
-    clients = SessionPool(sessions)
-    await clients.run_all()
+        clients = SessionPool(sessions)
+        await clients.run_all()
+        
+    except Exception as e:
+        logger.critical(f"FATAL SYSTEM CRASH: {e}", exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
     import asyncio
-
-    asyncio.run(main())
+    
+    # Global top-level try/except to prevent white-screening and silently swallowing crashes
+    try:
+        asyncio.run(main())
+    except Exception as global_e:
+        logging.getLogger("UFO_Global").critical(f"Unhandled Asyncio Loop Crash: {global_e}", exc_info=True)
+        sys.exit(1)
