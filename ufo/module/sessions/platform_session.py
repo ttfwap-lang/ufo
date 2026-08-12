@@ -75,17 +75,19 @@ class LinuxBaseSession(BaseSession):
         """
         Evaluation logic for Linux sessions.
         """
-        # Implement evaluation logic specific to Linux sessions
-        self.logger.warning("Evaluation not yet implemented for Linux sessions.")
-        pass
+        raise NotImplementedError(
+            "Evaluation is not yet implemented for Linux sessions. "
+            "Override this method in a LinuxBaseSession subclass to add evaluation."
+        )
 
     def save_log_to_markdown(self) -> None:
         """
         Save the log of the session to markdown file.
         """
-        # Implement markdown logging specific to Linux sessions
-        self.logger.warning("Markdown logging not yet implemented for Linux sessions.")
-        pass
+        raise NotImplementedError(
+            "Markdown logging is not yet implemented for Linux sessions. "
+            "Override this method in a LinuxBaseSession subclass to add logging."
+        )
 
     def reset(self) -> None:
         """
@@ -126,17 +128,19 @@ class MobileBaseSession(BaseSession):
         """
         Evaluation logic for Mobile sessions.
         """
-        # Implement evaluation logic specific to Mobile sessions
-        self.logger.warning("Evaluation not yet implemented for Mobile sessions.")
-        pass
+        raise NotImplementedError(
+            "Evaluation is not yet implemented for Mobile sessions. "
+            "Override this method in a MobileBaseSession subclass to add evaluation."
+        )
 
     def save_log_to_markdown(self) -> None:
         """
         Save the log of the session to markdown file.
         """
-        # Implement markdown logging specific to Mobile sessions
-        self.logger.warning("Markdown logging not yet implemented for Mobile sessions.")
-        pass
+        raise NotImplementedError(
+            "Markdown logging is not yet implemented for Mobile sessions. "
+            "Override this method in a MobileBaseSession subclass to add logging."
+        )
 
     def reset(self) -> None:
         """

@@ -38,4 +38,7 @@ class PlaceHolderService(BaseService):
         :param kwargs: Additional keyword arguments to be passed to the underlying completion method.
         :return: A list of generated completions for each message and the cost set to be None.
         """
-        pass
+        raise NotImplementedError(
+            "PlaceHolderService cannot generate completions. "
+            "Configure a real LLM provider (e.g., gemini, openai, ollama) in your agent config."
+        )

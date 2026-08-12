@@ -1,0 +1,7 @@
+{
+  "include": ["ufo"],
+  "extraPaths": [".", "ufo"],
+  "pythonPlatform": "Windows",
+  "reportMissingImports": true,
+  "reportMissingModuleSource": false
+}

@@ -159,7 +159,7 @@ class Trajectory:
 
                 try:
                     evaluation_data = json.load(file)
-                except:
+                except (json.JSONDecodeError, ValueError):
                     evaluation_data = {}
 
         else:
@@ -460,7 +460,7 @@ class Trajectory:
 
         try:
             console.print(f"[OK] Markdown file saved to {output_path}.", style="green")
-        except Exception:
+        except (NameError, ImportError, AttributeError):
             print(f"[OK] Markdown file saved to {output_path}.")
 
 

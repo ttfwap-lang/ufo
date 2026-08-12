@@ -1,6 +1,7 @@
 {
     "texra.ui.showOrchestratorBanner": false,
     "python.analysis.extraPaths": [
+        ".",
         "./ufo"
     ]
 }

@@ -117,8 +117,6 @@ class OmniparserGrounding(BasicGrounding):
 
         return control_elements_info
 
-        return control_elements_info
-
     def _get_application_rect_from_uia(
         self, application_window: UIAWrapper = None
     ) -> tuple:

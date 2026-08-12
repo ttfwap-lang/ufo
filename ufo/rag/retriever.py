@@ -49,8 +49,6 @@ class Retriever(ABC):
 
         self.indexer = self.get_indexer()
 
-        pass
-
     @abstractmethod
     def get_indexer(self):
         """

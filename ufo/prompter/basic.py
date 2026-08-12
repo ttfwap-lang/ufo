@@ -195,13 +195,19 @@ class BasicPrompter(ABC):
     def examples_prompt_helper(self) -> str:
         """
         A helper function to construct the examples prompt for in-context learning.
+        Subclasses should override this to provide example prompts.
         """
-
-        pass
+        raise NotImplementedError(
+            "examples_prompt_helper() is not implemented. "
+            "Override this method in a subclass to provide example prompts."
+        )
 
     def api_prompt_helper(self) -> str:
         """
         A helper function to construct the API list and descriptions for the prompt.
+        Subclasses should override this to provide API documentation.
         """
-
-        pass
+        raise NotImplementedError(
+            "api_prompt_helper() is not implemented. "
+            "Override this method in a subclass to provide API prompts."
+        )

@@ -417,9 +417,12 @@ class BaseRound(ABC):
 
     def evaluation(self) -> None:
         """
-        TODO: Evaluate the round.
+        Evaluate the round. Subclasses should override this method.
         """
-        pass
+        raise NotImplementedError(
+            "evaluation() is not implemented for this round type. "
+            "Override this method in a subclass to add evaluation logic."
+        )
 
     @property
     def application_window(self) -> UIAWrapper:
@@ -566,7 +569,10 @@ class BaseSession(ABC):
         Create a following round.
         return: The following round.
         """
-        pass
+        raise NotImplementedError(
+            "create_following_round() is not implemented. "
+            "Override this method in a subclass to support follow-up rounds."
+        )
 
     def add_round(self, id: int, round: BaseRound) -> None:
         """

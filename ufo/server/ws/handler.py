@@ -1007,12 +1007,31 @@ class UFOWebSocketHandler:
 
     async def handle_device_info_response(self, data: ClientMessage) -> None:
         """
-        Handle device info response (reserved for future Pull model).
+        Handle device info response from a client device.
+        Stores the received device info in the client manager for later retrieval.
         :param data: The data from the client.
         """
+        client_id = data.client_id
+        payload = data.payload if hasattr(data, "payload") else {}
         self.logger.info(
-            f"[WS] Received device info response from {data.client_id} (not implemented)"
+            f"[WS] Received device info response from {client_id}, "
+            f"payload keys: {list(payload.keys()) if isinstance(payload, dict) else 'N/A'}"
         )
+
+        # Store the device info if client manager supports it
+        try:
+            if hasattr(self.client_manager, "update_device_info"):
+                self.client_manager.update_device_info(client_id, payload)
+                self.logger.debug(f"[WS] Stored device info for {client_id}")
+            else:
+                self.logger.debug(
+                    f"[WS] Device info from {client_id} received but client_manager "
+                    f"does not support update_device_info; data logged only."
+                )
+        except Exception as e:
+            self.logger.warning(
+                f"[WS] Failed to store device info for {client_id}: {e}"
+            )
 
     async def handle_device_info_request(
         self, data: ClientMessage, ctx: ConnectionContext
