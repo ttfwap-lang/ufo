@@ -40,6 +40,7 @@ configs = get_config()
 
 
 @MCPRegistry.register_factory_decorator("PDFReaderExecutor")
+@MCPRegistry.register_factory_decorator("pdf_reader_mcp_server")
 def create_pdf_reader_mcp_server(*args, **kwargs) -> FastMCP:
     """
     Create and return the PDF Reader MCP server instance.

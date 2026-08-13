@@ -16,9 +16,12 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from ufo.client.mcp.mcp_registry import MCPRegistry
 
+import sys
+
 logger = logging.getLogger(__name__)
 
 @MCPRegistry.register_factory_decorator("CodeInterpreterExecutor")
+@MCPRegistry.register_factory_decorator("mcp_code_interpreter")
 def create_code_interpreter_mcp_server(*args, **kwargs) -> FastMCP:
     """
     Create and return the Code Interpreter MCP server instance.
@@ -43,7 +46,7 @@ def create_code_interpreter_mcp_server(*args, **kwargs) -> FastMCP:
                 f.write(code)
                 
             # Execute it using the UFO python environment
-            python_exe = r"C:\ufo\python_env\python.exe"
+            python_exe = sys.executable if sys.executable and os.path.isfile(sys.executable) else r"C:\ufo\ufo\python_env\python.exe"
             result = subprocess.run([python_exe, path], capture_output=True, text=True, timeout=60)
             
             # Clean up

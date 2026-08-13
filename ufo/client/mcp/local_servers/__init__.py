@@ -26,6 +26,11 @@ def load_all_servers():
     """
     is_windows = platform.system() == "Windows"
 
+    # Ensure parent directories are on sys.path for ufo namespace resolution
+    for p in [r"C:\ufo", r"C:\ufo\ufo"]:
+        if os.path.isdir(p) and p not in sys.path:
+            sys.path.insert(0, p)
+
     for finder, name, ispkg in pkgutil.iter_modules([current_dir]):
         # Only consider non-package modules (single .py files)
         if not ispkg:
@@ -46,6 +51,12 @@ def load_all_servers():
 
                 # Load the module specification
                 spec = importlib.util.find_spec(full_module_name)
+                if not spec:
+                    # Fallback to direct file spec
+                    file_path = os.path.join(current_dir, f"{name}.py")
+                    if os.path.isfile(file_path):
+                        spec = importlib.util.spec_from_file_location(full_module_name, file_path)
+
                 if spec:
                     # Create a new module object
                     module = importlib.util.module_from_spec(spec)
@@ -55,7 +66,6 @@ def load_all_servers():
                     if spec.loader:
                         spec.loader.exec_module(module)
                 else:
-                    # This case might happen if find_spec can't locate it, though less likely with pkgutil
                     print(f"Could not find spec for module {full_module_name}")
 
             except Exception as e:

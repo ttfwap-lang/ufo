@@ -23,6 +23,7 @@ if platform.system() != "Windows":
 from typing import Annotated, Any, Dict, List, Optional
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 from fastmcp.client import Client
 from pydantic import Field
 
@@ -53,7 +54,8 @@ class UIServerState:
 
 
 @MCPRegistry.register_factory_decorator("PowerPointCOMExecutor")
-def create_powerpoint_mcp_server(process_name: str) -> FastMCP:
+@MCPRegistry.register_factory_decorator("ppt_wincom_mcp_server")
+def create_powerpoint_mcp_server(process_name: str = "POWERPNT.EXE", *args, **kwargs) -> FastMCP:
     """
     Create and return the PowerPoint MCP server instance.
     :return: FastMCP instance for PowerPoint operations.
@@ -62,15 +64,19 @@ def create_powerpoint_mcp_server(process_name: str) -> FastMCP:
     ui_state = UIServerState()
     executor = ActionExecutor()
 
-    ui_state.puppeteer = AppPuppeteer(
-        process_name=process_name,
-        app_root_name="POWERPNT.EXE",
-    )
-
-    ui_state.puppeteer.receiver_manager.create_api_receiver(
-        app_root_name="POWERPNT.EXE",
-        process_name=process_name,
-    )
+    def _ensure_puppeteer():
+        if ui_state.puppeteer is None:
+            try:
+                ui_state.puppeteer = AppPuppeteer(
+                    process_name=process_name,
+                    app_root_name="POWERPNT.EXE",
+                )
+                ui_state.puppeteer.receiver_manager.create_api_receiver(
+                    app_root_name="POWERPNT.EXE",
+                    process_name=process_name,
+                )
+            except Exception as e:
+                raise ToolError(f"PowerPoint COM automation interface unavailable: {e}")
 
     def _execute_action(action: ActionCommandInfo) -> Dict[str, Any]:
         """
@@ -78,9 +84,7 @@ def create_powerpoint_mcp_server(process_name: str) -> FastMCP:
         :param action: ActionCommandInfo object to execute.
         :return: Execution result as a dictionary.
         """
-        if not ui_state.puppeteer:
-            raise ValueError("UI state not initialized.")
-
+        _ensure_puppeteer()
         return executor.execute(action, ui_state.puppeteer, control_dict={})
 
     mcp = FastMCP("UFO PowerPoint MCP Server")

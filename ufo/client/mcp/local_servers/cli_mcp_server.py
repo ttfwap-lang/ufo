@@ -102,6 +102,7 @@ def _is_cli_command_allowed(command_str: str) -> bool:
 
 
 @MCPRegistry.register_factory_decorator("CommandLineExecutor")
+@MCPRegistry.register_factory_decorator("cli_mcp_server")
 def create_cli_mcp_server(*args, **kwargs) -> FastMCP:
     """
     Create and return the CLI MCP server instance.

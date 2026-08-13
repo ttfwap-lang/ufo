@@ -26,6 +26,7 @@ if platform.system() != "Windows":
 from typing import Annotated, Any, Dict, Optional
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 from fastmcp.client import Client
 from pydantic import Field
 
@@ -56,7 +57,9 @@ class UIServerState:
 
 
 @MCPRegistry.register_factory_decorator("WordCOMExecutor")
-def create_word_mcp_server(process_name: str, *args, **kwargs) -> FastMCP:
+@MCPRegistry.register_factory_decorator("server_5_WordCOMExecutor")
+@MCPRegistry.register_factory_decorator("word_wincom_mcp_server")
+def create_word_mcp_server(process_name: str = "WINWORD.EXE", *args, **kwargs) -> FastMCP:
     """
     Create and return the AppAgent Action MCP server instance.
     :return: FastMCP instance for AppAgent action operations.
@@ -65,15 +68,19 @@ def create_word_mcp_server(process_name: str, *args, **kwargs) -> FastMCP:
     ui_state = UIServerState()
     executor = ActionExecutor()
 
-    ui_state.puppeteer = AppPuppeteer(
-        process_name=process_name,
-        app_root_name="WINWORD.EXE",
-    )
-
-    ui_state.puppeteer.receiver_manager.create_api_receiver(
-        app_root_name="WINWORD.EXE",
-        process_name=process_name,
-    )
+    def _ensure_puppeteer():
+        if ui_state.puppeteer is None:
+            try:
+                ui_state.puppeteer = AppPuppeteer(
+                    process_name=process_name,
+                    app_root_name="WINWORD.EXE",
+                )
+                ui_state.puppeteer.receiver_manager.create_api_receiver(
+                    app_root_name="WINWORD.EXE",
+                    process_name=process_name,
+                )
+            except Exception as e:
+                raise ToolError(f"Word COM automation interface unavailable: {e}")
 
     def _execute_action(action: ActionCommandInfo) -> Dict[str, Any]:
         """
@@ -81,9 +88,7 @@ def create_word_mcp_server(process_name: str, *args, **kwargs) -> FastMCP:
         :param action: ActionCommandInfo object to execute.
         :return: Execution result as a dictionary.
         """
-        if not ui_state.puppeteer:
-            raise ValueError("UI state not initialized.")
-
+        _ensure_puppeteer()
         return executor.execute(action, ui_state.puppeteer, control_dict={})
 
     mcp = FastMCP("UFO UI AppAgent Action MCP Server")

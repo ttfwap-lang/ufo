@@ -19,6 +19,7 @@ from ufo.client.mcp.mcp_registry import MCPRegistry
 logger = logging.getLogger(__name__)
 
 @MCPRegistry.register_factory_decorator("FallbackOmniparserExecutor")
+@MCPRegistry.register_factory_decorator("mcp_fallback_omniparser")
 def create_fallback_omniparser_mcp_server(*args, **kwargs) -> FastMCP:
     """
     Create and return the Omniparser Fallback MCP server instance.

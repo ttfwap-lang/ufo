@@ -43,6 +43,7 @@ def _run_cmd(args: list, timeout: int = 30, check: bool = True) -> str:
 
 
 @MCPRegistry.register_factory_decorator("RDPControllerExecutor")
+@MCPRegistry.register_factory_decorator("mcp_rdp_controller")
 def create_rdp_controller_mcp_server(*args, **kwargs) -> FastMCP:
     """Create and return the RDP Controller MCP server instance."""
 

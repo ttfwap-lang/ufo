@@ -27,6 +27,7 @@ configs = get_config()
 
 
 @MCPRegistry.register_factory_decorator("ConstellationEditor")
+@MCPRegistry.register_factory_decorator("constellation_mcp_server")
 def create_constellation_mcp_server(*args, **kwargs) -> FastMCP:
     """
     Create and return the Constellation Editor MCP server instance.
