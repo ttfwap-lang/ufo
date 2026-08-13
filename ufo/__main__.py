@@ -4,9 +4,16 @@
 import argparse
 import sys
 import logging
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+# Suppress known benign third-party library deprecation warnings
+warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="websockets.*")
+warnings.filterwarnings("ignore", message=".*authlib.*")
+warnings.filterwarnings("ignore", message=".*multipart.*")
 
 # Ensure project root is in sys.path for direct script execution and prevent shadowing stdlib logging
 ufo_dir = str(Path(__file__).resolve().parent)

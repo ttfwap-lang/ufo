@@ -242,7 +242,7 @@ class Computer:
                 )
             ]
             return CallToolResult(
-                content=error_content, isError=True
+                content=error_content, structured_content=None, data=None, is_error=True
             )
         except Exception as e:
             # Other exceptions
@@ -256,7 +256,7 @@ class Computer:
                 )
             ]
             return CallToolResult(
-                content=error_content, isError=True
+                content=error_content, structured_content=None, data=None, is_error=True
             )
 
     async def run_actions(self, tool_calls: List[MCPToolCall]) -> List[CallToolResult]:
@@ -497,6 +497,9 @@ class Computer:
 
         tool_result = CallToolResult(
             content=content,
+            structured_content=None,
+            data=tools,
+            is_error=False,
         )
 
         return tool_result

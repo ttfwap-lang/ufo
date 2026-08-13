@@ -30,6 +30,10 @@ def get_completion(
     responses, cost = get_completions(
         messages, agent=agent, use_backup_engine=use_backup_engine, n=1, configs=configs
     )
+    if not responses or responses[0] is None:
+        raise RuntimeError(
+            f"LLM service returned no response candidates for agent '{agent}'."
+        )
     return responses[0], cost
 
 

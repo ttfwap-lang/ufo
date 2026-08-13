@@ -89,6 +89,7 @@ class GeminiService(BaseService):
 
         response = None
         cost = 0.0
+        last_error = None
 
         for attempt in range(self.max_retry):
             genai_config_args: Dict[str, Any] = {
@@ -138,6 +139,7 @@ class GeminiService(BaseService):
                 )
                 break
             except Exception as e:
+                last_error = e
                 err_str = str(e).upper()
                 is_client_error = (
                     isinstance(e, (errors.ClientError, errors.APIError))
@@ -203,6 +205,7 @@ class GeminiService(BaseService):
                         break
                     except Exception as retry_e:
                         e = retry_e
+                        last_error = retry_e
 
                 # Calculate backoff with jitter
                 delay = min(initial_delay * (2**attempt), max_delay)
@@ -213,6 +216,11 @@ class GeminiService(BaseService):
                     f"Retrying in {sleep_time:.2f}s..."
                 )
                 time.sleep(sleep_time)
+
+        if response is None:
+            raise RuntimeError(
+                f"Gemini API request failed after {self.max_retry} attempts for model '{self.model}'. Last error: {last_error}"
+            )
 
         return self.get_text_from_all_candidates(response), cost
 
