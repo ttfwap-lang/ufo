@@ -15,10 +15,10 @@ model_list:
 
   - model_name: "gemini-complex"
     litellm_params:
-      model: "gemini/gemini-3.6-flash"
+      model: "gemini/gemini-3.7-flash"
       api_key: "os.environ/GEMINI_API_KEY"
 
   - model_name: "gemini-computer-use"
     litellm_params:
-      model: "gemini/gemini-3.6-flash"
+      model: "gemini/gemini-3.7-flash"
       api_key: "os.environ/GEMINI_API_KEY"
