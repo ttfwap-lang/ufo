@@ -1,0 +1,46 @@
+[tool.ruff]
+# Target Python 3.10 (UFO's venv python version)
+target-version = "py310"
+line-length = 120
+exclude = [
+    "python_env",
+    ".git",
+    "__pycache__",
+    "*.egg-info",
+    "logs",
+]
+
+[tool.ruff.lint]
+# E = pycodestyle errors, F = pyflakes, I = isort, W = warnings
+select = ["E", "F", "I", "W"]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "F401",   # unused imports (UFO has many conditional imports)
+    "E402",   # module level import not at top (UFO uses sys.path.insert)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+# Lenient mode — UFO has untyped third-party deps
+ignore_missing_imports = true
+follow_imports = "silent"
+warn_unused_ignores = true
+no_strict_optional = true
+exclude = [
+    "python_env/",
+    "logs/",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# Skip benchmark/load tests by default — they require specific hardware contexts
+addopts = "--ignore=tests/benchmark_harness.py --ignore=tests/load_test_harness.py"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
