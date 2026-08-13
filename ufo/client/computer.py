@@ -239,12 +239,10 @@ class Computer:
                 TextContent(
                     type="text",
                     text=error_msg,
-                    annotations=None,
-                    meta=None,
                 )
             ]
             return CallToolResult(
-                data=None, content=error_content, structured_content=None, meta=None, is_error=True
+                content=error_content, isError=True
             )
         except Exception as e:
             # Other exceptions
@@ -255,12 +253,10 @@ class Computer:
                 TextContent(
                     type="text",
                     text=error_msg,
-                    annotations=None,
-                    meta=None,
                 )
             ]
             return CallToolResult(
-                data=None, content=error_content, structured_content=None, meta=None, is_error=True
+                content=error_content, isError=True
             )
 
     async def run_actions(self, tool_calls: List[MCPToolCall]) -> List[CallToolResult]:
@@ -496,16 +492,11 @@ class Computer:
             TextContent(
                 type="text",
                 text=json.dumps(tools),
-                annotations=None,
-                meta=None,
             )
         ]
 
         tool_result = CallToolResult(
-            data=tools,
             content=content,
-            structured_content=None,
-            meta=None,
         )
 
         return tool_result

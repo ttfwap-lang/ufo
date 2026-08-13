@@ -113,7 +113,5 @@ MCP_INSTRUCTIONS_PATH: "ufo/config/mcp_instructions"  # Path to MCP instructions
 MCP_TOOL_TIMEOUT: 30  # Timeout in seconds for MCP tool execution
 MCP_LOG_EXECUTION: False  # Whether to log MCP tool execution details
 
-
-
 # Enabled Third-Party Agents
 ENABLED_THIRD_PARTY_AGENTS: []
