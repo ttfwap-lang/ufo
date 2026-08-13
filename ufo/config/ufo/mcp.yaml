@@ -121,5 +121,17 @@ APP_AGENT:
       - name: CommandLineExecutor
         namespace: CommandLineExecutor
         type: local
+      - name: server_5_WordCOMExecutor
+        namespace: server_5_WordCOMExecutor
+        type: local
+      - name: excel_wincom_mcp_server
+        namespace: excel_wincom_mcp_server
+        type: local
+      - name: PDFReaderExecutor
+        namespace: PDFReaderExecutor
+        type: local
+      - name: mcp_code_interpreter
+        namespace: mcp_code_interpreter
+        type: local
 
 
