@@ -1,0 +1,125 @@
+mcp_servers:
+  UICollector:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.ui_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: Data collection server that captures screenshots and window information for GUI automation.
+  HostUIExecutor:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.ui_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: UI action executor server for GUI automation.
+  AppUIExecutor:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.ui_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: App UI action executor server for GUI automation.
+  CommandLineExecutor:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.cli_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: Command line execution server.
+  server_5_WordCOMExecutor:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.word_wincom_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: Word COM automation server.
+  excel_wincom_mcp_server:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.excel_wincom_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: Excel COM automation server.
+  mcp_code_interpreter:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.code_interpreter_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: Arbitrary Python Code Execution for PDF/XLSX parsing and Graphic edits.
+  mcp_rdp_controller:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.rdp_controller_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: Control remote Virtual Machines and OS via RDP raw inputs.
+  mcp_fallback_omniparser:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.fallback_omniparser_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: Universal visual parser to cure UI blindness on hostile/Canvas apps.
+  ConstellationEditor:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.constellation_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: Constellation Task Editor for autonomous multi-agent graph DAG orchestration.
+  PowerPointCOMExecutor:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.ppt_wincom_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: PowerPoint COM automation server.
+  PDFReaderExecutor:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.pdf_reader_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: Native PDF Reader for parsing text and elements from PDF documents.
+  VirtualBoxExecutor:
+    type: local
+    args:
+    - -m
+    - ufo.client.mcp.local_servers.virtualbox_mcp_server
+    command: C:\ufo\ufo\python_env\python.exe
+    description: Oracle VirtualBox VM lifecycle manager via VBoxManage CLI.
+
+HOST_AGENT:
+  default:
+    data_collection:
+      - name: UICollector
+        namespace: UICollector
+        type: local
+    action:
+      - name: HostUIExecutor
+        namespace: HostUIExecutor
+        type: local
+      - name: CommandLineExecutor
+        namespace: CommandLineExecutor
+        type: local
+      - name: VirtualBoxExecutor
+        namespace: VirtualBoxExecutor
+        type: local
+
+APP_AGENT:
+  default:
+    data_collection:
+      - name: UICollector
+        namespace: UICollector
+        type: local
+    action:
+      - name: AppUIExecutor
+        namespace: AppUIExecutor
+        type: local
+      - name: CommandLineExecutor
+        namespace: CommandLineExecutor
+        type: local
+
+

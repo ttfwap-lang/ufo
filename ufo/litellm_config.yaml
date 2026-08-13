@@ -1,0 +1,24 @@
+model_list:
+  - model_name: "ufo-model"
+    litellm_params:
+      model: "openai/qwen"
+      api_base: "http://127.0.0.1:8080/v1"
+      api_key: "sk-local"
+      rpm: 10000
+
+  - model_name: "qwen2.5-coder-7b-instruct-q4_k_m"
+    litellm_params:
+      model: "openai/qwen"
+      api_base: "http://127.0.0.1:8080/v1"
+      api_key: "sk-local"
+      rpm: 10000
+
+  - model_name: "gemini-complex"
+    litellm_params:
+      model: "gemini/gemini-3.6-flash"
+      api_key: "os.environ/GEMINI_API_KEY"
+
+  - model_name: "gemini-computer-use"
+    litellm_params:
+      model: "gemini/gemini-3.6-flash"
+      api_key: "os.environ/GEMINI_API_KEY"
