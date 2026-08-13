@@ -94,44 +94,42 @@ mcp_servers:
 HOST_AGENT:
   default:
     data_collection:
-      - name: UICollector
-        namespace: UICollector
-        type: local
+    - name: UICollector
+      namespace: UICollector
+      type: local
     action:
-      - name: HostUIExecutor
-        namespace: HostUIExecutor
-        type: local
-      - name: CommandLineExecutor
-        namespace: CommandLineExecutor
-        type: local
-      - name: VirtualBoxExecutor
-        namespace: VirtualBoxExecutor
-        type: local
+    - name: HostUIExecutor
+      namespace: HostUIExecutor
+      type: local
+    - name: CommandLineExecutor
+      namespace: CommandLineExecutor
+      type: local
+    - name: VirtualBoxExecutor
+      namespace: VirtualBoxExecutor
+      type: local
 
 APP_AGENT:
   default:
     data_collection:
-      - name: UICollector
-        namespace: UICollector
-        type: local
+    - name: UICollector
+      namespace: UICollector
+      type: local
     action:
-      - name: AppUIExecutor
-        namespace: AppUIExecutor
-        type: local
-      - name: CommandLineExecutor
-        namespace: CommandLineExecutor
-        type: local
-      - name: server_5_WordCOMExecutor
-        namespace: server_5_WordCOMExecutor
-        type: local
-      - name: excel_wincom_mcp_server
-        namespace: excel_wincom_mcp_server
-        type: local
-      - name: PDFReaderExecutor
-        namespace: PDFReaderExecutor
-        type: local
-      - name: mcp_code_interpreter
-        namespace: mcp_code_interpreter
-        type: local
-
-
+    - name: AppUIExecutor
+      namespace: AppUIExecutor
+      type: local
+    - name: CommandLineExecutor
+      namespace: CommandLineExecutor
+      type: local
+    - name: server_5_WordCOMExecutor
+      namespace: server_5_WordCOMExecutor
+      type: local
+    - name: excel_wincom_mcp_server
+      namespace: excel_wincom_mcp_server
+      type: local
+    - name: PDFReaderExecutor
+      namespace: PDFReaderExecutor
+      type: local
+    - name: mcp_code_interpreter
+      namespace: mcp_code_interpreter
+      type: local
