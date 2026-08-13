@@ -2,6 +2,8 @@ mcp_servers:
   UICollector:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.ui_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -9,6 +11,8 @@ mcp_servers:
   HostUIExecutor:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.ui_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -16,6 +20,8 @@ mcp_servers:
   AppUIExecutor:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.ui_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -23,6 +29,8 @@ mcp_servers:
   CommandLineExecutor:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.cli_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -30,6 +38,8 @@ mcp_servers:
   server_5_WordCOMExecutor:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.word_wincom_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -37,6 +47,8 @@ mcp_servers:
   excel_wincom_mcp_server:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.excel_wincom_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -44,6 +56,8 @@ mcp_servers:
   mcp_code_interpreter:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.code_interpreter_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -51,6 +65,8 @@ mcp_servers:
   mcp_rdp_controller:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.rdp_controller_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -58,6 +74,8 @@ mcp_servers:
   mcp_fallback_omniparser:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.fallback_omniparser_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -65,6 +83,8 @@ mcp_servers:
   ConstellationEditor:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.constellation_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -72,6 +92,8 @@ mcp_servers:
   PowerPointCOMExecutor:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.ppt_wincom_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -79,6 +101,8 @@ mcp_servers:
   PDFReaderExecutor:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.pdf_reader_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
@@ -86,6 +110,8 @@ mcp_servers:
   VirtualBoxExecutor:
     type: local
     args:
+    - -W
+    - ignore
     - -m
     - ufo.client.mcp.local_servers.virtualbox_mcp_server
     command: C:\ufo\ufo\python_env\python.exe
