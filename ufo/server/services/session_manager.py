@@ -514,50 +514,48 @@ class SessionManager:
                 self.logger.info(
                     f"[SessionManager] 🛑 Session {session_id} cancelled, skipping callback"
                 )
-                self._running_tasks.pop(session_id, None)
-                return
-
-            self.logger.info(
-                f"[SessionManager] 📦 Building result message for session {session_id} (status={status})"
-            )
-
-            # Build result message
-            result_message = ServerMessage(
-                type=ServerMessageType.TASK_END,
-                status=status,
-                session_id=session_id,
-                error=error,
-                result=session.results,
-                timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                response_id=str(uuid.uuid4()),
-            )
-
-            # Save results
-            self.set_results(session_id)
-            self.logger.info(
-                f"[SessionManager] 💾 Saved results for session {session_id}"
-            )
-
-            # Notify callback
-            if callback:
-                self.logger.info(
-                    f"[SessionManager] 📞 Calling callback for session {session_id}"
-                )
-                try:
-                    await callback(session_id, result_message)
-                    self.logger.info(
-                        f"[SessionManager] ✅ Callback completed for session {session_id}"
-                    )
-                except Exception as e:
-                    import traceback
-
-                    self.logger.error(
-                        f"[SessionManager] ❌ Callback error for session {session_id}: {e}\n{traceback.format_exc()}"
-                    )
             else:
-                self.logger.warning(
-                    f"[SessionManager] ⚠️ No callback registered for session {session_id}"
+                self.logger.info(
+                    f"[SessionManager] 📦 Building result message for session {session_id} (status={status})"
                 )
+
+                # Build result message
+                result_message = ServerMessage(
+                    type=ServerMessageType.TASK_END,
+                    status=status,
+                    session_id=session_id,
+                    error=error,
+                    result=session.results,
+                    timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    response_id=str(uuid.uuid4()),
+                )
+
+                # Save results
+                self.set_results(session_id)
+                self.logger.info(
+                    f"[SessionManager] 💾 Saved results for session {session_id}"
+                )
+
+                # Notify callback
+                if callback:
+                    self.logger.info(
+                        f"[SessionManager] 📞 Calling callback for session {session_id}"
+                    )
+                    try:
+                        await callback(session_id, result_message)
+                        self.logger.info(
+                            f"[SessionManager] ✅ Callback completed for session {session_id}"
+                        )
+                    except Exception as e:
+                        import traceback
+
+                        self.logger.error(
+                            f"[SessionManager] ❌ Callback error for session {session_id}: {e}\n{traceback.format_exc()}"
+                        )
+                else:
+                    self.logger.warning(
+                        f"[SessionManager] ⚠️ No callback registered for session {session_id}"
+                    )
 
             # Cleanup
             self._running_tasks.pop(session_id, None)

@@ -162,8 +162,10 @@ class UFOWebSocketHandler:
             await self._send_error_response(str(dup_err), ctx)
             try:
                 await ctx.transport.close()
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as close_err:
+                self.logger.warning(
+                    f"[WS] Transport close error on duplicate client rejection: {close_err}"
+                )
             raise ValueError(str(dup_err)) from dup_err
 
         # Send registration confirmation using AIP protocol
@@ -909,13 +911,17 @@ class UFOWebSocketHandler:
             if client_type == ClientType.CONSTELLATION:
                 try:
                     self.client_manager.remove_constellation_sessions(data.client_id)
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as rollback_err:
+                    self.logger.warning(
+                        f"[WS] Failed to remove constellation session on rollback: {rollback_err}"
+                    )
                 if target_device_id:
                     try:
                         self.client_manager.remove_device_sessions(target_device_id)
-                    except Exception:  # noqa: BLE001
-                        pass
+                    except Exception as rollback_err:
+                        self.logger.warning(
+                            f"[WS] Failed to remove device session on rollback: {rollback_err}"
+                        )
 
             self.logger.warning(
                 "[WS] 🚨 cross-client session reuse rejected: "
