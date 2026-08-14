@@ -378,8 +378,7 @@ def create_rdp_controller_mcp_server(*args, **kwargs) -> FastMCP:
 
     @mcp.tool()
     def send_hotkey_to_rdp(
-        *key_names: str,
-        keys: str = "",
+        keys: str,
         host: str = "",
     ) -> str:
         """
@@ -395,13 +394,10 @@ def create_rdp_controller_mcp_server(*args, **kwargs) -> FastMCP:
         try:
             import pyautogui
 
-            if keys:
-                key_parts = [k.strip().lower() for k in keys.split("+")]
-            elif key_names:
-                key_parts = [k.strip().lower() for k in key_names]
-            else:
-                raise ToolError("No keys specified. Provide keys as 'ctrl+c' format or positional arguments.")
+            if not keys:
+                raise ToolError("No keys specified. Provide keys as 'ctrl+c' format.")
 
+            key_parts = [k.strip().lower() for k in keys.split("+")]
             pyautogui.hotkey(*key_parts)
             combo_str = "+".join(key_parts)
             return f"Sent hotkey '{combo_str}' to RDP window."

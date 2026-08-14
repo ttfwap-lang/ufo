@@ -1,7 +1,17 @@
+# =============================================================================
+# UFO Dream Team — LiteLLM Config (August 2026)
+# =============================================================================
+# Verified best-in-class models for local vision agent:
+#   Qwen3-VL-8B-Instruct   on :8080  (HOST_AGENT — #1 OS World benchmark)
+#   Gemma 4 12B IT          on :8081  (APP_AGENT  — encoder-free vision)
+# =============================================================================
+
 model_list:
-  - model_name: "ufo-model"
+  # ---- Dream Team: Local Vision Models ----
+
+  - model_name: "ufo-host-model"
     litellm_params:
-      model: "openai/qwen"
+      model: "openai/qwen3-vl"
       api_base: "http://127.0.0.1:8080/v1"
       api_key: "sk-local"
       rpm: 10000
@@ -9,15 +19,28 @@ model_list:
       temperature: 0.0
       num_retries: 2
 
-  - model_name: "qwen2.5-coder-7b-instruct-q4_k_m"
+  - model_name: "ufo-app-model"
     litellm_params:
-      model: "openai/qwen"
-      api_base: "http://127.0.0.1:8080/v1"
+      model: "openai/gemma4"
+      api_base: "http://127.0.0.1:8081/v1"
       api_key: "sk-local"
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0
       num_retries: 2
+
+  # ---- Legacy single-model alias ----
+
+  - model_name: "ufo-model"
+    litellm_params:
+      model: "openai/qwen3-vl"
+      api_base: "http://127.0.0.1:8080/v1"
+      api_key: "sk-local"
+      rpm: 10000
+      max_tokens: 2000
+      temperature: 0.0
+
+  # ---- Cloud fallback ----
 
   - model_name: "gemini-complex"
     litellm_params:
