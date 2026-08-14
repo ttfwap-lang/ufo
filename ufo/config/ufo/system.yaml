@@ -5,7 +5,7 @@ MAX_TOKENS: 2000  # The max token limit for the response completion
 MAX_RETRY: 3  # The max retry limit for the response completion
 TEMPERATURE: 0.0  # The temperature of the model: the lower the value, the more consistent
 TOP_P: 0.0  # The top_p of the model: the lower the value, the more conservative
-TIMEOUT: 60  # The call timeout(s), default is 1 mins
+TIMEOUT: 120  # The call timeout(s), default is 2 mins (120s needed for local CPU inference)
 
 # Control Backend
 CONTROL_BACKEND: ["uia"]  # The backend for control action: uia, omniparser
