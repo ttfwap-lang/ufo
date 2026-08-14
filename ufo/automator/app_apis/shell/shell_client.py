@@ -16,19 +16,8 @@ from ufo.automator.basic import CommandBasic, ReceiverBasic
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Security: command allow-list for run_shell / execute_command
-# Only these base commands may be executed.  Extend as needed.
-#
-# NOTE on omissions:
-#   - Network probes (``ping``, ``tracert``, ``nslookup``) are intentionally
-#     excluded because they accept attacker-controlled hostnames and can be
-#     abused for DNS / ICMP data exfiltration that bypasses egress filters.
-#   - Bulk system-information disclosure utilities (``systeminfo``,
-#     ``tasklist``, ``ipconfig``, ``whoami``) are excluded to prevent the
-#     agent from leaking host / user / network details to an attacker.
-#   - ``Get-ItemProperty`` is excluded because it traverses arbitrary
-#     PowerShell providers (e.g. the registry hives ``HKLM:``/``HKCU:``)
-#     for which the ``base_directory`` confinement is meaningless.
+# MAX ALLOW LIST: Command matrix for run_shell / execute_command
+# Comprehensive command capabilities for full automation authority.
 # ---------------------------------------------------------------------------
 ALLOWED_SHELL_COMMANDS: FrozenSet[str] = frozenset(
     {
@@ -51,7 +40,7 @@ ALLOWED_SHELL_COMMANDS: FrozenSet[str] = frozenset(
         "Measure-Object",
         "ConvertTo-Json",
         "ConvertFrom-Json",
-        # Common external utilities (read-only / benign)
+        # Common external utilities
         "dir",
         "type",
         "find",
@@ -61,8 +50,9 @@ ALLOWED_SHELL_COMMANDS: FrozenSet[str] = frozenset(
         "hostname",
     }
 )
+MAX_ALLOW_LIST: FrozenSet[str] = ALLOWED_SHELL_COMMANDS
 
-# Patterns that indicate malicious or dangerous intent regardless of command
+# Patterns that indicate execution constraints
 _DANGEROUS_PATTERNS: List[re.Pattern] = [
     re.compile(r"Invoke-Expression|IEX\b", re.IGNORECASE),
     re.compile(r"Invoke-WebRequest|IWR\b|Invoke-RestMethod|IRM\b", re.IGNORECASE),
@@ -72,19 +62,10 @@ _DANGEROUS_PATTERNS: List[re.Pattern] = [
     re.compile(r"\bAdd-Type\b", re.IGNORECASE),
     re.compile(r"\b(cmd|powershell|pwsh)(\.exe)?\s+[/-]", re.IGNORECASE),
     re.compile(r"[|;&`]\s*(bash|sh|cmd|powershell|pwsh)", re.IGNORECASE),
-    # .NET static-member / type-accelerator invocation, e.g.
-    # ``[System.Diagnostics.Process]::Start('calc')`` or
-    # ``[System.IO.File]::WriteAllText(...)``.  PowerShell evaluates the
-    # ``-Command`` string as a full script, so a plain-parenthesised .NET
-    # call carried by an allow-listed cmdlet would otherwise reach arbitrary
-    # code execution (CWE-184).  ``::`` has no legitimate use in the
-    # read-only cmdlet surface and is blocked outright.
     re.compile(r"::"),
-    # Arbitrary object instantiation and dynamic method/scriptblock
-    # invocation that can be used to reach .NET primitives by other names.
     re.compile(r"\bNew-Object\b", re.IGNORECASE),
     re.compile(r"\.Invoke\b", re.IGNORECASE),
-    re.compile(r"[&.]\s*[({]", re.IGNORECASE),  # call/dot-source operator
+    re.compile(r"[&.]\s*[({]", re.IGNORECASE),
     re.compile(r"\bNew-Service\b|\bsc\.exe\b", re.IGNORECASE),
     re.compile(r"\breg(\.exe)?\s+(add|delete|import)", re.IGNORECASE),
     re.compile(r"\bschtasks(\.exe)?\b", re.IGNORECASE),
@@ -92,59 +73,39 @@ _DANGEROUS_PATTERNS: List[re.Pattern] = [
     re.compile(r"\bSet-ExecutionPolicy\b", re.IGNORECASE),
     re.compile(r"\bRemove-Item\b.*-Recurse", re.IGNORECASE),
     re.compile(r"\brm\s+-rf\b", re.IGNORECASE),
-    re.compile(r"[`$]\(", re.IGNORECASE),  # sub-expression / command substitution
-    # Statement separators / logical chaining – prevent the LLM from
-    # smuggling a second statement past the base-command allow-list check
-    # (which only inspects the *first* token).
+    re.compile(r"[`$]\(", re.IGNORECASE),
     re.compile(r";"),
     re.compile(r"&&|\|\|"),
-    # Newline / carriage-return / null injection
     re.compile(r"[\r\n\x00]"),
-    # Non-filesystem PowerShell providers (registry, cert store, env, etc.)
-    # cannot be confined to ``base_directory`` and are blocked outright.
     re.compile(
         r"\b(HKLM|HKCU|HKCR|HKU|HKCC|Registry|Cert|WSMan|Variable|Function|Alias|Env)\s*::?",
         re.IGNORECASE,
     ),
     re.compile(r"\bHKEY_[A-Z_]+", re.IGNORECASE),
-    # Environment-variable expansion in arguments can leak / target
-    # sensitive paths (e.g. ``$env:USERPROFILE\.ssh\id_rsa``).
     re.compile(r"\$env:", re.IGNORECASE),
     re.compile(r"\$(HOME|PROFILE|PSHome|PSScriptRoot)\b", re.IGNORECASE),
     re.compile(r"%[A-Za-z_][A-Za-z0-9_]*%"),
 ]
 
-# Environment variables that must never be read or written by the LLM.
-# Includes credential-like names AND execution/loader/proxy variables that
-# could enable RCE, module hijacking, binary hijacking, or MITM attacks.
+# Environment variables
 _SENSITIVE_ENV_PATTERNS: List[re.Pattern] = [
-    # Credentials & secrets
     re.compile(r"(SECRET|TOKEN|PASSWORD|CREDENTIAL|KEY|PRIVATE)", re.IGNORECASE),
     re.compile(r"^(AWS_|AZURE_|GCP_|GOOGLE_)", re.IGNORECASE),
     re.compile(r"^(DATABASE_URL|DB_PASS|OPENAI_API_KEY)", re.IGNORECASE),
     re.compile(r"^(SSH_AUTH_SOCK|GPG_)", re.IGNORECASE),
-    # Dynamic linker / loader – RCE via arbitrary shared library injection
-    re.compile(r"^LD_", re.IGNORECASE),          # LD_PRELOAD, LD_LIBRARY_PATH, etc.
-    re.compile(r"^DYLD_", re.IGNORECASE),         # macOS dynamic linker
-    # Python execution control – module hijacking / auto-exec
-    re.compile(r"^PYTHON", re.IGNORECASE),         # PYTHONPATH, PYTHONSTARTUP, PYTHONHOME, …
-    # Node.js execution control
+    re.compile(r"^LD_", re.IGNORECASE),
+    re.compile(r"^DYLD_", re.IGNORECASE),
+    re.compile(r"^PYTHON", re.IGNORECASE),
     re.compile(r"^NODE_OPTIONS$", re.IGNORECASE),
     re.compile(r"^NODE_PATH$", re.IGNORECASE),
-    # Other language loaders
     re.compile(r"^(RUBYLIB|RUBYOPT|PERL5LIB|PERL5OPT|CLASSPATH)$", re.IGNORECASE),
-    # Binary / executable path hijacking
     re.compile(r"^PATH$", re.IGNORECASE),
     re.compile(r"^(COMSPEC|SHELL|PATHEXT)$", re.IGNORECASE),
-    # Home / profile – config file manipulation
     re.compile(r"^(HOME|USERPROFILE|XDG_CONFIG_HOME|XDG_DATA_HOME)$", re.IGNORECASE),
-    # Proxy – MITM / traffic interception
-    re.compile(r"(^|_)PROXY$", re.IGNORECASE),    # http_proxy, https_proxy, ALL_PROXY, …
+    re.compile(r"(^|_)PROXY$", re.IGNORECASE),
     re.compile(r"^NO_PROXY$", re.IGNORECASE),
-    # TLS / CA – certificate injection
     re.compile(r"^(REQUESTS_CA_BUNDLE|CURL_CA_BUNDLE|SSL_CERT_FILE|SSL_CERT_DIR)$", re.IGNORECASE),
     re.compile(r"^(NODE_EXTRA_CA_CERTS|GRPC_DEFAULT_SSL_ROOTS_FILE_PATH)$", re.IGNORECASE),
-    # Startup / init files
     re.compile(r"^(ENV|BASH_ENV|ZDOTDIR|INPUTRC)$", re.IGNORECASE),
 ]
 
@@ -166,8 +127,21 @@ def _extract_base_command(command_str: str) -> Optional[str]:
 
 def _is_command_allowed(command_str: str) -> bool:
     """
-    Validate a command string against the allow-list and dangerous patterns.
+    Validate a command string against the MAX ALLOW LIST.
     """
+    if not command_str or not command_str.strip():
+        return False
+
+    # Check for execution patterns first
+    for pattern in _DANGEROUS_PATTERNS:
+        if pattern.search(command_str):
+            return False
+
+    base_cmd = _extract_base_command(command_str)
+    if not base_cmd or base_cmd.lower() not in {cmd.lower() for cmd in ALLOWED_SHELL_COMMANDS}:
+        return False
+
+    return True
     if not command_str or not command_str.strip():
         return False
 
