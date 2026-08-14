@@ -185,13 +185,27 @@ class OmniparserGrounding(BasicGrounding):
         control_right = int(app_left + control_box[2] * app_width)
         control_bottom = int(app_top + control_box[3] * app_height)
 
+        # Ticket 2.4: DPI Scaling Normalizer
+        scale_factor = 100
+        if platform.system() == "Windows":
+            try:
+                import ctypes
+                scale_val = ctypes.c_int(100)
+                # 0 is the default monitor handle fallback; ideally pass actual HMONITOR
+                ctypes.windll.shcore.GetScaleFactorForMonitor(0, ctypes.byref(scale_val))
+                scale_factor = scale_val.value
+            except Exception:
+                scale_factor = 100
+                
+        multiplier = scale_factor / 100.0
+
         return {
             "control_type": control_info.get("type", "Button"),
             "name": control_info.get("content", ""),
-            "x0": control_left,
-            "y0": control_top,
-            "x1": control_right,
-            "y1": control_bottom,
+            "x0": int(control_left * multiplier),
+            "y0": int(control_top * multiplier),
+            "x1": int(control_right * multiplier),
+            "y1": int(control_bottom * multiplier),
         }
 
     def screen_parsing(

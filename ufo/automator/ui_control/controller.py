@@ -123,11 +123,55 @@ class ControlReceiver(ReceiverBasic):
             result = self.atomic_execution("click_input", params)
             
         if isinstance(result, str) and result.startswith("An error occurred"):
+            logger.warning("UI Click failed, triggering Omniparser fallback (Ticket 2.2)...")
             try:
-                page = _get_playwright_cdp_page()
-                page.mouse.click(page.viewport_size['width'] / 2, page.viewport_size['height'] / 2)
+                import os
+                import tempfile
+                from ufo.automator.ui_control.grounding.omniparser import OmniparserGrounding
+                
+                # Setup paths
+                screenshot_path = os.path.join(tempfile.gettempdir(), "omniparser_fallback.png")
+                
+                # Get the window rect and take a screenshot
+                rect = self.application.rectangle()
+                # PyAutoGUI handles screenshot
+                import pyautogui
+                pyautogui.screenshot(screenshot_path, region=(rect.left, rect.top, rect.width(), rect.height()))
+                
+                # Process with Omniparser
+                parser = OmniparserGrounding()
+                raw_boxes = parser.predict(screenshot_path)
+                parsed_boxes = parser.parse_results(raw_boxes, self.application)
+                
+                # Fallback matching logic
+                target_text = ""
+                try:
+                    if hasattr(self.control, 'window_text'):
+                        target_text = self.control.window_text()
+                except Exception:
+                    pass
+                
+                best_box = None
+                for box in parsed_boxes:
+                    if target_text and target_text.lower() in str(box.get("name", "")).lower():
+                        best_box = box
+                        break
+                
+                if not best_box and parsed_boxes:
+                    best_box = parsed_boxes[0] # Fallback to first box if no text match
+                    
+                if best_box:
+                    # Ticket 2.3: Re-inject fallback coordinates
+                    cx = (best_box["x0"] + best_box["x1"]) / 2
+                    cy = (best_box["y0"] + best_box["y1"]) / 2
+                    pyautogui.click(cx, cy)
+                    logger.info(f"Omniparser fallback successful. Clicked at ({cx}, {cy})")
+                    return f"Click action recovered via Omniparser at ({cx}, {cy})"
+                else:
+                    logger.warning("Omniparser fallback failed: target not found.")
+                    
             except Exception as e:
-                logger.warning(f"Playwright fallback failed: {e}")
+                logger.warning(f"Omniparser fallback exception: {e}")
                 
         return f"Click action has been executed, with parameters: {params}"
 

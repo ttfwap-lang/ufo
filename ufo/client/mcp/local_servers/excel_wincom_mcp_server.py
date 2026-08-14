@@ -53,6 +53,19 @@ class UIServerState:
             UIServerState._initialized = True
 
 
+class Win32COMHealthMonitor:
+    """Ticket 5.2: Generic health monitor that probes the COM object."""
+    @staticmethod
+    def ping(puppeteer: AppPuppeteer) -> bool:
+        try:
+            if not puppeteer or not puppeteer.receiver_manager:
+                return False
+            # Simple attribute access to ping the COM object
+            _ = puppeteer.receiver_manager.get_api_receiver()
+            return True
+        except Exception:
+            return False
+
 @MCPRegistry.register_factory_decorator("ExcelCOMExecutor")
 @MCPRegistry.register_factory_decorator("excel_wincom_mcp_server")
 def create_excel_mcp_server(process_name: str = "EXCEL.EXE", *args, **kwargs) -> FastMCP:
@@ -80,12 +93,46 @@ def create_excel_mcp_server(process_name: str = "EXCEL.EXE", *args, **kwargs) ->
 
     def _execute_action(action: ActionCommandInfo) -> Dict[str, Any]:
         """
-        Execute a single UI action.
+        Execute a single UI action in a detached thread for COM stability (Ticket 5.1).
         :param action: ActionCommandInfo object to execute.
         :return: Execution result as a dictionary.
         """
-        _ensure_puppeteer()
-        return executor.execute(action, ui_state.puppeteer, control_dict={})
+        import threading
+        import queue
+        try:
+            import pythoncom
+        except ImportError:
+            pythoncom = None
+            
+        result_queue = queue.Queue()
+        
+        def worker():
+            try:
+                if pythoncom:
+                    pythoncom.CoInitialize()
+                _ensure_puppeteer()
+                if not Win32COMHealthMonitor.ping(ui_state.puppeteer):
+                    raise ToolError("COM Health Check Failed prior to action.")
+                res = executor.execute(action, ui_state.puppeteer, control_dict={})
+                result_queue.put(("success", res))
+            except Exception as e:
+                result_queue.put(("error", e))
+            finally:
+                if pythoncom:
+                    pythoncom.CoUninitialize()
+                    
+        t = threading.Thread(target=worker)
+        t.daemon = True
+        t.start()
+        t.join(timeout=30)
+        
+        if t.is_alive():
+            raise ToolError("Excel COM automation action timed out.")
+            
+        status, data = result_queue.get()
+        if status == "error":
+            raise ToolError(f"Excel COM automation failed: {data}")
+        return data
 
     mcp = FastMCP("UFO Excel MCP Server")
 

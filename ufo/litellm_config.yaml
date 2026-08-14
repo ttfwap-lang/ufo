@@ -33,3 +33,9 @@ model_list:
     litellm_params:
       model: "gemini/gemini-3.7-flash"
       api_key: "os.environ/GEMINI_API_KEY"
+
+router_settings:
+  fallbacks:
+    - {"ufo-host-model": ["gemini-complex"]}
+    - {"ufo-app-model": ["gemini-computer-use"]}
+    - {"ufo-model": ["gemini-complex"]}
