@@ -5,6 +5,9 @@ model_list:
       api_base: "http://127.0.0.1:8080/v1"
       api_key: "sk-local"
       rpm: 10000
+      max_tokens: 2000
+      temperature: 0.0
+      num_retries: 2
 
   - model_name: "qwen2.5-coder-7b-instruct-q4_k_m"
     litellm_params:
@@ -12,6 +15,9 @@ model_list:
       api_base: "http://127.0.0.1:8080/v1"
       api_key: "sk-local"
       rpm: 10000
+      max_tokens: 2000
+      temperature: 0.0
+      num_retries: 2
 
   - model_name: "gemini-complex"
     litellm_params:

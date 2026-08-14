@@ -133,6 +133,9 @@ HOST_AGENT:
     - name: VirtualBoxExecutor
       namespace: VirtualBoxExecutor
       type: local
+    - name: mcp_rdp_controller
+      namespace: mcp_rdp_controller
+      type: local
 
 APP_AGENT:
   default:
@@ -159,3 +162,7 @@ APP_AGENT:
     - name: mcp_code_interpreter
       namespace: mcp_code_interpreter
       type: local
+    - name: mcp_rdp_controller
+      namespace: mcp_rdp_controller
+      type: local
+

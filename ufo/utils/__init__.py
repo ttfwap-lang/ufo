@@ -237,6 +237,8 @@ def _normalize_keys(obj: Any) -> Any:
 def json_parser(json_string: str) -> Dict[str, Any]:
     """
     Parse json string to json object with regex extraction and key normalization.
+    Handles common local LLM quirks: PascalCase keys, trailing commas, markdown
+    code fences, and truncated output.
     :param json_string: The json string to parse.
     :return: The normalized json object.
     """
@@ -245,6 +247,9 @@ def json_parser(json_string: str) -> Dict[str, Any]:
 
     json_str_clean = json_string.strip()
     json_str_norm = regex_normalize_pascal_keys(json_str_clean)
+
+    # Strip trailing commas before closing braces/brackets (common Qwen/local LLM quirk)
+    json_str_norm = re.sub(r',\s*([}\]])', r'\1', json_str_norm)
 
     # Try regex extraction for markdown json block
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", json_str_norm, re.IGNORECASE)
@@ -264,15 +269,73 @@ def json_parser(json_string: str) -> Dict[str, Any]:
             parsed = json.loads(extracted)
             return _normalize_keys(parsed)
         except Exception:
-            pass
+            # Attempt truncated JSON recovery: try closing unclosed braces/brackets
+            recovered = _attempt_truncated_json_recovery(extracted)
+            if recovered is not None:
+                return _normalize_keys(recovered)
 
     # Fallback to direct json.loads
     try:
         parsed = json.loads(json_str_norm)
         return _normalize_keys(parsed)
     except Exception:
+        # Last resort: attempt truncated JSON recovery on the raw normalized string
+        # This handles cases where the regex couldn't match (no closing brace at all)
+        brace_start = json_str_norm.find('{')
+        if brace_start >= 0:
+            truncated_candidate = json_str_norm[brace_start:]
+            recovered = _attempt_truncated_json_recovery(truncated_candidate)
+            if recovered is not None:
+                return _normalize_keys(recovered)
         parsed = json.loads(json_str_clean)
         return _normalize_keys(parsed)
+
+
+def _attempt_truncated_json_recovery(json_str: str) -> Optional[Dict[str, Any]]:
+    """
+    Attempt to recover truncated JSON by closing unclosed braces and brackets.
+    Common when local LLMs hit context window limits mid-output.
+    :param json_str: Potentially truncated JSON string.
+    :return: Parsed dict if recovery succeeds, None otherwise.
+    """
+    if not json_str:
+        return None
+
+    # Count unclosed braces and brackets
+    open_braces = json_str.count('{') - json_str.count('}')
+    open_brackets = json_str.count('[') - json_str.count(']')
+
+    if open_braces <= 0 and open_brackets <= 0:
+        return None  # Not a truncation issue
+
+    # Strip any trailing comma before we close
+    recovered = json_str.rstrip().rstrip(',')
+
+    # Close any open strings (look for unmatched quotes)
+    in_string = False
+    escape = False
+    for ch in recovered:
+        if escape:
+            escape = False
+            continue
+        if ch == '\\':
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+    if in_string:
+        recovered += '"'
+
+    # Close brackets then braces
+    recovered += ']' * max(0, open_brackets)
+    recovered += '}' * max(0, open_braces)
+
+    try:
+        parsed = json.loads(recovered)
+        logger.info(f"Recovered truncated JSON (closed {open_braces} braces, {open_brackets} brackets)")
+        return parsed
+    except Exception:
+        return None
 
 
 def is_json_serializable(obj: Any) -> bool:
