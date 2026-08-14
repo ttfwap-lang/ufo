@@ -43,4 +43,4 @@ user: |-
   <HostAgent Message:> {host_message}
   <Retrieved Documents:> {retrieved_docs}
   <Last Successful Actions:> {last_success_actions}
-  <Your response:> 
+  <Your response:>

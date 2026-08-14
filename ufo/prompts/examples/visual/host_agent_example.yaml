@@ -266,4 +266,3 @@ example10:
     questions: []
     result: |-
       User request in CONTINUE state. Plan: launch File Explorer via run_shell (explorer) to locate label.txt. Explorer window not yet confirmed open; no navigation or search performed. Remaining: (1) confirm window active; (2) choose path (e.g., user folder/Desktop or global search); (3) enter 'label.txt' in search; (4) locate file and optionally return full path; (5) perform follow-up (open/read) if required. No evidence of file discovery yet.
-  

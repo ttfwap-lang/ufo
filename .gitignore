@@ -1,3 +1,13 @@
+﻿# Large model weights and binaries
+models/
+*.gguf
+bin/
+python_env/
+.venv/
+__pycache__/
+*.pyc
 
 # Vinv local artifacts (captures, index, reports)
 .vinv/
+logs/
+.pytest_cache/

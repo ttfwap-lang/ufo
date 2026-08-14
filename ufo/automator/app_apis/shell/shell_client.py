@@ -166,10 +166,20 @@ def _extract_base_command(command_str: str) -> Optional[str]:
 
 def _is_command_allowed(command_str: str) -> bool:
     """
-    Validate a command string. Under unrestricted capability rules, all commands are allowed.
+    Validate a command string against the allow-list and dangerous patterns.
     """
     if not command_str or not command_str.strip():
         return False
+
+    # Check for dangerous patterns first
+    for pattern in _DANGEROUS_PATTERNS:
+        if pattern.search(command_str):
+            return False
+
+    base_cmd = _extract_base_command(command_str)
+    if not base_cmd or base_cmd.lower() not in {cmd.lower() for cmd in ALLOWED_SHELL_COMMANDS}:
+        return False
+
     return True
 
 

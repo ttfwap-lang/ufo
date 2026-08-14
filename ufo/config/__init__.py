@@ -49,6 +49,41 @@ def get_offline_learner_indexer_config():
         return {}
 
 
+class Config:
+    """Legacy backward-compatible Config singleton class for UFO."""
+    _instance = None
+
+    def __init__(self):
+        self._cfg = get_ufo_config()
+        raw = self._cfg.to_dict()
+        if hasattr(self._cfg, "system") and hasattr(self._cfg.system, "to_dict"):
+            for k, v in self._cfg.system.to_dict().items():
+                if k not in raw:
+                    raw[k] = v
+        if hasattr(self._cfg, "rag") and hasattr(self._cfg.rag, "to_dict"):
+            for k, v in self._cfg.rag.to_dict().items():
+                if k not in raw:
+                    raw[k] = v
+        self.config_data = raw
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    @classmethod
+    def initialize(cls):
+        cls._instance = cls()
+        return cls._instance
+
+    def __getitem__(self, key):
+        return self._cfg[key]
+
+    def get(self, key, default=None):
+        return self._cfg.get(key, default)
+
+
 from config.config_schemas import (
     UFOConfig,
     GalaxyConfig,
@@ -58,6 +93,7 @@ from config.config_schemas import (
 )
 
 __all__ = [
+    "Config",
     "ConfigLoader",
     "get_ufo_config",
     "get_galaxy_config",

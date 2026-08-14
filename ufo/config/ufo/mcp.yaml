@@ -165,4 +165,3 @@ APP_AGENT:
     - name: mcp_rdp_controller
       namespace: mcp_rdp_controller
       type: local
-

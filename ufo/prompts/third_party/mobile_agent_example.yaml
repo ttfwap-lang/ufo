@@ -198,4 +198,3 @@ example9:
       - (4) Mark as FINISH once confirmation is visible.
     result: |-
       Request in CONTINUE state. Successfully initiated click_control command for the Submit button (control_id: 15, control_name: Submit). The form submission has been triggered. Next step will be to wait for server response. Remaining steps: (1) use wait action to pause for server processing and UI update (1.5 seconds for network operations), (2) observe the next screenshot to look for confirmation message - common indicators include success toast, confirmation dialog, or navigation to success page, (3) verify the confirmation message content to ensure submission was successful, and (4) mark task as FINISH with confirmation details (e.g., "Form submitted successfully. Confirmation message: '[message text]'" or "Submission completed, now showing [result screen description]").
-

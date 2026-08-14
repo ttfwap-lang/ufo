@@ -132,6 +132,3 @@ keyboard_input:
       - keyboard_input(keys="Hello World", control_focus=False) --> Type "Hello World" without focusing on any control item.
     [4] Available control item: All control items.
     [5] Return: None
-
-
-  

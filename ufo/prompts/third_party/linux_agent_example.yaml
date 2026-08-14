@@ -135,4 +135,3 @@ example6:
       - (3) Return the ENTIRE file content in the result field and mark FINISH.
     result: |-
       Request in CONTINUE state. Successfully initiated command execution 'cat /etc/hosts' to read the complete content of the /etc/hosts file. The command has been submitted with a 30-second timeout. No output has been received yet. Remaining steps: (1) await command completion and capture complete stdout containing all lines from /etc/hosts file, (2) when ready to mark FINISH, include the COMPLETE file content in the result field (e.g., "Successfully read /etc/hosts file. Complete content:\n127.0.0.1   localhost\n127.0.1.1   hostname\n::1         localhost ip6-localhost\n[...all lines...]"), not just a summary like "File read successfully", (3) mark task as FINISH with full file content. This ensures the user receives the actual data requested, not just confirmation that the operation succeeded.
-
