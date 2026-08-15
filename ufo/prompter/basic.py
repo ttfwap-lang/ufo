@@ -58,6 +58,18 @@ class BasicPrompter(ABC):
         if not path:
             return {}
 
+        if not os.path.exists(path):
+            import pathlib
+            # basic.py is in C:\ufo\ufo\prompter, so parent.parent is C:\ufo\ufo
+            module_dir = pathlib.Path(__file__).resolve().parent.parent
+            if path.startswith("ufo/"):
+                fallback = module_dir / path[4:]
+            else:
+                fallback = module_dir / path
+            
+            if fallback.exists():
+                path = str(fallback)
+
         if os.path.exists(path):
             try:
                 prompt = yaml.safe_load(open(path, "r", encoding="utf-8"))

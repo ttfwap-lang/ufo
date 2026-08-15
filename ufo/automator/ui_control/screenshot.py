@@ -17,6 +17,11 @@ from PIL import Image, ImageDraw, ImageFont, ImageGrab, ImageStat
 if TYPE_CHECKING or platform.system() == "Windows":
     from pywinauto.controls.uiawrapper import UIAWrapper
     from pywinauto.win32structures import RECT
+    try:
+        import ctypes
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
 else:
     UIAWrapper = Any
     RECT = Any
