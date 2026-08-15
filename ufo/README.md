@@ -134,7 +134,7 @@ UFO³ introduces **Galaxy**, a revolutionary multi-device orchestration framewor
 
 4. **🔌 Unified Agent Interaction Protocol (AIP)** - WebSocket-based secure coordination layer with fault tolerance and automatic reconnection
 
-5. **🛠️ Template-Driven MCP-Empowered Device Agents** - Lightweight toolkit for rapid agent development with MCP integration for tool augmentation
+5. **🛠️ Template-Driven MCP-Empowered Device Agents** - Lightweight toolkit for rapid agent development with MCP integration for tool augmentation (now featuring a highly stable, zero-fail `stdio` JSONRPC architecture for robust IDE integrations).
 
 | Aspect | UFO² | UFO³ Galaxy |
 |--------|------|-------------|
