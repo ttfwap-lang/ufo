@@ -32,13 +32,26 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 class _CircuitBreakerState:
-    """Per-agent circuit breaker tracking."""
+    """
+    Per-agent circuit breaker with 3-state machine:
+      CLOSED   → Normal operation, failures counted
+      OPEN     → All calls bypass to backup, timer running
+      HALF-OPEN → After timeout, allow ONE probe call through
+                  Success → CLOSED, Failure → OPEN (reset timer)
+    """
+
+    # States
+    CLOSED = "CLOSED"
+    OPEN = "OPEN"
+    HALF_OPEN = "HALF-OPEN"
 
     def __init__(self) -> None:
+        self._states: Dict[str, str] = {}         # agent_type -> state
         self._failure_counts: Dict[str, int] = {}
-        self._tripped_at: Dict[str, float] = {}
+        self._last_state_change: Dict[str, float] = {}
         self._threshold: int = 3
         self._reset_timeout: float = 300.0
+        self._half_open_max_trials: int = 1
         self._enabled: bool = True
         self._initialized: bool = False
 
@@ -55,49 +68,96 @@ class _CircuitBreakerState:
                 self._enabled = cb_cfg.get("ENABLED", True)
                 self._threshold = cb_cfg.get("FAILURE_THRESHOLD", 3)
                 self._reset_timeout = float(cb_cfg.get("RESET_TIMEOUT_SECONDS", 300))
+                self._half_open_max_trials = cb_cfg.get("HALF_OPEN_MAX_TRIALS", 1)
         except Exception:
             pass  # Use defaults
+
+    def _get_state(self, agent_type: str) -> str:
+        return self._states.get(agent_type, self.CLOSED)
 
     def record_failure(self, agent_type: str) -> None:
         """Record a failure for the given agent type."""
         self._lazy_init()
         if not self._enabled:
             return
+
+        state = self._get_state(agent_type)
         count = self._failure_counts.get(agent_type, 0) + 1
         self._failure_counts[agent_type] = count
-        if count >= self._threshold:
-            self._tripped_at[agent_type] = time.monotonic()
+
+        if state == self.HALF_OPEN:
+            # Probe failed — snap back to OPEN, reset timer
+            self._states[agent_type] = self.OPEN
+            self._last_state_change[agent_type] = time.monotonic()
+            logger.warning(
+                f"Circuit breaker HALF-OPEN probe FAILED for {agent_type}. "
+                f"Returning to OPEN state."
+            )
+        elif count >= self._threshold:
+            self._states[agent_type] = self.OPEN
+            self._last_state_change[agent_type] = time.monotonic()
             logger.warning(
                 f"Circuit breaker TRIPPED for {agent_type} after "
-                f"{count} consecutive failures. Routing to backup for "
-                f"{self._reset_timeout}s."
+                f"{count} consecutive failures. State → OPEN. "
+                f"Routing to backup for {self._reset_timeout}s."
             )
 
     def record_success(self, agent_type: str) -> None:
-        """Reset failure count on success."""
+        """Reset failure count and state on success."""
         self._lazy_init()
+        state = self._get_state(agent_type)
+
+        if state == self.HALF_OPEN:
+            logger.info(
+                f"Circuit breaker HALF-OPEN probe SUCCEEDED for {agent_type}. "
+                f"State → CLOSED."
+            )
+
         self._failure_counts[agent_type] = 0
-        self._tripped_at.pop(agent_type, None)
+        self._states[agent_type] = self.CLOSED
+        self._last_state_change.pop(agent_type, None)
 
     def is_tripped(self, agent_type: str) -> bool:
-        """Check if the breaker is currently tripped for this agent."""
+        """
+        Check if the breaker is currently blocking calls for this agent.
+
+        Returns True if OPEN (should bypass to backup).
+        Returns False if CLOSED or HALF-OPEN (allow call through).
+        
+        When OPEN and timeout has elapsed, transitions to HALF-OPEN
+        (allows one probe call through).
+        """
         self._lazy_init()
         if not self._enabled:
             return False
-        tripped_time = self._tripped_at.get(agent_type)
-        if tripped_time is None:
+
+        state = self._get_state(agent_type)
+
+        if state == self.CLOSED:
             return False
-        elapsed = time.monotonic() - tripped_time
-        if elapsed >= self._reset_timeout:
-            # Auto-reset after cooldown
-            logger.info(
-                f"Circuit breaker RESET for {agent_type} after "
-                f"{elapsed:.0f}s cooldown."
-            )
-            self._failure_counts[agent_type] = 0
-            self._tripped_at.pop(agent_type, None)
+
+        if state == self.HALF_OPEN:
+            # Allow the probe call through
             return False
-        return True
+
+        if state == self.OPEN:
+            elapsed = time.monotonic() - self._last_state_change.get(agent_type, 0)
+            if elapsed >= self._reset_timeout:
+                # Transition to HALF-OPEN — allow one probe
+                self._states[agent_type] = self.HALF_OPEN
+                logger.info(
+                    f"Circuit breaker entering HALF-OPEN for {agent_type} "
+                    f"after {elapsed:.0f}s cooldown. Allowing probe call."
+                )
+                return False  # Allow the probe through
+            return True  # Still OPEN, block
+
+        return False
+
+    def get_state(self, agent_type: str) -> str:
+        """Get current circuit breaker state for an agent (for diagnostics)."""
+        self._lazy_init()
+        return self._get_state(agent_type)
 
 
 _circuit_breaker = _CircuitBreakerState()

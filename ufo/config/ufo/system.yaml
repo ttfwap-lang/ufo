@@ -143,3 +143,82 @@ UI_SETTLEMENT:
   CHECK_FOREGROUND_HWND: true     # Verify foreground window matches expected HWND
   CHECK_CONTROL_ENABLED: true     # Verify target control is enabled after action
 
+# Execution Modes — "Dual-Personality" architecture
+# strict_determinism=true → Pure DAG engine (Tickets 1-3), no exploratory features
+# strict_determinism=false → DAG + ReAct/RAG/SoM for non-critical tasks
+# IMPORTANT: is_irrevocable=True nodes ALWAYS force DAG mode regardless of these flags
+EXECUTION_MODES:
+  STRICT_DETERMINISM: true         # If true, disables ReAct and RAG globally
+  HUMAN_IN_THE_LOOP: false         # If true, prompt operator on fatal failure instead of DLQ
+
+# Legacy Features — Optional subsystems gated behind feature flags
+LEGACY_FEATURES:
+  ENABLE_EXPERIENCE_MEMORY: false  # ChromaDB vector recall of past successful runs
+  ENABLE_SET_OF_MARKS: false       # Numbered bounding box annotation as vision fallback
+  ENABLE_API_PLUGINS: true         # Bypass GUI via direct COM/API when available
+  EXPERIENCE_DB_PATH: "memory/chroma_db"
+  SOM_SIMILARITY_THRESHOLD: 0.3   # ChromaDB distance threshold for experience recall
+
+# Telemetry — Token accounting and daily budget enforcement
+TELEMETRY:
+  ENABLED: true
+  DAILY_BUDGET_USD: 50.0           # Hard lockout when daily spend exceeds this
+  WARNING_THRESHOLD_PCT: 80        # Log warning at 80% of budget
+  LOG_EVERY_CALL: false            # If true, log every LLM call cost (verbose)
+  PERSIST_PATH: "logs/telemetry"   # Daily cost logs for audit trail
+
+# Fleet Daemon — 24/7 event-driven background runner
+FLEET_DAEMON:
+  ENABLED: false                   # Set true to run in headless daemon mode
+  HEARTBEAT_INTERVAL_SECONDS: 60   # Health check log interval
+  MAX_CONCURRENT_WORKFLOWS: 1      # Max parallel HostAgent workflows
+  WEBHOOK_PORT: 8765               # HTTP port for external event triggers
+  ALLOWED_TRIGGER_TYPES:           # Whitelist of accepted event types
+    - file_drop
+    - webhook
+    - scheduled
+    - manual
+
+# Security — Zero-Trust auth vault, OS sandboxing, and PII redaction
+SECURITY:
+  # Auth Vault — Secure credential injection via Windows Credential Manager
+  VAULT:
+    ENABLED: true
+    SERVICE_NAME: "BankFidelity_UFO"       # keyring service name
+    TYPE_INTERVAL: 0.02                     # Seconds between keystrokes during injection
+    SCRUB_MEMORY: true                      # Overwrite credential in memory after use
+
+  # OS Sandbox — Process whitelist and destructive payload blocking
+  SANDBOX:
+    ENABLED: true
+    ALLOWED_PROCESSES:                      # Only these executables may be launched
+      - chrome.exe
+      - msedge.exe
+      - excel.exe
+      - winword.exe
+      - powerpnt.exe
+      - acrobat.exe
+      - notepad.exe
+      - explorer.exe
+      - mstsc.exe                           # RDP client
+    BLOCKED_KEYWORDS:                       # Payloads containing these are blocked
+      - powershell
+      - cmd.exe
+      - regedit
+      - format
+      - "del "
+      - rmdir
+      - rd /s
+      - net user
+      - reg add
+      - taskkill
+    BLOCK_REGISTRY_ACCESS: true
+    BLOCK_SYSTEM32: true
+
+  # PII Redactor — Scrub financial data before cloud transmission
+  REDACTOR:
+    ENABLED: true
+    REDACT_FOR_CLOUD_ONLY: true             # Skip redaction for local (Layer 1) models
+    BLUR_KERNEL_SIZE: 51                    # Gaussian blur kernel (must be odd)
+    REDACTION_MARKER: "[REDACTED]"
+    CUSTOM_PATTERNS: []                     # Additional regex patterns to redact
