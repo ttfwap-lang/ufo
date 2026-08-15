@@ -211,6 +211,15 @@ async def main(parsed_args: Optional[argparse.Namespace] = None):
     # Phase 3: Auto-fallback LLM backend routing
     _ensure_llm_reachable(logger)
     
+    # Phase 4: Start LLM Watchdog Daemon for mid-task crash recovery
+    watchdog = None
+    try:
+        from ufo.utils.llm_resilience import get_watchdog
+        watchdog = get_watchdog()
+        watchdog.start()
+        logger.info("LLM Watchdog daemon started for mid-task resilience")
+    except Exception as wd_err:
+        logger.warning(f"LLM Watchdog failed to start (non-fatal): {wd_err}")
     try:
         from ufo.module.session_pool import SessionFactory, SessionPool
 
@@ -227,6 +236,9 @@ async def main(parsed_args: Optional[argparse.Namespace] = None):
     except Exception as e:
         logger.critical(f"FATAL SYSTEM CRASH: {e}", exc_info=True)
         sys.exit(1)
+    finally:
+        if watchdog:
+            watchdog.stop()
 
 
 if __name__ == "__main__":

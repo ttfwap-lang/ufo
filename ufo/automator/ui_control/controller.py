@@ -6,12 +6,13 @@ import platform
 import time
 import warnings
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, TYPE_CHECKING, cast
 
 # Conditional imports for Windows-specific packages
 if TYPE_CHECKING or platform.system() == "Windows":
     import pyautogui
     import pywinauto
+    import pywinauto.timings
     from pywinauto import keyboard
     from pywinauto.controls.uiawrapper import UIAWrapper
     from pywinauto.win32structures import RECT
@@ -74,11 +75,11 @@ class ControlReceiver(ReceiverBasic):
         self.control = control
         self.application = application
 
-        if control:
-            self.control.set_focus()
+        if control is not None:
+            control.set_focus()
             self.wait_enabled()
-        elif application:
-            self.application.set_focus()
+        elif application is not None:
+            application.set_focus()
 
     @property
     def type_name(self):
@@ -133,13 +134,20 @@ class ControlReceiver(ReceiverBasic):
                 screenshot_path = os.path.join(tempfile.gettempdir(), "omniparser_fallback.png")
                 
                 # Get the window rect and take a screenshot
+                assert self.application is not None, "Application window required for Omniparser fallback"
                 rect = self.application.rectangle()
                 # PyAutoGUI handles screenshot
                 import pyautogui
                 pyautogui.screenshot(screenshot_path, region=(rect.left, rect.top, rect.width(), rect.height()))
                 
-                # Process with Omniparser
-                parser = OmniparserGrounding()
+                # Process with Omniparser — requires OmniParser service endpoint
+                from ufo.llm.grounding_model.omniparser_service import OmniParser
+                omniparser_cfg = getattr(ufo_config.system, 'omniparser', None) or {}
+                endpoint = omniparser_cfg.get("ENDPOINT", "") if isinstance(omniparser_cfg, dict) else ""
+                if not endpoint:
+                    raise RuntimeError("OmniParser endpoint not configured in system.yaml")
+                service = OmniParser(endpoint=endpoint)
+                parser = OmniparserGrounding(service=service)
                 raw_boxes = parser.predict(screenshot_path)
                 parsed_boxes = parser.parse_results(raw_boxes, self.application)
                 
@@ -194,6 +202,7 @@ class ControlReceiver(ReceiverBasic):
 
         # print(f"Clicking on {tranformed_x}, {tranformed_y}")
 
+        assert self.application is not None, "Application window required for click_on_coordinates"
         self.application.set_focus()
 
         pyautogui.click(
@@ -222,6 +231,7 @@ class ControlReceiver(ReceiverBasic):
 
         key_hold = params.get("key_hold", None)
 
+        assert self.application is not None, "Application window required for drag_on_coordinates"
         self.application.set_focus()
 
         if key_hold:
@@ -242,7 +252,7 @@ class ControlReceiver(ReceiverBasic):
         :return: The result of the visual summary action.
         """
 
-        return params.get("text")
+        return params.get("text", "")
 
     def set_edit_text(self, params: Dict[str, str]) -> str:
         """
@@ -255,6 +265,7 @@ class ControlReceiver(ReceiverBasic):
         inter_key_pause = ufo_config.system.input_text_inter_key_pause
 
         if params.get("clear_current_text", False):
+            assert self.control is not None, "Control required for set_edit_text"
             self.control.type_keys("^a", pause=inter_key_pause)
             self.control.type_keys("{DELETE}", pause=inter_key_pause)
 
@@ -285,7 +296,7 @@ class ControlReceiver(ReceiverBasic):
                     win_text = (
                         self.control.iface_value.CurrentValue
                         if hasattr(self.control, "iface_value") and self.control.iface_value
-                        else self.control.window_text()
+                        else (self.control.window_text() if self.control is not None else "")
                     )
                     if expected_text and expected_text not in win_text:
                         logger.warning(f"Note: expected_text '{expected_text}' not in window_text '{win_text}' after {method_name}")
@@ -314,7 +325,7 @@ class ControlReceiver(ReceiverBasic):
 
                 clear_text_keys = "^a{BACKSPACE}"
                 keys_to_send = clear_text_keys + TextTransformer.transform_text(
-                    text_to_type, "all"
+                    str(text_to_type), "all"
                 )
                 try:
                     args = {
@@ -336,7 +347,7 @@ class ControlReceiver(ReceiverBasic):
                             self.control.set_focus()
                         pyautogui.hotkey("ctrl", "a")
                         pyautogui.press("backspace")
-                        pyautogui.write(text_to_type, interval=inter_key_pause)
+                        pyautogui.write(str(text_to_type), interval=inter_key_pause)
                         return f"Typed text via fallback: {text_to_type}"
                     except Exception as fallback_error:
                         return f"An error occurred: {fallback_error}"
@@ -355,10 +366,12 @@ class ControlReceiver(ReceiverBasic):
         keys = TextTransformer.transform_text(keys, "all")
 
         if control_focus:
+            assert self.control is not None, "Control required for keyboard_input with focus"
             self.control.set_focus()
             result = self.atomic_execution("type_keys", {"keys": keys})
         else:
             try:
+                assert self.application is not None, "Application required for keyboard_input"
                 self.application.type_keys(keys=keys)
                 result = ""
             except Exception as e:
@@ -387,12 +400,14 @@ class ControlReceiver(ReceiverBasic):
         for key in keys:
             key = key.lower()
             pyautogui.keyUp(key)
+        return f"Key press action executed with keys: {keys}"
 
     def texts(self) -> str:
         """
         Get the text of the control element.
         :return: The text of the control element.
         """
+        assert self.control is not None, "Control required for texts()"
         return self.control.texts()
 
     def wheel_mouse_input(self, params: Dict[str, str]):
@@ -408,6 +423,7 @@ class ControlReceiver(ReceiverBasic):
         else:
             keyboard.send_keys("{VK_CONTROL up}")
             dist = int(params.get("wheel_dist", 0))
+            assert self.application is not None, "Application required for wheel_mouse_input"
             self.application.wheel_mouse_input(wheel_dist=dist)
             return "The wheel mouse input action has been executed on the application window."
 
@@ -428,6 +444,7 @@ class ControlReceiver(ReceiverBasic):
 
         pyautogui.vscroll(scroll_y, x=new_x, y=new_y)
         pyautogui.hscroll(scroll_x, x=new_x, y=new_y)
+        return f"Scroll action executed at ({new_x}, {new_y}) with scroll_x={scroll_x}, scroll_y={scroll_y}"
 
     def mouse_move(self, params: Dict[str, str]) -> str:
         """
@@ -442,6 +459,7 @@ class ControlReceiver(ReceiverBasic):
         new_x, new_y = self.transform_point(x, y)
 
         pyautogui.moveTo(new_x, new_y, duration=0.1)
+        return f"Mouse moved to ({new_x}, {new_y})"
 
     def type(self, params: Dict[str, str]) -> str:
         """
@@ -451,7 +469,8 @@ class ControlReceiver(ReceiverBasic):
         """
 
         text = params.get("text", "")
-        pyautogui.write(text, interval=0.1)
+        pyautogui.write(str(text), interval=0.1)
+        return f"Typed text: {text}"
 
     def no_action(self):
         """
@@ -463,7 +482,7 @@ class ControlReceiver(ReceiverBasic):
 
     def annotation(
         self, params: Dict[str, str], annotation_dict: Dict[str, UIAWrapper]
-    ) -> List[str]:
+    ) -> List[UIAWrapper]:
         """
         Take a screenshot of the current application window and annotate the control item on the screenshot.
         :param params: The arguments of the annotation method.
@@ -477,12 +496,13 @@ class ControlReceiver(ReceiverBasic):
 
         return control_reannotate
 
-    def wait_enabled(self, timeout: int = 10, retry_interval: int = 0.5) -> None:
+    def wait_enabled(self, timeout: float = 10, retry_interval: float = 0.5) -> None:
         """
         Wait until the control is enabled.
         :param timeout: The timeout to wait.
         :param retry_interval: The retry interval to wait.
         """
+        assert self.control is not None, "Control required for wait_enabled"
         while not self.control.is_enabled():
             time.sleep(retry_interval)
             timeout -= retry_interval
@@ -490,12 +510,13 @@ class ControlReceiver(ReceiverBasic):
                 warnings.warn(f"Timeout: {self.control} is not enabled.")
                 break
 
-    def wait_visible(self, timeout: int = 10, retry_interval: int = 0.5) -> None:
+    def wait_visible(self, timeout: float = 10, retry_interval: float = 0.5) -> None:
         """
         Wait until the window is enabled.
         :param timeout: The timeout to wait.
         :param retry_interval: The retry interval to wait.
         """
+        assert self.control is not None, "Control required for wait_visible"
         while not self.control.is_visible():
             time.sleep(retry_interval)
             timeout -= retry_interval
@@ -510,6 +531,7 @@ class ControlReceiver(ReceiverBasic):
         :param fraction_y: The relative y coordinate.
         :return: The absolute coordinates.
         """
+        assert self.application is not None, "Application window required for transform_point"
         application_rect: RECT = self.application.rectangle()
         application_x = application_rect.left
         application_y = application_rect.top
@@ -528,6 +550,7 @@ class ControlReceiver(ReceiverBasic):
         :param y: The absolute y coordinate on the application window.
         :return: The relative coordinates fraction.
         """
+        assert self.application is not None, "Application window required for transfrom_absolute_point_to_fractional"
         application_rect: RECT = self.application.rectangle()
         # application_x = application_rect.left
         # application_y = application_rect.top
@@ -997,6 +1020,7 @@ class DragCommand(ControlCommand):
         Execute the drag command.
         :return: The result of the command.
         """
+        result_parts: List[str] = []
 
         path = self.params.get("path", [])
 
@@ -1037,7 +1061,9 @@ class DragCommand(ControlCommand):
                 "end_y": new_end_y,
             }
 
-            self.receiver.drag_on_coordinates(params)
+            result = self.receiver.drag_on_coordinates(params)
+            result_parts.append(str(result))
+        return "; ".join(result_parts) if result_parts else "Drag action executed"
 
     @classmethod
     def name(cls) -> str:
@@ -1192,6 +1218,7 @@ class WaitCommand(ControlCommand):
         """
 
         time.sleep(3)
+        return "Waited 3 seconds"
 
     @classmethod
     def name(cls) -> str:

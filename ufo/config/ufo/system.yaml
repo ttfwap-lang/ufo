@@ -115,3 +115,31 @@ MCP_LOG_EXECUTION: False  # Whether to log MCP tool execution details
 
 # Enabled Third-Party Agents
 ENABLED_THIRD_PARTY_AGENTS: []
+
+# Circuit Breaker — Auto-routes to backup agent after consecutive LLM failures
+CIRCUIT_BREAKER:
+  ENABLED: true
+  FAILURE_THRESHOLD: 3           # Consecutive failures to trip the breaker
+  RESET_TIMEOUT_SECONDS: 300     # 5 min cooldown before retrying the primary
+  FALLBACK_AGENT: "BACKUP_AGENT"
+
+# Dead-Letter Queue — Persists diagnostic snapshots on total fallback exhaustion
+DLQ:
+  ENABLED: true
+  SNAPSHOT_DIR: "logs/dlq/snapshots"
+  WEBHOOK_URL: ""                # Empty = log-only; set URL for external alerting
+  MAX_SNAPSHOTS: 100             # Auto-prune oldest when limit reached
+
+# Vision Fallback — Dual-stage grounding for ElementNotFoundError recovery
+VISION_FALLBACK:
+  ENABLED: true
+  CONFIDENCE_THRESHOLD: 0.85     # Below this, cascade from OmniParser to Cloud VLM
+  CLOUD_VLM_AGENT: "BACKUP_AGENT"  # Which agent config to use for Cloud VLM fallback
+
+# UI Settlement — Hybrid timeout + structural UIA checks
+UI_SETTLEMENT:
+  HARD_TIMEOUT_SECONDS: 5.0
+  PIXEL_CONVERGENCE_THRESHOLD: 5  # Pixel stddev threshold for convergence
+  CHECK_FOREGROUND_HWND: true     # Verify foreground window matches expected HWND
+  CHECK_CONTROL_ENABLED: true     # Verify target control is enabled after action
+

@@ -131,7 +131,17 @@ def create_word_mcp_server(process_name: str = "WINWORD.EXE", *args, **kwargs) -
         t.join(timeout=30)
         
         if t.is_alive():
-            raise ToolError("Word COM automation action timed out.")
+            # Phase 5 Zero-Fail: Hard-kill the hung Office process to prevent zombie lockups
+            try:
+                import psutil
+                for proc in psutil.process_iter(['name', 'pid']):
+                    if proc.info['name'] and proc.info['name'].upper() == 'WINWORD.EXE':
+                        logger.warning(f"Hard-killing hung WINWORD.EXE (PID {proc.info['pid']}) after 30s timeout")
+                        proc.kill()
+                        break
+            except Exception as kill_err:
+                logger.warning(f"Failed to kill hung Word process: {kill_err}")
+            raise ToolError("Word COM automation action timed out. Hung process was killed.")
             
         status, data = result_queue.get()
         if status == "error":
