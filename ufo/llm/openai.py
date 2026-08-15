@@ -15,7 +15,6 @@ import urllib.request
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 
 from openai import AzureOpenAI, OpenAI
-from openai.lib._parsing._completions import type_to_response_format_param
 from ufo.llm.base import BaseService
 from ufo.llm.response_schema import (
     AppAgentResponse,
@@ -23,6 +22,24 @@ from ufo.llm.response_schema import (
     HostAgentResponse,
 )
 from ufo.llm import AgentType
+
+
+def _pydantic_to_response_format(schema_class):
+    """
+    Convert a Pydantic model class to an OpenAI response_format parameter.
+    Uses public Pydantic API instead of private OpenAI SDK internals.
+
+    :param schema_class: A Pydantic BaseModel subclass
+    :return: A dict suitable for the response_format parameter
+    """
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": schema_class.__name__,
+            "schema": schema_class.model_json_schema(),
+            "strict": True,
+        },
+    }
 
 logger = logging.getLogger(__name__)
 
@@ -84,11 +101,12 @@ class BaseOpenAIService(BaseService):
                 self.config_llm["JSON_SCHEMA"] = self.json_schema_enabled
             else:
                 try:
-                    self.client.beta.chat.completions.parse(
+                    self.client.chat.completions.create(
                         model=self.model,
                         messages=[{"role": "user", "content": "Hello"}],
                         n=1,
-                        response_format=HostAgentResponse,
+                        response_format=_pydantic_to_response_format(HostAgentResponse),
+                        max_tokens=10,
                     )
                     _PROBED_JSON_SCHEMA_MODELS[probe_key] = True
                     self.json_schema_enabled = True
@@ -167,7 +185,7 @@ class BaseOpenAIService(BaseService):
                     AgentType(self.agent_type)
                 )
                 if response_format:
-                    base_params["response_format"] = type_to_response_format_param(
+                    base_params["response_format"] = _pydantic_to_response_format(
                         response_format
                     )
 
@@ -289,7 +307,7 @@ class BaseOpenAIService(BaseService):
             }
             response_format = response_format_mapping.get(AgentType(self.agent_type))
             if response_format:
-                base_params["response_format"] = type_to_response_format_param(
+                base_params["response_format"] = _pydantic_to_response_format(
                     response_format
                 )
 
@@ -720,123 +738,15 @@ class OpenAIService(BaseOpenAIService):
             )
 
 
-class OpenAIBetaClient:
 
-    Json = Dict[str, Any]
-
-    def __init__(self, endpoint: str, api_version: str):
-        """
-        The OpenAI Beta client class to interact with the OpenAI API.
-        :param endpoint: The OpenAI API endpoint.
-        :param api_key: The OpenAI API key.
-        :param api_version: The OpenAI API version.
-        """
-
-        self.endpoint = endpoint
-        self.base_url = endpoint.rstrip("/")
-
-        self.api_version = api_version
-
-    def get_responses(
-        self,
-        model: str,
-        previous_response_id: Optional[str] = None,
-        inputs: Optional[list[Json]] = None,  # pylint: disable=redefined-builtin
-        tool_output: Optional[list[Json]] = None,
-        include: Optional[list[str]] = None,
-        tools: Optional[list[Json]] = None,
-        metadata: Optional[Json] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        parallel_tool_calls: Optional[bool] = None,
-        token_provider: Optional[Callable[[], str]] = None,
-    ) -> Json:
-        if self.base_url.endswith("openai.azure.com"):
-            url = f"{self.base_url}/openai/responses?api-version={self.api_version}"
-        else:
-            url = f"{self.base_url}/v1/responses"
-
-        api_key = (
-            token_provider if isinstance(token_provider, str) else token_provider()
-        )
-
-        headers = {
-            "Content-Type": "application/json",
-            "x-ms-enable-preview": "true",
-            "api-key": api_key,
-            "Authorization": f"Bearer {api_key}",  # OpenAI
-            "OpenAI-Beta": "responses=v1",  # OpenAI
-        }
-
-        return self.post_request(
-            url,
-            data={
-                "model": model,
-                "previous_response_id": previous_response_id,
-                "input": inputs,
-                "tool_output": tool_output,
-                "include": include,
-                "tools": tools,
-                "metadata": metadata,
-                "temperature": temperature,
-                "top_p": top_p,
-                "parallel_tool_calls": parallel_tool_calls,
-            },
-            headers=headers,
-        )
-
-    def post_request(self, url: str, data: Json, headers: Json) -> Json:
-        """
-        Send a POST request to the OpenAI API.
-        :param url: The URL of the API endpoint.
-        :param data: The data to send in the request.
-        :param headers: The headers to send in the request.
-        :return: The response from the API.
-        """
-
-        headers = {**headers, "content-type": "application/json"}
-
-        data = json.dumps(self.compact(data)).encode("utf-8")
-
-        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-
-        try:
-            with urllib.request.urlopen(req, timeout=20) as response:
-                content = response.read().decode("utf-8")
-                return json.loads(content)
-        except urllib.error.HTTPError as e:
-            self._handle_exception(e)
-            print("Error:", e)
-
-        return None
-
-    def _handle_exception(self, exception: urllib.error.HTTPError) -> None:
-        """
-        Handle an exception from the OpenAI API.
-        :param exception: The exception from the OpenAI API.
-        """
-        body = json.loads(exception.file.read().decode("utf-8"))
-        request_id = exception.headers.get("x-request-id")
-
-        error = OpenAIError(
-            request_id=request_id, status_code=exception.code, message=body
-        )
-        print("Error:", error)
-        raise OpenAIError(
-            request_id=request_id, status_code=exception.code, message=body
-        )
-
-    @staticmethod
-    def compact(data: Json) -> Json:
-        """
-        Remove None values from a dictionary.
-        """
-        return {k: v for k, v in data.items() if v is not None}
 
 
 class OperatorServicePreview(BaseService):
     """
-    The Operator service class to interact with the Operator for Computer Using Agent (CUA) API.
+    The Operator service class for Computer Using Agent (CUA) workflows.
+    Uses the Responses API with the 'computer' tool type.
+    Note: The legacy 'computer-use-preview' model was retired July 2026.
+    For current usage, configure with GPT-5.6 Terra or latest CUA-capable model.
     """
 
     def __init__(

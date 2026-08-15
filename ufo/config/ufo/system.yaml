@@ -1,7 +1,7 @@
 # UFO System Configuration
 
 # LLM Parameters
-MAX_TOKENS: 2000  # The max token limit for the response completion
+MAX_TOKENS: 16384  # The max token limit for the response completion (16K needed for thinking models like Gemini 3.7 Flash)
 MAX_RETRY: 3  # The max retry limit for the response completion
 TEMPERATURE: 0.0  # The temperature of the model: the lower the value, the more consistent
 TOP_P: 0.0  # The top_p of the model: the lower the value, the more conservative
@@ -60,7 +60,7 @@ PRINT_LOG: False  # Whether to print the log
 CONCAT_SCREENSHOT: False  # Whether to concat the screenshot for the control item
 LOG_LEVEL: "DEBUG"  # The log level
 INCLUDE_LAST_SCREENSHOT: True  # Whether to include the last screenshot in the observation
-REQUEST_TIMEOUT: 250  # The call timeout for the GPT-V model
+REQUEST_TIMEOUT: 250  # The call timeout for vision model requests
 LOG_XML: False  # Whether to log the xml file at every step
 LOG_TO_MARKDOWN: True  # Whether to save the log to markdown file
 SCREENSHOT_TO_MEMORY: True  # Whether to allow the screenshot to memory

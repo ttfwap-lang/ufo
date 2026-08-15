@@ -77,7 +77,7 @@ class GeminiService(BaseService):
         model_lower = self.model.lower()
         is_computer_use_model = any(
             tag in model_lower
-            for tag in ("computer-use", "computer_use", "computeruse", "cua")
+            for tag in ("computer-use", "computer_use", "computeruse", "cua", "computer")
         )
         use_computer_use = is_computer_use_model
 
