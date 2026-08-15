@@ -472,3 +472,10 @@ def create_rdp_controller_mcp_server(*args, **kwargs) -> FastMCP:
         return "\n".join(lines)
 
     return mcp
+
+if __name__ == "__main__":
+    import logging
+    # Suppress output that might corrupt JSON
+    logging.basicConfig(level=logging.ERROR)
+    mcp = create_rdp_controller_mcp_server()
+    mcp.run()

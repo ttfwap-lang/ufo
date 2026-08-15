@@ -170,31 +170,9 @@ def create_powerpoint_mcp_server(process_name: str = "POWERPNT.EXE", *args, **kw
 
     return mcp
 
-
-async def main():
-    """
-    Main function to run the MCP server.
-    """
-    process_name = "powerpoint"
-
-    mcp_server = create_powerpoint_mcp_server(process_name)
-
-    async with Client(mcp_server) as client:
-        print(f"Starting MCP server for {process_name}...")
-        tool_list = await client.list_tools()
-        for tool in tool_list:
-            print(f"Available tool: {tool.name} - {tool.description}")
-
-        # Example usage: set background color for first slide
-        result = await client.call_tool(
-            "set_background_color", arguments={"color": "FFFFFF", "slide_index": [1]}
-        )
-
-        print(f"Set background color result: {result.data}")
-
-
 if __name__ == "__main__":
-    import asyncio
-
-    # Run the main function in the event loop
-    asyncio.run(main())
+    import logging
+    # Suppress output that might corrupt JSON
+    logging.basicConfig(level=logging.ERROR)
+    mcp = create_powerpoint_mcp_server()
+    mcp.run()

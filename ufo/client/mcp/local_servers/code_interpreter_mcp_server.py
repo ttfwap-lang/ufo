@@ -67,3 +67,10 @@ def create_code_interpreter_mcp_server(*args, **kwargs) -> FastMCP:
             raise ToolError(f"Failed to execute Python code: {str(e)}")
 
     return mcp
+
+if __name__ == "__main__":
+    import logging
+    # Suppress output that might corrupt JSON
+    logging.basicConfig(level=logging.ERROR)
+    mcp = create_code_interpreter_mcp_server()
+    mcp.run()

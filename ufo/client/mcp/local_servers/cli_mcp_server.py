@@ -145,3 +145,10 @@ def create_cli_mcp_server(*args, **kwargs) -> FastMCP:
             raise ToolError(f"Failed to launch application: {str(e)}")
 
     return cli_mcp
+
+if __name__ == "__main__":
+    import logging
+    # Suppress output that might corrupt JSON
+    logging.basicConfig(level=logging.ERROR)
+    mcp = create_cli_mcp_server()
+    mcp.run()

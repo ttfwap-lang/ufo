@@ -339,44 +339,9 @@ def create_excel_mcp_server(process_name: str = "EXCEL.EXE", *args, **kwargs) ->
 
     return mcp
 
-
-async def main():
-    """
-    Main function to run the MCP server.
-    """
-    process_name = "excel"
-
-    mcp_server = create_excel_mcp_server(process_name)
-
-    async with Client(mcp_server) as client:
-        print(f"Starting MCP server for {process_name}...")
-        tool_list = await client.list_tools()
-        for tool in tool_list:
-            print(f"Available tool: {tool.name} - {tool.description}")
-
-        # Example usage: insert a table
-        test_table = [
-            ["Name", "Age", "Gender"],
-            ["Alice", 30, "Female"],
-            ["Bob", 25, "Male"],
-            ["Charlie", 35, "Male"],
-        ]
-
-        result = await client.call_tool(
-            "insert_excel_table",
-            arguments={
-                "table": test_table,
-                "sheet_name": "Sheet1",
-                "start_row": 1,
-                "start_col": 1,
-            },
-        )
-
-        print(f"Insert table result: {result.data}")
-
-
 if __name__ == "__main__":
-    import asyncio
-
-    # Run the main function in the event loop
-    asyncio.run(main())
+    import logging
+    # Suppress output that might corrupt JSON
+    logging.basicConfig(level=logging.ERROR)
+    mcp = create_excel_mcp_server()
+    mcp.run()

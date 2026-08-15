@@ -87,3 +87,10 @@ def create_fallback_omniparser_mcp_server(*args, **kwargs) -> FastMCP:
             )
 
     return mcp
+
+if __name__ == "__main__":
+    import logging
+    # Suppress output that might corrupt JSON
+    logging.basicConfig(level=logging.ERROR)
+    mcp = create_fallback_omniparser_mcp_server()
+    mcp.run()

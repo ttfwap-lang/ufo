@@ -313,30 +313,9 @@ def create_word_mcp_server(process_name: str = "WINWORD.EXE", *args, **kwargs) -
 
     return mcp
 
-
-async def main():
-    """
-    Main function to run the MCP server.
-    """
-    process_name = "word"
-
-    mcp_server = create_word_mcp_server(process_name)
-
-    async with Client(mcp_server) as client:
-        print(f"Starting MCP server for {process_name}...")
-        tool_list = await client.list_tools()
-        for tool in tool_list:
-            print(f"Available tool: {tool.name} - {tool.description}")
-
-        result = await client.call_tool(
-            "insert_table", arguments={"rows": 3, "columns": 2}
-        )
-
-        print(f"Insert table result: {result.data}")
-
-
 if __name__ == "__main__":
-    import asyncio
-
-    # Run the main function in the event loop
-    asyncio.run(main())
+    import logging
+    # Suppress output that might corrupt JSON
+    logging.basicConfig(level=logging.ERROR)
+    mcp = create_word_mcp_server()
+    mcp.run()

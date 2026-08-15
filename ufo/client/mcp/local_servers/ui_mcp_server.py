@@ -1004,3 +1004,12 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
             raise ToolError(error_msg)
 
     return data_mcp
+
+if __name__ == "__main__":
+    import sys
+    import logging
+    logging.basicConfig(level=logging.ERROR)
+    
+    # default to app action if no args
+    mcp = create_app_action_mcp_server()
+    mcp.run()

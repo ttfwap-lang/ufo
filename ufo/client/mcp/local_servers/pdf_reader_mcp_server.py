@@ -289,80 +289,9 @@ def create_pdf_reader_mcp_server(*args, **kwargs) -> FastMCP:
 
     return mcp
 
-
-async def main():
-    """
-    Main function to run the PDF Reader MCP server and test with the specified directory.
-    """
-    mcp_server = create_pdf_reader_mcp_server()
-
-    async with Client(mcp_server) as client:
-        print("Starting PDF Reader MCP server...")
-        tool_list = await client.list_tools()
-        for tool in tool_list:
-            print(f"Available tool: {tool.name} - {tool.description}")
-
-        # Test directory path - using current directory for testing
-        test_directory = r""
-
-        # Fallback to test_pdfs directory if the original doesn't exist
-        if not os.path.exists(test_directory):
-            current_dir = os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            )
-            test_directory = os.path.join(current_dir, "test_pdfs")
-            if not os.path.exists(test_directory):
-                test_directory = os.path.abspath("test_pdfs")
-            print(
-                f"⚠️  Original directory not accessible, using test directory: {test_directory}"
-            )
-
-        print(f"\n🔍 Testing with directory: {test_directory}")
-
-        # Test 1: List PDF files in the directory
-        print("\n1. Listing PDF files in directory...")
-        result = await client.call_tool(
-            "list_pdfs_in_directory", arguments={"directory_path": test_directory}
-        )
-        print(f"Found PDF files: {result.data}")
-
-        # Test 2: Extract text from all PDFs in the directory
-        print("\n2. Extracting text from all PDF files...")
-        result = await client.call_tool(
-            "extract_all_pdfs_text", arguments={"directory_path": test_directory}
-        )
-
-        if isinstance(result.data, dict):
-            print(f"Successfully extracted text from {len(result.data)} files:")
-            for filename, content in result.data.items():
-                content_preview = (
-                    content[:200] + "..." if len(content) > 200 else content
-                )
-                print(f"  📄 {filename}: {content_preview}")
-        else:
-            print(f"Result: {result.data}")
-
-        # Test 3: Extract text from a single PDF (if any exists)
-        pdf_files = await client.call_tool(
-            "list_pdfs_in_directory", arguments={"directory_path": test_directory}
-        )
-
-        if pdf_files.data and len(pdf_files.data) > 0:
-            first_pdf = pdf_files.data[0]
-            print(
-                f"\n3. Extracting text from single PDF: {os.path.basename(first_pdf)}"
-            )
-            result = await client.call_tool(
-                "extract_pdf_text", arguments={"pdf_path": first_pdf}
-            )
-            content_preview = (
-                result.data[:300] + "..." if len(result.data) > 300 else result.data
-            )
-            print(f"Text content preview: {content_preview}")
-
-
 if __name__ == "__main__":
-    import asyncio
-
-    # Run the main function in the event loop
-    asyncio.run(main())
+    import logging
+    # Suppress output that might corrupt JSON
+    logging.basicConfig(level=logging.ERROR)
+    mcp = create_pdf_reader_mcp_server()
+    mcp.run()

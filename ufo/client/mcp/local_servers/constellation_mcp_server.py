@@ -360,3 +360,10 @@ def create_constellation_mcp_server(*args, **kwargs) -> FastMCP:
             raise ToolError(f"Failed to build constellation: {str(e)}")
 
     return constellation_mcp
+
+if __name__ == "__main__":
+    import logging
+    # Suppress output that might corrupt JSON
+    logging.basicConfig(level=logging.ERROR)
+    mcp = create_constellation_mcp_server()
+    mcp.run()
