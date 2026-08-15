@@ -218,9 +218,11 @@ class GeminiService(BaseService):
                 time.sleep(sleep_time)
 
         if response is None:
-            raise RuntimeError(
-                f"Gemini API request failed after {self.max_retry} attempts for model '{self.model}'. Last error: {last_error}"
+            logger.error(
+                f"Gemini API request failed after {self.max_retry} attempts for model '{self.model}'. "
+                f"Last error: {last_error}. Returning empty response for graceful degradation."
             )
+            return [], 0.0
 
         return self.get_text_from_all_candidates(response), cost
 
