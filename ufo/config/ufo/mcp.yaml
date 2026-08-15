@@ -136,6 +136,12 @@ HOST_AGENT:
     - name: mcp_rdp_controller
       namespace: mcp_rdp_controller
       type: local
+    - name: ConstellationEditor
+      namespace: ConstellationEditor
+      type: local
+    - name: mcp_fallback_omniparser
+      namespace: mcp_fallback_omniparser
+      type: local
 
 APP_AGENT:
   default:
@@ -156,6 +162,9 @@ APP_AGENT:
     - name: excel_wincom_mcp_server
       namespace: excel_wincom_mcp_server
       type: local
+    - name: PowerPointCOMExecutor
+      namespace: PowerPointCOMExecutor
+      type: local
     - name: PDFReaderExecutor
       namespace: PDFReaderExecutor
       type: local
@@ -164,4 +173,7 @@ APP_AGENT:
       type: local
     - name: mcp_rdp_controller
       namespace: mcp_rdp_controller
+      type: local
+    - name: mcp_fallback_omniparser
+      namespace: mcp_fallback_omniparser
       type: local

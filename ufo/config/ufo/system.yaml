@@ -222,3 +222,26 @@ SECURITY:
     BLUR_KERNEL_SIZE: 51                    # Gaussian blur kernel (must be odd)
     REDACTION_MARKER: "[REDACTED]"
     CUSTOM_PATTERNS: []                     # Additional regex patterns to redact
+
+# Distributed Fleet — Redis-backed multi-VM orchestration
+DISTRIBUTED_FLEET:
+  ENABLED: false                            # Set true for multi-VM fleet mode
+  REDIS_URL: "redis://127.0.0.1:6379/0"    # Redis connection URL
+  WORKER_ID: "auto"                         # "auto" = hostname+pid, or explicit ID
+  QUEUE_NAME: "ufo:queue:bankfidelity_tasks"
+  LOCK_EXPIRY_SECONDS: 300                  # Max lock duration (5 min)
+  LOCK_PREFIX: "ufo:lock:action"
+  HEARTBEAT_KEY: "ufo:fleet:heartbeats"
+  HEARTBEAT_INTERVAL_SECONDS: 10            # How often workers report alive
+  WATCHDOG_TIMEOUT_SECONDS: 30              # Declare dead after this silence
+  DLQ_QUEUE: "ufo:queue:dlq"               # Redis DLQ for orphaned tasks
+  FETCH_TIMEOUT_SECONDS: 5                  # Block timeout for task fetch
+
+# Control Plane — Operator monitoring and HITL gateway
+CONTROL_PLANE:
+  ENABLED: false                            # Set true to enable the API server
+  HOST: "0.0.0.0"                           # Bind address
+  PORT: 8800                                # API port
+  API_KEY: ""                               # If set, required in X-API-Key header
+  REDIS_URL: "redis://127.0.0.1:6379/0"
+  HITL_DEFAULT_TIMEOUT_MINUTES: 15          # Auto-ABORT if no operator responds
