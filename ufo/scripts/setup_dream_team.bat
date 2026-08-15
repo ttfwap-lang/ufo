@@ -1,6 +1,9 @@
 @echo off
 chcp 65001 >nul
 setlocal enabledelayedexpansion
+
+:: Set ESC character for ANSI colors
+for /f %%a in ('echo prompt $E^| cmd') do set "ESC=%%a"
 REM ======================================================================
 REM  UFO DREAM TEAM -- ONE-SHOT SETUP SCRIPT
 REM  Downloads, configures, and launches the optimal local vision LLM
@@ -70,7 +73,7 @@ echo.
 
 REM Check llama-server exists
 if not exist "%LLAMA_SERVER%" (
-    echo  [ERROR] llama-server.exe not found at: %LLAMA_SERVER%
+    echo  !ESC![91m[ERROR]!ESC![0m llama-server.exe not found at: %LLAMA_SERVER%
     echo.
     echo  Download the latest release from:
     echo    https://github.com/ggerganov/llama.cpp/releases
@@ -79,35 +82,35 @@ if not exist "%LLAMA_SERVER%" (
     echo  Make sure to get the Vulkan build for AMD GPU acceleration.
     goto :fatal_error
 )
-echo  [OK] llama-server.exe found
+echo  !ESC![92m[OK]!ESC![0m llama-server.exe found
 
 REM Check curl exists (for downloads)
 where curl >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [ERROR] curl not found. Install curl or use Windows 10+.
+    echo  !ESC![91m[ERROR]!ESC![0m curl not found. Install curl or use Windows 10+.
     goto :fatal_error
 )
-echo  [OK] curl available
+echo  !ESC![92m[OK]!ESC![0m curl available
 
 REM Check Python
 if not exist "%PYTHON_EXE%" (
-    echo  [WARN] UFO python_env not found at %PYTHON_EXE%
+    echo  !ESC![93m[WARN]!ESC![0m UFO python_env not found at %PYTHON_EXE%
     echo         Will use system Python for LiteLLM.
     set "PYTHON_EXE=python"
 )
-echo  [OK] Python environment ready
+echo  !ESC![92m[OK]!ESC![0m Python environment ready
 
 REM Create models directory
 if not exist "%MODELS_DIR%" mkdir "%MODELS_DIR%"
-echo  [OK] Models directory: %MODELS_DIR%
+echo  !ESC![92m[OK]!ESC![0m Models directory: %MODELS_DIR%
 
 REM Check available RAM
 for /f "tokens=2 delims==" %%a in ('wmic OS get FreePhysicalMemory /value 2^>nul ^| find "="') do (
     set /a FREE_MB=%%a / 1024
 )
-echo  [OK] Free RAM: !FREE_MB! MB
+echo  !ESC![92m[OK]!ESC![0m Free RAM: !FREE_MB! MB
 if !FREE_MB! lss 16000 (
-    echo  [WARN] Less than 16 GB free RAM. Both models need ~18 GB.
+    echo  !ESC![93m[WARN]!ESC![0m Less than 16 GB free RAM. Both models need ~18 GB.
     echo         Close other applications for best performance.
 )
 echo.
@@ -124,7 +127,7 @@ REM ---- Download Qwen3-VL-8B model ----
 if exist "%QWEN_MODEL%" (
     for %%F in ("%QWEN_MODEL%") do set QSIZE=%%~zF
     if !QSIZE! gtr 4000000000 (
-        echo  [SKIP] Qwen3-VL-8B model already downloaded (!QSIZE! bytes)
+        echo  !ESC![96m[SKIP]!ESC![0m Qwen3-VL-8B model already downloaded (!QSIZE! bytes)
         goto :skip_qwen_model
     )
 )
@@ -133,17 +136,17 @@ echo         From: %QWEN_REPO%
 curl -L -C - --progress-bar -o "%QWEN_MODEL%" ^
     "https://huggingface.co/%QWEN_REPO%/resolve/main/%QWEN_MODEL_FILE%"
 if %errorlevel% neq 0 (
-    echo  [ERROR] Download failed. Re-run this script to resume.
+    echo  !ESC![91m[ERROR]!ESC![0m Download failed. Re-run this script to resume.
     goto :fatal_error
 )
-echo  [OK] Qwen3-VL-8B model downloaded
+echo  !ESC![92m[OK]!ESC![0m Qwen3-VL-8B model downloaded
 :skip_qwen_model
 
 REM ---- Download Qwen3-VL-8B mmproj ----
 if exist "%QWEN_MMPROJ%" (
     for %%F in ("%QWEN_MMPROJ%") do set QPSIZE=%%~zF
     if !QPSIZE! gtr 1000000000 (
-        echo  [SKIP] Qwen3-VL-8B mmproj already downloaded (!QPSIZE! bytes)
+        echo  !ESC![96m[SKIP]!ESC![0m Qwen3-VL-8B mmproj already downloaded (!QPSIZE! bytes)
         goto :skip_qwen_mmproj
     )
 )
@@ -151,17 +154,17 @@ echo  [2/4] Downloading Qwen3-VL-8B mmproj F16 (~1.1 GB)...
 curl -L -C - --progress-bar -o "%QWEN_MMPROJ%" ^
     "https://huggingface.co/%QWEN_REPO%/resolve/main/%QWEN_MMPROJ_FILE%"
 if %errorlevel% neq 0 (
-    echo  [ERROR] Download failed. Re-run this script to resume.
+    echo  !ESC![91m[ERROR]!ESC![0m Download failed. Re-run this script to resume.
     goto :fatal_error
 )
-echo  [OK] Qwen3-VL-8B mmproj downloaded
+echo  !ESC![92m[OK]!ESC![0m Qwen3-VL-8B mmproj downloaded
 :skip_qwen_mmproj
 
 REM ---- Download Gemma 4 12B model ----
 if exist "%GEMMA_MODEL%" (
     for %%F in ("%GEMMA_MODEL%") do set GSIZE=%%~zF
     if !GSIZE! gtr 6000000000 (
-        echo  [SKIP] Gemma 4 12B model already downloaded (!GSIZE! bytes)
+        echo  !ESC![96m[SKIP]!ESC![0m Gemma 4 12B model already downloaded (!GSIZE! bytes)
         goto :skip_gemma_model
     )
 )
@@ -170,17 +173,17 @@ echo         From: %GEMMA_REPO%
 curl -L -C - --progress-bar -o "%GEMMA_MODEL%" ^
     "https://huggingface.co/%GEMMA_REPO%/resolve/main/%GEMMA_MODEL_FILE%"
 if %errorlevel% neq 0 (
-    echo  [ERROR] Download failed. Re-run this script to resume.
+    echo  !ESC![91m[ERROR]!ESC![0m Download failed. Re-run this script to resume.
     goto :fatal_error
 )
-echo  [OK] Gemma 4 12B model downloaded
+echo  !ESC![92m[OK]!ESC![0m Gemma 4 12B model downloaded
 :skip_gemma_model
 
 REM ---- Download Gemma 4 12B mmproj ----
 if exist "%GEMMA_MMPROJ%" (
     for %%F in ("%GEMMA_MMPROJ%") do set GPSIZE=%%~zF
     if !GPSIZE! gtr 100000000 (
-        echo  [SKIP] Gemma 4 12B mmproj already downloaded (!GPSIZE! bytes)
+        echo  !ESC![96m[SKIP]!ESC![0m Gemma 4 12B mmproj already downloaded (!GPSIZE! bytes)
         goto :skip_gemma_mmproj
     )
 )
@@ -188,10 +191,10 @@ echo  [4/4] Downloading Gemma 4 12B mmproj Q8_0 (~152 MB)...
 curl -L -C - --progress-bar -o "%GEMMA_MMPROJ%" ^
     "https://huggingface.co/%GEMMA_REPO%/resolve/main/%GEMMA_MMPROJ_FILE%"
 if %errorlevel% neq 0 (
-    echo  [ERROR] Download failed. Re-run this script to resume.
+    echo  !ESC![91m[ERROR]!ESC![0m Download failed. Re-run this script to resume.
     goto :fatal_error
 )
-echo  [OK] Gemma 4 12B mmproj downloaded
+echo  !ESC![92m[OK]!ESC![0m Gemma 4 12B mmproj downloaded
 :skip_gemma_mmproj
 
 echo.
@@ -206,13 +209,13 @@ echo.
 REM Backup current agents.yaml if not already backed up
 if not exist "%UFO_DIR%\config\ufo\agents_cloud.yaml" (
     copy "%UFO_DIR%\config\ufo\agents.yaml" "%UFO_DIR%\config\ufo\agents_cloud.yaml" >nul 2>&1
-    echo  [OK] Backed up current agents.yaml to agents_cloud.yaml
+    echo  !ESC![92m[OK]!ESC![0m Backed up current agents.yaml to agents_cloud.yaml
 ) else (
-    echo  [OK] Cloud backup already exists
+    echo  !ESC![92m[OK]!ESC![0m Cloud backup already exists
 )
 
 REM Write the dream team agents.yaml
-echo  [OK] Writing local vision agents.yaml...
+echo  !ESC![92m[OK]!ESC![0m Writing local vision agents.yaml...
 (
 echo HOST_AGENT:
 echo   VISUAL_MODE: true
@@ -265,7 +268,7 @@ echo   chrome.exe: ufo/prompts/apps/web/api.yaml
 ) > "%UFO_DIR%\config\ufo\agents.yaml"
 
 REM Write the LiteLLM config
-echo  [OK] Writing LiteLLM config...
+echo  !ESC![92m[OK]!ESC![0m Writing LiteLLM config...
 (
 echo model_list:
 echo   - model_name: "ufo-host-model"
@@ -304,7 +307,7 @@ echo       model: "gemini/gemini-3.7-flash"
 echo       api_key: "os.environ/GEMINI_API_KEY"
 ) > "%UFO_DIR%\litellm_config.yaml"
 
-echo  [OK] Configuration updated
+echo  !ESC![92m[OK]!ESC![0m Configuration updated
 echo.
 
 echo ══════════════════════════════════════════════════════════════════
@@ -313,11 +316,11 @@ echo ═════════════════════════
 echo.
 
 taskkill /IM llama-server.exe /F >nul 2>&1
-echo  [OK] Cleared any existing llama-server processes
+echo  !ESC![92m[OK]!ESC![0m Cleared any existing llama-server processes
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":4000.*LISTEN" 2^>nul') do (
     taskkill /PID %%a /F >nul 2>&1
 )
-echo  [OK] Cleared any existing LiteLLM proxy
+echo  !ESC![92m[OK]!ESC![0m Cleared any existing LiteLLM proxy
 timeout /t 2 /nobreak >nul
 echo.
 
@@ -344,11 +347,11 @@ timeout /t 3 /nobreak >nul
 set /a RETRIES+=1
 curl -s -f http://127.0.0.1:8080/health >nul 2>&1
 if !errorlevel! equ 0 (
-    echo  [OK] Qwen3-VL-8B is healthy! (attempt !RETRIES!)
+    echo  !ESC![92m[OK]!ESC![0m Qwen3-VL-8B is healthy! (attempt !RETRIES!)
     goto :qwen_ready
 )
 if !RETRIES! gtr 60 (
-    echo  [ERROR] Qwen3-VL did not start after 180 seconds.
+    echo  !ESC![91m[ERROR]!ESC![0m Qwen3-VL did not start after 180 seconds.
     echo          Check the "Qwen3-VL-8B [HOST]" window for errors.
     goto :fatal_error
 )
@@ -377,11 +380,11 @@ timeout /t 3 /nobreak >nul
 set /a RETRIES2+=1
 curl -s -f http://127.0.0.1:8081/health >nul 2>&1
 if !errorlevel! equ 0 (
-    echo  [OK] Gemma 4 12B is healthy! (attempt !RETRIES2!)
+    echo  !ESC![92m[OK]!ESC![0m Gemma 4 12B is healthy! (attempt !RETRIES2!)
     goto :gemma_ready
 )
 if !RETRIES2! gtr 60 (
-    echo  [ERROR] Gemma 4 did not start after 180 seconds.
+    echo  !ESC![91m[ERROR]!ESC![0m Gemma 4 did not start after 180 seconds.
     goto :fatal_error
 )
 if !RETRIES2!==10 echo  Still loading... !RETRIES2!/60
@@ -404,11 +407,11 @@ timeout /t 2 /nobreak >nul
 set /a RETRIES3+=1
 curl -s -f http://127.0.0.1:4000/health >nul 2>&1
 if !errorlevel! equ 0 (
-    echo  [OK] LiteLLM proxy is healthy!
+    echo  !ESC![92m[OK]!ESC![0m LiteLLM proxy is healthy!
     goto :litellm_ready
 )
 if !RETRIES3! gtr 20 (
-    echo  [ERROR] LiteLLM proxy did not start after 40 seconds.
+    echo  !ESC![91m[ERROR]!ESC![0m LiteLLM proxy did not start after 40 seconds.
     echo          Ensure litellm is installed: pip install litellm
     goto :fatal_error
 )
