@@ -3,14 +3,18 @@
 
 import asyncio
 import functools
-import httpx
 import json
 import logging
 import os
-import openai
+import shutil
+import sys
 from typing import Any, Callable, Dict, List, Literal, Optional
 
+import httpx
+import openai
 from openai import AzureOpenAI, OpenAI
+
+from ufo.llm import AgentType
 from ufo.llm.base import BaseService
 from ufo.llm.endpoint import is_local_endpoint
 from ufo.llm.llm_result import LLMResult
@@ -19,7 +23,6 @@ from ufo.llm.response_schema import (
     EvaluationResponse,
     HostAgentResponse,
 )
-from ufo.llm import AgentType
 
 
 def _pydantic_to_response_format(schema_class):

@@ -418,10 +418,19 @@ async def get_completions(
                 response_schema=response_schema,
             )
         else:
-            raise RuntimeError(
+            terminal_error = RuntimeError(
                 f"Circuit breaker is OPEN for agent '{agent_type}' and fallback is unavailable "
                 f"(use_backup_engine={use_backup_engine})."
             )
+            record_dlq_event(
+                agent_type=str(agent_type),
+                messages=messages if isinstance(messages, list) else [],
+                error=terminal_error,
+                model="unknown",
+                circuit_breaker_state=_circuit_breaker.get_state(agent_type),
+                extra_meta={"trigger": "circuit_breaker_open_terminal"},
+            )
+            raise terminal_error
 
     # --- Resolve API config ---
     if not configs:
@@ -470,10 +479,19 @@ async def get_completions(
                         response_schema=response_schema,
                     )
             # Terminal lockout: no non-cloud fallback available or direct non-fallback call
-            raise RuntimeError(
+            terminal_error = RuntimeError(
                 f"Daily LLM budget exceeded: cloud APIs locked out for agent '{agent_type}' "
                 f"and no non-cloud fallback available."
             )
+            record_dlq_event(
+                agent_type=str(agent_type),
+                messages=messages if isinstance(messages, list) else [],
+                error=terminal_error,
+                model=api_model,
+                circuit_breaker_state=_circuit_breaker.get_state(agent_type),
+                extra_meta={"trigger": "budget_exceeded_terminal"},
+            )
+            raise terminal_error
 
     # --- PII Redaction (Cloud only, on deep copy) ---
     dispatch_messages = messages
