@@ -10,7 +10,6 @@ import copy
 import json
 import logging
 import os
-import tempfile
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,7 +18,7 @@ import urllib.request
 import yaml
 
 from ufo.llm import AgentType
-from ufo.config.config_loader import get_ufo_config, get_galaxy_config, ConfigLoader
+from ufo.config.config_loader import get_galaxy_config, ConfigLoader
 
 logger = logging.getLogger(__name__)
 
@@ -120,20 +119,19 @@ def set_backend_selection(selection: str, profile_path: Optional[str] = None, up
 
     with _route_lock:
         state_path.parent.mkdir(parents=True, exist_ok=True)
-        # Write to a fixed sibling name to ensure we clean it up and stay in the same filesystem
-        fd, tmp_path = tempfile.mkstemp(dir=state_path.parent, prefix="backend_state.json.", suffix=".tmp")
+        # Fixed sibling name so a crash cannot leave random residue under config/ufo/
+        tmp_path = str(state_path) + ".tmp"
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
+            with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(state, f, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp_path, state_path)
-        except Exception:
+        finally:
             try:
                 os.unlink(tmp_path)
-            except Exception:
+            except OSError:
                 pass
-            raise
         
         # Clear cache on update, do not touch process override (failover intent is runtime-scoped)
         reset_backend_caches(clear_override=False)
@@ -159,13 +157,11 @@ def resolve_backend_profile(selection: Optional[str] = None, profile_path: Optio
 
     actual_selection = selection
     if selection == "auto":
-        if "resolved" in state:
-            actual_selection = state["resolved"]
-        else:
-            with _route_lock:
-                if _auto_probe_memo is None:
-                    _auto_probe_memo = _probe_local_auto()
-                actual_selection = "local" if _auto_probe_memo else "cloud"
+        # Always probe per-process (memoized); state["resolved"] is status metadata only
+        with _route_lock:
+            if _auto_probe_memo is None:
+                _auto_probe_memo = _probe_local_auto()
+            actual_selection = "local" if _auto_probe_memo else "cloud"
 
     ufo_dir = loader.base_path / "ufo"
 
@@ -176,11 +172,7 @@ def resolve_backend_profile(selection: Optional[str] = None, profile_path: Optio
     elif actual_selection == "profile" and profile_path:
         target_path = Path(profile_path)
     elif actual_selection == "disk":
-        try:
-            cfg = get_ufo_config()
-            return copy.deepcopy(_config_to_dict(cfg))
-        except Exception:
-            return None
+        target_path = ufo_dir / "agents.yaml"
     else:
         return None
 
@@ -203,7 +195,7 @@ def resolve_backend_profile(selection: Optional[str] = None, profile_path: Optio
             raise BackendProfileError(f"Profile is not a dict: {target_path}")
 
         data = copy.deepcopy(raw_data)
-        loader._expand_env_vars(data)
+        data = loader._expand_env_vars(data)
         loader._apply_env_overrides(data, prefix="UFO_", reserved_suffixes=("ENV","ROOT","DIR"))
         loader._apply_legacy_transforms(data)
 
@@ -302,7 +294,10 @@ def resolve_agent_config(agent_type: str) -> Dict[str, Any]:
             raise ValueError("CONSTELLATION_AGENT not found in Galaxy config")
         return copy.deepcopy(_config_to_dict(constellation_agent_config))
 
-    raise ValueError(f"Unsupported agent type: {agent_type} or missing configuration")
+    state = get_backend_selection()
+    raise BackendProfileError(
+        f"Could not resolve agent config for '{agent_type}' under active selection '{state.get('selected', 'unknown')}'"
+    )
 
 # Backward compatibility for other files calling get_agent_config directly
 def get_agent_config(agent_type: str) -> Dict[str, Any]:
