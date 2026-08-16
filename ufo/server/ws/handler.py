@@ -6,12 +6,12 @@ from typing import Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from aip.protocol.registration import RegistrationProtocol
-from aip.protocol.heartbeat import HeartbeatProtocol
-from aip.protocol.device_info import DeviceInfoProtocol
-from aip.protocol.task_execution import TaskExecutionProtocol
-from aip.transport.websocket import WebSocketTransport
-from aip.messages import ClientMessage, ClientMessageType, ClientType, ServerMessage
+from ufo.aip.protocol.registration import RegistrationProtocol
+from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+from ufo.aip.protocol.device_info import DeviceInfoProtocol
+from ufo.aip.protocol.task_execution import TaskExecutionProtocol
+from ufo.aip.transport.websocket import WebSocketTransport
+from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, ServerMessage
 from ufo.module.dispatcher import WebSocketCommandDispatcher
 from ufo.server.services.session_manager import SessionManager, SessionOwnershipError
 from ufo.server.services.client_connection_manager import (

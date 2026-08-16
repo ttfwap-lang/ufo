@@ -18,10 +18,11 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="websocket
 warnings.filterwarnings("ignore", message=".*authlib.*")
 warnings.filterwarnings("ignore", message=".*multipart.*")
 
-# Ensure project root is in sys.path for direct script execution and prevent shadowing stdlib logging
-ufo_dir = str(Path(__file__).resolve().parent)
-if ufo_dir not in sys.path:
-    sys.path.insert(0, ufo_dir)
+# Ensure parent repository root (UFO_ROOT) is the sole repo import root in sys.path.
+# Pop sys.path[0] if Python initialized it with the package directory itself.
+ufo_package_dir = str(Path(__file__).resolve().parent)
+if sys.path and sys.path[0] == ufo_package_dir:
+    sys.path.pop(0)
 
 UFO_ROOT = str(Path(__file__).resolve().parent.parent)
 if UFO_ROOT not in sys.path:
@@ -115,65 +116,49 @@ def _run_preflight_checks(logger: logging.Logger) -> None:
 def _ensure_llm_reachable(logger: logging.Logger) -> None:
     """
     Probe the configured LLM endpoint. If unreachable (local stack down),
-    automatically fall back to the cloud config (agents_cloud.yaml).
+    switch the in-memory route to cloud config (agents_cloud.yaml) with zero disk writes.
     """
+    import urllib.request
+    from ufo.config.config_loader import get_ufo_config
+    from ufo.llm.config_helper import set_active_agent_route
+
     try:
-        import yaml
-    except ImportError:
-        logger.warning("AUTO-FALLBACK: PyYAML not available, skipping LLM probe")
-        return
+        ufo_cfg = get_ufo_config()
+        host = ufo_cfg.host_agent
+        api_type = getattr(host, "api_type", "")
+        api_base = getattr(host, "api_base", "")
 
-    ufo_path = Path(__file__).resolve().parent
-    agents_path = ufo_path / "config" / "ufo" / "agents.yaml"
-    agents_cloud = ufo_path / "config" / "ufo" / "agents_cloud.yaml"
+        # Only probe local endpoints (cloud APIs don't have /health)
+        if (
+            api_type != "openai"
+            or not api_base
+            or ("127.0.0.1" not in api_base and "localhost" not in api_base)
+        ):
+            return
 
-    if not agents_path.exists():
-        return
+        # Probe the local endpoint
+        health_url = f"{api_base.rstrip('/')}/health"
+        try:
+            req = urllib.request.Request(health_url, method="GET")
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                if resp.status == 200:
+                    logger.info(f"AUTO-FALLBACK: Local LLM at {api_base} is healthy")
+                    return
+        except Exception:
+            pass
 
-    with open(agents_path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-
-    if not isinstance(data, dict):
-        return
-
-    host = data.get("HOST_AGENT", {})
-    api_type = host.get("API_TYPE", "")
-    api_base = host.get("API_BASE", "")
-
-    # Only probe local endpoints (cloud APIs don't have /health)
-    if api_type != "openai" or "127.0.0.1" not in api_base:
-        return
-
-    # Probe the local endpoint
-    health_url = f"{api_base.rstrip('/')}/health"
-    try:
-        req = urllib.request.Request(health_url, method="GET")
-        with urllib.request.urlopen(req, timeout=5.0) as resp:
-            if resp.status == 200:
-                logger.info(f"AUTO-FALLBACK: Local LLM at {api_base} is healthy")
-                return
-    except Exception:
-        pass
-
-    # Local endpoint is down -- attempt fallback
-    logger.warning(f"AUTO-FALLBACK: Local LLM at {api_base} is unreachable")
-
-    if not agents_cloud.exists():
-        logger.error(
-            "AUTO-FALLBACK: Cannot fall back to cloud -- agents_cloud.yaml not found. "
-            "Start the local stack with 'python scripts/launch_servers.py' or create agents_cloud.yaml."
-        )
-        return
-
-    # Atomic swap: backup current, copy cloud config
-    backup_path = agents_path.with_suffix(".yaml.bak")
-    shutil.copy2(agents_path, backup_path)
-    shutil.copy2(agents_cloud, agents_path)
-    logger.warning(
-        "AUTO-FALLBACK: Switched to Gemini cloud API (agents_cloud.yaml). "
-        "Original config backed up to agents.yaml.bak. "
-        "Restart local stack and run 'python scripts/switch_backend.py local' to revert."
-    )
+        # Local endpoint is down -- attempt in-memory fallback
+        logger.warning(f"AUTO-FALLBACK: Local LLM at {api_base} is unreachable")
+        if set_active_agent_route("cloud"):
+            logger.warning(
+                "AUTO-FALLBACK: Switched active LLM route to Gemini cloud API in memory (zero disk writes)."
+            )
+        else:
+            logger.error(
+                "AUTO-FALLBACK: Could not enable in-memory cloud fallback (agents_cloud.yaml missing or invalid). Keeping current configuration."
+            )
+    except Exception as e:
+        logger.warning(f"AUTO-FALLBACK: LLM reachability probe encountered error: {e}")
 
 
 async def main(parsed_args: Optional[argparse.Namespace] = None):

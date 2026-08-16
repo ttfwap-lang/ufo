@@ -4,7 +4,7 @@
 import json
 from typing import Dict, List
 
-from record_processor.parser.demonstration_record import DemonstrationRecord
+from ufo.record_processor.parser.demonstration_record import DemonstrationRecord
 from ufo.prompter.basic import BasicPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
 

@@ -9,11 +9,11 @@ from langchain.docstore.document import Document
 from langchain.text_splitter import HTMLHeaderTextSplitter
 from langchain_community.vectorstores import Chroma
 
-from config.config_loader import get_ufo_config
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.utils import get_hugginface_embedding
 from ufo.utils.url_security import safe_get, validate_url
 
-ufo_config = get_ufo_config()
+ufo_config = LazyUFOConfig()
 logger = logging.getLogger(__name__)
 
 

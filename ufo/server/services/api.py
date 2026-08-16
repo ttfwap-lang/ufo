@@ -5,8 +5,8 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from aip.protocol.task_execution import TaskExecutionProtocol
-from aip.transport.websocket import WebSocketTransport
+from ufo.aip.protocol.task_execution import TaskExecutionProtocol
+from ufo.aip.transport.websocket import WebSocketTransport
 from ufo.server.services.session_manager import SessionManager
 from ufo.server.services.client_connection_manager import ClientConnectionManager
 from ufo.utils import is_safe_task_name

@@ -40,13 +40,28 @@ from ufo.automator.ui_control import ui_tree
 from ufo.automator.ui_control.inspector import ControlInspectorFacade
 from ufo.automator.ui_control.screenshot import PhotographerFacade
 from ufo.client.mcp.mcp_registry import MCPRegistry
-from ufo.config import get_config
-from aip.messages import ControlInfo, Rect, WindowInfo
+from ufo.config import LazyUFOConfig, get_config
+from ufo.aip.messages import ControlInfo, Rect, WindowInfo
+# Get config lazily
+configs = LazyUFOConfig()
 
-# Get config
-configs = get_config()
-CONTROL_BACKEND = configs.get("CONTROL_BACKEND", ["uia"]) if configs else ["uia"]
-BACKEND = "win32" if "win32" in CONTROL_BACKEND else "uia"
+
+def _get_control_backend() -> list:
+    return configs.get("CONTROL_BACKEND", ["uia"]) if configs else ["uia"]
+
+
+def _get_backend() -> str:
+    cb = _get_control_backend()
+    return "win32" if "win32" in cb else "uia"
+
+
+def __getattr__(name: str) -> Any:
+    if name == "CONTROL_BACKEND":
+        return _get_control_backend()
+    if name == "BACKEND":
+        return _get_backend()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +153,7 @@ class UIServerState:
     def __init__(self):
         if not self._initialized:
             self.photographer = PhotographerFacade()
-            self.control_inspector = ControlInspectorFacade(BACKEND)
+            self.control_inspector = ControlInspectorFacade(_get_backend())
             self.selected_app_window: Optional[UIAWrapper] = None
             self.selected_app_window_controls: Optional[Dict[str, UIAWrapper]] = None
             self.puppeteer: Optional[AppPuppeteer] = None

@@ -26,8 +26,8 @@ from ufo.agents.agent.host_agent import AgentFactory
 from ufo.agents.states.app_agent_state import ContinueAppAgentState
 from ufo.agents.states.host_agent_state import ContinueHostAgentState
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
-from config.config_loader import get_ufo_config
-from aip.messages import Command
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
+from ufo.aip.messages import Command
 from ufo.module import interactor
 from ufo.module.basic import BaseRound
 from ufo.module.context import ContextNames
@@ -36,7 +36,7 @@ from ufo.module.sessions.plan_reader import PlanReader
 from ufo.module.sessions.platform_session import WindowsBaseSession
 from ufo.trajectory.parser import Trajectory
 
-ufo_config = get_ufo_config()
+ufo_config = LazyUFOConfig()
 console = Console()
 
 

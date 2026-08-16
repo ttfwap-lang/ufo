@@ -12,7 +12,7 @@ from fastmcp.client.client import CallToolResult
 from mcp.types import TextContent
 
 from ufo.client.mcp.mcp_server_manager import BaseMCPServer, MCPServerManager
-from aip.messages import Command, Result, MCPToolCall, ResultStatus
+from ufo.aip.messages import Command, Result, MCPToolCall, ResultStatus
 import ufo.client.mcp.local_servers
 
 # Load all local MCP servers
@@ -810,7 +810,7 @@ def test_command_router():
     Test function for the CommandRouter.
     This function creates a ComputerManager and a CommandRouter, then executes a sample command.
     """
-    from config.config_loader import get_ufo_config
+    from ufo.config.config_loader import get_ufo_config
 
     logging.basicConfig(
         level=logging.INFO,

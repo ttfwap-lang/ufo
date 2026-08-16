@@ -5,9 +5,8 @@ import json
 import os
 from typing import List, Optional
 
-from config.config_loader import get_ufo_config
-
-ufo_config = get_ufo_config()
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
+ufo_config = LazyUFOConfig()
 
 
 class PlanReader:

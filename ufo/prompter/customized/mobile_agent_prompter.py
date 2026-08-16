@@ -4,7 +4,7 @@
 import json
 from typing import Any, Dict, List
 
-from config.config_loader import get_ufo_config
+from ufo.config.config_loader import get_ufo_config
 from ufo.prompter.agent_prompter import AppAgentPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
 

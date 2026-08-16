@@ -7,11 +7,11 @@ from uuid import uuid4
 import websockets
 from websockets import WebSocketClientProtocol
 
-from aip.protocol.registration import RegistrationProtocol
-from aip.protocol.heartbeat import HeartbeatProtocol
-from aip.protocol.task_execution import TaskExecutionProtocol
-from aip.transport.websocket import WebSocketTransport
-from aip.messages import (
+from ufo.aip.protocol.registration import RegistrationProtocol
+from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+from ufo.aip.protocol.task_execution import TaskExecutionProtocol
+from ufo.aip.transport.websocket import WebSocketTransport
+from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
     ServerMessage,

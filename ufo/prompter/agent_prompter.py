@@ -5,8 +5,8 @@ import copy
 import json
 from typing import Any, Dict, List, Optional
 
-from config.config_loader import get_ufo_config
-from aip.messages import MCPToolInfo
+from ufo.config.config_loader import get_ufo_config
+from ufo.aip.messages import MCPToolInfo
 from ufo.prompter.basic import BasicPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
 

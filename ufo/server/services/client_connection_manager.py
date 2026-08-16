@@ -6,9 +6,9 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import WebSocket
 
-from aip.messages import ClientType
-from aip.protocol.task_execution import TaskExecutionProtocol
-from aip.transport.websocket import WebSocketTransport
+from ufo.aip.messages import ClientType
+from ufo.aip.protocol.task_execution import TaskExecutionProtocol
+from ufo.aip.transport.websocket import WebSocketTransport
 
 
 @dataclass

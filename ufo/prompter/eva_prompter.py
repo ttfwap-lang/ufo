@@ -6,7 +6,7 @@ import json
 import os
 from typing import Any, Dict, List
 
-from config.config_loader import get_ufo_config
+from ufo.config.config_loader import get_ufo_config
 from ufo.prompter.basic import BasicPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
 from ufo.trajectory import parser

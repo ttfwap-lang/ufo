@@ -10,7 +10,7 @@ import logging
 from typing import Optional, TYPE_CHECKING
 
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
-from config.config_loader import get_ufo_config
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.module import interactor
 from ufo.module.basic import BaseRound
 from ufo.module.context import ContextNames
@@ -18,9 +18,9 @@ from ufo.module.dispatcher import LocalCommandDispatcher, WebSocketCommandDispat
 from ufo.module.sessions.platform_session import MobileBaseSession
 
 if TYPE_CHECKING:
-    from aip.protocol.task_execution import TaskExecutionProtocol
+    from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 
-ufo_config = get_ufo_config()
+ufo_config = LazyUFOConfig()
 
 
 class MobileSession(MobileBaseSession):

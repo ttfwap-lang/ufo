@@ -22,8 +22,7 @@ def test_ufo_config():
     print("=" * 70)
 
     try:
-        from config.config_loader import get_ufo_config
-
+        from ufo.config.config_loader import get_ufo_config
         # Load configuration
         config = get_ufo_config()
 
@@ -69,8 +68,7 @@ def test_galaxy_config():
     print("=" * 70)
 
     try:
-        from config.config_loader import get_galaxy_config
-
+        from ufo.config.config_loader import get_galaxy_config
         # Load configuration
         config = get_galaxy_config()
 

@@ -61,7 +61,7 @@ class _CircuitBreakerState:
             return
         self._initialized = True
         try:
-            from config.config_loader import get_ufo_config
+            from ufo.config.config_loader import get_ufo_config
             cfg = get_ufo_config()
             cb_cfg = getattr(cfg.system, "circuit_breaker", None)
             if cb_cfg and isinstance(cb_cfg, dict):

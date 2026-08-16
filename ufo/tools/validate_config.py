@@ -298,8 +298,7 @@ class ConfigValidator:
 
         # Load configuration
         try:
-            from config.config_loader import get_ufo_config, get_galaxy_config
-
+            from ufo.config.config_loader import get_ufo_config, get_galaxy_config
             if self.module == "ufo":
                 config_obj = get_ufo_config()
             else:

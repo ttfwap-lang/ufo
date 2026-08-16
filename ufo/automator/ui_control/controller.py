@@ -23,11 +23,11 @@ else:
     UIAWrapper = Any
     RECT = Any
 
-from config.config_loader import get_ufo_config
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.automator.basic import CommandBasic, ReceiverBasic, ReceiverFactory
 from ufo.automator.puppeteer import ReceiverManager
 
-ufo_config = get_ufo_config()
+ufo_config = LazyUFOConfig()
 logger = logging.getLogger(__name__)
 
 _PLAYWRIGHT_CLIENT = None
@@ -43,17 +43,24 @@ def _get_playwright_cdp_page():
     return _PLAYWRIGHT_CLIENT
 
 
-if platform.system() == "Windows" and pywinauto:
-    if (
-        hasattr(ufo_config.system, "after_click_wait")
-        and ufo_config.system.after_click_wait is not None
-    ):
-        pywinauto.timings.Timings.after_clickinput_wait = (
-            ufo_config.system.after_click_wait
-        )
-        pywinauto.timings.Timings.after_click_wait = ufo_config.system.after_click_wait
-
+if platform.system() == "Windows":
     pyautogui.FAILSAFE = False
+
+_pywinauto_configured = False
+
+
+def _configure_pywinauto_timings() -> None:
+    global _pywinauto_configured
+    if not _pywinauto_configured and platform.system() == "Windows" and pywinauto:
+        try:
+            cfg = get_ufo_config()
+            after_click = getattr(cfg.system, "after_click_wait", None)
+            if after_click is not None:
+                pywinauto.timings.Timings.after_clickinput_wait = after_click
+                pywinauto.timings.Timings.after_click_wait = after_click
+        except Exception:
+            pass
+        _pywinauto_configured = True
 
 
 class ControlReceiver(ReceiverBasic):
@@ -71,6 +78,7 @@ class ControlReceiver(ReceiverBasic):
         :param control: The control element.
         :param application: The application element.
         """
+        _configure_pywinauto_timings()
 
         self.control = control
         self.application = application

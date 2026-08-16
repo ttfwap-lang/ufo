@@ -19,8 +19,8 @@ from fastmcp.exceptions import ToolError
 
 from ufo.client.mcp.mcp_registry import MCPRegistry
 from ufo.config import get_config
-from galaxy.agents.schema import TaskConstellationSchema
-from galaxy.constellation.editor.constellation_editor import ConstellationEditor
+from ufo.galaxy.agents.schema import TaskConstellationSchema
+from ufo.galaxy.constellation.editor.constellation_editor import ConstellationEditor
 
 # Get config
 configs = get_config()

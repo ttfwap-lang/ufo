@@ -127,8 +127,7 @@ class ContextNames(Enum):
         elif self == ContextNames.WEAVING_MODE:
             # Import here to avoid circular imports
             try:
-                from galaxy.agents.schema import WeavingMode
-
+                from ufo.galaxy.agents.schema import WeavingMode
                 return WeavingMode.CREATION
             except ImportError:
                 return "creation"  # Fallback string value

@@ -5,10 +5,10 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Callable, Coroutine, Any, Dict, List, Optional
 
-from aip.protocol.task_execution import TaskExecutionProtocol
+from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
 from ufo.config import get_config
-from aip.messages import (
+from ufo.aip.messages import (
     ClientMessage,
     Command,
     Result,

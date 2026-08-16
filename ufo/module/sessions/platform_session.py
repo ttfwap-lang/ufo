@@ -11,10 +11,10 @@ from typing import Optional
 
 from ufo.agents.agent.customized_agent import LinuxAgent, MobileAgent
 from ufo.agents.agent.host_agent import AgentFactory, HostAgent
-from config.config_loader import get_ufo_config
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.module.basic import BaseRound, BaseSession
 
-ufo_config = get_ufo_config()
+ufo_config = LazyUFOConfig()
 
 
 class WindowsBaseSession(BaseSession):

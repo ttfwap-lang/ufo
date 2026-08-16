@@ -6,15 +6,15 @@ import threading
 import uuid
 from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
 
-from config.config_loader import get_ufo_config
-from aip.messages import ServerMessage, ServerMessageType, TaskStatus
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
+from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
 from ufo.module.basic import BaseSession
 from ufo.module.session_pool import SessionFactory
 
 if TYPE_CHECKING:
-    from aip.protocol.task_execution import TaskExecutionProtocol
+    from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 
-ufo_config = get_ufo_config()
+ufo_config = LazyUFOConfig()
 
 
 class SessionOwnershipError(PermissionError):

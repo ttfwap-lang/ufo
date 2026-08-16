@@ -5,9 +5,81 @@ This module provides a unified way to get agent configurations from different
 config files based on AgentType.
 """
 
-from typing import Dict, Any
+import copy
+from pathlib import Path
+import threading
+from typing import Dict, Any, Optional
 from ufo.llm import AgentType
-from config.config_loader import get_ufo_config, get_galaxy_config
+from ufo.config.config_loader import get_ufo_config, get_galaxy_config, ConfigLoader
+
+_route_lock = threading.Lock()
+_active_agent_route: Optional[str] = None
+_cloud_config_cache: Optional[Dict[str, Any]] = None
+
+
+def _load_and_validate_cloud_config() -> Optional[Dict[str, Any]]:
+    """
+    Load, normalize, and validate agents_cloud.yaml.
+    Reuses ConfigLoader mechanisms for env expansion and legacy transforms.
+    Ensures required agent blocks (HOST_AGENT, APP_AGENT) exist and are valid dictionaries.
+
+    :return: Normalized cloud configuration dictionary, or None if loading/validation fails.
+    """
+    try:
+        loader = ConfigLoader.get_instance()
+        cloud_path = loader.base_path / "ufo" / "agents_cloud.yaml"
+        if not cloud_path.exists():
+            return None
+
+        # Load with environment variable expansion via loader._load_yaml
+        raw_data = loader._load_yaml(cloud_path)
+        if not isinstance(raw_data, dict):
+            return None
+
+        cloud_data = copy.deepcopy(raw_data)
+
+        # Apply standard transformations (API_BASE construction, list conversion, etc.)
+        loader._apply_legacy_transforms(cloud_data)
+
+        # Validate required agent blocks exist
+        host = cloud_data.get("HOST_AGENT")
+        app = cloud_data.get("APP_AGENT")
+        if not isinstance(host, dict) or not isinstance(app, dict):
+            return None
+
+        return cloud_data
+    except Exception:
+        return None
+
+
+def set_active_agent_route(route: Optional[str]) -> bool:
+    """
+    Set the active in-memory routing target for agent configuration.
+
+    When route is "cloud", validates and loads the required cloud agent blocks
+    (with env expansion and config transformations) before marking the route active.
+
+    :param route: "cloud", None (default, read disk config), or custom route name.
+    :return: True if route was successfully activated, False if validation/loading failed.
+    """
+    global _active_agent_route, _cloud_config_cache
+    with _route_lock:
+        if route == "cloud":
+            cloud_data = _load_and_validate_cloud_config()
+            if not cloud_data:
+                return False
+            _cloud_config_cache = cloud_data
+            _active_agent_route = "cloud"
+            return True
+        else:
+            _active_agent_route = route
+            return True
+
+
+def get_active_agent_route() -> Optional[str]:
+    """Get the currently active in-memory agent route."""
+    with _route_lock:
+        return _active_agent_route
 
 
 def get_agent_config(agent_type: str) -> Dict[str, Any]:
@@ -15,7 +87,7 @@ def get_agent_config(agent_type: str) -> Dict[str, Any]:
     Get agent configuration based on agent type.
 
     Maps AgentType to the appropriate configuration file:
-    - HOST_AGENT, APP_AGENT, BACKUP_AGENT, EVALUATION_AGENT, OPERATOR → config/ufo/agents.yaml
+    - HOST_AGENT, APP_AGENT, BACKUP_AGENT, EVALUATION_AGENT, OPERATOR → config/ufo/agents.yaml (or in-memory cloud route)
     - CONSTELLATION_AGENT → config/galaxy/agent.yaml
     - Third-party agents → config/ufo/third_party.yaml (future)
 
@@ -23,6 +95,29 @@ def get_agent_config(agent_type: str) -> Dict[str, Any]:
     :return: Agent configuration dictionary
     :raises ValueError: If agent type is not supported
     """
+    with _route_lock:
+        current_route = _active_agent_route
+        cached_cloud = _cloud_config_cache
+
+    # If cloud route is active, return the validated cloud configuration override in memory
+    if current_route == "cloud" and cached_cloud:
+        cloud_map = {
+            AgentType.HOST: "HOST_AGENT",
+            AgentType.APP: "APP_AGENT",
+            AgentType.BACKUP: "BACKUP_AGENT",
+            AgentType.EVALUATION: "EVALUATION_AGENT",
+            AgentType.OPERATOR: "OPERATOR",
+            AgentType.PREFILL: "HOST_AGENT",
+            AgentType.FILTER: "HOST_AGENT",
+        }
+        if agent_type in cloud_map:
+            key = cloud_map[agent_type]
+            agent_dict = cached_cloud.get(key)
+            if agent_dict is None and agent_type == AgentType.OPERATOR:
+                agent_dict = cached_cloud.get("HOST_AGENT", {})
+            if isinstance(agent_dict, dict):
+                return dict(agent_dict)
+            raise ValueError(f"Agent block '{key}' not found in active cloud configuration")
 
     # UFO agents (from config/ufo/agents.yaml)
     if agent_type in [

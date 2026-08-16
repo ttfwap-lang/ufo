@@ -9,7 +9,7 @@ import os
 import platform
 from typing import List, Optional, TYPE_CHECKING
 
-from config.config_loader import get_ufo_config
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.module.basic import BaseSession
 from ufo.module.sessions.session import (
     FollowerSession,
@@ -20,11 +20,11 @@ from ufo.module.sessions.session import (
 from ufo.module.sessions.service_session import ServiceSession
 
 if TYPE_CHECKING:
-    from aip.protocol.task_execution import TaskExecutionProtocol
+    from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.module.sessions.linux_session import LinuxSession, LinuxServiceSession
 from ufo.module.sessions.mobile_session import MobileSession, MobileServiceSession
 
-ufo_config = get_ufo_config()
+ufo_config = LazyUFOConfig()
 
 
 class SessionPool:

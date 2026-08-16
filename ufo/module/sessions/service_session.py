@@ -1,16 +1,16 @@
 from typing import Optional, TYPE_CHECKING
 
-from config.config_loader import get_ufo_config
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.module.sessions.platform_session import WindowsBaseSession
 from ufo.module.context import ContextNames
 from ufo.module.dispatcher import WebSocketCommandDispatcher
 from ufo.module.sessions.session import Session
 
 if TYPE_CHECKING:
-    from aip.protocol.task_execution import TaskExecutionProtocol
+    from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 
 
-ufo_config = get_ufo_config()
+ufo_config = LazyUFOConfig()
 
 
 class ServiceSession(Session):

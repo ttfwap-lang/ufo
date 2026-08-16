@@ -193,8 +193,7 @@ class ExperienceSummarizer:
 
 if __name__ == "__main__":
 
-    from config.config_loader import get_ufo_config
-
+    from ufo.config.config_loader import get_ufo_config
     ufo_config = get_ufo_config()
 
     # Initialize the ExperienceSummarizer

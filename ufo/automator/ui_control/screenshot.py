@@ -27,15 +27,22 @@ else:
     RECT = Any
 
 from ufo import utils
-from config.config_loader import get_ufo_config
-
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 if TYPE_CHECKING:
     from ufo.agents.processors.schemas.target import TargetInfo
 
-ufo_config = get_ufo_config()
+ufo_config = LazyUFOConfig()
 logger = logging.getLogger(__name__)
 
-DEFAULT_PNG_COMPRESS_LEVEL = int(ufo_config.system.default_png_compress_level)
+
+def _get_default_png_compress_level() -> int:
+    return int(get_ufo_config().system.default_png_compress_level)
+
+
+def __getattr__(name: str) -> Any:
+    if name == "DEFAULT_PNG_COMPRESS_LEVEL":
+        return _get_default_png_compress_level()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 def is_diagnostic_warning_frame(image: Optional[Image.Image]) -> bool:
@@ -322,7 +329,7 @@ class ControlPhotographer(Photographer):
             screenshot = self.rescale_image(screenshot, scalar)
 
         if save_path is not None and screenshot is not None:
-            screenshot.save(save_path, compress_level=DEFAULT_PNG_COMPRESS_LEVEL)
+            screenshot.save(save_path, compress_level=_get_default_png_compress_level())
         return screenshot
 
 
@@ -611,7 +618,7 @@ print(base64.b64encode(buf.getvalue()).decode("utf-8"))
         if scalar is not None and screenshot is not None:
             screenshot = self.rescale_image(screenshot, scalar)
         if save_path is not None and screenshot is not None:
-            screenshot.save(save_path, compress_level=DEFAULT_PNG_COMPRESS_LEVEL)
+            screenshot.save(save_path, compress_level=_get_default_png_compress_level())
         return screenshot
 
     @staticmethod
@@ -751,7 +758,7 @@ class RectangleDecorator(PhotographerDecorator):
                     screenshot, coordinate=adjusted_rect, color=self.color
                 )
         if save_path is not None and screenshot is not None:
-            screenshot.save(save_path, compress_level=DEFAULT_PNG_COMPRESS_LEVEL)
+            screenshot.save(save_path, compress_level=_get_default_png_compress_level())
         return screenshot
 
     def capture_from_adjusted_coords(
@@ -787,7 +794,7 @@ class RectangleDecorator(PhotographerDecorator):
                     screenshot, coordinate=control_rect, color=self.color
                 )
         if save_path is not None and screenshot is not None:
-            screenshot.save(save_path, compress_level=DEFAULT_PNG_COMPRESS_LEVEL)
+            screenshot.save(save_path, compress_level=_get_default_png_compress_level())
         return screenshot
 
 
@@ -1035,7 +1042,7 @@ class AnnotationDecorator(PhotographerDecorator):
 
         if save_path is not None and screenshot_annotated is not None:
             screenshot_annotated.save(
-                save_path, compress_level=DEFAULT_PNG_COMPRESS_LEVEL
+                save_path, compress_level=_get_default_png_compress_level()
             )
 
         return screenshot_annotated
@@ -1407,7 +1414,7 @@ class PhotographerFacade:
             )
 
         if save_path is not None and screenshot is not None:
-            screenshot.save(save_path, compress_level=DEFAULT_PNG_COMPRESS_LEVEL)
+            screenshot.save(save_path, compress_level=_get_default_png_compress_level())
         return screenshot
 
     def get_annotation_dict(
@@ -1480,7 +1487,7 @@ class PhotographerFacade:
         result.paste(image2, (image1.width, 0))
 
         # Save the result
-        result.save(output_path, compress_level=DEFAULT_PNG_COMPRESS_LEVEL)
+        result.save(output_path, compress_level=_get_default_png_compress_level())
 
         return result
 

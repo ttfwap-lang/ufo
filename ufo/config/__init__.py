@@ -7,11 +7,13 @@ UFO² Configuration System
 Modern, modular configuration system with type safety and backward compatibility.
 """
 
-from config.config_loader import (
+from ufo.config.config_loader import (
     ConfigLoader,
     get_ufo_config,
     get_galaxy_config,
     clear_config_cache,
+    LazyUFOConfig,
+    LazyGalaxyConfig,
 )
 
 get_config = get_ufo_config
@@ -84,7 +86,7 @@ class Config:
         return self._cfg.get(key, default)
 
 
-from config.config_schemas import (
+from ufo.config.config_schemas import (
     UFOConfig,
     GalaxyConfig,
     AgentConfig,
@@ -98,6 +100,8 @@ __all__ = [
     "get_ufo_config",
     "get_galaxy_config",
     "clear_config_cache",
+    "LazyUFOConfig",
+    "LazyGalaxyConfig",
     "UFOConfig",
     "GalaxyConfig",
     "AgentConfig",
