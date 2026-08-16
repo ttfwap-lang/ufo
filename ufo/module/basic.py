@@ -187,7 +187,7 @@ class BaseRound(ABC):
         await self.capture_last_snapshot()
 
         if self._should_evaluate:
-            self.evaluation()
+            await self.evaluation()
 
         return self.context.get(ContextNames.ROUND_RESULT)
 
@@ -415,7 +415,7 @@ class BaseRound(ABC):
                     json.dump(step_ui_tree, file, indent=4)
                     self.logger.info(f"UI tree saved to {save_path}")
 
-    def evaluation(self) -> None:
+    async def evaluation(self) -> None:
         """
         Evaluate the round. Subclasses should override this method.
         """
@@ -529,7 +529,7 @@ class BaseSession(ABC):
         await self.capture_last_snapshot()
 
         if self._should_evaluate and not self.is_error():
-            self.evaluation()
+            await self.evaluation()
 
         if ufo_config.system.log_to_markdown:
 
@@ -754,7 +754,7 @@ class BaseSession(ABC):
         """
         self._results = value
 
-    def experience_saver(self) -> None:
+    async def experience_saver(self) -> None:
         """
         Save the current trajectory as agent experience.
         """
@@ -772,7 +772,7 @@ class BaseSession(ABC):
             ufo_config.system.API_PROMPT,
         )
         experience = summarizer.read_logs(self.log_path)
-        summaries, cost = summarizer.get_summary_list(experience)
+        summaries, cost = await summarizer.get_summary_list(experience)
 
         experience_path = ufo_config.system.EXPERIENCE_SAVED_PATH
         utils.create_folder(experience_path)
@@ -849,7 +849,7 @@ class BaseSession(ABC):
         """
         pass
 
-    def evaluation(self) -> None:
+    async def evaluation(self) -> None:
         """
         Evaluate the session.
         """
@@ -868,14 +868,14 @@ class BaseSession(ABC):
 
         # Evaluate the session, first use the default setting, if failed, then disable the screenshot evaluation.
         try:
-            result, cost = evaluator.evaluate(
+            result, cost = await evaluator.evaluate(
                 request=requests,
                 log_path=self.log_path,
                 eva_all_screenshots=ufo_config.system.eva_all_screenshots,
                 context=self.context,
             )
         except Exception as e:
-            result, cost = evaluator.evaluate(
+            result, cost = await evaluator.evaluate(
                 request=requests,
                 log_path=self.log_path,
                 eva_all_screenshots=False,

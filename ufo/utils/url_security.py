@@ -24,7 +24,7 @@ from __future__ import annotations
 import ipaddress
 import socket
 from typing import Any, Iterable, Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 import requests
 

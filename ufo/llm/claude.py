@@ -1,12 +1,12 @@
+import asyncio
 import logging
 import re
-import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import anthropic
-from PIL import Image
 
 from ufo.llm.base import BaseService
+from ufo.llm.llm_result import LLMResult
 
 logger = logging.getLogger(__name__)
 
@@ -18,19 +18,20 @@ class ClaudeService(BaseService):
 
     def __init__(self, config: Dict[str, Any], agent_type: str):
         """
-        Initialize the Gemini service.
+        Initialize the Claude service.
         :param config: The configuration.
         :param agent_type: The agent type.
         """
         self.config_llm = config[agent_type]
         self.config = config
+        self.agent_type = agent_type
         self.model = self.config_llm["API_MODEL"]
         self.prices = self.config["PRICES"]
         self.max_retry = self.config["MAX_RETRY"]
         self.api_type = self.config_llm["API_TYPE"].lower()
         self.client = anthropic.Anthropic(api_key=self.config_llm["API_KEY"])
 
-    def chat_completion(
+    async def chat_completion(
         self,
         messages: List[Dict[str, str]],
         n: int = 1,
@@ -38,18 +39,17 @@ class ClaudeService(BaseService):
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
         **kwargs: Any,
-    ) -> Any:
+    ) -> LLMResult:
         """
-        Generates completions for a given list of messages.
+        Generates completions for a given list of messages asynchronously.
         :param messages: The list of messages to generate completions for.
         :param n: The number of completions to generate for each message.
-        :param temperature: Controls the randomness of the generated completions. Higher values (e.g., 0.8) make the completions more random, while lower values (e.g., 0.2) make the completions more focused and deterministic. If not provided, the default value from the model configuration will be used.
-        :param max_tokens: The maximum number of tokens in the generated completions. If not provided, the default value from the model configuration will be used.
-        :param top_p: Controls the diversity of the generated completions. Higher values (e.g., 0.8) make the completions more diverse, while lower values (e.g., 0.2) make the completions more focused. If not provided, the default value from the model configuration will be used.
-        :param kwargs: Additional keyword arguments to be passed to the underlying completion method.
-        :return: A list of generated completions for each message and the cost set to be None.
+        :param temperature: Controls the randomness of the generated completions.
+        :param max_tokens: The maximum number of tokens in the generated completions.
+        :param top_p: Controls the diversity of the generated completions.
+        :param kwargs: Additional keyword arguments.
+        :return: LLMResult containing responses, cost, token counts, and metadata.
         """
-
         temperature = (
             temperature if temperature is not None else self.config["TEMPERATURE"]
         )
@@ -58,40 +58,43 @@ class ClaudeService(BaseService):
 
         responses = []
         cost = 0.0
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
         system_prompt, user_prompt = self.process_messages(messages)
 
         for _ in range(n):
-            for _ in range(self.max_retry):
-                try:
-                    response = self.client.messages.create(
-                        max_tokens=max_tokens,
-                        model=self.model,
-                        system=system_prompt,
-                        messages=user_prompt,
-                    )
-                    responses.append(response.content[0].text)
-                    prompt_tokens = response.usage.input_tokens
-                    completion_tokens = response.usage.output_tokens
-                    cost += self.get_cost_estimator(
-                        self.api_type,
-                        self.model,
-                        self.prices,
-                        prompt_tokens,
-                        completion_tokens,
-                    )
-                except Exception as e:
-                    import traceback
+            response = await asyncio.to_thread(
+                self.client.messages.create,
+                max_tokens=max_tokens,
+                model=self.model,
+                system=system_prompt,
+                messages=user_prompt,
+            )
+            responses.append(response.content[0].text)
+            p_tokens = getattr(response.usage, "input_tokens", 0) or 0
+            c_tokens = getattr(response.usage, "output_tokens", 0) or 0
+            total_prompt_tokens += p_tokens
+            total_completion_tokens += c_tokens
+            cost += self.get_cost_estimator(
+                self.api_type,
+                self.model,
+                self.prices,
+                p_tokens,
+                c_tokens,
+            )
 
-                    error_trace = traceback.format_exc()
-                    logger.error(f"Error when making API request: {error_trace}")
-                    try:
-                        logger.error(response)
-                    except:
-                        pass
-                    time.sleep(3)
-                    continue
+        if not responses:
+            raise RuntimeError(f"Claude API generated no responses for model '{self.model}'")
 
-        return responses, cost
+        return LLMResult(
+            responses=responses,
+            cost=cost,
+            prompt_tokens=total_prompt_tokens,
+            completion_tokens=total_completion_tokens,
+            model=self.model,
+            api_type=self.api_type,
+            agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, "value", str(self.agent_type)),
+        )
 
     def process_messages(
         self, messages: List[Dict[str, str]]

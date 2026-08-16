@@ -4,6 +4,9 @@
 from enum import Enum
 
 
+from ufo.llm.llm_result import LLMResult
+
+
 class AgentType(str, Enum):
     HOST = "HOST_AGENT"
     APP = "APP_AGENT"
@@ -14,3 +17,7 @@ class AgentType(str, Enum):
     PREFILL = "PREFILL_AGENT"
     FILTER = "FILTER_AGENT"
     BACKUP = "BACKUP_AGENT"
+
+
+__all__ = ["AgentType", "LLMResult"]
+

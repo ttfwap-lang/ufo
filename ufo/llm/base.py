@@ -4,9 +4,11 @@
 import abc
 from importlib import import_module
 from typing import Dict
-import functools
 from ufo.llm.config_helper import get_agent_config
 from ufo.config.config_loader import get_ufo_config, get_galaxy_config
+
+from ufo.llm.llm_result import LLMResult
+
 
 class BaseService(abc.ABC):
     @abc.abstractmethod
@@ -14,11 +16,10 @@ class BaseService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def chat_completion(self, *args, **kwargs):
+    async def chat_completion(self, *args, **kwargs) -> LLMResult:
         pass
 
     @staticmethod
-    @functools.cache
     def get_service(
         name: str, agent_type: str, model_name: str = None
     ) -> "BaseService":

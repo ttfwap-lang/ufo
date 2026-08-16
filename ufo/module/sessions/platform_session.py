@@ -71,7 +71,7 @@ class LinuxBaseSession(BaseSession):
             ],
         )
 
-    def evaluation(self) -> None:
+    async def evaluation(self) -> None:
         """
         Evaluation logic for Linux sessions.
         """
@@ -124,7 +124,7 @@ class MobileBaseSession(BaseSession):
             ],
         )
 
-    def evaluation(self) -> None:
+    async def evaluation(self) -> None:
         """
         Evaluation logic for Mobile sessions.
         """

@@ -1,10 +1,9 @@
-import functools
+import asyncio
 import base64
+import functools
 import json
 import logging
 import re
-import time
-import random
 from typing import Any, Dict, List, Optional
 
 from google import genai
@@ -12,6 +11,7 @@ from google.genai import types, errors
 from google.genai.types import GenerateContentConfig, Part, GenerateContentResponse
 
 from ufo.llm.base import BaseService
+from ufo.llm.llm_result import LLMResult
 
 from ufo.llm.response_schema import (
     AppAgentResponse,
@@ -46,7 +46,7 @@ class GeminiService(BaseService):
         self.agent_type = agent_type
         self.json_schema_enabled = self.config_llm.get("JSON_SCHEMA", False)
 
-    def chat_completion(
+    async def chat_completion(
         self,
         messages: List[Dict[str, str]],
         n: int = 1,
@@ -54,18 +54,17 @@ class GeminiService(BaseService):
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
         **kwargs: Any,
-    ) -> Any:
+    ) -> LLMResult:
         """
-        Generates completions for a given list of messages.
+        Generates completions for a given list of messages asynchronously.
         :param messages: The list of messages to generate completions for.
         :param n: The number of completions to generate for each message.
-        :param temperature: Controls the randomness of the generated completions. Higher values (e.g., 0.8) make the completions more random, while lower values (e.g., 0.2) make the completions more focused and deterministic. If not provided, the default value from the model configuration will be used.
-        :param max_tokens: The maximum number of tokens in the generated completions. If not provided, the default value from the model configuration will be used.
-        :param top_p: Controls the diversity of the generated completions. Higher values (e.g., 0.8) make the completions more diverse, while lower values (e.g., 0.2) make the completions more focused. If not provided, the default value from the model configuration will be used.
-        :param kwargs: Additional keyword arguments to be passed to the underlying completion method.
-        :return: A list of generated completions for each message and the estimated cost.
+        :param temperature: Controls the randomness of the generated completions.
+        :param max_tokens: The maximum number of tokens in the generated completions.
+        :param top_p: Controls the diversity of the generated completions.
+        :param kwargs: Additional keyword arguments.
+        :return: LLMResult containing responses, cost, token counts, and metadata.
         """
-
         temperature = (
             temperature if temperature is not None else self.config["TEMPERATURE"]
         )
@@ -81,33 +80,77 @@ class GeminiService(BaseService):
         )
         use_computer_use = is_computer_use_model
 
-        # Default parameters from OpenAI
-        # Ref: _calculate_retry_timeout from https://github.com/openai/openai-python/blob/main/src/openai/_base_client.py
-        initial_delay = 0.5
-        max_delay = 8.0
-        jitter_factor = 0.25
+        genai_config_args: Dict[str, Any] = {
+            "max_output_tokens": max_tokens,
+            "temperature": temperature,
+            "top_p": top_p,
+        }
+
+        if use_computer_use:
+            genai_config_args["tools"] = [
+                types.Tool(
+                    computer_use=types.ComputerUse(
+                        environment=types.Environment.ENVIRONMENT_DESKTOP
+                    )
+                )
+            ]
+        else:
+            genai_config_args["response_mime_type"] = "application/json"
+            if self.json_schema_enabled:
+                response_format = {
+                    AgentType.HOST: HostAgentResponse,
+                    AgentType.APP: AppAgentResponse,
+                    AgentType.EVALUATION: EvaluationResponse,
+                }.get(self.agent_type, None)
+                if response_format:
+                    genai_config_args["response_schema"] = response_format
+
+        genai_config = GenerateContentConfig(**genai_config_args)
 
         response = None
+        prompt_tokens = 0
+        completion_tokens = 0
         cost = 0.0
-        last_error = None
 
-        for attempt in range(self.max_retry):
-            genai_config_args: Dict[str, Any] = {
-                "max_output_tokens": max_tokens,
-                "temperature": temperature,
-                "top_p": top_p,
-            }
-
-            if use_computer_use:
-                genai_config_args["tools"] = [
-                    types.Tool(
-                        computer_use=types.ComputerUse(
-                            environment=types.Environment.ENVIRONMENT_DESKTOP
-                        )
+        try:
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.model,
+                contents=processed_messages,
+                config=genai_config,
+            )
+        except Exception as e:
+            err_str = str(e).upper()
+            is_client_error = (
+                isinstance(e, (errors.ClientError, errors.APIError))
+                or getattr(e, "code", None) in (400, 403, 404)
+                or any(
+                    code_str in err_str
+                    for code_str in (
+                        "400",
+                        "403",
+                        "404",
+                        "INVALID_ARGUMENT",
+                        "FORBIDDEN",
+                        "INVALID_OPTION",
+                        "UNKNOWN_OPTION",
+                        "UNSUPPORTED",
+                        "NOT_FOUND",
+                        "PERMISSION_DENIED",
                     )
-                ]
-            else:
-                genai_config_args["response_mime_type"] = "application/json"
+                )
+            )
+            if use_computer_use and is_client_error:
+                logger.warning(
+                    f"ClientError ({getattr(e, 'code', 'N/A')}) encountered with computer_use tools: {e}. "
+                    "Stripping tools parameter, restoring application/json response mode, and retrying..."
+                )
+                fallback_config_args: Dict[str, Any] = {
+                    "max_output_tokens": max_tokens,
+                    "temperature": temperature,
+                    "top_p": top_p,
+                    "response_mime_type": "application/json",
+                }
                 if self.json_schema_enabled:
                     response_format = {
                         AgentType.HOST: HostAgentResponse,
@@ -115,116 +158,47 @@ class GeminiService(BaseService):
                         AgentType.EVALUATION: EvaluationResponse,
                     }.get(self.agent_type, None)
                     if response_format:
-                        genai_config_args["response_schema"] = response_format
+                        fallback_config_args["response_schema"] = response_format
 
-            genai_config = GenerateContentConfig(**genai_config_args)
-
-            try:
-                response = self.client.models.generate_content(
+                fallback_config = GenerateContentConfig(**fallback_config_args)
+                response = await asyncio.to_thread(
+                    self.client.models.generate_content,
                     model=self.model,
                     contents=processed_messages,
-                    config=genai_config,
+                    config=fallback_config,
                 )
-                usage = getattr(response, "usage_metadata", None)
-                prompt_tokens = getattr(usage, "prompt_token_count", 0) if usage else 0
-                completion_tokens = (
-                    getattr(usage, "candidates_token_count", 0) if usage else 0
-                )
-                cost = self.get_cost_estimator(
-                    self.api_type,
-                    self.model,
-                    self.prices,
-                    prompt_tokens,
-                    completion_tokens,
-                )
-                break
-            except Exception as e:
-                last_error = e
-                err_str = str(e).upper()
-                is_client_error = (
-                    isinstance(e, (errors.ClientError, errors.APIError))
-                    or getattr(e, "code", None) in (400, 403, 404)
-                    or any(
-                        code_str in err_str
-                        for code_str in (
-                            "400",
-                            "403",
-                            "404",
-                            "INVALID_ARGUMENT",
-                            "FORBIDDEN",
-                            "INVALID_OPTION",
-                            "UNKNOWN_OPTION",
-                            "UNSUPPORTED",
-                            "NOT_FOUND",
-                            "PERMISSION_DENIED",
-                        )
-                    )
-                )
-                if use_computer_use and is_client_error:
-                    logger.warning(
-                        f"ClientError ({getattr(e, 'code', 'N/A')}) encountered with computer_use tools: {e}. "
-                        "Stripping tools parameter, restoring application/json response mode, and retrying..."
-                    )
-                    use_computer_use = False
-                    try:
-                        fallback_config_args: Dict[str, Any] = {
-                            "max_output_tokens": max_tokens,
-                            "temperature": temperature,
-                            "top_p": top_p,
-                            "response_mime_type": "application/json",
-                        }
-                        if self.json_schema_enabled:
-                            response_format = {
-                                AgentType.HOST: HostAgentResponse,
-                                AgentType.APP: AppAgentResponse,
-                                AgentType.EVALUATION: EvaluationResponse,
-                            }.get(self.agent_type, None)
-                            if response_format:
-                                fallback_config_args["response_schema"] = response_format
-
-                        fallback_config = GenerateContentConfig(**fallback_config_args)
-                        response = self.client.models.generate_content(
-                            model=self.model,
-                            contents=processed_messages,
-                            config=fallback_config,
-                        )
-                        usage = getattr(response, "usage_metadata", None)
-                        prompt_tokens = (
-                            getattr(usage, "prompt_token_count", 0) if usage else 0
-                        )
-                        completion_tokens = (
-                            getattr(usage, "candidates_token_count", 0) if usage else 0
-                        )
-                        cost = self.get_cost_estimator(
-                            self.api_type,
-                            self.model,
-                            self.prices,
-                            prompt_tokens,
-                            completion_tokens,
-                        )
-                        break
-                    except Exception as retry_e:
-                        e = retry_e
-                        last_error = retry_e
-
-                # Calculate backoff with jitter
-                delay = min(initial_delay * (2**attempt), max_delay)
-                jitter = random.uniform(-jitter_factor * delay, 0)
-                sleep_time = delay + jitter
-                logger.warning(
-                    f"Error during Gemini API request, attempt {attempt+1}/{self.max_retry}: {e}. "
-                    f"Retrying in {sleep_time:.2f}s..."
-                )
-                time.sleep(sleep_time)
+            else:
+                raise
 
         if response is None:
-            logger.error(
-                f"Gemini API request failed after {self.max_retry} attempts for model '{self.model}'. "
-                f"Last error: {last_error}. Returning empty response for graceful degradation."
-            )
-            return [], 0.0
+            raise RuntimeError(f"Gemini API returned None for model '{self.model}'")
 
-        return self.get_text_from_all_candidates(response), cost
+        usage = getattr(response, "usage_metadata", None)
+        if usage:
+            prompt_tokens = getattr(usage, "prompt_token_count", 0) or 0
+            completion_tokens = getattr(usage, "candidates_token_count", 0) or 0
+
+        cost = self.get_cost_estimator(
+            self.api_type,
+            self.model,
+            self.prices,
+            prompt_tokens,
+            completion_tokens,
+        )
+
+        responses = self.get_text_from_all_candidates(response)
+        if not responses or all(r is None for r in responses):
+            raise RuntimeError(f"Gemini API returned no valid candidates for model '{self.model}'")
+
+        return LLMResult(
+            responses=responses,
+            cost=cost,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            model=self.model,
+            api_type=self.api_type,
+            agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, "value", str(self.agent_type)),
+        )
 
     def process_messages(self, messages: List[Dict[str, str]]) -> List[str]:
         """

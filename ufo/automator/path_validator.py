@@ -9,9 +9,8 @@ stay within allowed directories and don't traverse to sensitive locations.
 """
 
 import os
-import platform
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional
 
 
 # System-sensitive directories that should never be written to

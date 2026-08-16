@@ -3,32 +3,37 @@
 
 """
 LLM Call Module — Multi-tier routing with circuit breaker, retry middleware,
-and optional Pydantic schema validation.
+Pydantic schema validation, and Dead Letter Queue (DLQ) diagnostic persistence.
 
 Architecture:
   1. Circuit Breaker: Tracks consecutive failures per agent. After FAILURE_THRESHOLD
      consecutive failures, routes directly to BACKUP_AGENT for RESET_TIMEOUT seconds.
   2. Retry Middleware: Catches 429 RateLimit, 503 Overload, and TimeoutError with
-     exponential/linear backoff before triggering fallback.
+     exponential backoff before triggering fallback.
   3. Schema Validation: Optional Pydantic model validation on LLM responses with
      repair-prompt retry (max 2 attempts).
+  4. Dead Letter Queue: On total fallback exhaustion, writes a diagnostic JSON snapshot.
 """
 
+import asyncio
 import logging
+import threading
 import time
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import Dict, Optional, Type
 
 from pydantic import BaseModel, ValidationError
 
 from ufo.llm import AgentType
-from .base import BaseService
-from .config_helper import get_agent_config
+from ufo.llm.base import BaseService
+from ufo.llm.config_helper import get_agent_config
+from ufo.llm.llm_result import LLMResult
+from ufo.dlq.dead_letter_queue import record_dlq_event
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Circuit Breaker — Module-level state (resets on process restart)
+# Circuit Breaker — Thread-safe module-level state
 # ---------------------------------------------------------------------------
 
 class _CircuitBreakerState:
@@ -46,12 +51,15 @@ class _CircuitBreakerState:
     HALF_OPEN = "HALF-OPEN"
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._states: Dict[str, str] = {}         # agent_type -> state
         self._failure_counts: Dict[str, int] = {}
         self._last_state_change: Dict[str, float] = {}
+        self._half_open_trials: Dict[str, int] = {}
         self._threshold: int = 3
         self._reset_timeout: float = 300.0
         self._half_open_max_trials: int = 1
+        self._fallback_agent: str = AgentType.BACKUP
         self._enabled: bool = True
         self._initialized: bool = False
 
@@ -69,8 +77,22 @@ class _CircuitBreakerState:
                 self._threshold = cb_cfg.get("FAILURE_THRESHOLD", 3)
                 self._reset_timeout = float(cb_cfg.get("RESET_TIMEOUT_SECONDS", 300))
                 self._half_open_max_trials = cb_cfg.get("HALF_OPEN_MAX_TRIALS", 1)
+                self._fallback_agent = cb_cfg.get("FALLBACK_AGENT", AgentType.BACKUP)
         except Exception:
             pass  # Use defaults
+
+    @property
+    def fallback_agent(self) -> str:
+        self._lazy_init()
+        return self._fallback_agent
+
+    def reset(self) -> None:
+        """Reset all circuit breaker states."""
+        with self._lock:
+            self._states.clear()
+            self._failure_counts.clear()
+            self._last_state_change.clear()
+            self._half_open_trials.clear()
 
     def _get_state(self, agent_type: str) -> str:
         return self._states.get(agent_type, self.CLOSED)
@@ -81,41 +103,45 @@ class _CircuitBreakerState:
         if not self._enabled:
             return
 
-        state = self._get_state(agent_type)
-        count = self._failure_counts.get(agent_type, 0) + 1
-        self._failure_counts[agent_type] = count
+        with self._lock:
+            state = self._get_state(agent_type)
+            count = self._failure_counts.get(agent_type, 0) + 1
+            self._failure_counts[agent_type] = count
 
-        if state == self.HALF_OPEN:
-            # Probe failed — snap back to OPEN, reset timer
-            self._states[agent_type] = self.OPEN
-            self._last_state_change[agent_type] = time.monotonic()
-            logger.warning(
-                f"Circuit breaker HALF-OPEN probe FAILED for {agent_type}. "
-                f"Returning to OPEN state."
-            )
-        elif count >= self._threshold:
-            self._states[agent_type] = self.OPEN
-            self._last_state_change[agent_type] = time.monotonic()
-            logger.warning(
-                f"Circuit breaker TRIPPED for {agent_type} after "
-                f"{count} consecutive failures. State → OPEN. "
-                f"Routing to backup for {self._reset_timeout}s."
-            )
+            if state == self.HALF_OPEN:
+                # Probe failed — snap back to OPEN, reset timer
+                self._states[agent_type] = self.OPEN
+                self._last_state_change[agent_type] = time.monotonic()
+                self._half_open_trials[agent_type] = 0
+                logger.warning(
+                    f"Circuit breaker HALF-OPEN probe FAILED for {agent_type}. "
+                    f"Returning to OPEN state."
+                )
+            elif count >= self._threshold:
+                self._states[agent_type] = self.OPEN
+                self._last_state_change[agent_type] = time.monotonic()
+                self._half_open_trials[agent_type] = 0
+                logger.warning(
+                    f"Circuit breaker TRIPPED for {agent_type} after "
+                    f"{count} consecutive failures. State → OPEN. "
+                    f"Routing to backup for {self._reset_timeout}s."
+                )
 
     def record_success(self, agent_type: str) -> None:
         """Reset failure count and state on success."""
         self._lazy_init()
-        state = self._get_state(agent_type)
+        with self._lock:
+            state = self._get_state(agent_type)
+            if state == self.HALF_OPEN:
+                logger.info(
+                    f"Circuit breaker HALF-OPEN probe SUCCEEDED for {agent_type}. "
+                    f"State → CLOSED."
+                )
 
-        if state == self.HALF_OPEN:
-            logger.info(
-                f"Circuit breaker HALF-OPEN probe SUCCEEDED for {agent_type}. "
-                f"State → CLOSED."
-            )
-
-        self._failure_counts[agent_type] = 0
-        self._states[agent_type] = self.CLOSED
-        self._last_state_change.pop(agent_type, None)
+            self._failure_counts[agent_type] = 0
+            self._states[agent_type] = self.CLOSED
+            self._last_state_change.pop(agent_type, None)
+            self._half_open_trials.pop(agent_type, None)
 
     def is_tripped(self, agent_type: str) -> bool:
         """
@@ -123,41 +149,44 @@ class _CircuitBreakerState:
 
         Returns True if OPEN (should bypass to backup).
         Returns False if CLOSED or HALF-OPEN (allow call through).
-        
-        When OPEN and timeout has elapsed, transitions to HALF-OPEN
-        (allows one probe call through).
         """
         self._lazy_init()
         if not self._enabled:
             return False
 
-        state = self._get_state(agent_type)
+        with self._lock:
+            state = self._get_state(agent_type)
 
-        if state == self.CLOSED:
+            if state == self.CLOSED:
+                return False
+
+            if state == self.HALF_OPEN:
+                trial_count = self._half_open_trials.get(agent_type, 0)
+                if trial_count < self._half_open_max_trials:
+                    self._half_open_trials[agent_type] = trial_count + 1
+                    return False
+                return True
+
+            if state == self.OPEN:
+                elapsed = time.monotonic() - self._last_state_change.get(agent_type, 0)
+                if elapsed >= self._reset_timeout:
+                    # Transition to HALF-OPEN — allow probe
+                    self._states[agent_type] = self.HALF_OPEN
+                    self._half_open_trials[agent_type] = 1
+                    logger.info(
+                        f"Circuit breaker entering HALF-OPEN for {agent_type} "
+                        f"after {elapsed:.0f}s cooldown. Allowing probe call."
+                    )
+                    return False
+                return True
+
             return False
-
-        if state == self.HALF_OPEN:
-            # Allow the probe call through
-            return False
-
-        if state == self.OPEN:
-            elapsed = time.monotonic() - self._last_state_change.get(agent_type, 0)
-            if elapsed >= self._reset_timeout:
-                # Transition to HALF-OPEN — allow one probe
-                self._states[agent_type] = self.HALF_OPEN
-                logger.info(
-                    f"Circuit breaker entering HALF-OPEN for {agent_type} "
-                    f"after {elapsed:.0f}s cooldown. Allowing probe call."
-                )
-                return False  # Allow the probe through
-            return True  # Still OPEN, block
-
-        return False
 
     def get_state(self, agent_type: str) -> str:
         """Get current circuit breaker state for an agent (for diagnostics)."""
         self._lazy_init()
-        return self._get_state(agent_type)
+        with self._lock:
+            return self._get_state(agent_type)
 
 
 _circuit_breaker = _CircuitBreakerState()
@@ -168,52 +197,87 @@ _circuit_breaker = _CircuitBreakerState()
 # ---------------------------------------------------------------------------
 
 _RETRYABLE_STATUS_CODES = {429, 503}
-_MAX_RETRIES = 3
+_DEFAULT_MAX_RETRIES = 3
 _RETRY_BACKOFF = [1.0, 2.0, 4.0]  # Exponential backoff seconds
 
 
 def _is_retryable_error(error: Exception) -> bool:
-    """Check if an exception is retryable (429, 503, timeout)."""
-    error_str = str(error).lower()
-
-    # Check for HTTP status codes in error message
-    for code in _RETRYABLE_STATUS_CODES:
-        if str(code) in error_str:
+    """Check if an exception is retryable (429, 503, timeout, connection)."""
+    # 1. Typed error checks for known SDKs
+    try:
+        import openai
+        if isinstance(
+            error,
+            (
+                openai.RateLimitError,
+                openai.APITimeoutError,
+                openai.APIConnectionError,
+                openai.InternalServerError,
+            ),
+        ):
             return True
+    except (ImportError, AttributeError):
+        pass
 
-    # Check for timeout errors
-    if isinstance(error, (TimeoutError, ConnectionError)):
+    try:
+        import anthropic
+        if isinstance(
+            error,
+            (
+                anthropic.RateLimitError,
+                anthropic.APITimeoutError,
+                anthropic.APIConnectionError,
+                anthropic.InternalServerError,
+            ),
+        ):
+            return True
+    except (ImportError, AttributeError):
+        pass
+
+    # 2. Check for HTTP status codes on the error object
+    status_code = getattr(error, "status_code", None) or getattr(error, "code", None)
+    if status_code in {429, 500, 502, 503, 504}:
         return True
+
+    # 3. Standard built-in network / timeout errors
+    if isinstance(error, (TimeoutError, ConnectionError, asyncio.TimeoutError)):
+        return True
+
+    # 4. Fallback semantic string checks (unambiguous phrases only, no raw numeric substrings)
+    error_str = str(error).lower()
     if "timeout" in error_str or "timed out" in error_str:
         return True
-    if "rate" in error_str and "limit" in error_str:
+    if "rate limit" in error_str or "rate_limit" in error_str:
         return True
-    if "overload" in error_str or "capacity" in error_str:
+    if "overload" in error_str or "capacity" in error_str or "resource_exhausted" in error_str or "service unavailable" in error_str:
         return True
 
     return False
 
 
-def _retry_with_backoff(service: BaseService, messages: list, n: int) -> Tuple[list, float]:
+async def _retry_with_backoff(service: BaseService, messages: list, n: int) -> LLMResult:
     """
     Attempt service.chat_completion with retry on transient errors.
-    Returns (responses, cost) on success, raises on exhaustion.
+    Returns LLMResult on success, raises on exhaustion.
     """
+    max_retries = getattr(service, "max_retry", _DEFAULT_MAX_RETRIES)
+    if not isinstance(max_retries, int) or max_retries <= 0:
+        max_retries = _DEFAULT_MAX_RETRIES
+
     last_error = None
-    for attempt in range(_MAX_RETRIES):
+    for attempt in range(max_retries):
         try:
-            response, cost = service.chat_completion(messages, n)
-            return response, cost
+            return await service.chat_completion(messages, n=n)
         except Exception as e:
             last_error = e
             if not _is_retryable_error(e):
                 raise  # Non-retryable error, propagate immediately
             backoff = _RETRY_BACKOFF[min(attempt, len(_RETRY_BACKOFF) - 1)]
             logger.warning(
-                f"Retryable error (attempt {attempt + 1}/{_MAX_RETRIES}): {e}. "
+                f"Retryable error (attempt {attempt + 1}/{max_retries}): {e}. "
                 f"Backing off {backoff}s..."
             )
-            time.sleep(backoff)
+            await asyncio.sleep(backoff)
 
     # All retries exhausted
     raise last_error  # type: ignore[misc]
@@ -246,50 +310,54 @@ def _validate_response_schema(
 
 
 # ---------------------------------------------------------------------------
-# Public API — get_completion / get_completions
+# Public API — get_completion / get_completions (Async)
 # ---------------------------------------------------------------------------
 
-def get_completion(
+async def get_completion(
     messages,
     agent: str = AgentType.APP,
     use_backup_engine: bool = True,
     configs: Optional[dict] = None,
     response_schema: Optional[Type[BaseModel]] = None,
-) -> Tuple[str, float]:
+) -> LLMResult:
     """
-    Get completion for the given messages.
+    Get completion for the given messages asynchronously.
     :param messages: List of messages to be used for completion.
     :param agent: Type of agent.
     :param use_backup_engine: Flag indicating whether to use the backup engine.
     :param configs: Legacy configs dict. Empty = use new config system.
     :param response_schema: Optional Pydantic model to validate response against.
-    :return: A tuple containing the completion response and the cost.
+    :return: LLMResult containing the response, cost, tokens, and metadata.
     """
     if configs is None:
         configs = {}
 
-    responses, cost = get_completions(
-        messages, agent=agent, use_backup_engine=use_backup_engine, n=1,
-        configs=configs, response_schema=response_schema,
+    result = await get_completions(
+        messages,
+        agent=agent,
+        use_backup_engine=use_backup_engine,
+        n=1,
+        configs=configs,
+        response_schema=response_schema,
     )
-    if not responses or responses[0] is None:
+    if not result.responses or result.responses[0] is None:
         raise RuntimeError(
             f"LLM service returned no response candidates for agent '{agent}'."
         )
-    return responses[0], cost
+    return result
 
 
-def get_completions(
+async def get_completions(
     messages,
     agent: str = AgentType.APP,
     use_backup_engine: bool = True,
     n: int = 1,
     configs: Optional[dict] = None,
     response_schema: Optional[Type[BaseModel]] = None,
-) -> Tuple[list, float]:
+) -> LLMResult:
     """
-    Get completions for the given messages with circuit breaker, retry middleware,
-    and optional Pydantic schema validation.
+    Get completions for the given messages asynchronously with circuit breaker,
+    retry middleware, schema validation, and DLQ recording.
 
     :param messages: List of messages to be used for completion.
     :param agent: Type of agent.
@@ -297,13 +365,15 @@ def get_completions(
     :param n: Number of completions to generate.
     :param configs: Legacy configs dict. Empty = use new config system.
     :param response_schema: Optional Pydantic model to validate response against.
-    :return: A tuple containing the completion responses and the cost.
+    :return: LLMResult containing responses, cost, tokens, and metadata.
     """
     if configs is None:
         configs = {}
 
     # --- Resolve agent type ---
-    if agent in [
+    if agent is None:
+        agent_type = AgentType.APP
+    elif agent in [
         AgentType.HOST,
         AgentType.APP,
         AgentType.OPERATOR,
@@ -323,24 +393,34 @@ def get_completions(
                 agent_type = AgentType.APP
         else:
             agent_type = AgentType.EVALUATION
-    elif agent.lower() == "prefill":
+    elif str(agent).lower() == "prefill":
         agent_type = AgentType.PREFILL
-    elif agent.lower() == "filter":
+    elif str(agent).lower() == "filter":
         agent_type = AgentType.FILTER
     else:
         raise ValueError(f"Agent {agent} not supported")
 
+    fallback_target = _circuit_breaker.fallback_agent or AgentType.BACKUP
+
     # --- Circuit Breaker Check ---
     if _circuit_breaker.is_tripped(agent_type):
-        if use_backup_engine and agent_type != AgentType.BACKUP:
+        if use_backup_engine and agent_type != fallback_target:
             logger.info(
                 f"Circuit breaker active for {agent_type}. "
-                f"Routing directly to BACKUP_AGENT."
+                f"Routing directly to {fallback_target}."
             )
-            return get_completions(
-                messages, agent=AgentType.BACKUP,
-                use_backup_engine=False, n=n, configs=configs,
+            return await get_completions(
+                messages,
+                agent=fallback_target,
+                use_backup_engine=False,
+                n=n,
+                configs=configs,
                 response_schema=response_schema,
+            )
+        else:
+            raise RuntimeError(
+                f"Circuit breaker is OPEN for agent '{agent_type}' and fallback is unavailable "
+                f"(use_backup_engine={use_backup_engine})."
             )
 
     # --- Resolve API config ---
@@ -349,8 +429,75 @@ def get_completions(
         api_type = agent_config["API_TYPE"]
         api_model = agent_config["API_MODEL"]
     else:
+        agent_config = configs[agent_type]
         api_type = configs[agent_type]["API_TYPE"]
         api_model = configs[agent_type]["API_MODEL"]
+
+    from ufo.llm.endpoint import is_cloud_agent_config
+    is_cloud = is_cloud_agent_config(agent_config)
+
+    # --- Telemetry Budget Enforcement (Cloud only) ---
+    if is_cloud:
+        is_exceeded = False
+        try:
+            from ufo.telemetry.cost_tracker import CostTracker
+            is_exceeded = CostTracker.get_instance().is_budget_exceeded()
+        except Exception as e:
+            logger.warning(f"[Telemetry] Budget check failed: {e}")
+
+        if is_exceeded:
+            logger.critical(
+                f"[Telemetry] Daily budget exceeded. Locking out cloud agent '{agent_type}'."
+            )
+            if use_backup_engine and agent_type != fallback_target:
+                # Check if fallback agent is non-cloud (local)
+                fallback_config = None
+                try:
+                    fallback_config = get_agent_config(fallback_target) if not configs else configs.get(fallback_target)
+                except Exception:
+                    pass
+
+                if fallback_config and not is_cloud_agent_config(fallback_config):
+                    logger.info(
+                        f"[Telemetry] Routing to non-cloud fallback agent '{fallback_target}'."
+                    )
+                    return await get_completions(
+                        messages,
+                        agent=fallback_target,
+                        use_backup_engine=False,
+                        n=n,
+                        configs=configs,
+                        response_schema=response_schema,
+                    )
+            # Terminal lockout: no non-cloud fallback available or direct non-fallback call
+            raise RuntimeError(
+                f"Daily LLM budget exceeded: cloud APIs locked out for agent '{agent_type}' "
+                f"and no non-cloud fallback available."
+            )
+
+    # --- PII Redaction (Cloud only, on deep copy) ---
+    dispatch_messages = messages
+    if is_cloud and isinstance(messages, list):
+        try:
+            from ufo.security.pii_redactor import PIIRedactor
+            redactor = PIIRedactor()
+            if redactor.should_redact_for_model(is_cloud=True):
+                import copy
+                dispatch_messages = copy.deepcopy(messages)
+                for msg in dispatch_messages:
+                    if isinstance(msg, dict):
+                        content = msg.get("content")
+                        if isinstance(content, str):
+                            msg["content"] = redactor.redact_string(content)
+                        elif isinstance(content, list):
+                            for part in content:
+                                if isinstance(part, dict) and part.get("type") == "text":
+                                    part_text = part.get("text", "")
+                                    if isinstance(part_text, str):
+                                        part["text"] = redactor.redact_string(part_text)
+        except Exception as e:
+            logger.warning(f"[Redactor] PII text redaction failed: {e}")
+            dispatch_messages = messages
 
     # --- Execute with retry middleware ---
     try:
@@ -359,16 +506,34 @@ def get_completions(
         if not service:
             raise ValueError(f"API_TYPE {api_type} not supported")
 
-        response, cost = _retry_with_backoff(service, messages, n)
+        result = await _retry_with_backoff(service, dispatch_messages, n)
+
+        # --- Validate non-empty response before recording success / telemetry ---
+        if not result.responses or result.responses[0] is None:
+            raise RuntimeError(
+                f"Provider returned empty or null response for model '{api_model}': {result.responses}"
+            )
+
+        # --- Telemetry Usage Recording ---
+        try:
+            from ufo.telemetry.cost_tracker import CostTracker
+            CostTracker.get_instance().record_usage(
+                model=result.model or api_model,
+                api_type=result.api_type or api_type,
+                prompt_tokens=result.prompt_tokens,
+                completion_tokens=result.completion_tokens,
+            )
+        except Exception as e:
+            logger.warning(f"[Telemetry] Usage recording failed: {e}")
 
         # --- Circuit breaker success ---
         _circuit_breaker.record_success(agent_type)
 
         # --- Schema validation (if requested) ---
-        if response_schema and response:
+        if response_schema and result.responses:
             for attempt in range(_SCHEMA_VALIDATION_MAX_RETRIES):
-                first_response = response[0] if isinstance(response, list) else response
-                if first_response is None:
+                first_response = result.responses[0]
+                if first_response is None or isinstance(first_response, dict):
                     break
                 validation_error = _validate_response_schema(
                     str(first_response), response_schema
@@ -380,7 +545,7 @@ def get_completions(
                         f"Schema validation attempt {attempt + 1} failed: "
                         f"{validation_error}. Retrying with repair prompt..."
                     )
-                    repair_msg = messages + [{
+                    repair_msg = dispatch_messages + [{
                         "role": "user",
                         "content": (
                             f"Your previous response failed schema validation: "
@@ -388,7 +553,7 @@ def get_completions(
                             f"the required schema and respond with ONLY valid JSON."
                         ),
                     }]
-                    response, cost = _retry_with_backoff(service, repair_msg, n)
+                    result = await _retry_with_backoff(service, repair_msg, n)
                 else:
                     logger.warning(
                         f"Schema validation exhausted after "
@@ -396,22 +561,30 @@ def get_completions(
                         f"Returning raw response."
                     )
 
-        return response, cost
+        return result
 
     except Exception as e:
         # --- Circuit breaker failure ---
         _circuit_breaker.record_failure(agent_type)
 
-        if use_backup_engine:
+        if use_backup_engine and agent_type != fallback_target:
             logger.error(f"The API request of {agent_type} failed: {e}.")
-            logger.warning("Switching to use the backup engine...")
-            return get_completions(
+            logger.warning(f"Switching to use fallback agent: {fallback_target}...")
+            return await get_completions(
                 messages,
-                agent=AgentType.BACKUP,
+                agent=fallback_target,
                 use_backup_engine=False,
                 n=n,
                 configs=configs,
                 response_schema=response_schema,
             )
         else:
+            # All fallbacks exhausted -> record DLQ event
+            record_dlq_event(
+                agent_type=agent_type,
+                messages=messages if isinstance(messages, list) else [],
+                error=e,
+                model=api_model,
+                circuit_breaker_state=_circuit_breaker.get_state(agent_type),
+            )
             raise e

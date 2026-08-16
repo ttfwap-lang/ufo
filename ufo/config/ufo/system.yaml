@@ -121,6 +121,7 @@ CIRCUIT_BREAKER:
   ENABLED: true
   FAILURE_THRESHOLD: 3           # Consecutive failures to trip the breaker
   RESET_TIMEOUT_SECONDS: 300     # 5 min cooldown before retrying the primary
+  HALF_OPEN_MAX_TRIALS: 1        # Max probe calls admitted in HALF-OPEN state
   FALLBACK_AGENT: "BACKUP_AGENT"
 
 # Dead-Letter Queue — Persists diagnostic snapshots on total fallback exhaustion
@@ -179,7 +180,7 @@ FLEET_DAEMON:
     - scheduled
     - manual
 
-# Security — Zero-Trust auth vault, OS sandboxing, and PII redaction
+# Security — Zero-Trust auth vault and PII redaction
 SECURITY:
   # Auth Vault — Secure credential injection via Windows Credential Manager
   VAULT:
@@ -187,33 +188,6 @@ SECURITY:
     SERVICE_NAME: "BankFidelity_UFO"       # keyring service name
     TYPE_INTERVAL: 0.02                     # Seconds between keystrokes during injection
     SCRUB_MEMORY: true                      # Overwrite credential in memory after use
-
-  # OS Sandbox — Process whitelist and destructive payload blocking
-  SANDBOX:
-    ENABLED: true
-    ALLOWED_PROCESSES:                      # Only these executables may be launched
-      - chrome.exe
-      - msedge.exe
-      - excel.exe
-      - winword.exe
-      - powerpnt.exe
-      - acrobat.exe
-      - notepad.exe
-      - explorer.exe
-      - mstsc.exe                           # RDP client
-    BLOCKED_KEYWORDS:                       # Payloads containing these are blocked
-      - powershell
-      - cmd.exe
-      - regedit
-      - format
-      - "del "
-      - rmdir
-      - rd /s
-      - net user
-      - reg add
-      - taskkill
-    BLOCK_REGISTRY_ACCESS: true
-    BLOCK_SYSTEM32: true
 
   # PII Redactor — Scrub financial data before cloud transmission
   REDACTOR:

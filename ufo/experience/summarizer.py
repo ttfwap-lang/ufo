@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 import os
-import sys
 from typing import Tuple
 
 import yaml
@@ -10,6 +9,7 @@ from langchain.docstore.document import Document
 from langchain_community.vectorstores import FAISS
 
 from ufo.experience.experience_parser import ExperienceLogLoader
+from ufo.llm import AgentType
 from ufo.llm.llm_call import get_completion
 from ufo.prompter.experience_prompter import ExperiencePrompter
 from ufo.utils import get_hugginface_embedding, json_parser
@@ -61,25 +61,27 @@ class ExperienceSummarizer:
 
         return experience_prompt
 
-    def get_summary(self, prompt_message: list) -> Tuple[dict, float]:
+    async def get_summary(self, prompt_message: list) -> Tuple[dict, float]:
         """
-        Get the summary.
+        Get the summary asynchronously.
         :param prompt_message: The prompt message.
         return: The summary and the cost.
         """
 
         # Get the completion for the prompt message
-        response_string, cost = get_completion(
-            prompt_message, "APPAGENT", use_backup_engine=True
+        llm_result = await get_completion(
+            prompt_message, AgentType.APP, use_backup_engine=True
         )
+        response_string = llm_result.responses[0] if llm_result.responses else ""
+        cost = llm_result.cost
         try:
             response_json = json_parser(response_string)
         except:
             response_json = None
 
         # Restructure the response
+        summary = dict()
         if response_json:
-            summary = dict()
             summary["example"] = {}
             for key in [
                 "Observation",
@@ -92,14 +94,16 @@ class ExperienceSummarizer:
                 "Plan",
                 "Comment",
             ]:
-                summary["example"][key] = response_json.get(key, "")
-            summary["Tips"] = response_json.get("Tips", "")
+                summary["example"][key] = response_json.get(
+                    key, response_json.get(key.lower(), "")
+                )
+            summary["Tips"] = response_json.get("Tips", response_json.get("tips", ""))
 
         return summary, cost
 
-    def get_summary_list(self, logs: list) -> Tuple[list, float]:
+    async def get_summary_list(self, logs: list) -> Tuple[list, float]:
         """
-        Get the summary list.
+        Get the summary list asynchronously.
         :param logs: The logs.
         return: The summary list and the total cost.
         """
@@ -107,7 +111,7 @@ class ExperienceSummarizer:
         total_cost = 0.0
         for log_partition in logs:
             prompt = self.build_prompt(log_partition)
-            summary, cost = self.get_summary(prompt)
+            summary, cost = await self.get_summary(prompt)
             summary["request"] = log_partition.get("subtask")
             summary["Sub-task"] = log_partition.get("subtask")
             summary["app_list"] = [log_partition.get("application")]
@@ -208,5 +212,6 @@ if __name__ == "__main__":
     log_path = "logs/test_exp"
 
     experience = summarizer.read_logs(log_path)
-    summaries, cost = summarizer.get_summary_list(experience)
+    import asyncio
+    summaries, cost = asyncio.run(summarizer.get_summary_list(experience))
     print(summaries, cost)

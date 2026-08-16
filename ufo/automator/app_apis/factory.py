@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 import logging
-from typing import Type, Dict, Any
+from typing import Type
 
 from ufo.automator.app_apis.basic import WinCOMReceiverBasic
 from ufo.automator.app_apis.excel.excelclient import ExcelWinCOMReceiver

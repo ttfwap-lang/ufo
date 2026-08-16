@@ -26,7 +26,6 @@ else:
     UIAWrapper = Any
     RECT = Any
 
-from ufo import utils
 from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 if TYPE_CHECKING:
     from ufo.agents.processors.schemas.target import TargetInfo
@@ -346,7 +345,6 @@ def _win32_print_window(hwnd: int) -> Optional[Image.Image]:
         import ctypes
         import win32gui
         import win32ui
-        import win32con
 
         # Get window dimensions
         rect = win32gui.GetWindowRect(hwnd)

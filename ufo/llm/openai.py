@@ -1,21 +1,19 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from concurrent.futures import ThreadPoolExecutor
+import asyncio
 import functools
 import httpx
 import json
 import logging
 import os
 import openai
-import shutil
-import sys
-import urllib.error
-import urllib.request
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional
 
 from openai import AzureOpenAI, OpenAI
 from ufo.llm.base import BaseService
+from ufo.llm.endpoint import is_local_endpoint
+from ufo.llm.llm_result import LLMResult
 from ufo.llm.response_schema import (
     AppAgentResponse,
     EvaluationResponse,
@@ -41,10 +39,8 @@ def _pydantic_to_response_format(schema_class):
         },
     }
 
-logger = logging.getLogger(__name__)
 
-# Dedicated ThreadPoolExecutor with max_workers=200 for LLM calls
-LLM_EXECUTOR = ThreadPoolExecutor(max_workers=200, thread_name_prefix="llm_dispatcher_")
+logger = logging.getLogger(__name__)
 
 _PROBED_JSON_SCHEMA_MODELS: Dict[str, bool] = {}
 
@@ -57,7 +53,7 @@ class BaseOpenAIService(BaseService):
         Create an OpenAI service instance.
         :param config: The configuration for the OpenAI service.
         :param agent_type: The type of the agent.
-        :param api_type: The type of the API (e.g., "openai", "aoai", "azure_ad").
+        :param api_provider: The type of the API provider (e.g., "openai", "aoai", "azure_ad").
         :param api_base: The base URL of the API.
         """
         self.config_llm = config[agent_type]
@@ -84,54 +80,69 @@ class BaseOpenAIService(BaseService):
         )
 
         self.model = self.config_llm["API_MODEL"]
+        self.api_provider = api_provider
+        self.api_base = api_base
+        self.probe_key = f"{api_provider}:{api_base}:{self.model}"
+        if self.probe_key in _PROBED_JSON_SCHEMA_MODELS:
+            self.json_schema_enabled = _PROBED_JSON_SCHEMA_MODELS[self.probe_key]
+            self.config_llm["JSON_SCHEMA"] = self.json_schema_enabled
+        else:
+            self.json_schema_enabled = bool(self.config_llm.get("JSON_SCHEMA", False))
 
-        # Try to automatically fix some config errors (chat completions only)
-        if not self.use_responses:
-            probe_key = f"{api_provider}:{api_base}:{self.model}"
-            is_local_proxy = any(
-                local_id in str(api_base)
-                for local_id in ["127.0.0.1", "localhost", "0.0.0.0", "4000", "8080"]
-            ) or self.config_llm.get("API_KEY") == "sk-local"
+    async def _ensure_json_schema_probed(self) -> None:
+        """Probe JSON schema support lazily and offload to thread."""
+        if self.use_responses:
+            return
 
-            if is_local_proxy:
-                self.json_schema_enabled = bool(self.config_llm.get("JSON_SCHEMA", False))
-                _PROBED_JSON_SCHEMA_MODELS[probe_key] = self.json_schema_enabled
-            elif probe_key in _PROBED_JSON_SCHEMA_MODELS:
-                self.json_schema_enabled = _PROBED_JSON_SCHEMA_MODELS[probe_key]
-                self.config_llm["JSON_SCHEMA"] = self.json_schema_enabled
-            else:
-                try:
-                    self.client.chat.completions.create(
-                        model=self.model,
-                        messages=[{"role": "user", "content": "Hello"}],
-                        n=1,
-                        response_format=_pydantic_to_response_format(HostAgentResponse),
-                        max_tokens=10,
+        if self.probe_key in _PROBED_JSON_SCHEMA_MODELS:
+            self.json_schema_enabled = _PROBED_JSON_SCHEMA_MODELS[self.probe_key]
+            self.config_llm["JSON_SCHEMA"] = self.json_schema_enabled
+            return
+
+        is_local_proxy = is_local_endpoint(
+            api_base=self.api_base,
+            api_key=self.config_llm.get("API_KEY"),
+            api_type=self.api_provider,
+        )
+
+        if is_local_proxy:
+            self.json_schema_enabled = bool(self.config_llm.get("JSON_SCHEMA", False))
+            _PROBED_JSON_SCHEMA_MODELS[self.probe_key] = self.json_schema_enabled
+            return
+
+        def _sync_probe() -> bool:
+            try:
+                self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": "Hello"}],
+                    n=1,
+                    response_format=_pydantic_to_response_format(HostAgentResponse),
+                    max_tokens=10,
+                )
+                _PROBED_JSON_SCHEMA_MODELS[self.probe_key] = True
+                return True
+            except openai.BadRequestError as e:
+                if (
+                    "'response_format' of type 'json_schema' is not supported"
+                    in getattr(e, "message", str(e))
+                ):
+                    self.logger.info(
+                        f"Model {self.model} does not support Structured JSON Output feature. Switching to text mode.",
                     )
-                    _PROBED_JSON_SCHEMA_MODELS[probe_key] = True
-                    self.json_schema_enabled = True
-                except openai.BadRequestError as e:
-                    if (
-                        "'response_format' of type 'json_schema' is not supported"
-                        in getattr(e, "message", str(e))
-                    ):
-                        self.logger.info(
-                            f"Model {self.model} does not support Structured JSON Output feature. Switching to text mode.",
-                        )
-                        _PROBED_JSON_SCHEMA_MODELS[probe_key] = False
-                        self.config_llm["JSON_SCHEMA"] = False
-                        self.json_schema_enabled = False
-                except (openai.NotFoundError, openai.AuthenticationError, openai.APIConnectionError, openai.APITimeoutError, openai.APIStatusError, Exception) as e:
-                    self.logger.warning(
-                        f"Startup probe for model {self.model} failed with {type(e).__name__}: {e}. "
-                        f"Continuing without JSON schema validation."
-                    )
-                    _PROBED_JSON_SCHEMA_MODELS[probe_key] = False
-                    self.config_llm["JSON_SCHEMA"] = False
-                    self.json_schema_enabled = False
+                _PROBED_JSON_SCHEMA_MODELS[self.probe_key] = False
+                return False
+            except Exception as e:
+                self.logger.warning(
+                    f"Startup probe for model {self.model} failed with {type(e).__name__}: {e}. "
+                    f"Continuing without JSON schema validation."
+                )
+                _PROBED_JSON_SCHEMA_MODELS[self.probe_key] = False
+                return False
 
+        self.json_schema_enabled = await asyncio.to_thread(_sync_probe)
+        self.config_llm["JSON_SCHEMA"] = self.json_schema_enabled
 
-    def _chat_completion(
+    async def _chat_completion(
         self,
         messages: List[Dict[str, str]],
         stream: bool = False,
@@ -139,18 +150,16 @@ class BaseOpenAIService(BaseService):
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
         **kwargs: Any,
-    ) -> Tuple[List[str], Optional[float]]:
+    ) -> LLMResult:
         """
-        Generates completions for a given conversation using the OpenAI Chat API.
+        Generates completions for a given conversation using the OpenAI Chat API asynchronously.
         :param messages: The list of messages in the conversation.
-        :param n: The number of completions to generate.
         :param stream: Whether to stream the API response.
         :param temperature: The temperature parameter for randomness in the output.
         :param max_tokens: The maximum number of tokens in the generated completion.
         :param top_p: The top-p parameter for nucleus sampling.
         :param kwargs: Additional keyword arguments to pass to the OpenAI API.
-        :return: A tuple containing a list of generated completions and the estimated cost.
-        :raises: Exception if there is an error in the OpenAI API request
+        :return: LLMResult containing responses, cost, token counts, and metadata.
         """
         temperature = (
             temperature if temperature is not None else self.config["TEMPERATURE"]
@@ -158,126 +167,130 @@ class BaseOpenAIService(BaseService):
         max_tokens = max_tokens if max_tokens is not None else self.config["MAX_TOKENS"]
         top_p = top_p if top_p is not None else self.config["TOP_P"]
 
-        try:
-            if self.use_responses:
-                return self._responses_completion(
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    top_p=top_p,
-                )
-            # Build base parameters
-            base_params = {
-                "model": self.model,
-                "messages": messages,
-                "n": 1,
-                **kwargs,
+        if self.use_responses:
+            return await self._responses_completion(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                top_p=top_p,
+            )
+
+        await self._ensure_json_schema_probed()
+
+        # Build base parameters
+        base_params = {
+            "model": self.model,
+            "messages": messages,
+            "n": 1,
+            **kwargs,
+        }
+
+        # Add response format if JSON schema is enabled
+        if self.json_schema_enabled:
+            response_format_mapping = {
+                AgentType.HOST: HostAgentResponse,
+                AgentType.APP: AppAgentResponse,
+                AgentType.EVALUATION: EvaluationResponse,
             }
+            response_format = response_format_mapping.get(
+                AgentType(self.agent_type)
+            )
+            if response_format:
+                base_params["response_format"] = _pydantic_to_response_format(
+                    response_format
+                )
 
-            # Add response format if JSON schema is enabled
-            if self.json_schema_enabled:
-                response_format_mapping = {
-                    AgentType.HOST: HostAgentResponse,
-                    AgentType.APP: AppAgentResponse,
-                    AgentType.EVALUATION: EvaluationResponse,
+        # Add generation parameters for non-reasoning models
+        if not self.config_llm.get("REASONING_MODEL", False):
+            base_params.update(
+                {
+                    "temperature": temperature,
+                    "top_p": top_p,
                 }
-                response_format = response_format_mapping.get(
-                    AgentType(self.agent_type)
-                )
-                if response_format:
-                    base_params["response_format"] = _pydantic_to_response_format(
-                        response_format
-                    )
+            )
 
-            # Add generation parameters for non-reasoning models
-            if not self.config_llm.get("REASONING_MODEL", False):
-                base_params.update(
-                    {
-                        "temperature": temperature,
-                        # "max_tokens": max_tokens,
-                        "top_p": top_p,
-                    }
-                )
+        # Add streaming parameters if needed
+        if stream:
+            base_params.update(
+                {
+                    "stream": True,
+                    "stream_options": {"include_usage": True},
+                }
+            )
 
-            # Add streaming parameters if needed
-            if stream:
-                base_params.update(
-                    {
-                        "stream": True,
-                        "stream_options": {"include_usage": True},
-                    }
-                )
+        response = await asyncio.to_thread(self.client.chat.completions.create, **base_params)
 
-            response = self.client.chat.completions.create(**base_params)
+        if stream:
+            collected_content = [""]
+            prompt_tokens = 0
+            completion_tokens = 0
 
-            if stream:
-                collected_content = [""]
+            for chunk in response:
+                if chunk.choices:
+                    delta = chunk.choices[0].delta
+                    if delta and delta.content:
+                        collected_content[0] += delta.content
+                else:
+                    usage = getattr(chunk, "usage", None)
+                    if usage:
+                        prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
+                        completion_tokens = getattr(usage, "completion_tokens", 0) or 0
 
-                for chunk in response:
-                    if chunk.choices:
-                        delta = chunk.choices[0].delta
-                        if delta and delta.content:
-                            collected_content[0] += delta.content
-                    else:
-                        usage = chunk.usage
+            if not collected_content or not collected_content[0]:
+                raise RuntimeError(f"OpenAI API streaming response produced empty content for model '{self.model}'")
 
-                prompt_tokens = usage.prompt_tokens
-                completion_tokens = usage.completion_tokens
+            cost = self.get_cost_estimator(
+                self.api_type,
+                self.model,
+                self.prices,
+                prompt_tokens,
+                completion_tokens,
+            )
+            return LLMResult(
+                responses=collected_content,
+                cost=cost,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                model=self.model,
+                api_type=self.api_type,
+                agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, "value", str(self.agent_type)),
+            )
+        else:
+            usage = getattr(response, "usage", None)
+            prompt_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+            completion_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
 
-                cost = self.get_cost_estimator(
-                    self.api_type,
-                    self.model,
-                    self.prices,
-                    prompt_tokens,
-                    completion_tokens,
-                )
-                return collected_content, cost
-            else:
-                usage = response.usage
-                prompt_tokens = usage.prompt_tokens
-                completion_tokens = usage.completion_tokens
+            cost = self.get_cost_estimator(
+                self.api_type,
+                self.model,
+                self.prices,
+                prompt_tokens,
+                completion_tokens,
+            )
 
-                cost = self.get_cost_estimator(
-                    self.api_type,
-                    self.model,
-                    self.prices,
-                    prompt_tokens,
-                    completion_tokens,
-                )
+            if not response.choices or response.choices[0].message.content is None:
+                raise RuntimeError(f"OpenAI API returned response with no choices or empty content for model '{self.model}'")
 
-                return [response.choices[0].message.content], cost
+            responses = [response.choices[0].message.content]
+            return LLMResult(
+                responses=responses,
+                cost=cost,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                model=self.model,
+                api_type=self.api_type,
+                agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, "value", str(self.agent_type)),
+            )
 
-        except openai.APITimeoutError as e:
-            # Handle timeout error, e.g. retry or log
-            raise Exception(f"OpenAI API request timed out: {e}")
-        except openai.APIConnectionError as e:
-            # Handle connection error, e.g. check network or log
-            raise Exception(f"OpenAI API request failed to connect: {e}")
-        except openai.BadRequestError as e:
-            # Handle invalid request error, e.g. validate parameters or log
-            raise Exception(f"OpenAI API request was invalid: {e}")
-        except openai.AuthenticationError as e:
-            # Handle authentication error, e.g. check credentials or log
-            raise Exception(f"OpenAI API request was not authorized: {e}")
-        except openai.PermissionDeniedError as e:
-            # Handle permission error, e.g. check scope or log
-            raise Exception(f"OpenAI API request was not permitted: {e}")
-        except openai.RateLimitError as e:
-            # Handle rate limit error, e.g. wait or log
-            raise Exception(f"OpenAI API request exceeded rate limit: {e}")
-        except openai.APIError as e:
-            # Handle API error, e.g. retry or log
-            raise Exception(f"OpenAI API returned an API Error: {e}")
-
-    def _responses_completion(
+    async def _responses_completion(
         self,
         messages: List[Dict[str, str]],
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
-    ) -> Tuple[List[str], Optional[float]]:
+    ) -> LLMResult:
         """
-        Generate a completion using the Responses API.
+        Generate a completion using the Responses API asynchronously.
         """
         inputs = self._messages_to_responses_input(messages)
 
@@ -312,12 +325,12 @@ class BaseOpenAIService(BaseService):
                 )
 
         try:
-            response = self.client.responses.create(**base_params)
+            response = await asyncio.to_thread(self.client.responses.create, **base_params)
         except openai.BadRequestError as e:
             # Fallback if response_format isn't supported on Responses API
             if "response_format" in str(e).lower():
                 base_params.pop("response_format", None)
-                response = self.client.responses.create(**base_params)
+                response = await asyncio.to_thread(self.client.responses.create, **base_params)
             else:
                 raise
 
@@ -325,8 +338,8 @@ class BaseOpenAIService(BaseService):
         content_text = self._extract_responses_text(response_dict)
 
         usage = response_dict.get("usage", {}) if isinstance(response_dict, dict) else {}
-        input_tokens = usage.get("input_tokens", 0)
-        output_tokens = usage.get("output_tokens", 0)
+        input_tokens = usage.get("input_tokens", 0) if isinstance(usage, dict) else 0
+        output_tokens = usage.get("output_tokens", 0) if isinstance(usage, dict) else 0
 
         cost = self.get_cost_estimator(
             self.api_type,
@@ -336,7 +349,15 @@ class BaseOpenAIService(BaseService):
             output_tokens,
         )
 
-        return [content_text], cost
+        return LLMResult(
+            responses=[content_text],
+            cost=cost,
+            prompt_tokens=input_tokens,
+            completion_tokens=output_tokens,
+            model=self.model,
+            api_type=self.api_type,
+            agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, "value", str(self.agent_type)),
+        )
 
     @staticmethod
     def _messages_to_responses_input(
@@ -399,37 +420,38 @@ class BaseOpenAIService(BaseService):
                     chunks.append(part.get("text", ""))
         return "".join(chunks).strip()
 
-    def _chat_completion_operator(
+    async def _chat_completion_operator(
         self,
         message: Dict[str, Any] = {},
         **kwargs: Any,
-    ) -> Tuple[Dict[str, Any], Optional[float]]:
+    ) -> LLMResult:
         """
-        Generates completions for a given conversation using the OpenAI Chat API.
+        Generates completions for a given conversation using the OpenAI Operator / Responses API.
         :param message: The message to send to the API.
-        :param n: The number of completions to generate.
-        :return: A tuple containing a list of generated completions and the estimated cost.
+        :return: LLMResult containing the response dict in responses[0], cost, tokens, and metadata.
         """
-
         inputs = message.get("inputs", [])
         tools = message.get("tools", [])
         previous_response_id = message.get("previous_response_id", None)
 
-        response = self.client.responses.create(
-            model=self.config_llm.get("API_MODEL"),
-            input=inputs,
-            tools=tools,
-            previous_response_id=previous_response_id,
-            truncation="auto",
-            temperature=self.config.get("TEMPERATURE", 0),
-            top_p=self.config.get("TOP_P", 0),
-            timeout=self.config.get("TIMEOUT", 20),
-        ).model_dump()
+        create_params = {
+            "model": self.config_llm.get("API_MODEL"),
+            "input": inputs,
+            "tools": tools,
+            "previous_response_id": previous_response_id,
+            "truncation": "auto",
+            "temperature": self.config.get("TEMPERATURE", 0),
+            "top_p": self.config.get("TOP_P", 0),
+            "timeout": self.config.get("TIMEOUT", 20),
+        }
 
-        if "usage" in response:
-            usage = response.get("usage")
-            input_tokens = usage.get("input_tokens", 0)
-            output_tokens = usage.get("output_tokens", 0)
+        raw_response = await asyncio.to_thread(self.client.responses.create, **create_params)
+        response = raw_response.model_dump() if hasattr(raw_response, "model_dump") else raw_response
+
+        if isinstance(response, dict) and "usage" in response:
+            usage = response.get("usage", {})
+            input_tokens = usage.get("input_tokens", 0) if isinstance(usage, dict) else 0
+            output_tokens = usage.get("output_tokens", 0) if isinstance(usage, dict) else 0
         else:
             input_tokens = 0
             output_tokens = 0
@@ -442,7 +464,15 @@ class BaseOpenAIService(BaseService):
             output_tokens,
         )
 
-        return [response], cost
+        return LLMResult(
+            responses=[response],
+            cost=cost,
+            prompt_tokens=input_tokens,
+            completion_tokens=output_tokens,
+            model=self.config_llm.get("API_MODEL", "gpt-4o"),
+            api_type=self.api_type,
+            agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, "value", str(self.agent_type)),
+        )
 
     @functools.lru_cache()
     @staticmethod
@@ -474,13 +504,14 @@ class BaseOpenAIService(BaseService):
             timeout=timeout,
         )
 
+        # Disable SDK internal retries so UFO central retry in llm_call owns the budget
         if api_type == "openai":
             assert api_key, "OpenAI API key must be specified"
             assert api_base, "OpenAI API base URL must be specified"
             client = OpenAI(
                 base_url=api_base,
                 api_key=api_key,
-                max_retries=max_retry,
+                max_retries=0,
                 timeout=timeout,
                 http_client=http_client,
             )
@@ -489,7 +520,7 @@ class BaseOpenAIService(BaseService):
             if api_type == "aoai":
                 assert api_key, "Azure OpenAI API key must be specified"
                 client = AzureOpenAI(
-                    max_retries=max_retry,
+                    max_retries=0,
                     timeout=timeout,
                     api_version=api_version,
                     azure_endpoint=api_base,
@@ -508,7 +539,7 @@ class BaseOpenAIService(BaseService):
                     aad_tenant_id=aad_tenant_id,
                 )
                 client = AzureOpenAI(
-                    max_retries=max_retry,
+                    max_retries=0,
                     timeout=timeout,
                     api_version=api_version,
                     azure_endpoint=api_base,
@@ -698,18 +729,18 @@ class OpenAIService(BaseOpenAIService):
             config[agent_type]["API_BASE"],
         )
 
-    def chat_completion(
+    async def chat_completion(
         self,
         messages: List[Dict[str, str]],
-        n: int,
+        n: int = 1,
         stream: bool = False,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
         **kwargs: Any,
-    ) -> Tuple[List[str] | Dict[str, Any], Optional[float]]:
+    ) -> LLMResult:
         """
-        Generates completions for a given conversation using the OpenAI Chat API.
+        Generates completions for a given conversation using the OpenAI Chat API asynchronously.
         :param messages: The list of messages in the conversation.
         :param n: The number of completions to generate.
         :param stream: Whether to stream the API response.
@@ -717,28 +748,21 @@ class OpenAIService(BaseOpenAIService):
         :param max_tokens: The maximum number of tokens in the generated completion.
         :param top_p: The top-p parameter for nucleus sampling.
         :param kwargs: Additional keyword arguments to pass to the OpenAI API.
-        :return: A tuple containing a list of generated completions and the estimated cost.
-        :raises: Exception if there is an error in the OpenAI API request
+        :return: LLMResult containing responses, cost, token counts, and metadata.
         """
-
         if self.agent_type.lower() != "operator":
-            # If the agent type is not "operator", use the OpenAI API directly
-            return super()._chat_completion(
+            return await super()._chat_completion(
                 messages,
-                False,
-                temperature,
-                max_tokens,
-                top_p,
+                stream=stream,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                top_p=top_p,
                 **kwargs,
             )
         else:
-            # If the agent type is "operator", use the OpenAI Operator API
-            return super()._chat_completion_operator(
+            return await super()._chat_completion_operator(
                 messages,
             )
-
-
-
 
 
 class OperatorServicePreview(BaseService):
@@ -774,19 +798,13 @@ class OperatorServicePreview(BaseService):
         Create an OpenAI client based on the API type.
         :return: The OpenAI client.
         """
-
-        # client = OpenAIBetaClient(
-        #     endpoint=self.config_llm.get("API_BASE"),
-        #     api_version=self.config_llm.get("API_VERSION", ""),
-        # )
-
         token_provider = self.get_token_provider()
         api_key = token_provider()
 
         client = openai.AzureOpenAI(
             azure_endpoint=self.config_llm.get("API_BASE"),
             api_key=api_key,
-            max_retries=self.max_retry,
+            max_retries=0,
             timeout=self.config.get("TIMEOUT", 20),
             api_version=self.config_llm.get("API_VERSION"),
             default_headers={"x-ms-enable-preview": "true"},
@@ -794,37 +812,40 @@ class OperatorServicePreview(BaseService):
 
         return client
 
-    def chat_completion(
+    async def chat_completion(
         self,
         message: Dict[str, Any] = None,
         n: int = 1,
-    ) -> Tuple[Dict[str, Any], Optional[float]]:
+    ) -> LLMResult:
         """
-        Generates completions for a given conversation using the OpenAI Chat API.
+        Generates completions for a given conversation using the OpenAI Responses API asynchronously.
         :param message: The message to send to the API.
         :param n: The number of completions to generate.
-        :return: A tuple containing a list of generated completions and the estimated cost.
+        :return: LLMResult containing the response dict in responses[0], cost, tokens, and metadata.
         """
-
+        message = message or {}
         inputs = message.get("inputs", [])
         tools = message.get("tools", [])
         previous_response_id = message.get("previous_response_id", None)
 
-        response = self.client.responses.create(
-            model=self.config_llm.get("API_MODEL"),
-            input=inputs,
-            tools=tools,
-            previous_response_id=previous_response_id,
-            truncation="auto",
-            temperature=self.config.get("TEMPERATURE", 0),
-            top_p=self.config.get("TOP_P", 0),
-            timeout=self.config.get("TIMEOUT", 20),
-        ).model_dump()
+        create_params = {
+            "model": self.config_llm.get("API_MODEL"),
+            "input": inputs,
+            "tools": tools,
+            "previous_response_id": previous_response_id,
+            "truncation": "auto",
+            "temperature": self.config.get("TEMPERATURE", 0),
+            "top_p": self.config.get("TOP_P", 0),
+            "timeout": self.config.get("TIMEOUT", 20),
+        }
 
-        if "usage" in response:
-            usage = response.get("usage")
-            input_tokens = usage.get("input_tokens", 0)
-            output_tokens = usage.get("output_tokens", 0)
+        raw_response = await asyncio.to_thread(self.client.responses.create, **create_params)
+        response = raw_response.model_dump() if hasattr(raw_response, "model_dump") else raw_response
+
+        if isinstance(response, dict) and "usage" in response:
+            usage = response.get("usage", {})
+            input_tokens = usage.get("input_tokens", 0) if isinstance(usage, dict) else 0
+            output_tokens = usage.get("output_tokens", 0) if isinstance(usage, dict) else 0
         else:
             input_tokens = 0
             output_tokens = 0
@@ -837,7 +858,15 @@ class OperatorServicePreview(BaseService):
             output_tokens,
         )
 
-        return [response], cost
+        return LLMResult(
+            responses=[response],
+            cost=cost,
+            prompt_tokens=input_tokens,
+            completion_tokens=output_tokens,
+            model=self.api_model,
+            api_type=self.api_type,
+            agent_type=self._agent_type if isinstance(self._agent_type, str) else getattr(self._agent_type, "value", str(self._agent_type)),
+        )
 
     def get_token_provider(self):
         """

@@ -1,6 +1,7 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from ufo.llm.openai import BaseOpenAIService
+from ufo.llm.llm_result import LLMResult
 
 
 class QwenService(BaseOpenAIService):
@@ -24,18 +25,18 @@ class QwenService(BaseOpenAIService):
             api_base,
         )
 
-    def chat_completion(
+    async def chat_completion(
         self,
         messages: List[Dict[str, str]],
-        n: int,
+        n: int = 1,
         stream: bool = True,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
         **kwargs: Any,
-    ) -> Tuple[Dict[str, Any], Optional[float]]:
+    ) -> LLMResult:
         """
-        Generates completions for a given conversation using the Qwen thru OpenAI Chat API.
+        Generates completions for a given conversation using the Qwen thru OpenAI Chat API asynchronously.
         :param messages: The list of messages in the conversation.
         :param n: The number of completions to generate.
         :param stream: Whether to stream the API response.
@@ -43,16 +44,14 @@ class QwenService(BaseOpenAIService):
         :param max_tokens: The maximum number of tokens in the generated completion.
         :param top_p: The top-p parameter for nucleus sampling.
         :param kwargs: Additional keyword arguments to pass to the OpenAI API.
-        :return: A tuple containing a list of generated completions and the estimated cost.
-        :raises: Exception if there is an error in the OpenAI API request
+        :return: LLMResult containing responses, cost, token counts, and metadata.
         """
-
-        return super()._chat_completion(
+        return await super()._chat_completion(
             messages,
-            True,  # most Qwen series models requires stream=True
-            temperature,
-            max_tokens,
-            top_p,
+            stream=stream,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p,
             response_format={
                 "type": "text"
             },  # Qwen models still have poor support for json response format

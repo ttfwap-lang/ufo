@@ -80,15 +80,15 @@ class Session(WindowsBaseSession):
         self.logger.info(f"Save experience setting: {save_experience}")
 
         if save_experience == "always":
-            self.experience_saver()
+            await self.experience_saver()
         elif save_experience == "ask":
             if interactor.experience_asker():
-                self.experience_saver()
+                await self.experience_saver()
 
         elif save_experience == "auto":
             task_completed = self.results.get("complete", "no")
             if task_completed.lower() == "yes":
-                self.experience_saver()
+                await self.experience_saver()
 
         elif save_experience == "always_not":
             pass
@@ -525,7 +525,7 @@ class OpenAIOperatorSession(Session):
         await self.capture_last_snapshot()
 
         if self._should_evaluate and not self.is_error():
-            self.evaluation()
+            await self.evaluation()
 
         if ufo_config.system.log_to_markdown:
 

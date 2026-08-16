@@ -1,5 +1,5 @@
+import asyncio
 import logging
-import time
 from typing import Any, Optional
 import dataclasses
 from enum import auto, Enum
@@ -9,7 +9,8 @@ from io import BytesIO
 from PIL import Image
 
 import requests
-from .base import BaseService
+from ufo.llm.base import BaseService
+from ufo.llm.llm_result import LLMResult
 
 DEFAULT_IMAGE_TOKEN = "<image>"
 logger = logging.getLogger(__name__)
@@ -19,11 +20,12 @@ class LlavaService(BaseService):
     def __init__(self, config, agent_type: str):
         self.config_llm = config[agent_type]
         self.config = config
+        self.agent_type = agent_type
         self.max_retry = self.config["MAX_RETRY"]
         self.timeout = self.config["TIMEOUT"]
         self.max_tokens = 2048  # default max tokens for llava for now
 
-    def chat_completion(
+    async def chat_completion(
         self,
         messages,
         n,
@@ -31,20 +33,18 @@ class LlavaService(BaseService):
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
         **kwargs: Any,
-    ):
+    ) -> LLMResult:
         """
-        Generates chat completions based on the given messages.
+        Generates chat completions asynchronously based on the given messages.
         Args:
             messages (list): A list of messages.
             n (int): The number of completions to generate.
-            temperature (float, optional): The temperature value for controlling the randomness of the completions. Defaults to None.
-            max_tokens (int, optional): The maximum number of tokens in the completions. Defaults to None.
-            top_p (float, optional): The cumulative probability for selecting the next token in the completions. Defaults to None.
+            temperature (float, optional): The temperature value.
+            max_tokens (int, optional): The maximum number of tokens.
+            top_p (float, optional): The cumulative probability.
             **kwargs: Additional keyword arguments.
         Returns:
-            tuple: A tuple containing the generated texts and None.
-        Raises:
-            Exception: If there is an error in the API request.
+            LLMResult: Structured LLM result.
         """
         temperature = (
             temperature if temperature is not None else self.config["TEMPERATURE"]
@@ -55,7 +55,7 @@ class LlavaService(BaseService):
 
         texts = []
         for i in range(n):
-            if self.config_llm["VISUAL_MODE"]:
+            if self.config_llm.get("VISUAL_MODE", False):
                 inp = DEFAULT_IMAGE_TOKEN + "\n" + messages[1]["content"][-1]["text"]
                 conv.append_message(conv.roles[0], inp)
                 image_base64 = messages[1]["content"][-2]["image_url"]["url"].split(
@@ -63,6 +63,7 @@ class LlavaService(BaseService):
                 )[1]
             else:
                 conv.append_message(conv.roles[0], messages[1]["content"][-1]["text"])
+                image_base64 = None
             prompt = conv.get_prompt()
 
             payload = {
@@ -71,34 +72,37 @@ class LlavaService(BaseService):
                 "temperature": temperature,
                 "top_p": top_p,
                 "max_new_tokens": self.max_tokens,
-                "image": image_base64,
             }
+            if image_base64 is not None:
+                payload["image"] = image_base64
 
-            for _ in range(self.max_retry):
-                try:
-                    response = requests.post(
-                        self.config_llm["API_BASE"] + "/chat/completions",
-                        json=payload,
-                        timeout=self.timeout,
-                    )
-                    if response.status_code == 200:
-                        response = response.json()
-                        text = response["text"]
-                        texts.append(text)
-                        break
-                    else:
-                        raise Exception(
-                            f"Failed to get completion with error code {response.status_code}: {response.text}",
-                        )
-                except Exception as e:
-                    logger.error(f"Error making API request: {e}")
-                    try:
-                        logger.error(response)
-                    except:
-                        pass
-                    time.sleep(3)
-                    continue
-        return texts, None
+            response = await asyncio.to_thread(
+                requests.post,
+                self.config_llm["API_BASE"] + "/chat/completions",
+                json=payload,
+                timeout=self.timeout,
+            )
+            if response.status_code == 200:
+                resp_json = response.json()
+                text = resp_json.get("text", "")
+                texts.append(text)
+            else:
+                raise RuntimeError(
+                    f"Failed to get completion with error code {response.status_code}: {response.text}",
+                )
+
+        if not texts:
+            raise RuntimeError(f"LlavaService generated no completions for model '{self.config_llm.get('API_MODEL')}'")
+
+        return LLMResult(
+            responses=texts,
+            cost=0.0,
+            prompt_tokens=0,
+            completion_tokens=0,
+            model=self.config_llm.get("API_MODEL", "llava"),
+            api_type="llava",
+            agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, "value", str(self.agent_type)),
+        )
 
     def _conversation(self):
         """

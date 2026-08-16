@@ -3,6 +3,9 @@ from typing import Any, Dict, List, Optional
 from ufo.llm.base import BaseService
 
 
+from ufo.llm.llm_result import LLMResult
+
+
 class PlaceHolderService(BaseService):
     """
     A placeholder service class.
@@ -19,7 +22,7 @@ class PlaceHolderService(BaseService):
         self.max_retry = self.config["MAX_RETRY"]
         self.timeout = self.config["TIMEOUT"]
 
-    def chat_completion(
+    async def chat_completion(
         self,
         messages: List[Dict[str, str]],
         n: int = 1,
@@ -27,7 +30,7 @@ class PlaceHolderService(BaseService):
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
         **kwargs: Any,
-    ):
+    ) -> LLMResult:
         """
         Generates completions for a given list of messages.
         :param messages: The list of messages to generate completions for.

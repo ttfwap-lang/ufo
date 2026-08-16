@@ -6,7 +6,6 @@ config files based on AgentType.
 """
 
 import copy
-from pathlib import Path
 import threading
 from typing import Dict, Any, Optional
 from ufo.llm import AgentType

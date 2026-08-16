@@ -15,7 +15,6 @@ exclude = [
 select = ["E", "F", "I", "W"]
 ignore = [
     "E501",   # line too long (handled by formatter)
-    "F401",   # unused imports (UFO has many conditional imports)
     "E402",   # module level import not at top (UFO uses sys.path.insert)
 ]
 

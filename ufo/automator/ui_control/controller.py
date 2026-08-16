@@ -6,7 +6,7 @@ import platform
 import time
 import warnings
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, TYPE_CHECKING, cast
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, TYPE_CHECKING
 
 # Conditional imports for Windows-specific packages
 if TYPE_CHECKING or platform.system() == "Windows":
