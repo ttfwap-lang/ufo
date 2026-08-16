@@ -80,3 +80,5 @@ node_modules
 
 # Vinv local artifacts (captures, index, reports)
 .vinv/
+
+config/*/backend_state.json

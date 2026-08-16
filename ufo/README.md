@@ -309,6 +309,13 @@ python -m galaxy --interactive
 
 **For Windows automation**
 
+> ⚠️ **CRITICAL: IDE EXECUTION WARNING**
+> UFO uses `GetForegroundWindow` to capture UI state. If you run UFO inside an IDE background terminal (like VS Code or Cursor), the OS will return `0` and screenshots will fail. **You must run UFO from an interactive Desktop shell.**
+>
+> We have provided two automated launchers on your Desktop for this exact purpose:
+> *   `05_UFO_Admin_Terminal.bat` — Opens a fully elevated interactive shell.
+> *   `06_Run_UFO_E2E_Test.bat` — Automatically runs the `smoke_test_e2e.bat` diagnostic.
+
 ```powershell
 # 1. Install
 pip install -r requirements.txt
@@ -317,7 +324,7 @@ pip install -r requirements.txt
 copy config\ufo\agents.yaml.template config\ufo\agents.yaml
 # Edit and add your API keys
 
-# 3. Run
+# 3. Run (From the Desktop shortcuts!)
 python -m ufo --task <task_name>
 ```
 

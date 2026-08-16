@@ -117,16 +117,24 @@ def _ensure_llm_reachable(logger: logging.Logger) -> None:
     """
     Probe the configured LLM endpoint. If unreachable (local stack down),
     switch the in-memory route to cloud config (agents_cloud.yaml) with zero disk writes.
+    This is a process-local override that never touches persisted user intent.
     """
     import urllib.request
-    from ufo.config.config_loader import get_ufo_config
-    from ufo.llm.config_helper import set_active_agent_route
+    from ufo.llm.config_helper import set_process_override, resolve_backend_profile, BackendProfileError
 
     try:
-        ufo_cfg = get_ufo_config()
-        host = ufo_cfg.host_agent
-        api_type = getattr(host, "api_type", "")
-        api_base = getattr(host, "api_base", "")
+        try:
+            prof = resolve_backend_profile()
+        except BackendProfileError as e:
+            logger.warning(f"AUTO-FALLBACK: Profile resolution failed: {e}")
+            return
+            
+        if not prof:
+            return
+            
+        host = prof.get("HOST_AGENT", {})
+        api_type = host.get("API_TYPE", "")
+        api_base = host.get("API_BASE", "")
 
         # Only probe local endpoints (cloud APIs don't have /health)
         if (
@@ -149,7 +157,7 @@ def _ensure_llm_reachable(logger: logging.Logger) -> None:
 
         # Local endpoint is down -- attempt in-memory fallback
         logger.warning(f"AUTO-FALLBACK: Local LLM at {api_base} is unreachable")
-        if set_active_agent_route("cloud"):
+        if set_process_override("cloud"):
             logger.warning(
                 "AUTO-FALLBACK: Switched active LLM route to Gemini cloud API in memory (zero disk writes)."
             )

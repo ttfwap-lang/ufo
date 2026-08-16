@@ -24,10 +24,9 @@ REM
 REM  What this script does:
 REM    1. Creates directories
 REM    2. Downloads 4 model files from HuggingFace (with resume)
-REM    3. Updates LiteLLM config
-REM    4. Updates agents.yaml to local vision mode
-REM    5. Launches both llama-server instances + LiteLLM proxy
-REM    6. Runs health check
+REM    3. Selects local vision backend
+REM    4. Launches both llama-server instances + LiteLLM proxy
+REM    5. Runs health check
 REM ======================================================================
 
 title UFO Dream Team -- One-Shot Setup
@@ -83,6 +82,14 @@ if not exist "%LLAMA_SERVER%" (
     goto :fatal_error
 )
 echo  !ESC![92m[OK]!ESC![0m llama-server.exe found
+
+REM Check litellm_config.yaml exists
+if not exist "%UFO_DIR%\litellm_config.yaml" (
+    echo  !ESC![91m[ERROR]!ESC![0m %UFO_DIR%\litellm_config.yaml not found.
+    echo         Cannot start LiteLLM proxy without its configuration.
+    goto :fatal_error
+)
+echo  !ESC![92m[OK]!ESC![0m litellm_config.yaml found
 
 REM Check curl exists (for downloads)
 where curl >nul 2>&1
@@ -206,108 +213,15 @@ echo  PHASE 3: UPDATE UFO CONFIGURATION
 echo ══════════════════════════════════════════════════════════════════
 echo.
 
-REM Backup current agents.yaml if not already backed up
-if not exist "%UFO_DIR%\config\ufo\agents_cloud.yaml" (
-    copy "%UFO_DIR%\config\ufo\agents.yaml" "%UFO_DIR%\config\ufo\agents_cloud.yaml" >nul 2>&1
-    echo  !ESC![92m[OK]!ESC![0m Backed up current agents.yaml to agents_cloud.yaml
-) else (
-    echo  !ESC![92m[OK]!ESC![0m Cloud backup already exists
+REM Write the dream team selection via switch_backend.py
+echo  !ESC![92m[OK]!ESC![0m Selecting local vision backend...
+"%PYTHON_EXE%" "%UFO_DIR%\scripts\switch_backend.py" local
+if errorlevel 1 (
+    echo  !ESC![91m[ERROR]!ESC![0m Failed to select local backend.
+    goto :fatal_error
 )
 
-REM Write the dream team agents.yaml
-echo  !ESC![92m[OK]!ESC![0m Writing local vision agents.yaml...
-(
-echo HOST_AGENT:
-echo   VISUAL_MODE: true
-echo   REASONING_MODEL: false
-echo   API_TYPE: openai
-echo   API_BASE: "http://127.0.0.1:4000"
-echo   API_KEY: "sk-local"
-echo   API_MODEL: ufo-host-model
-echo   PROMPT: ufo/prompts/share/base/host_agent.yaml
-echo   EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/host_agent_example.yaml
-echo APP_AGENT:
-echo   VISUAL_MODE: true
-echo   REASONING_MODEL: false
-echo   API_TYPE: openai
-echo   API_BASE: "http://127.0.0.1:4000"
-echo   API_KEY: "sk-local"
-echo   API_MODEL: ufo-app-model
-echo   PROMPT: ufo/prompts/share/base/app_agent.yaml
-echo   EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/app_agent_example.yaml
-echo   EXAMPLE_PROMPT_AS: ufo/prompts/examples/{mode}/app_agent_example_as.yaml
-echo BACKUP_AGENT:
-echo   VISUAL_MODE: true
-echo   API_TYPE: openai
-echo   API_BASE: "http://127.0.0.1:4000"
-echo   API_KEY: "sk-local"
-echo   API_MODEL: ufo-host-model
-echo EVALUATION_AGENT:
-echo   VISUAL_MODE: false
-echo   REASONING_MODEL: false
-echo   API_TYPE: openai
-echo   API_BASE: "http://127.0.0.1:4000"
-echo   API_KEY: "sk-local"
-echo   API_MODEL: ufo-app-model
-echo OMNIPARSER:
-echo   ENDPOINT: ''
-echo   BOX_THRESHOLD: 0.02
-echo   IOU_THRESHOLD: 0.1
-echo   USE_PADDLEOCR: true
-echo   IMGSZ: 1024
-echo MAX_TOKENS: 2000
-echo MAX_RETRY: 3
-echo TEMPERATURE: 0.0
-echo TOP_P: 0.0
-echo TIMEOUT: 120
-echo APP_API_PROMPT_ADDRESS:
-echo   WINWORD.EXE: ufo/prompts/apps/word/api.yaml
-echo   EXCEL.EXE: ufo/prompts/apps/excel/api.yaml
-echo   msedge.exe: ufo/prompts/apps/web/api.yaml
-echo   chrome.exe: ufo/prompts/apps/web/api.yaml
-) > "%UFO_DIR%\config\ufo\agents.yaml"
-
-REM Write the LiteLLM config
-echo  !ESC![92m[OK]!ESC![0m Writing LiteLLM config...
-(
-echo model_list:
-echo   - model_name: "ufo-host-model"
-echo     litellm_params:
-echo       model: "openai/qwen3-vl"
-echo       api_base: "http://127.0.0.1:8080/v1"
-echo       api_key: "sk-local"
-echo       rpm: 10000
-echo       max_tokens: 2000
-echo       temperature: 0.0
-echo       num_retries: 2
-echo   - model_name: "ufo-app-model"
-echo     litellm_params:
-echo       model: "openai/gemma4"
-echo       api_base: "http://127.0.0.1:8081/v1"
-echo       api_key: "sk-local"
-echo       rpm: 10000
-echo       max_tokens: 2000
-echo       temperature: 0.0
-echo       num_retries: 2
-echo   - model_name: "ufo-model"
-echo     litellm_params:
-echo       model: "openai/qwen3-vl"
-echo       api_base: "http://127.0.0.1:8080/v1"
-echo       api_key: "sk-local"
-echo       rpm: 10000
-echo       max_tokens: 2000
-echo       temperature: 0.0
-echo   - model_name: "gemini-complex"
-echo     litellm_params:
-echo       model: "gemini/gemini-3.7-flash"
-echo       api_key: "os.environ/GEMINI_API_KEY"
-echo   - model_name: "gemini-computer-use"
-echo     litellm_params:
-echo       model: "gemini/gemini-3.7-flash"
-echo       api_key: "os.environ/GEMINI_API_KEY"
-) > "%UFO_DIR%\litellm_config.yaml"
-
-echo  !ESC![92m[OK]!ESC![0m Configuration updated
+echo  !ESC![92m[OK]!ESC![0m Local backend selected (only config\ufo\backend_state.json written, agents.yaml untouched)
 echo.
 
 echo ══════════════════════════════════════════════════════════════════
@@ -456,7 +370,7 @@ echo  ^|  To run UFO:                                                ^|
 echo  ^|    python -m ufo --task "open notepad and type hello"       ^|
 echo  ^|                                                             ^|
 echo  ^|  To revert to cloud (Gemini):                               ^|
-echo  ^|    scripts\stop_local_llm.bat                               ^|
+echo  ^|    python scripts\switch_backend.py cloud                   ^|
 echo  ^|                                                             ^|
 echo  +-------------------------------------------------------------+
 echo.
