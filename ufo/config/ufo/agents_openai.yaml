@@ -1,0 +1,54 @@
+# UFO Agent Configurations — OpenAI GPT-5.6 Family
+# Updated: August 2026
+# Uses Responses API (recommended) with GPT-5.6 Terra for UI automation
+#
+# Model Selection Guide:
+#   - GPT-5.6 Terra: Balanced agentic model (recommended for HOST + APP agents)
+#   - GPT-5.6 Luna:  Budget-friendly, high-frequency (recommended for BACKUP)
+#   - GPT-5.6 Sol:   Flagship reasoning model (recommended for EVALUATION)
+#
+# To use this config: copy to agents.yaml or rename agents.yaml → agents.yaml.bak
+# then copy this file → agents.yaml
+
+HOST_AGENT:
+  VISUAL_MODE: true
+  REASONING_MODEL: false
+  API_TYPE: openai
+  API_BASE: "https://api.openai.com/v1"
+  API_KEY: "${OPENAI_API_KEY}"
+  API_MODEL: gpt-5.6-terra
+  USE_RESPONSES: true
+  JSON_SCHEMA: true
+  PROMPT: ufo/prompts/share/base/host_agent.yaml
+  EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/host_agent_example.yaml
+
+APP_AGENT:
+  VISUAL_MODE: true
+  REASONING_MODEL: false
+  API_TYPE: openai
+  API_BASE: "https://api.openai.com/v1"
+  API_KEY: "${OPENAI_API_KEY}"
+  API_MODEL: gpt-5.6-terra
+  USE_RESPONSES: true
+  JSON_SCHEMA: true
+  PROMPT: ufo/prompts/share/base/app_agent.yaml
+  EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/app_agent_example.yaml
+  EXAMPLE_PROMPT_AS: ufo/prompts/examples/{mode}/app_agent_example_as.yaml
+
+BACKUP_AGENT:
+  VISUAL_MODE: true
+  API_TYPE: openai
+  API_BASE: "https://api.openai.com/v1"
+  API_KEY: "${OPENAI_API_KEY}"
+  API_MODEL: gpt-5.6-luna
+  USE_RESPONSES: true
+  PROMPT: ufo/prompts/share/base/app_agent.yaml
+
+EVALUATION_AGENT:
+  VISUAL_MODE: true
+  REASONING_MODEL: true
+  API_TYPE: openai
+  API_BASE: "https://api.openai.com/v1"
+  API_KEY: "${OPENAI_API_KEY}"
+  API_MODEL: gpt-5.6-sol
+  USE_RESPONSES: true

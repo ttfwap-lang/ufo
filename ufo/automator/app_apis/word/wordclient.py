@@ -1,19 +1,13 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 import os
 from typing import Dict, Type
-
 from ufo.automator.app_apis.basic import WinCOMCommand, WinCOMReceiverBasic
 from ufo.automator.basic import CommandBasic
 from ufo.automator.path_validator import validate_save_path
-
 
 class WordWinCOMReceiver(WinCOMReceiverBasic):
     """
     The base class for Windows COM client.
     """
-
     _command_registry: Dict[str, Type[CommandBasic]] = {}
 
     def get_object_from_process_name(self) -> None:
@@ -23,11 +17,9 @@ class WordWinCOMReceiver(WinCOMReceiverBasic):
         """
         object_name_list = [doc.Name for doc in self.client.Documents]
         matched_object = self.app_match(object_name_list)
-
         for doc in self.client.Documents:
             if doc.Name == matched_object:
                 return doc
-
         return None
 
     def insert_table(self, rows: int, columns: int) -> str:
@@ -37,20 +29,15 @@ class WordWinCOMReceiver(WinCOMReceiverBasic):
         :param columns: The number of columns.
         :return: The inserted table.
         """
-
-        # Get the range at the end of the document
         try:
             end_range = self.com_object.Range()
-            end_range.Collapse(0)  # Collapse the range to the end
-
-            # Insert a paragraph break (optional)
+            end_range.Collapse(0)
             end_range.InsertParagraphAfter()
             table = self.com_object.Tables.Add(end_range, rows, columns)
             table.Borders.Enable = True
-
-            return f"Table with {rows} rows and {columns} columns is inserted."
+            return f'Table with {rows} rows and {columns} columns is inserted.'
         except Exception as e:
-            raise RuntimeError(f"Error occurred while inserting table: {e}")
+            raise RuntimeError(f'Error occurred while inserting table: {e}')
 
     def select_text(self, text: str) -> str:
         """
@@ -59,43 +46,33 @@ class WordWinCOMReceiver(WinCOMReceiverBasic):
         """
         finder = self.com_object.Range().Find
         finder.Text = text
-
         if finder.Execute():
             finder.Parent.Select()
-            return f"Text {text} is selected."
+            return f'Text {text} is selected.'
         else:
-            return f"Text {text} is not found."
+            return f'Text {text} is not found.'
 
-    def select_paragraph(
-        self, start_index: int, end_index: int, non_empty: bool = True
-    ) -> str:
+    def select_paragraph(self, start_index: int, end_index: int, non_empty: bool=True) -> str:
         """
         Select a paragraph in the document.
         :param start_index: The start index of the paragraph.
         :param end_index: The end index of the paragraph, if ==-1, select to the end of the document.
         :param non_empty: Whether to select the non-empty paragraphs only.
         """
-
         try:
             paragraphs = self.com_object.Paragraphs
-
             start_index = max(1, start_index)
-
             if non_empty:
                 paragraphs = [p for p in paragraphs if p.Range.Text.strip()]
-
             para_start = paragraphs[start_index - 1].Range.Start
-
-            # Select to the end of the document if end_index == -1
             if end_index == -1:
                 para_end = self.com_object.Range().End
             else:
                 para_end = paragraphs[end_index - 1].Range.End
-
             self.com_object.Range(para_start, para_end).Select()
-            return f"Paragraph from {start_index} to {end_index} is selected."
+            return f'Paragraph from {start_index} to {end_index} is selected.'
         except Exception as e:
-            raise RuntimeError(f"Error occurred while selecting paragraph: {e}")
+            raise RuntimeError(f'Error occurred while selecting paragraph: {e}')
 
     def select_table(self, number: int) -> str:
         """
@@ -105,14 +82,13 @@ class WordWinCOMReceiver(WinCOMReceiverBasic):
         try:
             tables = self.com_object.Tables
             if not number or number < 1 or number > tables.Count:
-                return f"Table number {number} is out of range."
-
+                return f'Table number {number} is out of range.'
             tables(number).Select()
-            return f"Table {number} is selected."
+            return f'Table {number} is selected.'
         except Exception as e:
-            raise RuntimeError(f"Error occurred while selecting table: {e}")
+            raise RuntimeError(f'Error occurred while selecting table: {e}')
 
-    def set_font(self, font_name: str = None, font_size: int = None) -> str:
+    def set_font(self, font_name: str=None, font_size: int=None) -> str:
         """
         Set the font of the selected text in the active Word document.
 
@@ -123,84 +99,50 @@ class WordWinCOMReceiver(WinCOMReceiverBasic):
         """
         try:
             selection = self.client.Selection
-
-            if selection.Type == 0:  # wdNoSelection
-
-                return "No text is selected to set the font."
-
+            if selection.Type == 0:
+                return 'No text is selected to set the font.'
             font = selection.Range.Font
-
-            message = ""
-
+            message = ''
             if font_name:
                 font.Name = font_name
-                message += f"Font is set to {font_name}."
-
+                message += f'Font is set to {font_name}.'
             if font_size:
                 font.Size = font_size
-                message += f" Font size is set to {font_size}."
-
+                message += f' Font size is set to {font_size}.'
             return message
         except Exception as e:
-            raise RuntimeError(f"Error occurred while setting font: {e}")
+            raise RuntimeError(f'Error occurred while setting font: {e}')
 
-    def save_as(
-        self, file_dir: str = "", file_name: str = "", file_ext: str = ""
-    ) -> str:
+    def save_as(self, file_dir: str='', file_name: str='', file_ext: str='') -> str:
         """
         Save the document to PDF.
         :param file_dir: The directory to save the file.
         :param file_name: The name of the file without extension.
         :param file_ext: The extension of the file.
         """
-
-        ext_to_fileformat = {
-            ".doc": 0,  # Word 97-2003 Document
-            ".dot": 1,  # Word 97-2003 Template
-            ".txt": 2,  # Plain Text (ASCII)
-            ".rtf": 6,  # Rich Text Format (RTF)
-            ".unicode.txt": 7,  # Unicode Text (custom extension, for clarity)
-            ".htm": 8,  # Web Page (HTML)
-            ".html": 8,  # Web Page (HTML)
-            ".mht": 9,  # Single File Web Page (MHT)
-            ".xml": 11,  # Word 2003 XML Document
-            ".docx": 12,  # Word Document (default)
-            ".docm": 13,  # Word Macro-Enabled Document
-            ".dotx": 14,  # Word Template (no macros)
-            ".dotm": 15,  # Word Macro-Enabled Template
-            ".pdf": 17,  # PDF File
-            ".xps": 18,  # XPS File
-        }
-
+        ext_to_fileformat = {'.doc': 0, '.dot': 1, '.txt': 2, '.rtf': 6, '.unicode.txt': 7, '.htm': 8, '.html': 8, '.mht': 9, '.xml': 11, '.docx': 12, '.docm': 13, '.dotx': 14, '.dotm': 15, '.pdf': 17, '.xps': 18}
         if not file_dir:
             file_dir = os.path.dirname(self.com_object.FullName)
         if not file_name:
             file_name = os.path.splitext(os.path.basename(self.com_object.FullName))[0]
         if not file_ext:
-            file_ext = ".pdf"
-
-        # Validate the save directory to prevent path traversal
+            file_ext = '.pdf'
         document_dir = os.path.dirname(self.com_object.FullName)
         file_dir = validate_save_path(file_dir, document_dir)
-
         file_path = os.path.join(file_dir, file_name + file_ext)
-
         try:
-            self.com_object.SaveAs(
-                file_path, FileFormat=ext_to_fileformat.get(file_ext, 17)
-            )
-            return f"Document is saved to {file_path}."
+            self.com_object.SaveAs(file_path, FileFormat=ext_to_fileformat.get(file_ext, 17))
+            return f'Document is saved to {file_path}.'
         except Exception as e:
-            raise RuntimeError(f"Error occurred while saving document: {e}")
+            raise RuntimeError(f'Error occurred while saving document: {e}')
 
     @property
     def type_name(self):
-        return "COM/WORD"
+        return 'COM/WORD'
 
     @property
     def xml_format_code(self) -> int:
         return 11
-
 
 @WordWinCOMReceiver.register
 class InsertTableCommand(WinCOMCommand):
@@ -213,17 +155,14 @@ class InsertTableCommand(WinCOMCommand):
         Execute the command to insert a table.
         :return: The inserted table.
         """
-        return self.receiver.insert_table(
-            self.params.get("rows"), self.params.get("columns")
-        )
+        return self.receiver.insert_table(self.params.get('rows'), self.params.get('columns'))
 
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "insert_table"
-
+        return 'insert_table'
 
 @WordWinCOMReceiver.register
 class SelectTextCommand(WinCOMCommand):
@@ -236,15 +175,14 @@ class SelectTextCommand(WinCOMCommand):
         Execute the command to select text.
         :return: The selected text.
         """
-        return self.receiver.select_text(self.params.get("text"))
+        return self.receiver.select_text(self.params.get('text'))
 
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "select_text"
-
+        return 'select_text'
 
 @WordWinCOMReceiver.register
 class SelectTableCommand(WinCOMCommand):
@@ -257,15 +195,14 @@ class SelectTableCommand(WinCOMCommand):
         Execute the command to select a table in the document.
         :return: The selected table.
         """
-        return self.receiver.select_table(self.params.get("number"))
+        return self.receiver.select_table(self.params.get('number'))
 
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "select_table"
-
+        return 'select_table'
 
 @WordWinCOMReceiver.register
 class SelectParagraphCommand(WinCOMCommand):
@@ -278,19 +215,14 @@ class SelectParagraphCommand(WinCOMCommand):
         Execute the command to select a paragraph in the document.
         :return: The selected paragraph.
         """
-        return self.receiver.select_paragraph(
-            self.params.get("start_index"),
-            self.params.get("end_index"),
-            self.params.get("non_empty"),
-        )
+        return self.receiver.select_paragraph(self.params.get('start_index'), self.params.get('end_index'), self.params.get('non_empty'))
 
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "select_paragraph"
-
+        return 'select_paragraph'
 
 @WordWinCOMReceiver.register
 class SaveAsCommand(WinCOMCommand):
@@ -303,19 +235,14 @@ class SaveAsCommand(WinCOMCommand):
         Execute the command to save the document to PDF.
         :return: The saved PDF file path.
         """
-        return self.receiver.save_as(
-            self.params.get("file_dir"),
-            self.params.get("file_name"),
-            self.params.get("file_ext"),
-        )
+        return self.receiver.save_as(self.params.get('file_dir'), self.params.get('file_name'), self.params.get('file_ext'))
 
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "save_as"
-
+        return 'save_as'
 
 @WordWinCOMReceiver.register
 class SetFontCommand(WinCOMCommand):
@@ -328,13 +255,11 @@ class SetFontCommand(WinCOMCommand):
         Execute the command to set the font of the selected text.
         :return: The message of the font setting.
         """
-        return self.receiver.set_font(
-            self.params.get("font_name"), self.params.get("font_size")
-        )
+        return self.receiver.set_font(self.params.get('font_name'), self.params.get('font_size'))
 
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "set_font"
+        return 'set_font'

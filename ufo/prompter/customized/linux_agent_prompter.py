@@ -30,12 +30,14 @@ class LinuxAgentPrompter(AppAgentPrompter):
         super().__init__(None, prompt_template, example_prompt_template)
         self.api_prompt_template = None
 
-    def system_prompt_construction(self, additional_examples: List[str] = []) -> str:
+    def system_prompt_construction(self, additional_examples: List[str] = None) -> str:
         """
         Construct the prompt for app selection.
         :param additional_examples: The additional examples added to the prompt.
         return: The prompt for app selection.
         """
+        if additional_examples is None:
+            additional_examples = []
 
         apis = self.api_prompt_helper(verbose=1)
         examples = self.examples_prompt_helper(additional_examples=additional_examples)

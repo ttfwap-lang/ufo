@@ -1,0 +1,2 @@
+# requirements-extra.txt (Deprecated - Pruned in Optimization Pass 1)
+# Core Azure authentication (azure-identity) is included in main requirements.txt.

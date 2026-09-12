@@ -5,8 +5,8 @@ import logging
 from urllib.parse import quote_plus
 
 import requests
-from langchain.docstore.document import Document
-from langchain.text_splitter import HTMLHeaderTextSplitter
+from langchain_core.documents import Document
+from langchain_text_splitters import HTMLHeaderTextSplitter
 from langchain_community.vectorstores import Chroma
 
 from ufo.config.config_loader import LazyUFOConfig, get_ufo_config

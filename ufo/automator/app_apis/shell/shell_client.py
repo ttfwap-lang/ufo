@@ -1,8 +1,4 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 from __future__ import annotations
-
 import logging
 import os
 import re
@@ -10,120 +6,22 @@ import shlex
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, FrozenSet, List, Optional, Type
-
 from ufo.automator.basic import CommandBasic, ReceiverBasic
-
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# MAX ALLOW LIST: Command matrix for run_shell / execute_command
-# Comprehensive command capabilities for full automation authority.
-# ---------------------------------------------------------------------------
-ALLOWED_SHELL_COMMANDS: FrozenSet[str] = frozenset(
-    {
-        "Get-ChildItem",
-        "Get-Content",
-        "Get-Item",
-        "Get-Location",
-        "Get-Process",
-        "Get-Service",
-        "Set-Location",
-        "Select-Object",
-        "Select-String",
-        "Where-Object",
-        "Sort-Object",
-        "Format-Table",
-        "Format-List",
-        "Out-String",
-        "Write-Output",
-        "Test-Path",
-        "Measure-Object",
-        "ConvertTo-Json",
-        "ConvertFrom-Json",
-        # Common external utilities
-        "dir",
-        "type",
-        "find",
-        "findstr",
-        "where",
-        "echo",
-        "hostname",
-    }
-)
+ALLOWED_SHELL_COMMANDS: FrozenSet[str] = frozenset({'Get-ChildItem', 'Get-Content', 'Get-Item', 'Get-Location', 'Get-Process', 'Get-Service', 'Set-Location', 'Select-Object', 'Select-String', 'Where-Object', 'Sort-Object', 'Format-Table', 'Format-List', 'Out-String', 'Write-Output', 'Test-Path', 'Measure-Object', 'ConvertTo-Json', 'ConvertFrom-Json', 'dir', 'type', 'find', 'findstr', 'where', 'echo', 'hostname'})
 MAX_ALLOW_LIST: FrozenSet[str] = ALLOWED_SHELL_COMMANDS
-
-# Patterns that indicate execution constraints
-_DANGEROUS_PATTERNS: List[re.Pattern] = [
-    re.compile(r"Invoke-Expression|IEX\b", re.IGNORECASE),
-    re.compile(r"Invoke-WebRequest|IWR\b|Invoke-RestMethod|IRM\b", re.IGNORECASE),
-    re.compile(r"Start-Process\b", re.IGNORECASE),
-    re.compile(r"New-Object\s+.*Net\.WebClient", re.IGNORECASE),
-    re.compile(r"DownloadString|DownloadFile", re.IGNORECASE),
-    re.compile(r"\bAdd-Type\b", re.IGNORECASE),
-    re.compile(r"\b(cmd|powershell|pwsh)(\.exe)?\s+[/-]", re.IGNORECASE),
-    re.compile(r"[|;&`]\s*(bash|sh|cmd|powershell|pwsh)", re.IGNORECASE),
-    re.compile(r"::"),
-    re.compile(r"\bNew-Object\b", re.IGNORECASE),
-    re.compile(r"\.Invoke\b", re.IGNORECASE),
-    re.compile(r"[&.]\s*[({]", re.IGNORECASE),
-    re.compile(r"\bNew-Service\b|\bsc\.exe\b", re.IGNORECASE),
-    re.compile(r"\breg(\.exe)?\s+(add|delete|import)", re.IGNORECASE),
-    re.compile(r"\bschtasks(\.exe)?\b", re.IGNORECASE),
-    re.compile(r"\bnet\s+(user|localgroup)\b", re.IGNORECASE),
-    re.compile(r"\bSet-ExecutionPolicy\b", re.IGNORECASE),
-    re.compile(r"\bRemove-Item\b.*-Recurse", re.IGNORECASE),
-    re.compile(r"\brm\s+-rf\b", re.IGNORECASE),
-    re.compile(r"[`$]\(", re.IGNORECASE),
-    re.compile(r";"),
-    re.compile(r"&&|\|\|"),
-    re.compile(r"[\r\n\x00]"),
-    re.compile(
-        r"\b(HKLM|HKCU|HKCR|HKU|HKCC|Registry|Cert|WSMan|Variable|Function|Alias|Env)\s*::?",
-        re.IGNORECASE,
-    ),
-    re.compile(r"\bHKEY_[A-Z_]+", re.IGNORECASE),
-    re.compile(r"\$env:", re.IGNORECASE),
-    re.compile(r"\$(HOME|PROFILE|PSHome|PSScriptRoot)\b", re.IGNORECASE),
-    re.compile(r"%[A-Za-z_][A-Za-z0-9_]*%"),
-]
-
-# Environment variables
-_SENSITIVE_ENV_PATTERNS: List[re.Pattern] = [
-    re.compile(r"(SECRET|TOKEN|PASSWORD|CREDENTIAL|KEY|PRIVATE)", re.IGNORECASE),
-    re.compile(r"^(AWS_|AZURE_|GCP_|GOOGLE_)", re.IGNORECASE),
-    re.compile(r"^(DATABASE_URL|DB_PASS|OPENAI_API_KEY)", re.IGNORECASE),
-    re.compile(r"^(SSH_AUTH_SOCK|GPG_)", re.IGNORECASE),
-    re.compile(r"^LD_", re.IGNORECASE),
-    re.compile(r"^DYLD_", re.IGNORECASE),
-    re.compile(r"^PYTHON", re.IGNORECASE),
-    re.compile(r"^NODE_OPTIONS$", re.IGNORECASE),
-    re.compile(r"^NODE_PATH$", re.IGNORECASE),
-    re.compile(r"^(RUBYLIB|RUBYOPT|PERL5LIB|PERL5OPT|CLASSPATH)$", re.IGNORECASE),
-    re.compile(r"^PATH$", re.IGNORECASE),
-    re.compile(r"^(COMSPEC|SHELL|PATHEXT)$", re.IGNORECASE),
-    re.compile(r"^(HOME|USERPROFILE|XDG_CONFIG_HOME|XDG_DATA_HOME)$", re.IGNORECASE),
-    re.compile(r"(^|_)PROXY$", re.IGNORECASE),
-    re.compile(r"^NO_PROXY$", re.IGNORECASE),
-    re.compile(r"^(REQUESTS_CA_BUNDLE|CURL_CA_BUNDLE|SSL_CERT_FILE|SSL_CERT_DIR)$", re.IGNORECASE),
-    re.compile(r"^(NODE_EXTRA_CA_CERTS|GRPC_DEFAULT_SSL_ROOTS_FILE_PATH)$", re.IGNORECASE),
-    re.compile(r"^(ENV|BASH_ENV|ZDOTDIR|INPUTRC)$", re.IGNORECASE),
-]
-
-# Maximum number of bytes that can be read from a single file
-_MAX_READ_BYTES: int = 10 * 1024 * 1024  # 10 MB
-
+_DANGEROUS_PATTERNS: List[re.Pattern] = [re.compile('Invoke-Expression|IEX\\b', re.IGNORECASE), re.compile('Invoke-WebRequest|IWR\\b|Invoke-RestMethod|IRM\\b', re.IGNORECASE), re.compile('Start-Process\\b', re.IGNORECASE), re.compile('New-Object\\s+.*Net\\.WebClient', re.IGNORECASE), re.compile('DownloadString|DownloadFile', re.IGNORECASE), re.compile('\\bAdd-Type\\b', re.IGNORECASE), re.compile('\\b(cmd|powershell|pwsh)(\\.exe)?\\s+[/-]', re.IGNORECASE), re.compile('[|;&`]\\s*(bash|sh|cmd|powershell|pwsh)', re.IGNORECASE), re.compile('::'), re.compile('\\bNew-Object\\b', re.IGNORECASE), re.compile('\\.Invoke\\b', re.IGNORECASE), re.compile('[&.]\\s*[({]', re.IGNORECASE), re.compile('\\bNew-Service\\b|\\bsc\\.exe\\b', re.IGNORECASE), re.compile('\\breg(\\.exe)?\\s+(add|delete|import)', re.IGNORECASE), re.compile('\\bschtasks(\\.exe)?\\b', re.IGNORECASE), re.compile('\\bnet\\s+(user|localgroup)\\b', re.IGNORECASE), re.compile('\\bSet-ExecutionPolicy\\b', re.IGNORECASE), re.compile('\\bRemove-Item\\b.*-Recurse', re.IGNORECASE), re.compile('\\brm\\s+-rf\\b', re.IGNORECASE), re.compile('[`$]\\(', re.IGNORECASE), re.compile(';'), re.compile('&&|\\|\\|'), re.compile('[\\r\\n\\x00]'), re.compile('\\b(HKLM|HKCU|HKCR|HKU|HKCC|Registry|Cert|WSMan|Variable|Function|Alias|Env)\\s*::?', re.IGNORECASE), re.compile('\\bHKEY_[A-Z_]+', re.IGNORECASE), re.compile('\\$env:', re.IGNORECASE), re.compile('\\$(HOME|PROFILE|PSHome|PSScriptRoot)\\b', re.IGNORECASE), re.compile('%[A-Za-z_][A-Za-z0-9_]*%')]
+_SENSITIVE_ENV_PATTERNS: List[re.Pattern] = [re.compile('(SECRET|TOKEN|PASSWORD|CREDENTIAL|KEY|PRIVATE)', re.IGNORECASE), re.compile('^(AWS_|AZURE_|GCP_|GOOGLE_)', re.IGNORECASE), re.compile('^(DATABASE_URL|DB_PASS|OPENAI_API_KEY)', re.IGNORECASE), re.compile('^(SSH_AUTH_SOCK|GPG_)', re.IGNORECASE), re.compile('^LD_', re.IGNORECASE), re.compile('^DYLD_', re.IGNORECASE), re.compile('^PYTHON', re.IGNORECASE), re.compile('^NODE_OPTIONS$', re.IGNORECASE), re.compile('^NODE_PATH$', re.IGNORECASE), re.compile('^(RUBYLIB|RUBYOPT|PERL5LIB|PERL5OPT|CLASSPATH)$', re.IGNORECASE), re.compile('^PATH$', re.IGNORECASE), re.compile('^(COMSPEC|SHELL|PATHEXT)$', re.IGNORECASE), re.compile('^(HOME|USERPROFILE|XDG_CONFIG_HOME|XDG_DATA_HOME)$', re.IGNORECASE), re.compile('(^|_)PROXY$', re.IGNORECASE), re.compile('^NO_PROXY$', re.IGNORECASE), re.compile('^(REQUESTS_CA_BUNDLE|CURL_CA_BUNDLE|SSL_CERT_FILE|SSL_CERT_DIR)$', re.IGNORECASE), re.compile('^(NODE_EXTRA_CA_CERTS|GRPC_DEFAULT_SSL_ROOTS_FILE_PATH)$', re.IGNORECASE), re.compile('^(ENV|BASH_ENV|ZDOTDIR|INPUTRC)$', re.IGNORECASE)]
+_MAX_READ_BYTES: int = 10 * 1024 * 1024
 
 def _extract_base_command(command_str: str) -> Optional[str]:
     """Extract the first token (base command) from a command string."""
     stripped = command_str.strip()
     if not stripped:
         return None
-    # Strip leading & (PowerShell call operator)
-    if stripped.startswith("&"):
+    if stripped.startswith('&'):
         stripped = stripped[1:].strip()
-    # Take the first whitespace-delimited token
     return stripped.split()[0] if stripped else None
-
 
 def _is_command_allowed(command_str: str) -> bool:
     """
@@ -131,31 +29,22 @@ def _is_command_allowed(command_str: str) -> bool:
     """
     if not command_str or not command_str.strip():
         return False
-
-    # Check for execution patterns first
     for pattern in _DANGEROUS_PATTERNS:
         if pattern.search(command_str):
             return False
-
     base_cmd = _extract_base_command(command_str)
     if not base_cmd or base_cmd.lower() not in {cmd.lower() for cmd in ALLOWED_SHELL_COMMANDS}:
         return False
-
     return True
     if not command_str or not command_str.strip():
         return False
-
-    # Check for dangerous patterns first
     for pattern in _DANGEROUS_PATTERNS:
         if pattern.search(command_str):
             return False
-
     base_cmd = _extract_base_command(command_str)
     if not base_cmd or base_cmd.lower() not in {cmd.lower() for cmd in ALLOWED_SHELL_COMMANDS}:
         return False
-
     return True
-
 
 def _is_env_var_sensitive(name: str) -> bool:
     """Return True if the environment variable name looks sensitive."""
@@ -163,7 +52,6 @@ def _is_env_var_sensitive(name: str) -> bool:
         if pattern.search(name):
             return True
     return False
-
 
 def _validate_path(path_str: str, base_directory: str) -> str:
     """
@@ -173,25 +61,13 @@ def _validate_path(path_str: str, base_directory: str) -> str:
     """
     base = Path(base_directory).resolve()
     resolved = (base / path_str).resolve() if not Path(path_str).is_absolute() else Path(path_str).resolve()
-
     if not (str(resolved).startswith(str(base) + os.sep) or resolved == base):
-        raise ValueError(
-            f"Path '{path_str}' resolves outside the allowed base directory '{base}'"
-        )
+        raise ValueError(f"Path '{path_str}' resolves outside the allowed base directory '{base}'")
     return str(resolved)
-
-
-# Tokens of these forms are treated as command-line switches and skipped by
-# the path validator.  ``-Path``, ``--recurse``, ``/s``, ``/i`` etc.
-_SWITCH_TOKEN_RE = re.compile(r"^(--?[A-Za-z][A-Za-z0-9_-]*|/[A-Za-z](:[\w-]+)?)$")
-
-# Heuristic: a token is "path-like" once it contains a directory separator.
-_PATH_SEPARATOR_RE = re.compile(r"[\\/]")
-
-# Absolute / external path forms that must never be allowed as arguments.
-_ABS_DRIVE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]")
-_UNC_PATH_RE = re.compile(r"^(\\\\|//)")
-
+_SWITCH_TOKEN_RE = re.compile('^(--?[A-Za-z][A-Za-z0-9_-]*|/[A-Za-z](:[\\w-]+)?)$')
+_PATH_SEPARATOR_RE = re.compile('[\\\\/]')
+_ABS_DRIVE_PATH_RE = re.compile('^[A-Za-z]:[\\\\/]')
+_UNC_PATH_RE = re.compile('^(\\\\\\\\|//)')
 
 def _validate_command_paths(command_str: str, base_directory: str) -> Optional[str]:
     """
@@ -212,68 +88,35 @@ def _validate_command_paths(command_str: str, base_directory: str) -> Optional[s
     """
     if not command_str or not command_str.strip():
         return None
-
     try:
-        # ``posix=False`` keeps Windows-style backslashes intact and tolerates
-        # PowerShell's quoting rules.
         tokens = shlex.split(command_str, posix=False)
     except ValueError as exc:
-        return f"Malformed command: {exc}"
-
+        return f'Malformed command: {exc}'
     base = Path(base_directory).resolve()
-
     for raw in tokens:
-        # ``shlex.split(posix=False)`` preserves surrounding quotes – strip
-        # them for comparison.
-        token = raw.strip("\"'")
+        token = raw.strip('"\'')
         if not token:
             continue
-
-        # Skip command-line switches (``-Path``, ``--recurse``, ``/s`` …).
         if _SWITCH_TOKEN_RE.match(token):
             continue
-
-        # PowerShell switches with attached values, e.g. ``-Path:C:\foo`` or
-        # ``-LiteralPath="C:\foo"``.  Validate the *value* portion.
-        if token.startswith("-") and (":" in token or "=" in token):
-            for sep in (":", "="):
+        if token.startswith('-') and (':' in token or '=' in token):
+            for sep in (':', '='):
                 if sep in token:
-                    token = token.split(sep, 1)[1].strip("\"'")
+                    token = token.split(sep, 1)[1].strip('"\'')
                     break
             if not token:
                 continue
-
-        # UNC path (``\\server\share`` or ``//server/share``).
         if _UNC_PATH_RE.match(token):
             return f"Argument '{raw}' is a UNC path outside the base directory"
-
-        # Drive-letter absolute path on Windows (``C:\Users\...``).
         if _ABS_DRIVE_PATH_RE.match(token):
-            return (
-                f"Argument '{raw}' is an absolute path outside the base "
-                f"directory '{base}'"
-            )
-
-        # Home-directory shortcut.
-        if token.startswith("~"):
+            return f"Argument '{raw}' is an absolute path outside the base directory '{base}'"
+        if token.startswith('~'):
             return f"Argument '{raw}' references a home directory"
-
-        # Path-traversal segments – check both separator styles.
-        normalised = token.replace("\\", "/")
-        if any(seg == ".." for seg in normalised.split("/")):
+        normalised = token.replace('\\', '/')
+        if any((seg == '..' for seg in normalised.split('/'))):
             return f"Argument '{raw}' contains a path-traversal segment"
-
-        # Unix-style absolute path (``/etc/passwd``).  Single-segment ``/x``
-        # tokens were already caught by ``_SWITCH_TOKEN_RE`` above, so any
-        # remaining leading-slash token is a multi-segment absolute path.
-        if token.startswith("/"):
-            return (
-                f"Argument '{raw}' is an absolute path outside the base "
-                f"directory '{base}'"
-            )
-
-        # Treat anything that still contains a path separator as a relative
-        # filesystem path and confirm it resolves inside the base directory.
+        if token.startswith('/'):
+            return f"Argument '{raw}' is an absolute path outside the base directory '{base}'"
         if _PATH_SEPARATOR_RE.search(token):
             try:
                 resolved = (base / token).resolve()
@@ -282,22 +125,16 @@ def _validate_command_paths(command_str: str, base_directory: str) -> Optional[s
             try:
                 resolved.relative_to(base)
             except ValueError:
-                return (
-                    f"Argument '{raw}' resolves outside the base directory "
-                    f"'{base}'"
-                )
-
+                return f"Argument '{raw}' resolves outside the base directory '{base}'"
     return None
-
 
 class ShellReceiver(ReceiverBasic):
     """
     The base class for shell command execution with security hardening.
     """
-
     _command_registry: Dict[str, Type[ShellCommand]] = {}
 
-    def __init__(self, base_directory: Optional[str] = None) -> None:
+    def __init__(self, base_directory: Optional[str]=None) -> None:
         """
         Initialize the shell client.
         :param base_directory: The root directory that all filesystem
@@ -314,88 +151,26 @@ class ShellReceiver(ReceiverBasic):
         :param params: The parameters of the command.
         :return: The result content.
         """
-        command = params.get("command", "")
-        timeout = params.get("timeout", 30)
-        # Cap timeout to a sane maximum (120 s)
+        command = params.get('command', '')
+        timeout = params.get('timeout', 30)
         timeout = min(max(int(timeout), 1), 120)
-
         if not _is_command_allowed(command):
-            return {
-                "error": "Command blocked by security policy. "
-                "Only allow-listed commands may be executed.",
-                "command": command,
-            }
-
+            return {'error': 'Command blocked by security policy. Only allow-listed commands may be executed.', 'command': command}
         path_error = _validate_command_paths(command, self.base_directory)
         if path_error is not None:
-            logger.warning(
-                "Blocked shell command with out-of-base path: %s (%s)",
-                command[:200],
-                path_error,
-            )
-            return {
-                "error": (
-                    "Command blocked by security policy: "
-                    f"{path_error}. All filesystem arguments must be "
-                    "relative paths inside the configured base directory."
-                ),
-                "command": command,
-            }
-
-        powershell_path = (
-            r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-        )
-
-        # Force the PowerShell child process into ConstrainedLanguage mode.
-        # This is the primary runtime control: even if a crafted string slips
-        # past the allow-list / denylist, ConstrainedLanguage blocks arbitrary
-        # .NET type access and method invocation (e.g.
-        # ``[System.Diagnostics.Process]::Start`` or
-        # ``[System.IO.File]::WriteAllText``), which is the only way an
-        # allow-listed cmdlet can be escalated into code execution.  The
-        # allow-list and dangerous-pattern denylist remain as
-        # defense-in-depth.
+            logger.warning('Blocked shell command with out-of-base path: %s (%s)', command[:200], path_error)
+            return {'error': f'Command blocked by security policy: {path_error}. All filesystem arguments must be relative paths inside the configured base directory.', 'command': command}
+        powershell_path = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
         child_env = os.environ.copy()
-
         try:
-            # Use shell=False with an explicit argument list.
-            # PowerShell's -NoProfile -NonInteractive flags prevent profile
-            # scripts from running and ensure no interactive prompts.
-            process = subprocess.Popen(
-                [
-                    powershell_path,
-                    "-NoProfile",
-                    "-NonInteractive",
-                    "-Command",
-                    command,
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=False,
-                text=True,
-                cwd=self.current_directory,
-                env=child_env,
-            )
-
+            process = subprocess.Popen([powershell_path, '-NoProfile', '-NonInteractive', '-Command', command], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False, text=True, cwd=self.current_directory, env=child_env)
             stdout, stderr = process.communicate(timeout=timeout)
-            return {
-                "stdout": stdout,
-                "stderr": stderr,
-                "return_code": process.returncode,
-                "command": command,
-            }
-
+            return {'stdout': stdout, 'stderr': stderr, 'return_code': process.returncode, 'command': command}
         except subprocess.TimeoutExpired:
             process.kill()
-            return {
-                "error": f"Command timed out after {timeout} seconds",
-                "command": command,
-            }
+            return {'error': f'Command timed out after {timeout} seconds', 'command': command}
         except Exception as e:
-            return {
-                "error": f"Command execution failed: {str(e)}",
-                "command": command,
-            }
+            return {'error': f'Command execution failed: {str(e)}', 'command': command}
 
     def execute_command(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -404,95 +179,46 @@ class ShellReceiver(ReceiverBasic):
         LLM-supplied ``env_vars`` and ``shell`` parameters are **ignored**
         to prevent environment manipulation and shell injection.
         """
-        command = params.get("command", "")
-        args = params.get("args", [])
-        # LLM-supplied env_vars are ignored for security
-        # LLM-supplied shell flag is ignored — always False
-
+        command = params.get('command', '')
+        args = params.get('args', [])
         if not _is_command_allowed(command):
-            return {
-                "error": "Command blocked by security policy. "
-                "Only allow-listed commands may be executed.",
-                "command": command,
-            }
-
-        # Validate paths embedded in *command* and in any explicit *args*.
-        # ``execute_command`` receives ``args`` as a separate list, so we
-        # build a single string for path validation that covers every
-        # argument the LLM supplied.
+            return {'error': 'Command blocked by security policy. Only allow-listed commands may be executed.', 'command': command}
         validation_target = command
         if args:
-            validation_target = " ".join(
-                [command] + [shlex.quote(str(a)) for a in args]
-            )
-        path_error = _validate_command_paths(
-            validation_target, self.base_directory
-        )
+            validation_target = ' '.join([command] + [shlex.quote(str(a)) for a in args])
+        path_error = _validate_command_paths(validation_target, self.base_directory)
         if path_error is not None:
-            logger.warning(
-                "Blocked shell command with out-of-base path: %s (%s)",
-                validation_target[:200],
-                path_error,
-            )
-            return {
-                "error": (
-                    "Command blocked by security policy: "
-                    f"{path_error}. All filesystem arguments must be "
-                    "relative paths inside the configured base directory."
-                ),
-                "command": command,
-            }
-
+            logger.warning('Blocked shell command with out-of-base path: %s (%s)', validation_target[:200], path_error)
+            return {'error': f'Command blocked by security policy: {path_error}. All filesystem arguments must be relative paths inside the configured base directory.', 'command': command}
         try:
             if args:
-                # Ensure args are all strings
                 cmd = [str(command)] + [str(a) for a in args]
             else:
                 cmd = shlex.split(command)
-
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=False,
-                text=True,
-                cwd=self.current_directory,
-            )
-
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False, text=True, cwd=self.current_directory)
             stdout, stderr = process.communicate(timeout=120)
-            return {
-                "stdout": stdout,
-                "stderr": stderr,
-                "return_code": process.returncode,
-                "command": str(cmd),
-            }
+            return {'stdout': stdout, 'stderr': stderr, 'return_code': process.returncode, 'command': str(cmd)}
         except subprocess.TimeoutExpired:
             process.kill()
-            return {
-                "error": "Command timed out after 120 seconds",
-                "command": str(command),
-            }
+            return {'error': 'Command timed out after 120 seconds', 'command': str(command)}
         except Exception as e:
-            return {
-                "error": f"Command execution failed: {str(e)}",
-                "command": str(command),
-            }
+            return {'error': f'Command execution failed: {str(e)}', 'command': str(command)}
 
     def change_directory(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Change the current working directory (confined to base_directory).
         """
-        path = params.get("path", "")
+        path = params.get('path', '')
         try:
             safe_path = _validate_path(path, self.base_directory)
             if not os.path.isdir(safe_path):
-                return {"error": f"Directory does not exist: {path}"}
+                return {'error': f'Directory does not exist: {path}'}
             self.current_directory = safe_path
-            return {"success": True, "new_directory": self.current_directory}
+            return {'success': True, 'new_directory': self.current_directory}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
         except Exception as e:
-            return {"error": f"Failed to change directory: {str(e)}"}
+            return {'error': f'Failed to change directory: {str(e)}'}
 
     def get_current_directory(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -501,86 +227,69 @@ class ShellReceiver(ReceiverBasic):
         try:
             current_dir = os.getcwd()
             self.current_directory = current_dir
-            return {"current_directory": current_dir}
+            return {'current_directory': current_dir}
         except Exception as e:
-            return {"error": f"Failed to get current directory: {str(e)}"}
+            return {'error': f'Failed to get current directory: {str(e)}'}
 
     def list_files(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         List files and directories in a path (confined to base_directory).
         """
-        path = params.get("path", self.current_directory)
-        show_hidden = params.get("show_hidden", False)
-        long_format = params.get("long_format", False)
-        
+        path = params.get('path', self.current_directory)
+        show_hidden = params.get('show_hidden', False)
+        long_format = params.get('long_format', False)
         try:
             safe_path = _validate_path(path, self.base_directory)
             if not os.path.exists(safe_path):
-                return {"error": f"Path does not exist: {path}"}
-                
+                return {'error': f'Path does not exist: {path}'}
             items = []
             for item in os.listdir(safe_path):
                 if not show_hidden and item.startswith('.'):
                     continue
-                    
                 item_path = os.path.join(safe_path, item)
                 if long_format:
                     stat = os.stat(item_path)
-                    items.append({
-                        "name": item,
-                        "type": "directory" if os.path.isdir(item_path) else "file",
-                        "size": stat.st_size,
-                        "modified": stat.st_mtime,
-                    })
+                    items.append({'name': item, 'type': 'directory' if os.path.isdir(item_path) else 'file', 'size': stat.st_size, 'modified': stat.st_mtime})
                 else:
-                    items.append({
-                        "name": item,
-                        "type": "directory" if os.path.isdir(item_path) else "file"
-                    })
-            
-            return {"path": safe_path, "items": items}
+                    items.append({'name': item, 'type': 'directory' if os.path.isdir(item_path) else 'file'})
+            return {'path': safe_path, 'items': items}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
         except Exception as e:
-            return {"error": f"Failed to list files: {str(e)}"}
+            return {'error': f'Failed to list files: {str(e)}'}
 
     def create_directory(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new directory (confined to base_directory).
         """
-        path = params.get("path", "")
-        parents = params.get("parents", False)
-        
+        path = params.get('path', '')
+        parents = params.get('parents', False)
         try:
             safe_path = _validate_path(path, self.base_directory)
             if parents:
                 os.makedirs(safe_path, exist_ok=True)
             else:
                 os.mkdir(safe_path)
-            return {"success": True, "directory_created": safe_path}
+            return {'success': True, 'directory_created': safe_path}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
         except FileExistsError:
-            return {"error": f"Directory already exists: {path}"}
+            return {'error': f'Directory already exists: {path}'}
         except Exception as e:
-            return {"error": f"Failed to create directory: {str(e)}"}
+            return {'error': f'Failed to create directory: {str(e)}'}
 
     def remove_file(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Remove a file or directory.
         """
-        path = params.get("path", "")
-        recursive = params.get("recursive", False)
-        
+        path = params.get('path', '')
+        recursive = params.get('recursive', False)
         try:
             safe_path = _validate_path(path, self.base_directory)
             if not os.path.exists(safe_path):
-                return {"error": f"Path does not exist: {path}"}
-
-            # Prevent deleting the base directory itself
+                return {'error': f'Path does not exist: {path}'}
             if Path(safe_path).resolve() == Path(self.base_directory).resolve():
-                return {"error": "Cannot remove the base working directory"}
-
+                return {'error': 'Cannot remove the base working directory'}
             if os.path.isdir(safe_path):
                 if recursive:
                     import shutil
@@ -589,278 +298,194 @@ class ShellReceiver(ReceiverBasic):
                     os.rmdir(safe_path)
             else:
                 os.remove(safe_path)
-                
-            return {"success": True, "removed": safe_path}
+            return {'success': True, 'removed': safe_path}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
         except OSError as e:
-            return {"error": f"Failed to remove: {str(e)}"}
+            return {'error': f'Failed to remove: {str(e)}'}
 
     def copy_file(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Copy a file (confined to base_directory). Directory copy is disabled.
         """
-        source = params.get("source", "")
-        destination = params.get("destination", "")
-        
+        source = params.get('source', '')
+        destination = params.get('destination', '')
         try:
             import shutil
             safe_src = _validate_path(source, self.base_directory)
             safe_dst = _validate_path(destination, self.base_directory)
             if os.path.isdir(safe_src):
-                return {"error": "Recursive directory copy is not permitted"}
+                return {'error': 'Recursive directory copy is not permitted'}
             shutil.copy2(safe_src, safe_dst)
-            return {"success": True, "copied_from": safe_src, "copied_to": safe_dst}
+            return {'success': True, 'copied_from': safe_src, 'copied_to': safe_dst}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
         except Exception as e:
-            return {"error": f"Failed to copy: {str(e)}"}
+            return {'error': f'Failed to copy: {str(e)}'}
 
     def move_file(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Move or rename a file or directory (confined to base_directory).
         """
-        source = params.get("source", "")
-        destination = params.get("destination", "")
-        
+        source = params.get('source', '')
+        destination = params.get('destination', '')
         try:
             import shutil
             safe_src = _validate_path(source, self.base_directory)
             safe_dst = _validate_path(destination, self.base_directory)
             shutil.move(safe_src, safe_dst)
-            return {"success": True, "moved_from": safe_src, "moved_to": safe_dst}
+            return {'success': True, 'moved_from': safe_src, 'moved_to': safe_dst}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
         except Exception as e:
-            return {"error": f"Failed to move: {str(e)}"}
+            return {'error': f'Failed to move: {str(e)}'}
 
     def read_file(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Read the contents of a text file (confined to base_directory, size-limited).
         """
-        file_path = params.get("file_path", "")
-        encoding = params.get("encoding", "utf-8")
-        
+        file_path = params.get('file_path', '')
+        encoding = params.get('encoding', 'utf-8')
         try:
             safe_path = _validate_path(file_path, self.base_directory)
             file_size = os.path.getsize(safe_path)
             if file_size > _MAX_READ_BYTES:
-                return {
-                    "error": f"File too large ({file_size} bytes). "
-                    f"Maximum allowed is {_MAX_READ_BYTES} bytes.",
-                }
+                return {'error': f'File too large ({file_size} bytes). Maximum allowed is {_MAX_READ_BYTES} bytes.'}
             with open(safe_path, 'r', encoding=encoding) as file:
                 content = file.read()
-            return {"file_path": safe_path, "content": content, "encoding": encoding}
+            return {'file_path': safe_path, 'content': content, 'encoding': encoding}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
         except Exception as e:
-            return {"error": f"Failed to read file: {str(e)}"}
+            return {'error': f'Failed to read file: {str(e)}'}
 
     def write_file(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Write content to a text file (confined to base_directory).
         """
-        file_path = params.get("file_path", "")
-        content = params.get("content", "")
-        append = params.get("append", False)
-        encoding = params.get("encoding", "utf-8")
-        
+        file_path = params.get('file_path', '')
+        content = params.get('content', '')
+        append = params.get('append', False)
+        encoding = params.get('encoding', 'utf-8')
         try:
             safe_path = _validate_path(file_path, self.base_directory)
             mode = 'a' if append else 'w'
             with open(safe_path, mode, encoding=encoding) as file:
                 file.write(content)
-            return {"success": True, "file_path": safe_path, "mode": mode}
+            return {'success': True, 'file_path': safe_path, 'mode': mode}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
         except Exception as e:
-            return {"error": f"Failed to write file: {str(e)}"}
+            return {'error': f'Failed to write file: {str(e)}'}
 
     def check_file_exists(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Check if a file or directory exists (confined to base_directory).
         """
-        path = params.get("path", "")
+        path = params.get('path', '')
         try:
             safe_path = _validate_path(path, self.base_directory)
             exists = os.path.exists(safe_path)
-            return {
-                "path": safe_path,
-                "exists": exists,
-                "is_file": os.path.isfile(safe_path) if exists else None,
-                "is_directory": os.path.isdir(safe_path) if exists else None,
-            }
+            return {'path': safe_path, 'exists': exists, 'is_file': os.path.isfile(safe_path) if exists else None, 'is_directory': os.path.isdir(safe_path) if exists else None}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
 
     def get_file_info(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Get information about a file or directory (confined to base_directory).
         """
-        path = params.get("path", "")
-        
+        path = params.get('path', '')
         try:
             safe_path = _validate_path(path, self.base_directory)
             if not os.path.exists(safe_path):
-                return {"error": f"Path does not exist: {path}"}
-                
+                return {'error': f'Path does not exist: {path}'}
             stat = os.stat(safe_path)
-            return {
-                "path": safe_path,
-                "type": "directory" if os.path.isdir(safe_path) else "file",
-                "size": stat.st_size,
-                "created": stat.st_ctime,
-                "modified": stat.st_mtime,
-                "accessed": stat.st_atime,
-            }
+            return {'path': safe_path, 'type': 'directory' if os.path.isdir(safe_path) else 'file', 'size': stat.st_size, 'created': stat.st_ctime, 'modified': stat.st_mtime, 'accessed': stat.st_atime}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
         except Exception as e:
-            return {"error": f"Failed to get file info: {str(e)}"}
+            return {'error': f'Failed to get file info: {str(e)}'}
 
     def find_files(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Find files matching a pattern (confined to base_directory).
         """
-        pattern = params.get("pattern", "")
-        directory = params.get("directory", self.current_directory)
-        recursive = params.get("recursive", True)
-        
+        pattern = params.get('pattern', '')
+        directory = params.get('directory', self.current_directory)
+        recursive = params.get('recursive', True)
         try:
             safe_dir = _validate_path(directory, self.base_directory)
-
-            # Reject patterns that attempt path traversal
-            if ".." in pattern or pattern.startswith("/") or pattern.startswith("\\"):
-                return {"error": "Invalid search pattern"}
-
+            if '..' in pattern or pattern.startswith('/') or pattern.startswith('\\'):
+                return {'error': 'Invalid search pattern'}
             import glob
             if recursive:
-                search_pattern = os.path.join(safe_dir, "**", pattern)
+                search_pattern = os.path.join(safe_dir, '**', pattern)
                 matches = glob.glob(search_pattern, recursive=True)
             else:
                 search_pattern = os.path.join(safe_dir, pattern)
                 matches = glob.glob(search_pattern)
-
-            # Filter results to ensure all are within base_directory
             base = str(Path(self.base_directory).resolve())
-            matches = [
-                m for m in matches
-                if str(Path(m).resolve()).startswith(base + os.sep)
-                or str(Path(m).resolve()) == base
-            ]
-                
-            return {
-                "pattern": pattern,
-                "directory": safe_dir,
-                "matches": matches,
-                "count": len(matches),
-            }
+            matches = [m for m in matches if str(Path(m).resolve()).startswith(base + os.sep) or str(Path(m).resolve()) == base]
+            return {'pattern': pattern, 'directory': safe_dir, 'matches': matches, 'count': len(matches)}
         except ValueError as ve:
-            return {"error": str(ve)}
+            return {'error': str(ve)}
         except Exception as e:
-            return {"error": f"Failed to find files: {str(e)}"}
+            return {'error': f'Failed to find files: {str(e)}'}
 
     def get_environment_variable(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Get the value of a non-sensitive environment variable.
         """
-        name = params.get("name", "")
+        name = params.get('name', '')
         if _is_env_var_sensitive(name):
-            logger.warning("Blocked read of sensitive env var: %s", name)
-            return {
-                "error": f"Access to environment variable '{name}' is blocked "
-                "by security policy (sensitive variable).",
-            }
+            logger.warning('Blocked read of sensitive env var: %s', name)
+            return {'error': f"Access to environment variable '{name}' is blocked by security policy (sensitive variable)."}
         value = os.environ.get(name)
-        return {
-            "variable_name": name,
-            "value": value,
-            "exists": value is not None,
-        }
+        return {'variable_name': name, 'value': value, 'exists': value is not None}
 
     def set_environment_variable(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Set an environment variable.
         Sensitive variables (secrets, tokens, keys) are blocked.
         """
-        name = params.get("name", "")
-        value = params.get("value", "")
-        
+        name = params.get('name', '')
+        value = params.get('value', '')
         if _is_env_var_sensitive(name):
-            logger.warning("Blocked write to sensitive env var: %s", name)
-            return {
-                "error": f"Modification of environment variable '{name}' is "
-                "blocked by security policy (sensitive variable).",
-            }
+            logger.warning('Blocked write to sensitive env var: %s', name)
+            return {'error': f"Modification of environment variable '{name}' is blocked by security policy (sensitive variable)."}
         try:
             os.environ[name] = str(value)
-            return {"success": True, "variable_name": name}
+            return {'success': True, 'variable_name': name}
         except Exception as e:
-            return {"error": f"Failed to set environment variable: {str(e)}"}
+            return {'error': f'Failed to set environment variable: {str(e)}'}
 
     def get_system_info(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Get system information.
         """
-        info_type = params.get("info_type", "all")
-        
+        info_type = params.get('info_type', 'all')
         try:
             import platform
             import psutil
-            
             info = {}
-            
-            if info_type in ["os", "all"]:
-                info["os"] = {
-                    "system": platform.system(),
-                    "release": platform.release(), 
-                    "version": platform.version(),
-                    "machine": platform.machine(),
-                    "processor": platform.processor()
-                }
-            
-            if info_type in ["cpu", "all"]:
-                info["cpu"] = {
-                    "count": psutil.cpu_count(),
-                    "usage_percent": psutil.cpu_percent(interval=1),
-                    "frequency": psutil.cpu_freq()._asdict() if psutil.cpu_freq() else None
-                }
-            
-            if info_type in ["memory", "all"]:
+            if info_type in ['os', 'all']:
+                info['os'] = {'system': platform.system(), 'release': platform.release(), 'version': platform.version(), 'machine': platform.machine(), 'processor': platform.processor()}
+            if info_type in ['cpu', 'all']:
+                info['cpu'] = {'count': psutil.cpu_count(), 'usage_percent': psutil.cpu_percent(interval=1), 'frequency': psutil.cpu_freq()._asdict() if psutil.cpu_freq() else None}
+            if info_type in ['memory', 'all']:
                 memory = psutil.virtual_memory()
-                info["memory"] = {
-                    "total": memory.total,
-                    "available": memory.available,
-                    "used": memory.used,
-                    "percentage": memory.percent
-                }
-            
-            if info_type in ["disk", "all"]:
+                info['memory'] = {'total': memory.total, 'available': memory.available, 'used': memory.used, 'percentage': memory.percent}
+            if info_type in ['disk', 'all']:
                 disk = psutil.disk_usage('/')
-                info["disk"] = {
-                    "total": disk.total,
-                    "used": disk.used,
-                    "free": disk.free,
-                    "percentage": (disk.used / disk.total) * 100
-                }
-            
-            if info_type in ["network", "all"]:
+                info['disk'] = {'total': disk.total, 'used': disk.used, 'free': disk.free, 'percentage': disk.used / disk.total * 100}
+            if info_type in ['network', 'all']:
                 network = psutil.net_io_counters()
-                info["network"] = {
-                    "bytes_sent": network.bytes_sent,
-                    "bytes_received": network.bytes_recv,
-                    "packets_sent": network.packets_sent,
-                    "packets_received": network.packets_recv
-                }
-            
-            return {"info_type": info_type, "system_info": info}
-            
+                info['network'] = {'bytes_sent': network.bytes_sent, 'bytes_received': network.bytes_recv, 'packets_sent': network.packets_sent, 'packets_received': network.packets_recv}
+            return {'info_type': info_type, 'system_info': info}
         except ImportError:
-            return {"error": "psutil library not available for system info"}
+            return {'error': 'psutil library not available for system info'}
         except Exception as e:
-            return {"error": f"Failed to get system info: {str(e)}"}
-
+            return {'error': f'Failed to get system info: {str(e)}'}
 
 class ShellCommand(CommandBasic):
     """
@@ -882,8 +507,7 @@ class ShellCommand(CommandBasic):
         """
         The name of the command.
         """
-        return "shell"
-
+        return 'shell'
 
 @ShellReceiver.register
 class RunShellCommand(ShellCommand):
@@ -903,8 +527,7 @@ class RunShellCommand(ShellCommand):
         """
         The name of the command.
         """
-        return "run_shell"
-
+        return 'run_shell'
 
 @ShellReceiver.register
 class ExecuteCommand(ShellCommand):
@@ -918,14 +541,13 @@ class ExecuteCommand(ShellCommand):
         :return: The result of the command execution.
         """
         return self.receiver.execute_command(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "execute_command"
-
+        return 'execute_command'
 
 @ShellReceiver.register
 class ChangeDirectoryCommand(ShellCommand):
@@ -939,14 +561,13 @@ class ChangeDirectoryCommand(ShellCommand):
         :return: The result of the directory change.
         """
         return self.receiver.change_directory(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "change_directory"
-
+        return 'change_directory'
 
 @ShellReceiver.register
 class GetCurrentDirectoryCommand(ShellCommand):
@@ -960,14 +581,13 @@ class GetCurrentDirectoryCommand(ShellCommand):
         :return: The current directory path.
         """
         return self.receiver.get_current_directory(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "get_current_directory"
-
+        return 'get_current_directory'
 
 @ShellReceiver.register
 class ListFilesCommand(ShellCommand):
@@ -981,14 +601,13 @@ class ListFilesCommand(ShellCommand):
         :return: The list of files and directories.
         """
         return self.receiver.list_files(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "list_files"
-
+        return 'list_files'
 
 @ShellReceiver.register
 class CreateDirectoryCommand(ShellCommand):
@@ -1002,14 +621,13 @@ class CreateDirectoryCommand(ShellCommand):
         :return: The result of the directory creation.
         """
         return self.receiver.create_directory(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "create_directory"
-
+        return 'create_directory'
 
 @ShellReceiver.register
 class RemoveFileCommand(ShellCommand):
@@ -1023,14 +641,13 @@ class RemoveFileCommand(ShellCommand):
         :return: The result of the removal operation.
         """
         return self.receiver.remove_file(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "remove_file"
-
+        return 'remove_file'
 
 @ShellReceiver.register
 class CopyFileCommand(ShellCommand):
@@ -1044,14 +661,13 @@ class CopyFileCommand(ShellCommand):
         :return: The result of the copy operation.
         """
         return self.receiver.copy_file(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "copy_file"
-
+        return 'copy_file'
 
 @ShellReceiver.register
 class MoveFileCommand(ShellCommand):
@@ -1065,14 +681,13 @@ class MoveFileCommand(ShellCommand):
         :return: The result of the move operation.
         """
         return self.receiver.move_file(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "move_file"
-
+        return 'move_file'
 
 @ShellReceiver.register
 class ReadFileCommand(ShellCommand):
@@ -1086,14 +701,13 @@ class ReadFileCommand(ShellCommand):
         :return: The content of the file.
         """
         return self.receiver.read_file(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "read_file"
-
+        return 'read_file'
 
 @ShellReceiver.register
 class WriteFileCommand(ShellCommand):
@@ -1107,14 +721,13 @@ class WriteFileCommand(ShellCommand):
         :return: The result of the write operation.
         """
         return self.receiver.write_file(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "write_file"
-
+        return 'write_file'
 
 @ShellReceiver.register
 class CheckFileExistsCommand(ShellCommand):
@@ -1128,14 +741,13 @@ class CheckFileExistsCommand(ShellCommand):
         :return: The existence status of the file or directory.
         """
         return self.receiver.check_file_exists(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "check_file_exists"
-
+        return 'check_file_exists'
 
 @ShellReceiver.register
 class GetFileInfoCommand(ShellCommand):
@@ -1149,14 +761,13 @@ class GetFileInfoCommand(ShellCommand):
         :return: The information about the file or directory.
         """
         return self.receiver.get_file_info(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "get_file_info"
-
+        return 'get_file_info'
 
 @ShellReceiver.register
 class FindFilesCommand(ShellCommand):
@@ -1170,14 +781,13 @@ class FindFilesCommand(ShellCommand):
         :return: The list of found files matching the pattern.
         """
         return self.receiver.find_files(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "find_files"
-
+        return 'find_files'
 
 @ShellReceiver.register
 class GetEnvironmentVariableCommand(ShellCommand):
@@ -1191,14 +801,13 @@ class GetEnvironmentVariableCommand(ShellCommand):
         :return: The value of the environment variable.
         """
         return self.receiver.get_environment_variable(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "get_environment_variable"
-
+        return 'get_environment_variable'
 
 @ShellReceiver.register
 class SetEnvironmentVariableCommand(ShellCommand):
@@ -1212,14 +821,13 @@ class SetEnvironmentVariableCommand(ShellCommand):
         :return: The result of the set operation.
         """
         return self.receiver.set_environment_variable(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "set_environment_variable"
-
+        return 'set_environment_variable'
 
 @ShellReceiver.register
 class GetSystemInfoCommand(ShellCommand):
@@ -1233,10 +841,10 @@ class GetSystemInfoCommand(ShellCommand):
         :return: The system information data.
         """
         return self.receiver.get_system_info(params=self.params)
-    
+
     @classmethod
     def name(cls) -> str:
         """
         The name of the command.
         """
-        return "get_system_info"
+        return 'get_system_info'

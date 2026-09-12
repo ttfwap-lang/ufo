@@ -1,17 +1,10 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 from abc import ABC, abstractmethod
 import logging
-
 from langchain_community.vectorstores import Chroma
-
 from ufo.config import get_offline_learner_indexer_config
 from ufo.rag import web_search
 from ufo.utils import get_hugginface_embedding
-
 logger = logging.getLogger(__name__)
-
 
 class RetrieverFactory:
     """
@@ -25,17 +18,16 @@ class RetrieverFactory:
         :param retriever_type: The type of retriever to create.
         :return: The created retriever.
         """
-        if retriever_type == "offline":
+        if retriever_type == 'offline':
             return OfflineDocRetriever(*args, **kwargs)
-        elif retriever_type == "experience":
+        elif retriever_type == 'experience':
             return ExperienceRetriever(*args, **kwargs)
-        elif retriever_type == "online":
+        elif retriever_type == 'online':
             return OnlineDocRetriever(*args, **kwargs)
-        elif retriever_type == "demonstration":
+        elif retriever_type == 'demonstration':
             return DemonstrationRetriever(*args, **kwargs)
         else:
-            raise ValueError("Invalid retriever type: {}".format(retriever_type))
-
+            raise ValueError('Invalid retriever type: {}'.format(retriever_type))
 
 class Retriever(ABC):
     """
@@ -46,7 +38,6 @@ class Retriever(ABC):
         """
         Create a new Retriever.
         """
-
         self.indexer = self.get_indexer()
 
     @abstractmethod
@@ -67,14 +58,11 @@ class Retriever(ABC):
         """
         if not self.indexer:
             return []
-
         results = self.indexer.similarity_search(query, top_k, filter=filter)
-
         if not results:
             return []
         else:
             return results
-
 
 class OfflineDocRetriever(Retriever):
     """
@@ -99,7 +87,6 @@ class OfflineDocRetriever(Retriever):
         for key in offline_records:
             if key.lower() in self.app_name.lower():
                 return offline_records[key]
-
         return None
 
     def get_indexer(self, path: str):
@@ -108,24 +95,16 @@ class OfflineDocRetriever(Retriever):
         :param path: The path to load the retriever from.
         :return: The loaded retriever.
         """
-
         if path:
-            logger.info(f"Loading offline indexer from {path}...")
+            logger.info(f'Loading offline indexer from {path}...')
         else:
             return None
-
         try:
-            db = Chroma(
-                persist_directory=path,
-                embedding_function=get_hugginface_embedding()
-            )
+            db = Chroma(persist_directory=path, embedding_function=get_hugginface_embedding())
             return db
         except Exception as e:
-            logger.warning(
-                f"Failed to load experience indexer from {path}, error: {e}."
-            )
+            logger.warning(f'Failed to load experience indexer from {path}, error: {e}.')
             return None
-
 
 class ExperienceRetriever(Retriever):
     """
@@ -144,19 +123,12 @@ class ExperienceRetriever(Retriever):
         Create an experience indexer.
         :param db_path: The path to the database.
         """
-
         try:
-            db = Chroma(
-                persist_directory=db_path,
-                embedding_function=get_hugginface_embedding()
-            )
+            db = Chroma(persist_directory=db_path, embedding_function=get_hugginface_embedding())
             return db
         except Exception as e:
-            logger.warning(
-                f"Failed to load experience indexer from {db_path}, error: {e}."
-            )
+            logger.warning(f'Failed to load experience indexer from {db_path}, error: {e}.')
             return None
-
 
 class OnlineDocRetriever(Retriever):
     """
@@ -178,7 +150,6 @@ class OnlineDocRetriever(Retriever):
         :param top_k: The number of documents to retrieve.
         :return: The created indexer.
         """
-
         bing_retriever = web_search.BingSearchWeb()
         result_list = bing_retriever.search(self.query, top_k=top_k)
         documents = bing_retriever.create_documents(result_list)
@@ -186,15 +157,11 @@ class OnlineDocRetriever(Retriever):
             return None
         try:
             indexer = bing_retriever.create_indexer(documents)
-            logger.info(
-                f"Online indexer created successfully for {len(documents)} searched results."
-            )
+            logger.info(f'Online indexer created successfully for {len(documents)} searched results.')
         except Exception as e:
-            logger.warning(f"Failed to create online indexer, error: {e}.")
+            logger.warning(f'Failed to create online indexer, error: {e}.')
             return None
-
         return indexer
-
 
 class DemonstrationRetriever(Retriever):
     """
@@ -213,15 +180,9 @@ class DemonstrationRetriever(Retriever):
         Create a demonstration indexer.
         :db_path: The path to the database.
         """
-
         try:
-            db = Chroma(
-                persist_directory=db_path,
-                embedding_function=get_hugginface_embedding()
-            )
+            db = Chroma(persist_directory=db_path, embedding_function=get_hugginface_embedding())
             return db
         except Exception as e:
-            logger.warning(
-                f"Failed to load experience indexer from {db_path}, error: {e}."
-            )
+            logger.warning(f'Failed to load experience indexer from {db_path}, error: {e}.')
             return None

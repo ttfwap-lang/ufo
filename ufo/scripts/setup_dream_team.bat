@@ -31,6 +31,15 @@ REM ======================================================================
 
 title UFO Dream Team -- One-Shot Setup
 color 0A
+
+:: Check for Administrator privileges (Ensures Foreground/Screenshot UI Rights)
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Requesting administrative privileges...
+    powershell -Command "Start-Process cmd -ArgumentList '/c cd /d ""%~dp0"" & ""%~nx0"" %*' -Verb RunAs"
+    exit /b
+)
+
 echo.
 echo  +-------------------------------------------------------------+
 echo  ^|           UFO DREAM TEAM -- ONE-SHOT SETUP                   ^|
@@ -43,12 +52,13 @@ echo  ^|   Download: ~12.7 GB  ^|  Runtime RAM: ~18 GB / 32 GB        ^|
 echo  +-------------------------------------------------------------+
 echo.
 
-REM ---- Configuration ----
-set "LLAMA_SERVER=C:\ufo\bin\llama-server.exe"
-set "MODELS_DIR=C:\ufo\models"
-set "UFO_DIR=C:\ufo\ufo"
-set "PYTHON_EXE=C:\ufo\ufo\python_env\python.exe"
+set "UFO_ROOT_PARENT=%~dp0..\.."
+set "LLAMA_SERVER=%UFO_ROOT_PARENT%\bin\llama-server.exe"
+set "MODELS_DIR=%UFO_ROOT_PARENT%\models"
+set "UFO_DIR=%~dp0.."
+set "PYTHON_EXE=%UFO_DIR%\python_env\python.exe"
 set "PYTHONIOENCODING=utf-8"
+set "PYTHONUTF8=1"
 
 REM Model URLs (HuggingFace direct download)
 set "QWEN_REPO=unsloth/Qwen3-VL-8B-Instruct-GGUF"
@@ -65,9 +75,9 @@ set "QWEN_MMPROJ=%MODELS_DIR%\qwen3-vl-8b-instruct-mmproj-f16.gguf"
 set "GEMMA_MODEL=%MODELS_DIR%\gemma-4-12b-it-q4_0.gguf"
 set "GEMMA_MMPROJ=%MODELS_DIR%\gemma-4-12b-it-mmproj-q8_0.gguf"
 
-echo ══════════════════════════════════════════════════════════════════
+echo ==================================================================
 echo  PHASE 1: PRE-FLIGHT CHECKS
-echo ══════════════════════════════════════════════════════════════════
+echo ==================================================================
 echo.
 
 REM Check llama-server exists
@@ -101,9 +111,9 @@ echo  !ESC![92m[OK]!ESC![0m curl available
 
 REM Check Python
 if not exist "%PYTHON_EXE%" (
-    echo  !ESC![93m[WARN]!ESC![0m UFO python_env not found at %PYTHON_EXE%
-    echo         Will use system Python for LiteLLM.
-    set "PYTHON_EXE=python"
+    echo  !ESC![91m[ERROR]!ESC![0m UFO python_env not found at %PYTHON_EXE%
+    echo         Cannot start LiteLLM without the UFO Python environment.
+    goto :fatal_error
 )
 echo  !ESC![92m[OK]!ESC![0m Python environment ready
 
@@ -122,9 +132,9 @@ if !FREE_MB! lss 16000 (
 )
 echo.
 
-echo ══════════════════════════════════════════════════════════════════
+echo ==================================================================
 echo  PHASE 2: DOWNLOAD MODELS (~12.7 GB total)
-echo ══════════════════════════════════════════════════════════════════
+echo ==================================================================
 echo.
 echo  Downloads use -C - for automatic resume if interrupted.
 echo  Re-run this script to resume any failed downloads.
@@ -208,9 +218,9 @@ echo.
 echo  All 4 model files are present!
 echo.
 
-echo ══════════════════════════════════════════════════════════════════
+echo ==================================================================
 echo  PHASE 3: UPDATE UFO CONFIGURATION
-echo ══════════════════════════════════════════════════════════════════
+echo ==================================================================
 echo.
 
 REM Write the dream team selection via switch_backend.py
@@ -224,13 +234,22 @@ if errorlevel 1 (
 echo  !ESC![92m[OK]!ESC![0m Local backend selected (only config\ufo\backend_state.json written, agents.yaml untouched)
 echo.
 
-echo ══════════════════════════════════════════════════════════════════
+echo ==================================================================
 echo  PHASE 4: KILL ANY EXISTING INSTANCES
-echo ══════════════════════════════════════════════════════════════════
+echo ==================================================================
 echo.
 
 taskkill /IM llama-server.exe /F >nul 2>&1
 echo  !ESC![92m[OK]!ESC![0m Cleared any existing llama-server processes
+
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8080.*LISTEN" 2^>nul') do (
+    taskkill /PID %%a /F >nul 2>&1
+)
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8081.*LISTEN" 2^>nul') do (
+    taskkill /PID %%a /F >nul 2>&1
+)
+echo  !ESC![92m[OK]!ESC![0m Cleared any processes holding ports 8080/8081
+
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":4000.*LISTEN" 2^>nul') do (
     taskkill /PID %%a /F >nul 2>&1
 )
@@ -238,9 +257,9 @@ echo  !ESC![92m[OK]!ESC![0m Cleared any existing LiteLLM proxy
 timeout /t 2 /nobreak >nul
 echo.
 
-echo ══════════════════════════════════════════════════════════════════
+echo ==================================================================
 echo  PHASE 5: LAUNCH DREAM TEAM
-echo ══════════════════════════════════════════════════════════════════
+echo ==================================================================
 echo.
 
 REM ---- Launch Qwen3-VL-8B (HOST_AGENT) on :8080 ----
@@ -284,6 +303,7 @@ start "Gemma-4-12B [APP]" /min "%LLAMA_SERVER%" ^
     --mmproj "%GEMMA_MMPROJ%" ^
     -t 8 ^
     -c 8192 ^
+    -nkvo ^
     --host 127.0.0.1 ^
     --port 8081
 
@@ -319,7 +339,7 @@ set RETRIES3=0
 :wait_litellm
 timeout /t 2 /nobreak >nul
 set /a RETRIES3+=1
-curl -s -f http://127.0.0.1:4000/health >nul 2>&1
+curl -s -f http://127.0.0.1:4000/health/liveliness >nul 2>&1
 if !errorlevel! equ 0 (
     echo  !ESC![92m[OK]!ESC![0m LiteLLM proxy is healthy!
     goto :litellm_ready
@@ -367,7 +387,7 @@ echo  ^|                                                             ^|
 echo  ^|  VISUAL_MODE: True -- both agents can SEE screenshots!      ^|
 echo  ^|                                                             ^|
 echo  ^|  To run UFO:                                                ^|
-echo  ^|    python -m ufo --task "open notepad and type hello"       ^|
+echo  ^|    python_env\python.exe -m ufo --task "open notepad and type hello" ^|
 echo  ^|                                                             ^|
 echo  ^|  To revert to cloud (Gemini):                               ^|
 echo  ^|    python scripts\switch_backend.py cloud                   ^|
@@ -383,16 +403,16 @@ timeout /t 30 /nobreak >nul
 set "S1=DOWN" & set "S2=DOWN" & set "S3=DOWN"
 curl -s -f http://127.0.0.1:8080/health >nul 2>&1 && set "S1=OK"
 curl -s -f http://127.0.0.1:8081/health >nul 2>&1 && set "S2=OK"
-curl -s -f http://127.0.0.1:4000/health >nul 2>&1 && set "S3=OK"
+curl -s -f http://127.0.0.1:4000/health/liveliness >nul 2>&1 && set "S3=OK"
 echo  [%TIME%] Qwen3-VL: !S1! ^| Gemma-4: !S2! ^| LiteLLM: !S3!
 goto :monitor
 
 :fatal_error
 echo.
-echo  ╔═══════════════════════════════════════════════════════════════╗
-echo  ║  SETUP FAILED — See errors above.                            ║
-echo  ║  Fix the issue and re-run this script. Downloads will resume.║
-echo  ╚═══════════════════════════════════════════════════════════════╝
+echo  +===============================================================+
+echo  |  SETUP FAILED — See errors above.                            |
+echo  |  Fix the issue and re-run this script. Downloads will resume.|
+echo  +===============================================================+
 echo.
 pause
 exit /b 1

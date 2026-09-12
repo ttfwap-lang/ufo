@@ -413,7 +413,10 @@ class SessionFactory:
         :param path: The path of the folder.
         :return: The plan files in the folder.
         """
-        return [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".json")]
+        try:
+            return [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".json")]
+        except (FileNotFoundError, NotADirectoryError):
+            return []
 
     def get_file_name_without_extension(self, file_path: str) -> str:
         """

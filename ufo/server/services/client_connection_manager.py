@@ -3,29 +3,22 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
 from fastapi import WebSocket
-
 from ufo.aip.messages import ClientType
 from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.aip.transport.websocket import WebSocketTransport
 
-
 @dataclass
 class ClientInfo:
     """Information about a connected client."""
-
     websocket: WebSocket
     client_type: ClientType
     connected_at: datetime
     metadata: Dict = None
-    platform: str = "windows"
-    system_info: Dict = None  # Device system information (for device clients)
-
-    # AIP protocol instances for this client
+    platform: str = 'windows'
+    system_info: Dict = None
     transport: Optional[WebSocketTransport] = None
     task_protocol: Optional[TaskExecutionProtocol] = None
-
 
 class DuplicateClientError(Exception):
     """
@@ -41,11 +34,7 @@ class DuplicateClientError(Exception):
 
     def __init__(self, client_id: str):
         self.client_id = client_id
-        super().__init__(
-            f"client_id {client_id!r} is already registered; "
-            "duplicate registrations are not allowed"
-        )
-
+        super().__init__(f'client_id {client_id!r} is already registered; duplicate registrations are not allowed')
 
 class ClientConnectionManager:
     """
@@ -60,7 +49,7 @@ class ClientConnectionManager:
     Supports both device clients and constellation clients.
     """
 
-    def __init__(self, device_config_path: Optional[str] = None):
+    def __init__(self, device_config_path: Optional[str]=None):
         """
         Initialize the ClientConnectionManager.
         :param device_config_path: Optional path to device configuration file (YAML/JSON)
@@ -69,14 +58,8 @@ class ClientConnectionManager:
         self.lock = threading.Lock()
         self.device_config_path = device_config_path
         self._device_configs: Dict[str, Dict[str, Any]] = {}
-
-        # Track constellation client -> session_ids mapping
         self._constellation_sessions: Dict[str, List[str]] = {}
-
-        # Track device -> session_ids mapping (for constellation tasks targeting this device)
         self._device_sessions: Dict[str, List[str]] = {}
-
-        # Load device configurations if path provided
         if device_config_path:
             self._load_device_configs(device_config_path)
 
@@ -144,17 +127,7 @@ class ClientConnectionManager:
         with self.lock:
             return self._device_sessions.pop(device_id, [])
 
-    def add_client(
-        self,
-        client_id: str,
-        platform: str = "windows",
-        ws: Optional[WebSocket] = None,
-        client_type: ClientType = ClientType.DEVICE,
-        metadata: Optional[Dict] = None,
-        transport: Optional[WebSocketTransport] = None,
-        task_protocol: Optional[TaskExecutionProtocol] = None,
-    ):
-
+    def add_client(self, client_id: str, platform: str='windows', ws: Optional[WebSocket]=None, client_type: ClientType=ClientType.DEVICE, metadata: Optional[Dict]=None, transport: Optional[WebSocketTransport]=None, task_protocol: Optional[TaskExecutionProtocol]=None):
         """
         Add a new client to the online clients list.
         :param client_id: The ID of the client to add.
@@ -174,43 +147,19 @@ class ClientConnectionManager:
             metadata = client_type if isinstance(client_type, dict) else metadata
             client_type = ws if isinstance(ws, (ClientType, str)) else client_type
             ws = platform
-            platform = "windows"
-
+            platform = 'windows'
         with self.lock:
             if client_id in self.online_clients:
-                # Refuse to overwrite a live client's registry entry.
-                # See :class:`DuplicateClientError` for rationale.
                 raise DuplicateClientError(client_id)
-
-            # Extract and merge system info with server config for device clients
             system_info = None
-            if (
-                metadata
-                and "system_info" in metadata
-                and client_type == ClientType.DEVICE
-            ):
-                system_info = metadata.get("system_info")
-
-                # Merge with server-configured metadata if available
+            if metadata and 'system_info' in metadata and (client_type == ClientType.DEVICE):
+                system_info = metadata.get('system_info')
                 server_config = self._device_configs.get(client_id, {})
                 if server_config:
                     system_info = self._merge_device_info(system_info, server_config)
                     import logging
-
-                    logging.getLogger(__name__).info(
-                        f"[ClientConnectionManager] Merged server config for device {client_id}"
-                    )
-
-            self.online_clients[client_id] = ClientInfo(
-                websocket=ws,
-                platform=platform,
-                client_type=client_type,
-                connected_at=datetime.now(),
-                metadata=metadata or {},
-                system_info=system_info,
-                transport=transport,
-                task_protocol=task_protocol,
-            )
+                    logging.getLogger(__name__).info(f'[ClientConnectionManager] Merged server config for device {client_id}')
+            self.online_clients[client_id] = ClientInfo(websocket=ws, platform=platform, client_type=client_type, connected_at=datetime.now(), metadata=metadata or {}, system_info=system_info, transport=transport, task_protocol=task_protocol)
 
     def remove_client(self, client_id: str):
         """
@@ -275,9 +224,7 @@ class ClientConnectionManager:
         """
         with self.lock:
             client_info = self.online_clients.get(device_id)
-            return (
-                client_info is not None and client_info.client_type == ClientType.DEVICE
-            )
+            return client_info is not None and client_info.client_type == ClientType.DEVICE
 
     def list_clients_by_type(self, client_type: ClientType) -> List[str]:
         """
@@ -286,11 +233,7 @@ class ClientConnectionManager:
         :return: A list of online client IDs of the specified type.
         """
         with self.lock:
-            return [
-                client_id
-                for client_id, client_info in self.online_clients.items()
-                if client_info.client_type == client_type
-            ]
+            return [client_id for client_id, client_info in self.online_clients.items() if client_info.client_type == client_type]
 
     def get_stats(self) -> Dict[str, int]:
         """
@@ -298,21 +241,9 @@ class ClientConnectionManager:
         :return: A dictionary with client statistics.
         """
         with self.lock:
-            device_count = sum(
-                1
-                for info in self.online_clients.values()
-                if info.client_type == ClientType.DEVICE
-            )
-            constellation_count = sum(
-                1
-                for info in self.online_clients.values()
-                if info.client_type == ClientType.CONSTELLATION
-            )
-            return {
-                "total": len(self.online_clients),
-                "device_clients": device_count,
-                "constellation_clients": constellation_count,
-            }
+            device_count = sum((1 for info in self.online_clients.values() if info.client_type == ClientType.DEVICE))
+            constellation_count = sum((1 for info in self.online_clients.values() if info.client_type == ClientType.CONSTELLATION))
+            return {'total': len(self.online_clients), 'device_clients': device_count, 'constellation_clients': constellation_count}
 
     def get_device_system_info(self, device_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -334,12 +265,7 @@ class ClientConnectionManager:
         :return: Dictionary mapping device_id to system_info.
         """
         with self.lock:
-            return {
-                device_id: client_info.system_info
-                for device_id, client_info in self.online_clients.items()
-                if client_info.client_type == ClientType.DEVICE
-                and client_info.system_info
-            }
+            return {device_id: client_info.system_info for device_id, client_info in self.online_clients.items() if client_info.client_type == ClientType.DEVICE and client_info.system_info}
 
     def _load_device_configs(self, config_path: str) -> None:
         """
@@ -357,54 +283,32 @@ class ClientConnectionManager:
         :param config_path: Path to configuration file
         """
         import logging
-
         logger = logging.getLogger(__name__)
-
         try:
             path = Path(config_path)
             if not path.exists():
-                logger.warning(
-                    f"[ClientConnectionManager] Device config file not found: {config_path}"
-                )
+                logger.warning(f'[ClientConnectionManager] Device config file not found: {config_path}')
                 return
-
-            # Support both YAML and JSON
-            if config_path.endswith(".yaml") or config_path.endswith(".yml"):
+            if config_path.endswith('.yaml') or config_path.endswith('.yml'):
                 import yaml
-
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
-            elif config_path.endswith(".json"):
+            elif config_path.endswith('.json'):
                 import json
-
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
             else:
-                logger.warning(
-                    f"[ClientConnectionManager] Unsupported config file format: {config_path}"
-                )
+                logger.warning(f'[ClientConnectionManager] Unsupported config file format: {config_path}')
                 return
-
-            # Extract device-specific configurations
-            if config and "devices" in config:
-                self._device_configs = config["devices"]
-                logger.info(
-                    f"[ClientConnectionManager] Loaded {len(self._device_configs)} device configurations"
-                )
+            if config and 'devices' in config:
+                self._device_configs = config['devices']
+                logger.info(f'[ClientConnectionManager] Loaded {len(self._device_configs)} device configurations')
             else:
-                logger.warning(
-                    "[ClientConnectionManager] No 'devices' section found in config file"
-                )
-
+                logger.warning("[ClientConnectionManager] No 'devices' section found in config file")
         except Exception as e:
-            logger.error(
-                f"[ClientConnectionManager] Error loading device configs: {e}",
-                exc_info=True,
-            )
+            logger.error(f'[ClientConnectionManager] Error loading device configs: {e}', exc_info=True)
 
-    def _merge_device_info(
-        self, system_info: Dict[str, Any], server_config: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _merge_device_info(self, system_info: Dict[str, Any], server_config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Merge device system information with server configuration.
 
@@ -416,28 +320,11 @@ class ClientConnectionManager:
         :return: Merged dictionary
         """
         merged = {**system_info}
-
-        # Add all server config to custom_metadata
-        if "custom_metadata" not in merged:
-            merged["custom_metadata"] = {}
-
-        # Merge server config into custom_metadata
-        merged["custom_metadata"].update(server_config)
-
-        # Special handling: merge capabilities if both exist
-        if (
-            "supported_features" in system_info
-            and "additional_features" in server_config
-        ):
-            merged["supported_features"] = list(
-                set(
-                    system_info["supported_features"]
-                    + server_config["additional_features"]
-                )
-            )
-
-        # Add server tags if provided
-        if "tags" in server_config:
-            merged["tags"] = server_config["tags"]
-
+        if 'custom_metadata' not in merged:
+            merged['custom_metadata'] = {}
+        merged['custom_metadata'].update(server_config)
+        if 'supported_features' in system_info and 'additional_features' in server_config:
+            merged['supported_features'] = list(set(system_info['supported_features'] + server_config['additional_features']))
+        if 'tags' in server_config:
+            merged['tags'] = server_config['tags']
         return merged

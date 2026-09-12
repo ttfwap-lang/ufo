@@ -294,8 +294,8 @@ If you use UFO in your research, please cite our paper:
 - [x] RAG enhanced UFO.
 - [x] Support more control using Win32 API.
 - [x] [Documentation](https://microsoft.github.io/UFO/).
-- [ ] Support local host GUI interaction model.
-- [ ] Chatbox GUI for UFO.
+- [x] Support local host GUI interaction model (Qwen3-VL + Gemma 4 Dream Team).
+- [x] Chatbox GUI for UFO (Galaxy WebUI & Interactive Terminal v2.0).
 
 
 

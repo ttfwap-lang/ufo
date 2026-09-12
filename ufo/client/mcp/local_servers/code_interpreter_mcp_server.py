@@ -1,32 +1,24 @@
-#!/usr/bin/env python3
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 """
 Code Interpreter MCP Server
 Provides MCP server for executing arbitrary Python code to manipulate files, PDFs, etc.
 """
-
 import logging
 import subprocess
 import tempfile
 import os
-
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from ufo.client.mcp.mcp_registry import MCPRegistry
-
 import sys
-
 logger = logging.getLogger(__name__)
 
-@MCPRegistry.register_factory_decorator("CodeInterpreterExecutor")
-@MCPRegistry.register_factory_decorator("mcp_code_interpreter")
+@MCPRegistry.register_factory_decorator('CodeInterpreterExecutor')
+@MCPRegistry.register_factory_decorator('mcp_code_interpreter')
 def create_code_interpreter_mcp_server(*args, **kwargs) -> FastMCP:
     """
     Create and return the Code Interpreter MCP server instance.
     """
-    mcp = FastMCP("UFO Code Interpreter MCP Server")
+    mcp = FastMCP('UFO Code Interpreter MCP Server')
 
     @mcp.tool()
     def execute_python_code(code: str) -> str:
@@ -37,40 +29,28 @@ def create_code_interpreter_mcp_server(*args, **kwargs) -> FastMCP:
         :return: The standard output and standard error of the execution.
         """
         if not code:
-            raise ToolError("Code cannot be empty.")
-            
+            raise ToolError('Code cannot be empty.')
         try:
-            # Write code to a temporary file
-            fd, path = tempfile.mkstemp(suffix=".py")
+            fd, path = tempfile.mkstemp(suffix='.py')
             with os.fdopen(fd, 'w', encoding='utf-8') as f:
                 f.write(code)
-                
-            # Execute it using the UFO python environment
-            python_exe = sys.executable if sys.executable and os.path.isfile(sys.executable) else r"C:\ufo\ufo\python_env\python.exe"
+            python_exe = sys.executable if sys.executable and os.path.isfile(sys.executable) else 'C:\\ufo\\ufo\\python_env\\python.exe'
             result = subprocess.run([python_exe, path], capture_output=True, text=True, timeout=60)
-            
-            # Clean up
             try:
                 os.remove(path)
-            except:
+            except Exception:
                 pass
-                
             output = result.stdout
             if result.stderr:
-                output += f"\nSTDERR:\n{result.stderr}"
-            
-            return output if output else "Execution completed successfully with no output."
-            
+                output += f'\nSTDERR:\n{result.stderr}'
+            return output if output else 'Execution completed successfully with no output.'
         except subprocess.TimeoutExpired:
-            raise ToolError("Code execution timed out after 60 seconds.")
+            raise ToolError('Code execution timed out after 60 seconds.')
         except Exception as e:
-            raise ToolError(f"Failed to execute Python code: {str(e)}")
-
+            raise ToolError(f'Failed to execute Python code: {str(e)}')
     return mcp
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     import logging
-    # Suppress output that might corrupt JSON
     logging.basicConfig(level=logging.ERROR)
     mcp = create_code_interpreter_mcp_server()
     mcp.run()

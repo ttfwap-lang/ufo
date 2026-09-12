@@ -78,7 +78,7 @@ class DemonstrationPrompter(BasicPrompter):
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": demo_record.__getattribute__("step_0")["screenshot"]
+                        "url": getattr(demo_record, "step_0")["screenshot"]
                     },
                 }
             )
@@ -89,7 +89,7 @@ class DemonstrationPrompter(BasicPrompter):
         user_content.append({"type": "text", "text": "[Agent Trajectory]:"})
 
         for num in range(step_num):
-            step = demo_record.__getattribute__("step_{num}".format(num=num))
+            step = getattr(demo_record, f"step_{num}")
             step_content = {
                 "application": step["application"],
                 "description": step["description"],

@@ -50,8 +50,12 @@ _INSTRUCTION_OVERRIDE_PATTERN = re.compile(
 _VALID_FIELD_NAME = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 # All filter patterns with their replacement text, used for logging.
-_FILTER_PATTERNS = []
-
+_FILTER_PATTERNS = [
+    (_INJECTION_ROLE_PATTERN, "[filtered-role-marker]:"),
+    (_INJECTION_ROLE_HEADER_PATTERN, "[filtered-header]\n"),
+    (_CONFIRMATION_BYPASS_PATTERN, "[filtered-bypass-attempt]"),
+    (_INSTRUCTION_OVERRIDE_PATTERN, "[filtered-override-attempt]")
+]
 
 def sanitize_user_input(value: str, field_name: str = "input") -> str:
     """Sanitize a single user-controlled string before prompt interpolation.

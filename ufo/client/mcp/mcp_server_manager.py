@@ -23,7 +23,7 @@ class BaseMCPServer(ABC):
         """
         self._config = config
         self._server: Optional[FastMCP] = None
-        self._namespace = config.get("namespace", "default")
+        self._namespace = config.get("namespace") or config.get("name") or "default"
         self.logger = logging.getLogger(__name__)
 
     @abstractmethod
@@ -150,7 +150,7 @@ class StdioMCPServer(BaseMCPServer):
         :return: StdioTransport instance for standard input/output server.
         """
         command = self._config.get("command", "python")
-        start_args = self._config.get("start_args", [])
+        start_args = self._config.get("start_args") or self._config.get("args") or []
         env = self._config.get("env", {})
         cwd = self._config.get("cwd", ".")
         self._server = StdioTransport(

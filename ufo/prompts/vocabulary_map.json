@@ -1,0 +1,51 @@
+{
+  "ufo_ui_automation": {
+    "click_element": {
+      "standard": "click",
+      "synonyms": ["tap", "press", "select", "push", "poke", "hit", "strike", "depress"],
+      "slang": ["smash", "boop", "mash", "clickity", "slap", "bang", "whack"]
+    },
+    "scroll_window": {
+      "standard": "scroll",
+      "synonyms": ["pan", "swipe", "wheel", "roll", "glide", "slide"],
+      "slang": ["doomscroll", "flick", "cruise"]
+    },
+    "type_text": {
+      "standard": "type",
+      "synonyms": ["input", "enter", "write", "key in", "insert"],
+      "slang": ["punch in", "drop in", "blast text", "spam keys"]
+    },
+    "take_screenshot": {
+      "standard": "screenshot",
+      "synonyms": ["capture", "snip", "snapshot", "screen image"],
+      "slang": ["screengrab", "ss", "snap", "cap", "printscreen"]
+    },
+    "navigate_to": {
+      "standard": "navigate",
+      "synonyms": ["go to", "open", "launch", "visit", "browse", "access", "direct to"],
+      "slang": ["hit up", "pull up", "check out", "cruise to"]
+    }
+  },
+  "bankfidelity_financial": {
+    "audit_statement": {
+      "standard": "reconcile",
+      "synonyms": ["match", "balance", "verify", "align", "settle", "resolve", "coordinate"],
+      "slang": ["square up", "true up", "sync up", "balance books"]
+    },
+    "extract_pdf_data": {
+      "standard": "extract",
+      "synonyms": ["parse", "retrieve", "withdraw", "derive", "gather"],
+      "slang": ["rip", "scrape", "yoink", "data grab", "suck out", "data mine", "pull data"]
+    },
+    "deep_audit": {
+      "standard": "audit",
+      "synonyms": ["inspect", "examine", "review", "investigate", "scrutinize", "fact-check"],
+      "slang": ["snoop", "deep dive", "vet", "give once-over", "interrogate"]
+    },
+    "financial_statement": {
+      "standard": "statement",
+      "synonyms": ["ledger", "bill", "invoice", "account summary"],
+      "slang": ["receipts", "paper trail", "financial record"]
+    }
+  }
+}

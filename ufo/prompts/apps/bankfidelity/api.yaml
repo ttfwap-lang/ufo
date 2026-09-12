@@ -1,0 +1,90 @@
+balance_statement:
+  summary: |-
+    "balance_statement" is to automatically audit and rebalance a bank statement PDF using BankFidelity's cryptographic math engine.
+  class_name: |-
+    BalanceStatementCommand
+  usage: |-
+    [1] API call: balance_statement(input: str, output: str, auto_approve: bool = True)
+    [2] Args:
+      - input: The absolute path to the input PDF bank statement.
+      - output: The absolute path where the balanced output PDF will be saved.
+      - auto_approve: Whether to automatically accept and commit math reconciliation fixes (Default: True).
+    [3] Example: balance_statement(input="C:\\bankfidelity\\statement.pdf", output="C:\\bankfidelity\\statement_balanced.pdf", auto_approve=True)
+    [4] Available control item: BankFidelity MCP
+    [5] Return: Execution summary and mathematical status
+
+modify_text:
+  summary: |-
+    "modify_text" is to modify or replace a text string on a specific page of a PDF with 100% cryptographic visual font fidelity.
+  class_name: |-
+    ModifyTextCommand
+  usage: |-
+    [1] API call: modify_text(input: str, output: str, old: str, new: str, bbox: str, page: int = 1)
+    [2] Args:
+      - input: Absolute path to the original PDF.
+      - output: Absolute path for the modified PDF.
+      - old: The exact existing text to replace.
+      - new: The replacement text to render.
+      - bbox: Bounding box coordinates "x0,y0,x1,y1" (in 72-DPI PDF points).
+      - page: 1-indexed page number (Default: 1).
+    [3] Example: modify_text(input="C:\\bankfidelity\\statement.pdf", output="C:\\bankfidelity\\output.pdf", old="Account 123", new="Account 999", bbox="100,200,300,220", page=1)
+    [4] Available control item: BankFidelity MCP
+    [5] Return: Modification status
+
+extract_data:
+  summary: |-
+    "extract_data" is to extract document-level tabular transactions and metadata as structured JSON.
+  class_name: |-
+    ExtractDataCommand
+  usage: |-
+    [1] API call: extract_data(input: str, output: str)
+    [2] Args:
+      - input: Absolute path to the input PDF statement.
+      - output: Absolute path where structured JSON will be written.
+    [3] Example: extract_data(input="C:\\bankfidelity\\statement.pdf", output="C:\\bankfidelity\\statement.json")
+    [4] Available control item: BankFidelity MCP
+    [5] Return: Extraction JSON manifest
+
+verify_layout:
+  summary: |-
+    "verify_layout" is to verify structural, font, SSIM, and mathematical integrity between an original and edited PDF.
+  class_name: |-
+    VerifyLayoutCommand
+  usage: |-
+    [1] API call: verify_layout(original: str, edited: str, output_dir: str)
+    [2] Args:
+      - original: Absolute path to the baseline reference PDF.
+      - edited: Absolute path to the modified/candidate PDF.
+      - output_dir: Directory where verification audit logs and visual diffs will be saved.
+    [3] Example: verify_layout(original="C:\\orig.pdf", edited="C:\\edit.pdf", output_dir="C:\\audit")
+    [4] Available control item: BankFidelity MCP
+    [5] Return: Verification report with PASS/FAIL gate statuses
+
+click_input:
+  summary: |-
+    "click_input" is to click a UI control element (Button, Menu, Tab, or Edit field) in the BankFidelity desktop window.
+  class_name: |-
+    ClickInputCommand
+  usage: |-
+    [1] API call: click_input(button: str = "left", double: bool = False, pressed: str = None)
+    [2] Args:
+      - button: Mouse button to click ('left', 'right', 'middle'). Default: 'left'
+      - double: Whether to perform a double click (Default: False).
+      - pressed: Keyboard modifier key held during click (e.g. 'CONTROL').
+    [3] Example: click_input(button="left", double=False)
+    [4] Available control item: All UI controls in BankFidelity
+    [5] Return: None
+
+set_edit_text:
+  summary: |-
+    "set_edit_text" is to input text into a BankFidelity text field, search box, or natural language input prompt.
+  class_name: |-
+    SetEditTextCommand
+  usage: |-
+    [1] API call: set_edit_text(text: str, clear_current_text: bool = True)
+    [2] Args:
+      - text: The string content to enter.
+      - clear_current_text: If True, clears existing text before typing.
+    [3] Example: set_edit_text(text="Shift all transaction dates by 3 days", clear_current_text=True)
+    [4] Available control item: Edit controls
+    [5] Return: None

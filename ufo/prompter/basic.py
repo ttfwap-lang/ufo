@@ -61,10 +61,16 @@ class BasicPrompter(ABC):
             import pathlib
             # basic.py is in C:\ufo\ufo\prompter, so parent.parent is C:\ufo\ufo
             module_dir = pathlib.Path(__file__).resolve().parent.parent
-            if path.startswith("ufo/"):
-                fallback = module_dir / path[4:]
+            
+            # Normalize the path to handle cross-platform slashes
+            normalized_path = os.path.normpath(path)
+            
+            if normalized_path.startswith(f"ufo{os.sep}"):
+                fallback = module_dir / normalized_path[4:]
+            elif normalized_path.startswith("ufo/") or normalized_path.startswith("ufo\\"):
+                fallback = module_dir / normalized_path[4:]
             else:
-                fallback = module_dir / path
+                fallback = module_dir / normalized_path
             
             if fallback.exists():
                 path = str(fallback)

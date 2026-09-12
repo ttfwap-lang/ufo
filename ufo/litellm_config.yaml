@@ -25,17 +25,42 @@ model_list:
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0
-  - model_name: "gemini-complex"
+  - model_name: "claude-3-7-sonnet"
     litellm_params:
-      model: "gemini/gemini-3.7-flash"
-      api_key: "os.environ/GEMINI_API_KEY"
-  - model_name: "gemini-computer-use"
+      model: "anthropic/claude-3-7-sonnet-latest"
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+      max_tokens: 16384
+  - model_name: "deepseek-r1"
     litellm_params:
-      model: "gemini/gemini-3.7-flash"
-      api_key: "os.environ/GEMINI_API_KEY"
+      model: "deepseek/deepseek-reasoner"
+      api_key: "os.environ/DEEPSEEK_API_KEY"
+      max_tokens: 8000
+
+  - model_name: "featherless-qwen-primary"
+    litellm_params:
+      model: "openai/mlabonne/Qwen2.5-72B-Instruct-abliterated"
+      api_base: "https://api.featherless.ai/v1"
+      api_key: "os.environ/FEATHERLESS_API_KEY"
+      rpm: 1000
+      max_tokens: 4000
+  - model_name: "featherless-qwen-secondary"
+    litellm_params:
+      model: "openai/hugging-quants/Qwen2-72B-Instruct-abliterated"
+      api_base: "https://api.featherless.ai/v1"
+      api_key: "os.environ/FEATHERLESS_API_KEY"
+      rpm: 1000
+      max_tokens: 4000
+  - model_name: "featherless-qwen-tertiary"
+    litellm_params:
+      model: "openai/failpy/Qwen2.5-Coder-32B-Instruct-abliterated"
+      api_base: "https://api.featherless.ai/v1"
+      api_key: "os.environ/FEATHERLESS_API_KEY"
+      rpm: 1000
+      max_tokens: 4000
 
 router_settings:
   fallbacks:
-    - {"ufo-host-model": ["gemini-complex"]}
-    - {"ufo-app-model": ["gemini-computer-use"]}
-    - {"ufo-model": ["gemini-complex"]}
+    - {"ufo-host-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+    - {"ufo-app-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+    - {"ufo-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+

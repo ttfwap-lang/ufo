@@ -1,0 +1,62 @@
+# =============================================================================
+# UFO Local Vision LLM Configuration — Dream Team
+# =============================================================================
+# Uses two local vision models via LiteLLM proxy:
+#   HOST_AGENT → Qwen3-VL-8B    (strategist, full desktop vision)
+#   APP_AGENT  → Gemma 4 12B    (executor, encoder-free vision)
+#
+# To switch to this config:
+#   copy agents_local_vision.yaml agents.yaml
+#
+# To switch back to cloud:
+#   copy agents_cloud.yaml agents.yaml
+# =============================================================================
+
+HOST_AGENT:
+  VISUAL_MODE: true
+  REASONING_MODEL: false
+  API_TYPE: openai
+  API_BASE: "http://127.0.0.1:4000"
+  API_KEY: "sk-local"
+  API_MODEL: ufo-host-model
+  PROMPT: ufo/prompts/share/base/host_agent.yaml
+  EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/host_agent_example.yaml
+APP_AGENT:
+  VISUAL_MODE: true
+  REASONING_MODEL: false
+  API_TYPE: openai
+  API_BASE: "http://127.0.0.1:4000"
+  API_KEY: "sk-local"
+  API_MODEL: ufo-app-model
+  PROMPT: ufo/prompts/share/base/app_agent.yaml
+  EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/app_agent_example.yaml
+  EXAMPLE_PROMPT_AS: ufo/prompts/examples/{mode}/app_agent_example_as.yaml
+BACKUP_AGENT:
+  VISUAL_MODE: true
+  API_TYPE: openai
+  API_BASE: "http://127.0.0.1:4000"
+  API_KEY: "sk-local"
+  API_MODEL: ufo-host-model
+EVALUATION_AGENT:
+  VISUAL_MODE: false
+  REASONING_MODEL: false
+  API_TYPE: openai
+  API_BASE: "http://127.0.0.1:4000"
+  API_KEY: "sk-local"
+  API_MODEL: ufo-app-model
+OMNIPARSER:
+  ENDPOINT: ''
+  BOX_THRESHOLD: 0.02
+  IOU_THRESHOLD: 0.1
+  USE_PADDLEOCR: true
+  IMGSZ: 1024
+MAX_TOKENS: 2000
+MAX_RETRY: 3
+TEMPERATURE: 0.0
+TOP_P: 0.0
+TIMEOUT: 120
+APP_API_PROMPT_ADDRESS:
+  WINWORD.EXE: ufo/prompts/apps/word/api.yaml
+  EXCEL.EXE: ufo/prompts/apps/excel/api.yaml
+  msedge.exe: ufo/prompts/apps/web/api.yaml
+  chrome.exe: ufo/prompts/apps/web/api.yaml

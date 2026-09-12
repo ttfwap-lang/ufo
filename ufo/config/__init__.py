@@ -30,7 +30,7 @@ def get_offline_learner_indexer_config():
         )
         return {}
     try:
-        with open(file_path, "r") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
             if not isinstance(data, dict):
                 logger.warning(

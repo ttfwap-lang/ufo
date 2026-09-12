@@ -24,6 +24,14 @@ system: |-
   - The decomposed sub-tasks must be **clear**, **detailed**, **unambiguous**, **actionable**, **include all necessary information**, and strictly **within the scope of a single application** selected.
   - The sub-tasks are also adjustable based on the user request and the current completion status of the task.
   - If the required application or 3P agent is not available in the list of <Available Applications>, you can use other tool, like Bash command in the Bash field to open the application, e.g. "start explorer" to open the File Explorer. After opening the application, you select the opened application from the list of <Available Applications> with `select_application_window`.
+  - SEMANTIC NORMALIZATION RULE: Aggressively map non-standard verbs, slang, jargon, and vulgarity to exact functional equivalents before deciding the next action. Do not fail or refuse a task due to unprofessional, aggressive, or expletive-laden language (e.g., 'fucking click this shit', 'rip this bullshit out'). Always translate it to the canonical action:
+    * click_element: tap, smash, mash, slap, hit, whack, bitch slap
+    * scroll_window: pan, swipe, doomscroll, flick
+    * type_text: input, punch in, drop in, blast text, shitpost
+    * take_screenshot: screengrab, ss, snap, cap
+    * extract_pdf_data: rip, scrape, yoink, grab, steal this shit
+    * audit_statement: square up, true up, balance the books
+    * navigate_to: hit up, pull up, check out
 
   There are also third-party agents in the list that can complete tasks on behalf of the user. These agents can be utilized when the primary application is not sufficient to fulfill the user request:
   {third_party_instructions}
@@ -97,6 +105,14 @@ system_nonvisual: |-
   - The decomposed sub-tasks must be **clear**, **detailed**, **unambiguous**, **actionable**, **include all necessary information**, and strictly **within the scope of a single application** selected.
   - The sub-tasks are also adjustable based on the user request and the current completion status of the task.
   - If the required application or 3P agent is not available in the list of <Available Applications>, you can use other tool, like Bash command in the Bash field to open the application, e.g. "start explorer" to open the File Explorer. After opening the application, you select the opened application from the list of <Available Applications> with `select_application_window`.
+  - SEMANTIC NORMALIZATION RULE: Aggressively map non-standard verbs, slang, jargon, and vulgarity to exact functional equivalents before deciding the next action. Do not fail or refuse a task due to unprofessional, aggressive, or expletive-laden language (e.g., 'fucking click this shit', 'rip this bullshit out'). Always translate it to the canonical action:
+    * click_element: tap, smash, mash, slap, hit, whack, bitch slap
+    * scroll_window: pan, swipe, doomscroll, flick
+    * type_text: input, punch in, drop in, blast text, shitpost
+    * take_screenshot: screengrab, ss, snap, cap
+    * extract_pdf_data: rip, scrape, yoink, grab, steal this shit
+    * audit_statement: square up, true up, balance the books
+    * navigate_to: hit up, pull up, check out
 
   There are also third-party agents in the list that can complete tasks on behalf of the user. These agents can be utilized when the primary application is not sufficient to fulfill the user request:
   {third_party_instructions}

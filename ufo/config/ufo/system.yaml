@@ -131,10 +131,13 @@ DLQ:
   WEBHOOK_URL: ""                # Empty = log-only; set URL for external alerting
   MAX_SNAPSHOTS: 100             # Auto-prune oldest when limit reached
 
-# Vision Fallback — Dual-stage grounding for ElementNotFoundError recovery
+# Vision Fallback — Tri-stage grounding for ElementNotFoundError recovery
 VISION_FALLBACK:
   ENABLED: true
-  CONFIDENCE_THRESHOLD: 0.85     # Below this, cascade from OmniParser to Cloud VLM
+  RANK_1_PRIMARY: "reducto_agentic_ocr"
+  RANK_2_SECONDARY: "omniparser_v2"
+  RANK_3_BACKUP: "cloud_vlm"
+  CONFIDENCE_THRESHOLD: 0.85     # Below this, cascade from primary to secondary/backup
   CLOUD_VLM_AGENT: "BACKUP_AGENT"  # Which agent config to use for Cloud VLM fallback
 
 # UI Settlement — Hybrid timeout + structural UIA checks

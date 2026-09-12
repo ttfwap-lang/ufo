@@ -1,32 +1,20 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 import os
 from typing import Tuple
-
 import yaml
-from langchain.docstore.document import Document
+from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
-
 from ufo.experience.experience_parser import ExperienceLogLoader
 from ufo.llm import AgentType
 from ufo.llm.llm_call import get_completion
 from ufo.prompter.experience_prompter import ExperiencePrompter
 from ufo.utils import get_hugginface_embedding, json_parser
 
-
 class ExperienceSummarizer:
     """
     The ExperienceSummarizer class is the summarizer for the experience learning.
     """
 
-    def __init__(
-        self,
-        is_visual: bool,
-        prompt_template: str,
-        example_prompt_template: str,
-        api_prompt_template: str,
-    ):
+    def __init__(self, is_visual: bool, prompt_template: str, example_prompt_template: str, api_prompt_template: str):
         """
         Initialize the ApplicationAgentPrompter.
         :param is_visual: Whether the request is for visual model.
@@ -45,20 +33,10 @@ class ExperienceSummarizer:
         :param log_partition: The log partition.
         return: The prompt.
         """
-        experience_prompter = ExperiencePrompter(
-            self.is_visual,
-            self.prompt_template,
-            self.example_prompt_template,
-            self.api_prompt_template,
-        )
+        experience_prompter = ExperiencePrompter(self.is_visual, self.prompt_template, self.example_prompt_template, self.api_prompt_template)
         experience_system_prompt = experience_prompter.system_prompt_construction()
-        experience_user_prompt = experience_prompter.user_content_construction(
-            log_partition
-        )
-        experience_prompt = experience_prompter.prompt_construction(
-            experience_system_prompt, experience_user_prompt
-        )
-
+        experience_user_prompt = experience_prompter.user_content_construction(log_partition)
+        experience_prompt = experience_prompter.prompt_construction(experience_system_prompt, experience_user_prompt)
         return experience_prompt
 
     async def get_summary(self, prompt_message: list) -> Tuple[dict, float]:
@@ -67,39 +45,20 @@ class ExperienceSummarizer:
         :param prompt_message: The prompt message.
         return: The summary and the cost.
         """
-
-        # Get the completion for the prompt message
-        llm_result = await get_completion(
-            prompt_message, AgentType.APP, use_backup_engine=True
-        )
-        response_string = llm_result.responses[0] if llm_result.responses else ""
+        llm_result = await get_completion(prompt_message, AgentType.APP, use_backup_engine=True)
+        response_string = llm_result.responses[0] if llm_result.responses else ''
         cost = llm_result.cost
         try:
             response_json = json_parser(response_string)
-        except:
+        except Exception:
             response_json = None
-
-        # Restructure the response
         summary = dict()
         if response_json:
-            summary["example"] = {}
-            for key in [
-                "Observation",
-                "Thought",
-                "ControlLabel",
-                "ControlText",
-                "Function",
-                "Args",
-                "Status",
-                "Plan",
-                "Comment",
-            ]:
-                summary["example"][key] = response_json.get(
-                    key, response_json.get(key.lower(), "")
-                )
-            summary["Tips"] = response_json.get("Tips", response_json.get("tips", ""))
-
-        return summary, cost
+            summary['example'] = {}
+            for key in ['Observation', 'Thought', 'ControlLabel', 'ControlText', 'Function', 'Args', 'Status', 'Plan', 'Comment']:
+                summary['example'][key] = response_json.get(key, response_json.get(key.lower(), ''))
+            summary['Tips'] = response_json.get('Tips', response_json.get('tips', ''))
+        return (summary, cost)
 
     async def get_summary_list(self, logs: list) -> Tuple[list, float]:
         """
@@ -112,13 +71,12 @@ class ExperienceSummarizer:
         for log_partition in logs:
             prompt = self.build_prompt(log_partition)
             summary, cost = await self.get_summary(prompt)
-            summary["request"] = log_partition.get("subtask")
-            summary["Sub-task"] = log_partition.get("subtask")
-            summary["app_list"] = [log_partition.get("application")]
+            summary['request'] = log_partition.get('subtask')
+            summary['Sub-task'] = log_partition.get('subtask')
+            summary['app_list'] = [log_partition.get('application')]
             summaries.append(summary)
             total_cost += cost
-
-        return summaries, total_cost
+        return (summaries, total_cost)
 
     @staticmethod
     def read_logs(log_path: str) -> list:
@@ -137,33 +95,20 @@ class ExperienceSummarizer:
         :param summaries: The summaries.
         :param yaml_path: The path of the YAML file.
         """
-
-        # Check if the file exists, if not, create a new one
         if not os.path.exists(yaml_path):
-            with open(yaml_path, "w"):
+            with open(yaml_path, 'w', encoding='utf-8'):
                 pass
-            print(f"Created new YAML file: {yaml_path}")
-
-        # Read existing data from the YAML file
-        with open(yaml_path, "r") as file:
+            print(f'Created new YAML file: {yaml_path}')
+        with open(yaml_path, 'r', encoding='utf-8') as file:
             existing_data = yaml.safe_load(file)
-
-        # Initialize index and existing_data if file is empty
         index = len(existing_data) if existing_data else 0
         existing_data = existing_data or {}
-
-        # Update data with new summaries
         for i, summary in enumerate(summaries):
-            example = {f"example{index + i}": summary}
+            example = {f'example{index + i}': summary}
             existing_data.update(example)
-
-        # Write updated data back to the YAML file
-        with open(yaml_path, "w") as file:
-            yaml.safe_dump(
-                existing_data, file, default_flow_style=False, sort_keys=False
-            )
-
-        print(f"Updated existing YAML file successfully: {yaml_path}")
+        with open(yaml_path, 'w', encoding='utf-8') as file:
+            yaml.safe_dump(existing_data, file, default_flow_style=False, sort_keys=False)
+        print(f'Updated existing YAML file successfully: {yaml_path}')
 
     @staticmethod
     def create_or_update_vector_db(summaries: list, db_path: str):
@@ -172,45 +117,21 @@ class ExperienceSummarizer:
         :param summaries: The summaries.
         :param db_path: The path of the vector database.
         """
-
         document_list = []
-
         for summary in summaries:
-            request = summary["request"]
+            request = summary['request']
             document_list.append(Document(page_content=request, metadata=summary))
-
         db = FAISS.from_documents(document_list, get_hugginface_embedding())
-
-        # Check if the db exists, if not, create a new one.
         if os.path.exists(db_path):
-            prev_db = FAISS.load_local(
-                db_path,
-                get_hugginface_embedding(),
-                allow_dangerous_deserialization=True,
-            )
+            prev_db = FAISS.load_local(db_path, get_hugginface_embedding(), allow_dangerous_deserialization=True)
             db.merge_from(prev_db)
-
         db.save_local(db_path)
-
-        print(f"Updated vector DB successfully: {db_path}")
-
-
-if __name__ == "__main__":
-
+        print(f'Updated vector DB successfully: {db_path}')
+if __name__ == '__main__':
     from ufo.config.config_loader import get_ufo_config
     ufo_config = get_ufo_config()
-
-    # Initialize the ExperienceSummarizer
-
-    summarizer = ExperienceSummarizer(
-        ufo_config.app_agent.visual_mode,
-        ufo_config.system.experience_prompt,
-        ufo_config.system.appagent_example_prompt,
-        ufo_config.system.api_prompt,
-    )
-
-    log_path = "logs/test_exp"
-
+    summarizer = ExperienceSummarizer(ufo_config.app_agent.visual_mode, ufo_config.system.experience_prompt, ufo_config.system.appagent_example_prompt, ufo_config.system.api_prompt)
+    log_path = 'logs/test_exp'
     experience = summarizer.read_logs(log_path)
     import asyncio
     summaries, cost = asyncio.run(summarizer.get_summary_list(experience))

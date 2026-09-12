@@ -1,9 +1,4 @@
-# Ignore everything in the root
-/*
-# Except the ufo directory and this gitignore
-!/ufo/
-!/.gitignore
-
+# UFO gitignore
 # Ignore login file
 *.bin
 
@@ -78,7 +73,17 @@ ufo/config/config_llm.yaml
 !config/*/network.yaml
 node_modules
 
+
 # Vinv local artifacts (captures, index, reports)
 .vinv/
 
 config/*/backend_state.json
+
+# Local Environment & Scratch files
+python_env/
+scratch/
+models/
+ruff_errors.json
+gen-lang-client-*.json
+test_cap.png
+*.bak

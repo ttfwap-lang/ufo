@@ -1,0 +1,32 @@
+# Web Browser (Edge/Chrome) specific API extensions for UFO
+# These extend the base api.yaml with browser-specific actions
+
+navigate_to_url:
+  summary: |-
+    "navigate_to_url" is to navigate the browser to a specific URL by typing it in the address bar.
+  class_name: |-
+    SetEditTextCommand
+  usage: |-
+    [1] API call: set_edit_text(text: str, clear_current_text: bool=True)
+    [2] Args:
+      - text: The URL to navigate to.
+      - clear_current_text: Set to True to clear address bar before typing URL.
+    [3] Example: set_edit_text(text="https://www.google.com", clear_current_text=True)
+    [4] Available control item: [Edit] - typically the address bar
+    [5] Return: None
+    [6] Notes: After setting the URL text, you should use type_keys with {ENTER} to navigate.
+
+type_keys:
+  summary: |-
+    "type_keys" is to type a string of keys to the control item using keyboard simulation. Useful for pressing Enter after typing a URL or search query.
+  class_name: |-
+    TypeKeysCommand
+  usage: |-
+    [1] API call: type_keys(keys: str, pause: float = 0.05, with_enter: bool = False)
+    [2] Args:
+      - keys: The keys to type. Use {ENTER} for Enter, {TAB} for Tab, etc.
+      - pause: Pause time between key presses (Default: 0.05)
+      - with_enter: Whether to press Enter after typing (Default: False)
+    [3] Example: type_keys(keys="{ENTER}"), type_keys(keys="search query{ENTER}")
+    [4] Available control item: All control items
+    [5] Return: None
