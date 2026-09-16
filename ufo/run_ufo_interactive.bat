@@ -34,9 +34,9 @@ echo Executing Task: "!USER_TASK!"
 echo -----------------------------------------------------------------------
 echo.
 
-cd /d "C:\ufo\ufo"
+cd /d "C:\Users\lnxzf\Desktop\projects\ufo\ufo"
 
-set "PYTHON_EXE=C:\ufo\ufo\python_env\python.exe"
+set "PYTHON_EXE=C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe"
 if not exist "%PYTHON_EXE%" (
     echo [FATAL] python_env not found at %PYTHON_EXE%
     echo UFO requires the virtual environment to run. Cannot proceed.

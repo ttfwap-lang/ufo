@@ -1,14 +1,13 @@
 import argparse
-import shutil
-import sys
-import os
 import logging
-import urllib.request
+import sys
 import urllib.error
+import urllib.request
 import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
 warnings.filterwarnings('ignore', category=PendingDeprecationWarning)
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='websockets.*')
 warnings.filterwarnings('ignore', message='.*authlib.*')
@@ -67,8 +66,9 @@ def _ensure_llm_reachable(logger: logging.Logger) -> None:
     switch the in-memory route to cloud config (agents_cloud.yaml) with zero disk writes.
     This is a process-local override that never touches persisted user intent.
     """
-    import urllib.request
-    from ufo.llm.config_helper import set_process_override, resolve_backend_profile, BackendProfileError
+
+    from ufo.llm.config_helper import BackendProfileError, resolve_backend_profile, set_process_override
+    from ufo.llm.endpoint import is_local_endpoint
     try:
         try:
             prof = resolve_backend_profile()
@@ -80,8 +80,10 @@ def _ensure_llm_reachable(logger: logging.Logger) -> None:
         host = prof.get('HOST_AGENT', {})
         api_type = host.get('API_TYPE', '')
         api_base = host.get('API_BASE', '')
-        dgx_host = os.environ.get('UFO_DGX_HOST', '')
-        if api_type != 'openai' or not api_base or ('127.0.0.1' not in api_base and 'localhost' not in api_base and dgx_host not in api_base):
+        api_key = host.get('API_KEY', '')
+        if api_type != 'openai' or not api_base:
+            return
+        if not is_local_endpoint(api_base=api_base, api_key=api_key, api_type=api_type):
             return
         health_url = f"{api_base.rstrip('/')}/health"
         try:
@@ -140,14 +142,15 @@ async def main(parsed_args: Optional[argparse.Namespace]=None):
     except Exception as wd_err:
         logger.warning(f'LLM Watchdog failed to start (non-fatal): {wd_err}')
     try:
+        from pathlib import Path
+
         from ufo.module.session_pool import SessionFactory, SessionPool
         from ufo.utils.ipc import UfoTaskResult
-        from pathlib import Path
-        
+
         sessions = SessionFactory().create_session(task=parsed_args.task, mode=parsed_args.mode, plan=parsed_args.plan, request=parsed_args.request)
         clients = SessionPool(sessions)
         await clients.run_all()
-        
+
         output_str = "Completed"
         if sessions and sessions[0].is_error():
             res = UfoTaskResult(status="error", task_id=parsed_args.task, error_type="Crash", error_message="Session ended in error state (check output.md or logs for details)", traceback="")
@@ -163,13 +166,14 @@ async def main(parsed_args: Optional[argparse.Namespace]=None):
         log_dir.mkdir(parents=True, exist_ok=True)
         with open(log_dir / "result.json", "w", encoding="utf-8") as f:
             f.write(res.model_dump_json())
-            
+
     except Exception as e:
         logger.critical(f'FATAL SYSTEM CRASH: {e}', exc_info=True)
         import traceback
-        from ufo.utils.ipc import UfoTaskResult
         from pathlib import Path
-        
+
+        from ufo.utils.ipc import UfoTaskResult
+
         res = UfoTaskResult(
             status="error",
             task_id=parsed_args.task,
@@ -195,11 +199,12 @@ if __name__ == '__main__':
         else:
             global_e = sys_exit
             logging.getLogger('UFO_Global').critical(f'Unhandled Asyncio Loop Crash: {global_e}', exc_info=True)
-            import traceback
-            import sys
-            from ufo.utils.ipc import UfoTaskResult
-            from pathlib import Path
             import argparse
+            import sys
+            import traceback
+            from pathlib import Path
+
+            from ufo.utils.ipc import UfoTaskResult
             # Fallback to sys.argv if parsed_args is not available here
             task_id = "unknown_crash"
             for i, arg in enumerate(sys.argv):
@@ -220,11 +225,12 @@ if __name__ == '__main__':
             sys.exit(sys_exit.code)
     except BaseException as global_e:
         logging.getLogger('UFO_Global').critical(f'Unhandled Asyncio Loop Crash: {global_e}', exc_info=True)
-        import traceback
-        import sys
-        from ufo.utils.ipc import UfoTaskResult
-        from pathlib import Path
         import argparse
+        import sys
+        import traceback
+        from pathlib import Path
+
+        from ufo.utils.ipc import UfoTaskResult
         # Fallback to sys.argv if parsed_args is not available here
         task_id = "unknown_crash"
         for i, arg in enumerate(sys.argv):

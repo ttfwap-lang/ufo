@@ -10,13 +10,16 @@ import json
 import logging
 import os
 import threading
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, Optional
-import urllib.request
+from typing import Any, Dict, Optional
+
 import yaml
+
+from ufo.config.config_loader import ConfigLoader, get_galaxy_config
 from ufo.llm import AgentType
-from ufo.config.config_loader import get_galaxy_config, ConfigLoader
+
 logger = logging.getLogger(__name__)
 
 class BackendProfileError(RuntimeError):

@@ -6,7 +6,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.ui_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Data collection server that captures screenshots and window information
       for GUI automation.
   HostUIExecutor:
@@ -16,7 +16,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.ui_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: UI action executor server for GUI automation.
   AppUIExecutor:
     type: local
@@ -25,7 +25,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.ui_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: App UI action executor server for GUI automation.
   CommandLineExecutor:
     type: local
@@ -34,7 +34,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.cli_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Command line execution server.
   server_5_WordCOMExecutor:
     type: local
@@ -43,7 +43,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.word_wincom_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Word COM automation server.
   excel_wincom_mcp_server:
     type: local
@@ -52,7 +52,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.excel_wincom_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Excel COM automation server.
   mcp_code_interpreter:
     type: local
@@ -61,7 +61,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.code_interpreter_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Arbitrary Python Code Execution for PDF/XLSX parsing and Graphic
       edits.
   mcp_rdp_controller:
@@ -71,7 +71,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.rdp_controller_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Control remote Virtual Machines and OS via RDP raw inputs.
   mcp_fallback_omniparser:
     type: local
@@ -80,7 +80,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.fallback_omniparser_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Universal visual parser to cure UI blindness on hostile/Canvas apps.
   ConstellationEditor:
     type: local
@@ -89,7 +89,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.constellation_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Constellation Task Editor for autonomous multi-agent graph DAG orchestration.
   PowerPointCOMExecutor:
     type: local
@@ -98,7 +98,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.ppt_wincom_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: PowerPoint COM automation server.
   PDFReaderExecutor:
     type: local
@@ -107,7 +107,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.pdf_reader_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Native PDF Reader for parsing text and elements from PDF documents.
   VirtualBoxExecutor:
     type: local
@@ -116,7 +116,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.virtualbox_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Oracle VirtualBox VM lifecycle manager via VBoxManage CLI.
   FileSystemExecutor:
     type: local
@@ -125,7 +125,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.file_system_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Local file system interaction (read, write, list, grep).
   WebResearchExecutor:
     type: local
@@ -134,7 +134,7 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.web_research_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Web search and URL scraping tools for research.
   UITarsExecutor:
     type: local
@@ -143,14 +143,14 @@ mcp_servers:
     - ignore
     - -m
     - ufo.client.mcp.local_servers.ui_tars_mcp_server
-    command: C:\ufo\ufo\python_env\python.exe
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: UI-TARS Visual Computer Use engine for Canvas, Electron, and non-UIA applications.
   bankfidelity:
     type: stdio
-    command: C:\bankfidelity\bankfidelity\target\release\dual-core-pdf-pipeline.exe
+    command: C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity\target\debug\dual-core-pdf-pipeline.exe
     args:
     - mcp
-    cwd: C:\bankfidelity\bankfidelity
+    cwd: C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity
     description: BankFidelity Native Statement Editor, Precision Balancer & Visual
       Auditor MCP Server.
 HOST_AGENT:

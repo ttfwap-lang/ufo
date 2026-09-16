@@ -1,8 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from ufo.llm.base import BaseService
 from gradio_client import Client, handle_file
+from ufo.llm.base import BaseService
 
 
 class OmniParser(BaseService):

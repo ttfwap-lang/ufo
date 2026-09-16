@@ -13,8 +13,9 @@ from datetime import datetime
 from pathlib import Path
 
 def get_default_python():
-    """Detect local python executable in c:/ufo/python_env if present, otherwise fallback to sys.executable."""
-    local_env_python = Path('C:/ufo/python_env/python.exe')
+    """Detect local python executable in python_env if present, otherwise fallback to sys.executable."""
+    ufo_dir = Path(__file__).resolve().parent.parent
+    local_env_python = ufo_dir / 'python_env' / 'python.exe'
     if local_env_python.exists():
         return str(local_env_python.resolve())
     return sys.executable
@@ -45,7 +46,7 @@ def run_benchmark(task_id, mode, request, log_level, python_exe, output_json_pat
     env['PYTHONUTF8'] = '1'
     env['PYTHONIOENCODING'] = 'utf-8'
     try:
-        proc = subprocess.run(ufo_cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', cwd='C:/ufo', env=env)
+        proc = subprocess.run(ufo_cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', cwd=str(Path(__file__).resolve().parent.parent), env=env)
         end_time = time.perf_counter()
         end_timestamp = datetime.now().isoformat()
         returncode = proc.returncode
@@ -58,7 +59,7 @@ def run_benchmark(task_id, mode, request, log_level, python_exe, output_json_pat
         stdout = ''
         stderr = f'Exception executing process: {str(e)}'
     wall_clock_seconds = round(end_time - start_time, 4)
-    log_dir = Path(f'C:/ufo/logs/{task_id}')
+    log_dir = Path(__file__).resolve().parent.parent / 'logs' / task_id
     log_files = []
     if log_dir.exists() and log_dir.is_dir():
         log_files = [str(p.name) for p in log_dir.iterdir() if p.is_file()]

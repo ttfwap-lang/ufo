@@ -98,7 +98,7 @@ def test_missing_log_dir_r1_to_r5():
     Verify that when log_path is passed but does NOT exist on disk,
     trajectory_verified evaluates to False across all stage verifiers (R1..R5).
     """
-    missing_dir = Path("C:/ufo_nonexistent_log_dir_challenge_99999")
+    missing_dir = Path(r"C:\Users\lnxzf\Desktop\projects\bankfidelity_nonexistent_log_dir_challenge_99999")
 
     # Stage R1
     r1_res = verify_r1(stage_data=missing_dir, dry_run=False)

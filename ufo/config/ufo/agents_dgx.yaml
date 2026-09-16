@@ -31,9 +31,9 @@ APP_AGENT:
   VISUAL_MODE: true
   REASONING_MODEL: false
   API_TYPE: openai
-  API_BASE: "http://${UFO_DGX_HOST}:8080/v1"
+  API_BASE: "http://${UFO_DGX_HOST}:8081/v1"
   API_KEY: "sk-local"
-  API_MODEL: "Qwen3-VL-8B"
+  API_MODEL: "Gemma-4-12B"
   PROMPT: ufo/prompts/share/base/app_agent.yaml
   EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/app_agent_example.yaml
   EXAMPLE_PROMPT_AS: ufo/prompts/examples/{mode}/app_agent_example_as.yaml
@@ -49,9 +49,9 @@ EVALUATION_AGENT:
   VISUAL_MODE: false
   REASONING_MODEL: false
   API_TYPE: openai
-  API_BASE: "http://${UFO_DGX_HOST}:8080/v1"
+  API_BASE: "http://${UFO_DGX_HOST}:8081/v1"
   API_KEY: "sk-local"
-  API_MODEL: "Qwen3-VL-8B"
+  API_MODEL: "Gemma-4-12B"
 
 OMNIPARSER:
   ENDPOINT: ''

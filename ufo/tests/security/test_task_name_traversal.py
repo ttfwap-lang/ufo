@@ -136,7 +136,7 @@ class BaseSessionLogPathConfinementTests(unittest.TestCase):
 
     def test_absolute_path_task_name_is_confined(self):
         if os.name == "nt":
-            payload = r"C:\ufo_taskname_escape_poc_abs"
+            payload = r"C:\users_taskname_escape_poc_abs"
         else:
             payload = "/tmp/ufo_taskname_escape_poc_abs"
         session = self.DummySession(

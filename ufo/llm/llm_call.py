@@ -16,12 +16,15 @@ import logging
 import threading
 import time
 from typing import Dict, Optional, Type
+
 from pydantic import BaseModel, ValidationError
+
+from ufo.dlq.dead_letter_queue import record_dlq_event
 from ufo.llm import AgentType
 from ufo.llm.base import BaseService
 from ufo.llm.config_helper import get_agent_config
 from ufo.llm.llm_result import LLMResult
-from ufo.dlq.dead_letter_queue import record_dlq_event
+
 logger = logging.getLogger(__name__)
 
 class _CircuitBreakerState:
@@ -183,7 +186,8 @@ def _is_retryable_error(error: Exception) -> bool:
         return True
     return False
 
-from tenacity import retry, retry_if_exception, wait_exponential, stop_after_attempt, before_sleep_log
+from tenacity import before_sleep_log, retry, retry_if_exception, stop_after_attempt, wait_exponential
+
 
 def _is_retryable_for_tenacity(e: Exception) -> bool:
     return _is_retryable_error(e)
@@ -344,7 +348,7 @@ async def get_completions(messages, agent: str=AgentType.APP, use_backup_engine:
 
         # Refusal & Restrictive Safety Detection Engine
         try:
-            from ufo.llm.refusal_rotator import is_refusal_response, execute_refusal_cascade
+            from ufo.llm.refusal_rotator import execute_refusal_cascade, is_refusal_response
             is_refused, ref_reason = is_refusal_response(result)
             if is_refused:
                 logger.warning(f"Refusal identified for {agent_type} on model '{api_model}': {ref_reason}. Triggering uncensored rotation cascade...")
@@ -383,7 +387,7 @@ async def get_completions(messages, agent: str=AgentType.APP, use_backup_engine:
     except Exception as e:
         # Check if exception itself is a refusal or safety policy block
         try:
-            from ufo.llm.refusal_rotator import is_refusal_exception, execute_refusal_cascade
+            from ufo.llm.refusal_rotator import execute_refusal_cascade, is_refusal_exception
             is_ref_ex, ref_ex_reason = is_refusal_exception(e)
             if is_ref_ex:
                 logger.warning(f"Safety/refusal exception encountered for {agent_type} on model '{api_model}': {ref_ex_reason}. Triggering uncensored rotation cascade...")

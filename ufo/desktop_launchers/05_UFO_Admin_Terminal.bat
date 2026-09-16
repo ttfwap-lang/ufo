@@ -8,13 +8,13 @@ color 0A
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo Requesting administrative privileges...
-    powershell -NoProfile -Command "Start-Process cmd -ArgumentList '/k cd /d C:\ufo\ufo & \"\"%~f0\"\"' -Verb RunAs"
+    powershell -NoProfile -Command "Start-Process cmd -ArgumentList '/k cd /d C:\Users\lnxzf\Desktop\projects\ufo\ufo & \"\"%~f0\"\"' -Verb RunAs"
     exit /b
 )
 
-set "BF_DIR=C:\bankfidelity\bankfidelity"
-set "UFO_ROOT=C:\ufo\ufo"
-set "PYTHON_EXE=%UFO_ROOT%\python_env\python.exe"
+set "BF_DIR=C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity"
+set "UFO_ROOT=C:\Users\lnxzf\Desktop\projects\ufo\ufo"
+set "PYTHON_EXE=C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONPATH=%UFO_ROOT%;%BF_DIR%"
 

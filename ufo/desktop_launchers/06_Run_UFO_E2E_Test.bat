@@ -7,10 +7,10 @@ chcp 65001 >nul
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo Requesting administrative privileges...
-    powershell -NoProfile -Command "Start-Process cmd -ArgumentList '/k cd /d C:\ufo\ufo & \"\"%~f0\"\"' -Verb RunAs"
+    powershell -NoProfile -Command "Start-Process cmd -ArgumentList '/k cd /d C:\Users\lnxzf\Desktop\projects\ufo\ufo & \"\"%~f0\"\"' -Verb RunAs"
     exit /b
 )
 
-cd /d C:\ufo\ufo
+cd /d C:\Users\lnxzf\Desktop\projects\ufo\ufo
 call scripts\smoke_test_e2e.bat
 pause

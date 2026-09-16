@@ -34,7 +34,7 @@ def create_code_interpreter_mcp_server(*args, **kwargs) -> FastMCP:
             fd, path = tempfile.mkstemp(suffix='.py')
             with os.fdopen(fd, 'w', encoding='utf-8') as f:
                 f.write(code)
-            python_exe = sys.executable if sys.executable and os.path.isfile(sys.executable) else 'C:\\ufo\\ufo\\python_env\\python.exe'
+            python_exe = sys.executable if sys.executable and os.path.isfile(sys.executable) else os.environ.get('PYTHON_EXE', sys.executable)
             result = subprocess.run([python_exe, path], capture_output=True, text=True, timeout=60)
             try:
                 os.remove(path)

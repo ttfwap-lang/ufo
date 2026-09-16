@@ -4,9 +4,9 @@ title BANKFIDELITY UFO // SUPER E2E TEST GAUNTLET
 color 0E
 chcp 65001 >nul
 
-set "UFO_ROOT=C:\ufo\ufo"
-set "BF_DIR=C:\bankfidelity\bankfidelity"
-set "PYTHON_EXE=%UFO_ROOT%\python_env\python.exe"
+set "UFO_ROOT=C:\Users\lnxzf\Desktop\projects\ufo\ufo"
+set "BF_DIR=C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity"
+set "PYTHON_EXE=C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONPATH=%UFO_ROOT%;%BF_DIR%"
 
