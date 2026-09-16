@@ -1,0 +1,8 @@
+tools:
+    shell:
+        allow:
+            - cd *
+            - git log *
+            - echo *
+            - git status *
+            - head *
