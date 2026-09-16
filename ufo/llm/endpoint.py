@@ -3,8 +3,16 @@
 
 """
 Helper for determining whether an LLM endpoint or agent configuration routes to a local model or cloud provider.
+
+Supports:
+- Localhost (127.0.0.1, localhost, 0.0.0.0)
+- Local inference ports (:4000 LiteLLM, :8080 llama-server, :8081, etc.)
+- DGX Spark on the network (configured via UFO_DGX_HOST env var)
+- Synthetic API keys (sk-local)
+- Dedicated local adapter types (ollama, llava, cogagent)
 """
 
+import os
 from typing import Any, Dict, Optional
 
 
@@ -15,6 +23,9 @@ def is_local_endpoint(
 ) -> bool:
     """
     Check if given API parameters indicate a local model proxy (LiteLLM, llama-server, Ollama, etc.).
+
+    Recognizes localhost, local ports, DGX Spark on the network (via UFO_DGX_HOST env var),
+    synthetic API keys, and dedicated local adapter types.
     """
     # 1. Local synthetic API keys
     if api_key == "sk-local":
@@ -28,8 +39,13 @@ def is_local_endpoint(
             for local_id in ("127.0.0.1", "localhost", "0.0.0.0", ":4000", ":8080", ":8081", ":11434", ":8000", ":1234")
         ):
             return True
+        # 3. DGX Spark on the local network (via UFO_DGX_HOST env var)
+        dgx_host = os.getenv("UFO_DGX_HOST", "").strip().lower()
+        if dgx_host and api_base_str:
+            if dgx_host in api_base_str or f":{dgx_host}" in api_base_str:
+                return True
 
-    # 3. Dedicated purely local offline adapters (Ollama, local Llava/CogAgent) without external URL
+    # 4. Dedicated purely local offline adapters (Ollama, local Llava/CogAgent) without external URL
     if api_type and api_type.lower() in ("ollama", "llava", "cogagent"):
         if not api_base:
             return True

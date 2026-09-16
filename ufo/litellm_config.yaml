@@ -25,6 +25,14 @@ model_list:
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0
+  - model_name: "ufo-dgx-model"
+    litellm_params:
+      model: "openai/qwen3-vl"
+      api_base: "http://192.168.1.10:8080/v1"
+      api_key: "sk-local"
+      rpm: 10000
+      max_tokens: 2000
+      temperature: 0.0
   - model_name: "claude-3-7-sonnet"
     litellm_params:
       model: "anthropic/claude-3-7-sonnet-latest"
@@ -63,4 +71,5 @@ router_settings:
     - {"ufo-host-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
     - {"ufo-app-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
     - {"ufo-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+    - {"ufo-dgx-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
 

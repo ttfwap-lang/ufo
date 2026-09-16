@@ -1,6 +1,7 @@
 import argparse
 import shutil
 import sys
+import os
 import logging
 import urllib.request
 import urllib.error
@@ -79,7 +80,8 @@ def _ensure_llm_reachable(logger: logging.Logger) -> None:
         host = prof.get('HOST_AGENT', {})
         api_type = host.get('API_TYPE', '')
         api_base = host.get('API_BASE', '')
-        if api_type != 'openai' or not api_base or ('127.0.0.1' not in api_base and 'localhost' not in api_base):
+        dgx_host = os.environ.get('UFO_DGX_HOST', '')
+        if api_type != 'openai' or not api_base or ('127.0.0.1' not in api_base and 'localhost' not in api_base and dgx_host not in api_base):
             return
         health_url = f"{api_base.rstrip('/')}/health"
         try:

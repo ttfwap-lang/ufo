@@ -46,7 +46,18 @@ def _probe_endpoint(url: str, timeout: float=2.0) -> bool:
     except Exception:
         return False
 
+def _get_dgx_host() -> Optional[str]:
+    """Get the DGX host IP from environment variable."""
+    return os.getenv('UFO_DGX_HOST')
+
 def _probe_local_auto() -> bool:
+    """Probe for any available local LLM endpoint (localhost or DGX)."""
+    # Check DGX Spark on the network first
+    dgx_host = _get_dgx_host()
+    if dgx_host:
+        if _probe_endpoint(f'http://{dgx_host}:8080/health'):
+            return True
+    # Check localhost LiteLLM and llama-server
     if _probe_endpoint('http://127.0.0.1:4000/health'):
         return True
     if _probe_endpoint('http://127.0.0.1:8080/health') or _probe_endpoint('http://127.0.0.1:8081/health'):
@@ -67,7 +78,7 @@ def get_backend_selection() -> dict:
         with open(state_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             if isinstance(data, dict) and 'selected' in data:
-                if data['selected'] not in ['local', 'cloud', 'auto', 'profile', 'disk']:
+                if data['selected'] not in ['local', 'cloud', 'auto', 'profile', 'disk', 'dgx']:
                     return {'selected': 'disk', 'source': 'default'}
                 if data['selected'] == 'profile' and (not isinstance(data.get('profile_path'), str)):
                     logger.warning("Corrupt state: 'profile' selected but 'profile_path' missing or invalid. Degrading to 'disk'.")
@@ -81,7 +92,7 @@ def get_backend_selection() -> dict:
 def set_backend_selection(selection: str, profile_path: Optional[str]=None, updated_by: str='api') -> dict:
     loader = ConfigLoader.get_instance()
     state_path = loader.base_path / 'ufo' / 'backend_state.json'
-    if selection not in ['local', 'cloud', 'auto', 'profile', 'disk']:
+    if selection not in ['local', 'cloud', 'auto', 'profile', 'disk', 'dgx']:
         raise ValueError(f'Unknown selection: {selection}')
     if selection == 'profile' and (not profile_path):
         raise ValueError('Profile selection requires profile_path')
@@ -142,6 +153,8 @@ def resolve_backend_profile(selection: Optional[str]=None, profile_path: Optiona
         target_path = ufo_dir / 'agents_cloud.yaml'
     elif actual_selection == 'local':
         target_path = ufo_dir / 'agents_local_vision.yaml'
+    elif actual_selection == 'dgx':
+        target_path = ufo_dir / 'agents_dgx.yaml'
     elif actual_selection == 'profile' and profile_path:
         target_path = Path(profile_path)
     elif actual_selection == 'disk':
