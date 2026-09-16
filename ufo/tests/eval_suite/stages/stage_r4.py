@@ -6,7 +6,14 @@ Stage R4 Handler: Complex BankFidelity Task.
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
-from tests.eval_suite.verifiers import get_desktop_dir, resolve_log_path, verify_bankfidelity_process, verify_session_logs
+
+from tests.eval_suite.verifiers import (
+    get_desktop_dir,
+    resolve_log_path,
+    verify_bankfidelity_process,
+    verify_session_logs,
+)
+
 STAGE_ID = 'R4'
 STAGE_NAME = 'Complex BankFidelity Task'
 TARGET_APP = 'BankFidelity'
@@ -15,6 +22,7 @@ DEFAULT_REPORT_FILENAME = 'bankfidelity_report.csv'
 logger = logging.getLogger('EvalStage.R4')
 import subprocess
 import time
+
 
 def pre_cleanup(report_filename: str=DEFAULT_REPORT_FILENAME) -> None:
     """

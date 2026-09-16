@@ -2,10 +2,9 @@
 # Licensed under the MIT License.
 
 
-import zipfile
-
 import json
 import os
+import zipfile
 
 
 def unzip_and_read_file(file_path: str) -> str:
@@ -49,13 +48,13 @@ def save_to_json(data: dict, output_file_path: str):
 
     # Extract the directory path from the file path
     directory = os.path.dirname(output_file_path)
-    
+
     create_folder(directory)
 
     with open(output_file_path, 'w') as file:
         json.dump(data, file, indent=4)
-        
-        
+
+
 def create_folder(folder_path: str):
     """
     Create a folder if it doesn't exist.
@@ -64,7 +63,7 @@ def create_folder(folder_path: str):
     """
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
-        
+
 def json_parser(json_string:str):
     """
     Parse json string to json object.

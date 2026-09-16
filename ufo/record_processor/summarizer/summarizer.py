@@ -2,27 +2,16 @@
 # Licensed under the MIT License.
 
 import json
-
 import os
-
 from typing import Tuple
 
-
 import yaml
-
-from langchain_core.documents import Document
-
 from langchain_community.vectorstores import FAISS
-
-
-from ufo.record_processor.parser.demonstration_record import DemonstrationRecord
-
-from ufo.record_processor.utils import json_parser
-
+from langchain_core.documents import Document
 from ufo.llm.llm_call import get_completions
-
 from ufo.prompter.demonstration_prompter import DemonstrationPrompter
-
+from ufo.record_processor.parser.demonstration_record import DemonstrationRecord
+from ufo.record_processor.utils import json_parser
 from ufo.utils import get_hugginface_embedding
 
 

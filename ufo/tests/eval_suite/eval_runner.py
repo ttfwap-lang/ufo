@@ -14,22 +14,23 @@ import asyncio
 import inspect
 import json
 import logging
-import os
 import sys
 import threading
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from tests.eval_suite.stages import stage_r1, stage_r2, stage_r3, stage_r4, stage_r5
-from tests.eval_suite.stages.stage_r1 import DEFAULT_FILENAME as R1_DEFAULT_FILENAME, DEFAULT_MESSAGE as R1_DEFAULT_MESSAGE, pre_cleanup as pre_cleanup_r1, verify_r1
+from tests.eval_suite.stages.stage_r1 import verify_r1
 from tests.eval_suite.stages.stage_r2 import verify_r2
 from tests.eval_suite.stages.stage_r3 import verify_r3
 from tests.eval_suite.stages.stage_r4 import verify_r4
 from tests.eval_suite.stages.stage_r5 import verify_r5
+
 EVAL_STAGES: Dict[str, Dict[str, Any]] = {'R1': stage_r1.get_stage_config(), 'R2': stage_r2.get_stage_config(), 'R3': stage_r3.get_stage_config(), 'R4': stage_r4.get_stage_config(), 'R5': stage_r5.get_stage_config()}
 
 def _write_json_file(filepath: Path, data: Dict[str, Any]) -> None:

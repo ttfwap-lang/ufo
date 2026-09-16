@@ -6,7 +6,9 @@ Stage R2 Handler: Chrome Navigation.
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
+
 from tests.eval_suite.verifiers import resolve_log_path, verify_process_running, verify_session_logs
+
 STAGE_ID = 'R2'
 STAGE_NAME = 'Chrome Navigation'
 TARGET_APP = 'Google Chrome'
@@ -45,6 +47,7 @@ def verify_r2(task_log_dir: Optional[Union[str, Path]]=None, initial_url: str=DE
     return {'verified': overall_verified, 'stage_id': STAGE_ID, 'dry_run': False, 'chrome_process_detected': process_ver['verified'], 'initial_url': initial_url, 'second_url': second_url, 'trajectory_verified': trajectory_ver.get('verified', False), 'details': f"Chrome process detected: {process_ver['verified']}, Trajectory verified: {trajectory_ver.get('verified', False)}"}
 import subprocess
 import time
+
 
 def pre_cleanup() -> None:
     """

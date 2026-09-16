@@ -6,7 +6,9 @@ Stage R5 Handler: Multi-Agent Task.
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
+
 from tests.eval_suite.verifiers import get_desktop_dir, resolve_log_path, verify_file_on_desktop, verify_session_logs
+
 STAGE_ID = 'R5'
 STAGE_NAME = 'Multi-Agent Task'
 TARGET_APP = 'Multi-App (BankFidelity + Notepad)'
@@ -15,7 +17,9 @@ DEFAULT_SUMMARY_FILENAME = 'bankfidelity_summary.txt'
 logger = logging.getLogger('EvalStage.R5')
 import subprocess
 import time
+
 from tests.eval_suite.verifiers import verify_bankfidelity_process, verify_process_running
+
 
 def pre_cleanup(summary_filename: str=DEFAULT_SUMMARY_FILENAME) -> None:
     """

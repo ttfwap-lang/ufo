@@ -6,7 +6,9 @@ Stage R1 Handler: The Notepad Test.
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
+
 from tests.eval_suite.verifiers import get_desktop_dir, resolve_log_path, verify_file_on_desktop, verify_session_logs
+
 STAGE_ID = 'R1'
 STAGE_NAME = 'Notepad Test'
 TARGET_APP = 'Notepad'
@@ -16,7 +18,9 @@ DEFAULT_REQUEST = f"Open Notepad, type '{DEFAULT_MESSAGE}', and save the file to
 logger = logging.getLogger('EvalStage.R1')
 import subprocess
 import time
+
 from tests.eval_suite.verifiers import verify_process_running
+
 
 def pre_cleanup(filename: str=DEFAULT_FILENAME) -> None:
     """

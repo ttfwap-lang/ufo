@@ -8,6 +8,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type, Union
 
+from rich.console import Console
+
 from ufo import utils
 from ufo.agents.memory.memory import Memory, MemoryItem
 from ufo.agents.processors.core.processor_framework import ProcessorTemplate
@@ -17,7 +19,6 @@ from ufo.llm import llm_call
 from ufo.llm.llm_result import LLMResult
 from ufo.module.context import Context
 from ufo.module.interactor import question_asker
-from rich.console import Console
 
 # Lazy import the retriever factory to aviod long loading time.
 retriever = utils.LazyImport("..rag.retriever")
@@ -151,7 +152,7 @@ class BasicAgent(ABC):
         pass
 
     @abstractmethod
-    async def context_provision(self) -> None:
+    async def context_provision(self, *args: Any, **kwargs: Any) -> None:
         """
         Provide the context for the agent.
         """
