@@ -35,6 +35,7 @@ tasks/*
 scripts/*
 backup/*
 node_modules/*
+.poolside/
 
 # Don't ignore the example files
 !vectordb/docs/example/
