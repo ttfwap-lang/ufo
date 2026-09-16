@@ -4,7 +4,7 @@ title BANKFIDELITY // CROSS-BANK TRANSFER MATRIX STRESS TEST
 color 0B
 chcp 65001 >nul
 
-set "BF_DIR=C:\bankfidelity\bankfidelity"
+set "BF_DIR=C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity"
 
 cls
 echo ==============================================================================

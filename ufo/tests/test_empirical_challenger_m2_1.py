@@ -24,7 +24,7 @@ from ufo.config.config_loader import get_ufo_config
 from ufo.config.config_schemas import UFOConfig
 
 
-# Real prompt paths relative to working directory C:\ufo\ufo
+# Real prompt paths relative to working directory C:\Users\lnxzf\Desktop\projects\ufo\ufo
 VALID_MAIN_PROMPT = "prompts/share/base/app_agent.yaml"
 VALID_EXAMPLE_PROMPT = "prompts/examples/{mode}/app_agent_example.yaml"
 VALID_HOST_MAIN_PROMPT = "prompts/share/base/host_agent.yaml"

@@ -4,8 +4,8 @@ title UFO End-to-End Tests
 color 0E
 chcp 65001 >nul
 
-set "UFO_ROOT=C:\ufo\ufo"
-set "PYTHON_EXE=%UFO_ROOT%\python_env\python.exe"
+set "UFO_ROOT=C:\Users\lnxzf\Desktop\projects\ufo\ufo"
+set "PYTHON_EXE=C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe"
 set "PYTHONPATH=%UFO_ROOT%"
 cd /d "%UFO_ROOT%"
 

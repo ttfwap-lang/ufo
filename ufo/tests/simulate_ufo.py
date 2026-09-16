@@ -3,7 +3,7 @@ import os
 import asyncio
 
 # Ensure UFO is in path
-ufo_path = r'C:\ufo'
+ufo_path = r'C:\Users\lnxzf\Desktop\projects\ufo'
 if ufo_path not in sys.path:
     sys.path.insert(0, ufo_path)
 

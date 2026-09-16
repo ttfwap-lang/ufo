@@ -57,6 +57,8 @@ set "LLAMA_SERVER=%UFO_ROOT_PARENT%\bin\llama-server.exe"
 set "MODELS_DIR=%UFO_ROOT_PARENT%\models"
 set "UFO_DIR=%~dp0.."
 set "PYTHON_EXE=%UFO_DIR%\python_env\python.exe"
+set "PYTHON_SYS_EXE=C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe"
+if not exist "%PYTHON_EXE%" set "PYTHON_EXE=%PYTHON_SYS_EXE%"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONUTF8=1"
 
@@ -87,7 +89,7 @@ if not exist "%LLAMA_SERVER%" (
     echo  Download the latest release from:
     echo    https://github.com/ggerganov/llama.cpp/releases
     echo.
-    echo  Extract llama-server.exe to C:\ufo\bin\
+    echo  Extract llama-server.exe to C:\Users\lnxzf\Desktop\projects\ufo\bin\
     echo  Make sure to get the Vulkan build for AMD GPU acceleration.
     goto :fatal_error
 )
@@ -387,7 +389,7 @@ echo  ^|                                                             ^|
 echo  ^|  VISUAL_MODE: True -- both agents can SEE screenshots!      ^|
 echo  ^|                                                             ^|
 echo  ^|  To run UFO:                                                ^|
-echo  ^|    python_env\python.exe -m ufo --task "open notepad and type hello" ^|
+echo  ^|    %PYTHON_EXE% -m ufo --task "open notepad and type hello" ^|
 echo  ^|                                                             ^|
 echo  ^|  To revert to cloud (Gemini):                               ^|
 echo  ^|    python scripts\switch_backend.py cloud                   ^|

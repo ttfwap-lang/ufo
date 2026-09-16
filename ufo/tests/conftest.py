@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-# Fix sys.path for test discovery so c:\ufo is at sys.path[0]
+# Fix sys.path for test discovery so the UFO root is at sys.path[0]
 # Prevents tests/config and tests/aip from shadowing root packages config and aip
 root_dir = str(Path(__file__).resolve().parent.parent.parent)
 if sys.path[0] != root_dir:

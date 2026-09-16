@@ -4,8 +4,8 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from ufo.llm.openai import BaseOpenAIService
 from ufo.llm.llm_result import LLMResult
+from ufo.llm.openai import BaseOpenAIService
 
 logger = logging.getLogger(__name__)
 

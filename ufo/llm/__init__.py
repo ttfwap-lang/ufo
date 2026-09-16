@@ -3,7 +3,6 @@
 
 from enum import Enum
 
-
 from ufo.llm.llm_result import LLMResult
 
 

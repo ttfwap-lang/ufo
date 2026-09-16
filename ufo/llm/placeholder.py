@@ -1,8 +1,6 @@
 from typing import Any, Dict, List, Optional
 
 from ufo.llm.base import BaseService
-
-
 from ufo.llm.llm_result import LLMResult
 
 

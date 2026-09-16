@@ -38,9 +38,24 @@ class LLMServerConfig:
         self.restart_count: int = 0
         self.max_restarts: int = 3
         self.last_healthy: float = 0.0
-DEFAULT_SERVERS = [LLMServerConfig(name='Qwen3-VL-8B [HOST]', port=8080, model_path='C:\\ufo\\models\\qwen3-vl-8b-instruct-q4_k_m.gguf', mmproj_path='C:\\ufo\\models\\qwen3-vl-8b-instruct-mmproj-f16.gguf'), LLMServerConfig(name='Gemma-4-12B [APP]', port=8081, model_path='C:\\ufo\\models\\gemma-4-12b-it-q4_0.gguf', mmproj_path='C:\\ufo\\models\\gemma-4-12b-it-mmproj-q8_0.gguf')]
-LLAMA_SERVER_PATH = 'C:\\ufo\\bin\\llama-server.exe'
-UFO_DIR = Path('C:\\ufo\\ufo')
+_UFO_ROOT = Path(__file__).resolve().parent.parent.parent
+_MODELS_DIR = _UFO_ROOT / "models"
+_LLAMA_SERVER = _UFO_ROOT / "bin" / "llama-server.exe"
+
+DEFAULT_SERVERS = [
+    LLMServerConfig(
+        name='Qwen3-VL-8B [HOST]', port=8080,
+        model_path=str(_MODELS_DIR / 'qwen3-vl-8b-instruct-q4_k_m.gguf'),
+        mmproj_path=str(_MODELS_DIR / 'qwen3-vl-8b-instruct-mmproj-f16.gguf'),
+    ),
+    LLMServerConfig(
+        name='Gemma-4-12B [APP]', port=8081,
+        model_path=str(_MODELS_DIR / 'gemma-4-12b-it-q4_0.gguf'),
+        mmproj_path=str(_MODELS_DIR / 'gemma-4-12b-it-mmproj-q8_0.gguf'),
+    ),
+]
+LLAMA_SERVER_PATH = str(_LLAMA_SERVER)
+UFO_DIR = _UFO_ROOT
 
 class LLMWatchdog:
     """

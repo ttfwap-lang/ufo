@@ -3,9 +3,9 @@ title BANKFIDELITY // OMNIPOTENT 1000% STRESS TEST GAUNTLET
 chcp 65001 >nul
 color 0A
 
-set "BF_DIR=C:\bankfidelity\bankfidelity"
-set "UFO_ROOT=C:\ufo\ufo"
-set "PYTHON_EXE=%UFO_ROOT%\python_env\python.exe"
+set "BF_DIR=C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity"
+set "UFO_ROOT=C:\Users\lnxzf\Desktop\projects\ufo\ufo"
+set "PYTHON_EXE=C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONPATH=%UFO_ROOT%;%BF_DIR%"
 

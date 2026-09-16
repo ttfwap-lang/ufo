@@ -4,9 +4,9 @@
 import abc
 from importlib import import_module
 from typing import Dict
-from ufo.llm.config_helper import get_agent_config
-from ufo.config.config_loader import get_ufo_config, get_galaxy_config
 
+from ufo.config.config_loader import get_galaxy_config, get_ufo_config
+from ufo.llm.config_helper import get_agent_config
 from ufo.llm.llm_result import LLMResult
 
 

@@ -1,18 +1,27 @@
-import copy
 import hashlib
 import importlib.util
 import json
 import os
 import subprocess
 import sys
-import tempfile
-import time
 from pathlib import Path
+
 import pytest
 import yaml
-from ufo.llm.config_helper import BackendProfileError, get_agent_config, get_backend_selection, reset_backend_caches, resolve_backend_profile, set_active_agent_route, set_backend_selection, set_process_override
-from ufo.llm import AgentType
+
 from ufo.config.config_loader import ConfigLoader, clear_config_cache
+from ufo.llm import AgentType
+from ufo.llm.config_helper import (
+    BackendProfileError,
+    get_agent_config,
+    get_backend_selection,
+    reset_backend_caches,
+    resolve_backend_profile,
+    set_active_agent_route,
+    set_backend_selection,
+    set_process_override,
+)
+
 
 def create_minimal_profile(model_name: str) -> dict:
     return {'HOST_AGENT': {'API_TYPE': 'openai', 'API_MODEL': model_name}, 'APP_AGENT': {'API_TYPE': 'openai', 'API_MODEL': model_name}}
@@ -44,6 +53,12 @@ def temp_config_root(tmp_path):
     write_yaml(ufo_dir / 'agents.yaml', create_minimal_profile('disk_model'))
     write_yaml(ufo_dir / 'agents_cloud.yaml', create_minimal_profile('cloud_model'))
     write_yaml(ufo_dir / 'agents_local_vision.yaml', create_minimal_profile('local_model'))
+    write_yaml(ufo_dir / 'agents_dgx.yaml', {
+        'HOST_AGENT': {'API_TYPE': 'openai', 'API_MODEL': 'Qwen3-VL-8B', 'API_BASE': 'http://${UFO_DGX_HOST}:8080/v1', 'API_KEY': 'sk-local'},
+        'APP_AGENT': {'API_TYPE': 'openai', 'API_MODEL': 'Gemma-4-12B', 'API_BASE': 'http://${UFO_DGX_HOST}:8081/v1', 'API_KEY': 'sk-local'},
+        'BACKUP_AGENT': {'API_TYPE': 'openai', 'API_MODEL': 'Qwen3-VL-8B', 'API_BASE': 'http://${UFO_DGX_HOST}:8080/v1', 'API_KEY': 'sk-local'},
+        'EVALUATION_AGENT': {'API_TYPE': 'openai', 'API_MODEL': 'Gemma-4-12B', 'API_BASE': 'http://${UFO_DGX_HOST}:8081/v1', 'API_KEY': 'sk-local'},
+    })
     write_yaml(ufo_dir / 'system.yaml', {'UFO_ROOT': str(tmp_path), 'LOG_LEVEL': 'INFO'})
     ConfigLoader.reset()
     clear_config_cache()
@@ -155,10 +170,10 @@ def test_env_var_expansion_in_profile(temp_config_root, monkeypatch):
 def test_cross_process_persistence(temp_config_root):
     set_backend_selection('local')
     script_path = temp_config_root.parent / 'check_model.py'
-    script_content = f'\nimport sys\nfrom pathlib import Path\nsys.path.insert(0, r"C:\\ufo")\n\nfrom ufo.config.config_loader import ConfigLoader, clear_config_cache\nfrom ufo.llm.config_helper import get_agent_config\nfrom ufo.llm import AgentType\n\nConfigLoader.reset()\nclear_config_cache()\nConfigLoader.get_instance(r"{str(temp_config_root)}")\n\ncfg = get_agent_config(AgentType.HOST)\nprint(cfg.get("API_MODEL"))\n'
+    script_content = f'\nimport sys\nfrom pathlib import Path\nsys.path.insert(0, r"{Path(__file__).resolve().parent.parent.parent}")\n\nfrom ufo.config.config_loader import ConfigLoader, clear_config_cache\nfrom ufo.llm.config_helper import get_agent_config\nfrom ufo.llm import AgentType\n\nConfigLoader.reset()\nclear_config_cache()\nConfigLoader.get_instance(r"{temp_config_root}")\n\ncfg = get_agent_config(AgentType.HOST)\nprint(cfg.get("API_MODEL"))\n'
     script_path.write_text(script_content)
     env = os.environ.copy()
-    env['PYTHONPATH'] = 'C:\\ufo'
+    env['PYTHONPATH'] = str(Path(__file__).resolve().parent.parent.parent)
     res = subprocess.run([sys.executable, str(script_path)], capture_output=True, text=True, env=env)
     assert 'local_model' in res.stdout
     set_backend_selection('cloud')
@@ -210,13 +225,13 @@ def test_launcher_commands(temp_config_root, monkeypatch):
                 pass
         return MockResp()
     monkeypatch.setattr(urllib.request, 'urlopen', stub_urlopen)
-    sb_path = Path('C:\\ufo\\ufo\\scripts\\switch_backend.py')
+    sb_path = Path(__file__).resolve().parent / 'scripts' / 'switch_backend.py'
     spec = importlib.util.spec_from_file_location('switch_backend', str(sb_path))
     sb = importlib.util.module_from_spec(spec)
     sys.modules['switch_backend'] = sb
     spec.loader.exec_module(sb)
     monkeypatch.setattr(sb, 'probe_local_stack', stub_probe_stack)
-    pcs_path = Path('C:\\ufo\\ufo\\scripts\\prepare_cloud_smoke.py')
+    pcs_path = Path(__file__).resolve().parent.parent / 'scripts' / 'prepare_cloud_smoke.py'
     spec_pcs = importlib.util.spec_from_file_location('prepare_cloud_smoke', str(pcs_path))
     pcs = importlib.util.module_from_spec(spec_pcs)
     sys.modules['prepare_cloud_smoke'] = pcs
@@ -251,7 +266,7 @@ def test_launcher_commands(temp_config_root, monkeypatch):
             assert hash_before[k] == hash_after[k], f'Launcher modified pre-existing file: {k}'
 
 def test_real_directory_guard(temp_config_root, monkeypatch):
-    real_config_dir = Path('C:\\ufo\\ufo\\config\\ufo')
+    real_config_dir = Path(__file__).resolve().parent.parent / 'config' / 'ufo'
     hash_before = hash_directory(real_config_dir)
     files_before = set(hash_before.keys())
     test_launcher_commands(temp_config_root, monkeypatch)
@@ -260,3 +275,28 @@ def test_real_directory_guard(temp_config_root, monkeypatch):
     new_files = files_after - files_before
     assert not new_files, f'Launcher created new files in real config dir: {new_files}'
     assert hash_before == hash_after, f'Launcher modified real config files: {set(hash_before.items()) ^ set(hash_after.items())}'
+
+
+def test_dgx_resolution(temp_config_root, monkeypatch):
+    """Verify that resolve_backend_profile('dgx') maps to agents_dgx.yaml
+    with HOST/BACKUP on Qwen3-VL :8080 and APP/EVAL on Gemma-4 :8081."""
+    monkeypatch.setenv('UFO_DGX_HOST', '192.168.1.10')
+    set_backend_selection('dgx')
+    prof = resolve_backend_profile('dgx')
+    # HOST_AGENT and BACKUP_AGENT should be Qwen3-VL on :8080
+    assert prof['HOST_AGENT']['API_MODEL'] == 'Qwen3-VL-8B'
+    assert ':8080/v1' in prof['HOST_AGENT']['API_BASE']
+    assert prof['BACKUP_AGENT']['API_MODEL'] == 'Qwen3-VL-8B'
+    assert ':8080/v1' in prof['BACKUP_AGENT']['API_BASE']
+    # APP_AGENT and EVALUATION_AGENT should be Gemma-4 on :8081
+    assert prof['APP_AGENT']['API_MODEL'] == 'Gemma-4-12B'
+    assert ':8081/v1' in prof['APP_AGENT']['API_BASE']
+    assert prof['EVALUATION_AGENT']['API_MODEL'] == 'Gemma-4-12B'
+    assert ':8081/v1' in prof['EVALUATION_AGENT']['API_BASE']
+    # All should use openai API_TYPE with sk-local key
+    for agent in ['HOST_AGENT', 'APP_AGENT', 'BACKUP_AGENT', 'EVALUATION_AGENT']:
+        assert prof[agent]['API_TYPE'] == 'openai'
+        assert prof[agent]['API_KEY'] == 'sk-local'
+    # The dgx_host env var should be expanded in the API_BASE
+    assert '192.168.1.10' in prof['HOST_AGENT']['API_BASE']
+    assert '192.168.1.10' in prof['APP_AGENT']['API_BASE']

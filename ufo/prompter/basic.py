@@ -59,7 +59,7 @@ class BasicPrompter(ABC):
 
         if not os.path.exists(path):
             import pathlib
-            # basic.py is in C:\ufo\ufo\prompter, so parent.parent is C:\ufo\ufo
+            # basic.py is in <ufo_package>/prompter, so parent.parent is the UFO package root
             module_dir = pathlib.Path(__file__).resolve().parent.parent
             
             # Normalize the path to handle cross-platform slashes

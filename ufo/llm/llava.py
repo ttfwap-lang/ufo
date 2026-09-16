@@ -1,14 +1,14 @@
 import asyncio
-import logging
-from typing import Any, Optional
-import dataclasses
-from enum import auto, Enum
-from typing import List
 import base64
+import dataclasses
+import logging
+from enum import Enum, auto
 from io import BytesIO
-from PIL import Image
+from typing import Any, List, Optional
 
 import requests
+from PIL import Image
+
 from ufo.llm.base import BaseService
 from ufo.llm.llm_result import LLMResult
 

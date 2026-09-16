@@ -5,13 +5,16 @@ import json
 import logging
 import re
 from typing import Any, Dict, List, Optional
+
 from google import genai
-from google.genai import types, errors
-from google.genai.types import GenerateContentConfig, Part, GenerateContentResponse
+from google.genai import errors, types
+from google.genai.types import GenerateContentConfig, GenerateContentResponse, Part
+
+from ufo.llm import AgentType
 from ufo.llm.base import BaseService
 from ufo.llm.llm_result import LLMResult
 from ufo.llm.response_schema import AppAgentResponse, EvaluationResponse, HostAgentResponse
-from ufo.llm import AgentType
+
 logger = logging.getLogger(__name__)
 
 class GeminiService(BaseService):

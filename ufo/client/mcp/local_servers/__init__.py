@@ -15,7 +15,9 @@ def load_all_servers():
     On non-Windows platforms, Windows-specific servers are skipped.
     """
     is_windows = platform.system() == 'Windows'
-    for p in ['C:\\ufo', 'C:\\ufo\\ufo']:
+    _ufo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    _ufo_pkg = os.path.dirname(os.path.dirname(__file__))
+    for p in [_ufo_root, _ufo_pkg]:
         if os.path.isdir(p) and p not in sys.path:
             sys.path.insert(0, p)
     for finder, name, ispkg in pkgutil.iter_modules([current_dir]):

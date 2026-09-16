@@ -6,14 +6,17 @@ import os
 import shutil
 import sys
 from typing import Any, Callable, Dict, List, Literal, Optional
+
 import httpx
 import openai
 from openai import AzureOpenAI, OpenAI
+
 from ufo.llm import AgentType
 from ufo.llm.base import BaseService
 from ufo.llm.endpoint import is_local_endpoint
 from ufo.llm.llm_result import LLMResult
 from ufo.llm.response_schema import AppAgentResponse, EvaluationResponse, HostAgentResponse
+
 
 def _pydantic_to_response_format(schema_class):
     """
@@ -295,7 +298,15 @@ class BaseOpenAIService(BaseService):
         :return: The access token for OpenAI.
         """
         import msal
-        from azure.identity import AuthenticationRecord, AzureCliCredential, ClientSecretCredential, DeviceCodeCredential, ManagedIdentityCredential, TokenCachePersistenceOptions, get_bearer_token_provider
+        from azure.identity import (
+            AuthenticationRecord,
+            AzureCliCredential,
+            ClientSecretCredential,
+            DeviceCodeCredential,
+            ManagedIdentityCredential,
+            TokenCachePersistenceOptions,
+            get_bearer_token_provider,
+        )
         from azure.identity.broker import InteractiveBrowserBrokerCredential
         api_scope_base = 'api://' + aad_api_scope_base
         tenant_id = aad_tenant_id

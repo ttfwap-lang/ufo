@@ -4,14 +4,14 @@ chcp 65001 >nul
 title UFO Master Control Panel
 color 0B
 
-set "BF_DIR=C:\bankfidelity\bankfidelity"
-set "UFO_ROOT=C:\ufo\ufo"
-set "PYTHON_EXE=%UFO_ROOT%\python_env\python.exe"
+set "BF_DIR=C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity"
+set "UFO_ROOT=C:\Users\lnxzf\Desktop\projects\ufo\ufo"
+set "PYTHON_EXE=C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONPATH=%UFO_ROOT%;%BF_DIR%"
 
 if not exist "%PYTHON_EXE%" (
-    echo [FATAL] python_env not found at %PYTHON_EXE%.
+    echo [FATAL] Python not found at %PYTHON_EXE%.
     pause
     exit /b 1
 )
