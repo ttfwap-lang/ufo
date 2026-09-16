@@ -225,13 +225,13 @@ def test_launcher_commands(temp_config_root, monkeypatch):
                 pass
         return MockResp()
     monkeypatch.setattr(urllib.request, 'urlopen', stub_urlopen)
-    sb_path = Path(__file__).resolve().parent / 'scripts' / 'switch_backend.py'
+    sb_path = Path(__file__).resolve().parent.parent / 'scripts' / 'switch_backend.py'
     spec = importlib.util.spec_from_file_location('switch_backend', str(sb_path))
     sb = importlib.util.module_from_spec(spec)
     sys.modules['switch_backend'] = sb
     spec.loader.exec_module(sb)
     monkeypatch.setattr(sb, 'probe_local_stack', stub_probe_stack)
-    pcs_path = Path(__file__).resolve().parent.parent / 'scripts' / 'prepare_cloud_smoke.py'
+    pcs_path = Path(__file__).resolve().parent.parent / 'scripts' / 'smoke_tests' / 'prepare_cloud_smoke.py'
     spec_pcs = importlib.util.spec_from_file_location('prepare_cloud_smoke', str(pcs_path))
     pcs = importlib.util.module_from_spec(spec_pcs)
     sys.modules['prepare_cloud_smoke'] = pcs
