@@ -5,10 +5,11 @@ Implements the Transport interface using WebSockets.
 Provides reliable, bidirectional, full-duplex communication over a single TCP connection.
 Supports both text frames (for JSON messages) and binary frames (for efficient file transfer).
 """
-import asyncio
 import logging
-from typing import Optional, Union
+from typing import Any, Optional, Union
+
 import websockets
+
 try:
     from websockets.asyncio.client import ClientConnection as WebSocketClientProtocol
 except ImportError:
@@ -17,8 +18,10 @@ except ImportError:
     except ImportError:
         WebSocketClientProtocol = Any
 from websockets.exceptions import ConnectionClosed, WebSocketException
+
 from .adapters import WebSocketAdapter, create_adapter
 from .base import Transport, TransportState
+
 
 class WebSocketTransport(Transport):
     """

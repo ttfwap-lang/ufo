@@ -41,6 +41,7 @@ node_modules/*
 !vectordb/demonstration/example.yaml
 
 .vscode
+.idea/
 
 # Ignore the record files
 tasks_status.json

@@ -7,20 +7,19 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
+from rich.align import Align
+from rich.box import DOUBLE
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
-from rich.align import Align
-from rich.box import DOUBLE
-
 
 from ufo.agents.agent.app_agent import AppAgent, OpenAIOperatorAgent
 from ufo.agents.agent.basic import AgentRegistry, BasicAgent
 from ufo.agents.memory.blackboard import Blackboard
 from ufo.agents.processors.schemas.response_schema import HostAgentResponse
 from ufo.agents.states.host_agent_state import ContinueHostAgentState, HostAgentStatus
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.aip.messages import Command, MCPToolInfo
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.module.context import Context, ContextNames
 from ufo.prompter.agent_prompter import HostAgentPrompter
 
@@ -260,7 +259,7 @@ class HostAgent(BasicAgent):
         Process the agent.
         :param context: The context.
         """
-        # 
+        #
         from ufo.agents.processors.host_agent_processor import HostAgentProcessor
 
         if not self._context_provision_executed:

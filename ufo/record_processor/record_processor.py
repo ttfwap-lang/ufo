@@ -1,15 +1,16 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import os
 import argparse
-from .summarizer.summarizer import DemonstrationSummarizer
-from ufo.config.config_loader import get_ufo_config
-from .parser.psr_record_parser import PSRRecordParser
-from .utils import create_folder, save_to_json, unzip_and_read_file
-from ufo.utils import print_with_color
+import os
 from typing import Tuple
 
+from ufo.config.config_loader import LazyUFOConfig
+from ufo.utils import print_with_color
+
+from .parser.psr_record_parser import PSRRecordParser
+from .summarizer.summarizer import DemonstrationSummarizer
+from .utils import create_folder, save_to_json, unzip_and_read_file
 
 configs = LazyUFOConfig()
 
@@ -93,7 +94,7 @@ def __asker(summaries) -> Tuple[bool, int]:
         print_with_color(f"{summary['example']['Plan']}", "yellow")
 
     print_with_color(
-        f"Would you like to save any one of them as future reference by the agent? press ",
+        "Would you like to save any one of them as future reference by the agent? press ",
         color="cyan",
         end="",
     )

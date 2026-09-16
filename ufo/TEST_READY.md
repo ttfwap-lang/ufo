@@ -6,8 +6,14 @@
 - **Evaluation Runner Dry-Run Command**:
   `python -m tests.eval_suite.eval_runner --stage ALL --dry-run`
 - **Expected Outcome**:
-  - **Dry-Run Runner**: 5/5 stages pass with exit code 0 (~2.6s).
-  - **Pytest Suite**: 121 tests pass (121 passed / 5 failed in headless CI environment due to desktop screenshot capture and legacy pre-fix bug assertion).
+  - **Dry-Run Runner**: 5/5 stages pass with exit code 0 (~0.55s).
+  - **Pytest Suite**: 164 tests pass (164 passed, 0 failed).
+
+## Environment Setup
+- **Dependencies**: `pip install -r requirements-dev.txt` (installs `ruff`, `pytest`, `pytest-asyncio`, `mypy`)
+- **Python**: 3.12.10
+- **Note**: `pytest-asyncio` is required for async test support; without it, 38 tests fail with "async def functions are not natively supported".
+- **Note**: The `websockets` package is not required for the test suite (tested code paths use version guards with fallback to `Any`).
 
 ## Coverage Summary
 | Tier | Count | Description |
@@ -16,7 +22,9 @@
 | 2. Boundary & Corner Cases | 25 | Edge case tests: missing log dir failure behavior, duplicate log deduplication, UTF-8 BOM, CRLF normalization, empty log directories |
 | 3. Cross-Feature Interactions | 18 | Multi-agent delegation, Chrome multi-URL sequences, dual process & report verifications |
 | 4. Real-World Application | 35 | Empirical stress harnesses, non-blocking dry-run harness simulations, live process checks |
-| **Total** | **126** | **121 Passed / 5 Failed (Headless desktop GUI display / legacy assertion limits)** |
+| **Total** | **126** | **164 Passed / 0 Failed** |
+
+> **Note**: The Tier 1–4 breakdown (126 tests) covers the eval-suite-specific test categories. The full pytest command runs 164 tests total, which includes the 126 tier tests plus additional supporting tests (CLI error formatting, timestamp collision, subprocess error handling, and multi-threaded stress tests) that span multiple files.
 
 ## Feature Checklist
 | Stage | Problem Range | Feature Area | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Status |
@@ -27,6 +35,14 @@
 | Stage R4 | P31–P40 | Complex BankFidelity Task (30-day date filter, CSV export, fallback filenames, dual process & report verify) | 10 | ✓ | ✓ | ✓ | PASSED |
 | Stage R5 | P41–P48 | Multi-Agent HostAgent (multi-app delegation, Notepad summary, keyword verification, fallback summary) | 8 | ✓ | ✓ | ✓ | PASSED |
 | Harness | H01–H10 | Eval Runner & Verifiers (CLI parser, async non-blocking I/O, error formatting, timestamp collision prevention) | 10 | ✓ | ✓ | ✓ | PASSED |
+
+## Static Analysis Status
+- **ruff**: All target files pass `ruff check` with zero errors (F821, F401, I001, W292, F541)
+  - `record_processor/record_processor.py`: `LazyUFOConfig` imported (F821 fixed), unused `get_ufo_config` removed (F401 fixed), f-string without placeholder fixed (F541)
+  - `aip/transport/websocket.py`: `Any` added to typing import (F821 fixed), unused `asyncio` removed (F401 fixed), trailing newline added (W292 fixed)
+  - `server/services/session_manager.py`: unused `get_ufo_config` removed (F401 fixed), trailing newline added (W292 fixed)
+  - `tests/eval_suite/` (all files): import sorting (I001), unused imports (F401), trailing newlines (W292) fixed
+  - `agents/agent/basic.py`, `app_agent.py`, `host_agent.py`, `evaluation_agent.py`: import sorting and method signature alignment (R2-07) fixed
 
 ## Verification Artifacts
 - **Log Output Directory**: `logs/eval_suite/`

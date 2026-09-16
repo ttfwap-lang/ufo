@@ -6,7 +6,13 @@ Stage R3 Handler: Basic BankFidelity Task.
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
-from tests.eval_suite.verifiers import resolve_log_path, verify_bankfidelity_process, verify_process_running, verify_session_logs
+
+from tests.eval_suite.verifiers import (
+    resolve_log_path,
+    verify_bankfidelity_process,
+    verify_session_logs,
+)
+
 STAGE_ID = 'R3'
 STAGE_NAME = 'Basic BankFidelity Task'
 TARGET_APP = 'BankFidelity'
@@ -14,6 +20,7 @@ DEFAULT_REQUEST = 'Open BankFidelity desktop application (located at C:\\bankfid
 logger = logging.getLogger('EvalStage.R3')
 import subprocess
 import time
+
 
 def pre_cleanup() -> None:
     """

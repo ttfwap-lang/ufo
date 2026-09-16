@@ -4,11 +4,13 @@ import logging
 import platform
 import threading
 import uuid
-from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+
 from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
+from ufo.config.config_loader import LazyUFOConfig
 from ufo.module.basic import BaseSession
 from ufo.module.session_pool import SessionFactory
+
 if TYPE_CHECKING:
     from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 ufo_config = LazyUFOConfig()

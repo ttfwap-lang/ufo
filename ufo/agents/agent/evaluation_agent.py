@@ -4,26 +4,18 @@
 
 from typing import Any, Dict, List, Optional, Tuple
 
-
 from ufo.agents.agent.basic import BasicAgent
-
 from ufo.agents.presenters.rich_presenter import RichPresenter
-
 from ufo.agents.processors.schemas.response_schema import EvaluationAgentResponse
-
 from ufo.agents.states.evaluation_agent_state import (
     ContinueEvaluationAgentState,
     EvaluationAgentState,
     EvaluatonAgentStatus,
 )
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
-
 from ufo.aip.messages import MCPToolInfo
-
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.module.context import Context, ContextNames
-
 from ufo.prompter.eva_prompter import EvaluationAgentPrompter
-
 from ufo.utils import json_parser
 
 ufo_config = LazyUFOConfig()

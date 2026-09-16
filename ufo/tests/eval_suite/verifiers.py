@@ -7,6 +7,7 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+
 logger = logging.getLogger('EvalVerifiers')
 
 def get_desktop_dir() -> Path:

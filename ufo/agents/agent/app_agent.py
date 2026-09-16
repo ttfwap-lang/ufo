@@ -9,22 +9,21 @@ import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import openai
+from rich.align import Align
+from rich.box import DOUBLE
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
-from rich.align import Align
-from rich.box import DOUBLE
 
 from ufo.agents.agent.basic import AgentRegistry, BasicAgent
 from ufo.agents.memory.blackboard import Blackboard
 from ufo.agents.processors.app_agent_processor import AppAgentProcessor
-
 from ufo.agents.processors.core.processor_framework import ProcessorTemplate
 from ufo.agents.processors.schemas.response_schema import AppAgentResponse
 from ufo.agents.states.app_agent_state import AppAgentStatus, ContinueAppAgentState
 from ufo.agents.states.operator_state import ContinueOpenAIOperatorState
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.aip.messages import Command, MCPToolInfo
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.module import interactor
 from ufo.module.context import Context, ContextNames
 from ufo.prompter.agent_prompter import AppAgentPrompter
@@ -417,7 +416,7 @@ class AppAgent(BasicAgent):
         """
         return self._mode
 
-    def build_offline_docs_retriever(self) -> None:
+    def build_offline_docs_retriever(self, *args: Any, **kwargs: Any) -> None:
         """
         Build the offline docs retriever.
         """
@@ -425,7 +424,9 @@ class AppAgent(BasicAgent):
             "offline", self._app_root_name
         )
 
-    def build_online_search_retriever(self, request: str, top_k: int) -> None:
+    def build_online_search_retriever(
+        self, request: str = "", top_k: int = 1, *args: Any, **kwargs: Any
+    ) -> None:
         """
         Build the online search retriever.
         :param request: The request for online Bing search.

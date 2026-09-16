@@ -5,33 +5,65 @@
 
 from tests.eval_suite.stages.stage_r1 import (
     DEFAULT_FILENAME as STAGE_R1_DEFAULT_FILENAME,
+)
+from tests.eval_suite.stages.stage_r1 import (
     DEFAULT_MESSAGE as STAGE_R1_DEFAULT_MESSAGE,
+)
+from tests.eval_suite.stages.stage_r1 import (
     DEFAULT_REQUEST as STAGE_R1_DEFAULT_REQUEST,
+)
+from tests.eval_suite.stages.stage_r1 import (
     pre_cleanup as pre_cleanup_r1,
+)
+from tests.eval_suite.stages.stage_r1 import (
     verify_r1,
 )
 from tests.eval_suite.stages.stage_r2 import (
     DEFAULT_INITIAL_URL as STAGE_R2_DEFAULT_INITIAL_URL,
+)
+from tests.eval_suite.stages.stage_r2 import (
     DEFAULT_REQUEST as STAGE_R2_DEFAULT_REQUEST,
+)
+from tests.eval_suite.stages.stage_r2 import (
     DEFAULT_SECOND_URL as STAGE_R2_DEFAULT_SECOND_URL,
+)
+from tests.eval_suite.stages.stage_r2 import (
     pre_cleanup as pre_cleanup_r2,
+)
+from tests.eval_suite.stages.stage_r2 import (
     verify_r2,
 )
 from tests.eval_suite.stages.stage_r3 import (
     DEFAULT_REQUEST as STAGE_R3_DEFAULT_REQUEST,
+)
+from tests.eval_suite.stages.stage_r3 import (
     pre_cleanup as pre_cleanup_r3,
+)
+from tests.eval_suite.stages.stage_r3 import (
     verify_r3,
 )
 from tests.eval_suite.stages.stage_r4 import (
     DEFAULT_REPORT_FILENAME as STAGE_R4_DEFAULT_REPORT_FILENAME,
+)
+from tests.eval_suite.stages.stage_r4 import (
     DEFAULT_REQUEST as STAGE_R4_DEFAULT_REQUEST,
+)
+from tests.eval_suite.stages.stage_r4 import (
     pre_cleanup as pre_cleanup_r4,
+)
+from tests.eval_suite.stages.stage_r4 import (
     verify_r4,
 )
 from tests.eval_suite.stages.stage_r5 import (
     DEFAULT_REQUEST as STAGE_R5_DEFAULT_REQUEST,
+)
+from tests.eval_suite.stages.stage_r5 import (
     DEFAULT_SUMMARY_FILENAME as STAGE_R5_DEFAULT_SUMMARY_FILENAME,
+)
+from tests.eval_suite.stages.stage_r5 import (
     pre_cleanup as pre_cleanup_r5,
+)
+from tests.eval_suite.stages.stage_r5 import (
     verify_r5,
 )
 
