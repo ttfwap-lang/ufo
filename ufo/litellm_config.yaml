@@ -25,19 +25,25 @@ model_list:
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0
+  # NOTE: LiteLLM's "os.environ/VAR" substitution replaces an entire field value,
+  # it cannot interpolate a var into part of a string (unlike UFO's own
+  # config_loader._expand_env_vars used for agents_dgx.yaml). So api_base here
+  # is a literal and must be kept in sync if the DGX's address changes.
+  # Currently gx10's stable Tailscale IP (100.111.170.95) -- prefer this over
+  # the LAN IP since it stays valid across network changes.
   - model_name: "ufo-dgx-model"
     litellm_params:
-      model: "openai/qwen3-vl"
-      api_base: "http://192.168.1.10:8080/v1"
+      model: "openai/qwen-abliterated"
+      api_base: "http://100.111.170.95:8000/v1"
       api_key: "sk-local"
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0
   - model_name: "ufo-dgx-app-model"
     litellm_params:
-      model: "openai/gemma-4-12b"
-      api_base: "http://192.168.1.10:8081/v1"
-      api_key: "sk-local"
+      model: "openai/gemma4-ufo"
+      api_base: "http://100.111.170.95:11434/v1"
+      api_key: "ollama"
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0

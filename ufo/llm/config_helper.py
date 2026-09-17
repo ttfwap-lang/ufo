@@ -9,6 +9,7 @@ import copy
 import json
 import logging
 import os
+import re
 import threading
 import urllib.request
 from datetime import datetime, timezone
@@ -55,10 +56,13 @@ def _get_dgx_host() -> Optional[str]:
 
 def _probe_local_auto() -> bool:
     """Probe for any available local LLM endpoint (localhost or DGX)."""
-    # Check DGX Spark on the network first
+    # Check DGX Spark on the network first. agents_dgx.yaml currently serves
+    # gemma4-ufo via Ollama on :11434 and qwen-abliterated via vLLM on :8000
+    # (not the :8080/:8081 llama-server layout this used to assume) — probe
+    # what's actually there, not what the config used to be.
     dgx_host = _get_dgx_host()
     if dgx_host:
-        if _probe_endpoint(f'http://{dgx_host}:8080/health'):
+        if _probe_endpoint(f'http://{dgx_host}:11434/api/tags') or _probe_endpoint(f'http://{dgx_host}:8000/v1/models'):
             return True
     # Check localhost LiteLLM and llama-server
     if _probe_endpoint('http://127.0.0.1:4000/health'):
@@ -129,6 +133,24 @@ def set_backend_selection(selection: str, profile_path: Optional[str]=None, upda
                 pass
         reset_backend_caches(clear_override=False)
     return state
+
+def _find_unresolved_env_placeholders(value: Any, found: Optional[set] = None) -> set:
+    """Recursively collect any ``${VAR}``/``$VAR`` placeholders left unresolved after env expansion."""
+    if found is None:
+        found = set()
+    if isinstance(value, dict):
+        for v in value.values():
+            _find_unresolved_env_placeholders(v, found)
+    elif isinstance(value, list):
+        for v in value:
+            _find_unresolved_env_placeholders(v, found)
+    elif isinstance(value, str):
+        # Reuses ConfigLoader's own pattern rather than a second copy, so the
+        # two can never disagree about what counts as a placeholder.
+        for match in ConfigLoader.ENV_PLACEHOLDER_PATTERN.finditer(value):
+            found.add(match.group(1) or match.group(2))
+    return found
+
 
 def _get_file_stat_key(path: Path) -> str:
     try:
@@ -248,6 +270,14 @@ def resolve_agent_config(agent_type: str) -> Dict[str, Any]:
             if agent_dict is None and agent_type == AgentType.OPERATOR:
                 agent_dict = prof.get('HOST_AGENT', {})
             if isinstance(agent_dict, dict):
+                # Scoped to just this agent's block, not the whole profile:
+                # different agent blocks may reference different providers'
+                # env vars (e.g. HOST_AGENT=Anthropic, BACKUP_AGENT=OpenAI),
+                # so a user who only configured one provider's key must still
+                # be able to use the agent(s) that actually need it.
+                unresolved = _find_unresolved_env_placeholders(agent_dict)
+                if unresolved:
+                    raise BackendProfileError(f"Agent block '{key}' has unresolved environment variable(s) {sorted(unresolved)}: set them before using this agent.")
                 return copy.deepcopy(agent_dict)
             state = get_backend_selection()
             raise BackendProfileError(f"Agent block '{key}' not found in resolved configuration for selection '{state.get('selected')}'")

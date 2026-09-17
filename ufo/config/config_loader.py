@@ -221,6 +221,8 @@ class ConfigLoader:
             else:
                 target[key] = value
 
+    ENV_PLACEHOLDER_PATTERN = re.compile('\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}|\\$([A-Za-z_][A-Za-z0-9_]*)')
+
     def _expand_env_vars(self, value: Any) -> Any:
         """
         Expand ${VAR} and $VAR placeholders in YAML values using environment variables.
@@ -240,7 +242,7 @@ class ConfigLoader:
                     return match.group(0)
                 env_val = os.getenv(var_name)
                 return env_val if env_val is not None else match.group(0)
-            return re.sub('\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}|\\$([A-Za-z_][A-Za-z0-9_]*)', replacer, value)
+            return self.ENV_PLACEHOLDER_PATTERN.sub(replacer, value)
         return value
 
     def _discover_yaml_files(self, directory: Path) -> List[Path]:

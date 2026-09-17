@@ -1,8 +1,18 @@
 """Comprehensive audit tests for DGX Spark network model configuration.
 
-Verifies that the DGX Spark network endpoints (Qwen3-VL-8B on :8080 and
-Gemma-4-12B on :8081) are correctly wired across config, routing, and
-endpoint classification layers.
+Two things are tested here, deliberately kept separate:
+
+1. Config-loading MECHANISM (most tests in this file): env var expansion,
+   profile resolution, is_local_endpoint() classification, agent-block
+   lookup. These use SYNTHETIC_DGX_CONFIG below -- a placeholder profile
+   shaped like agents_dgx.yaml but with made-up model names/ports, chosen
+   specifically so these tests keep working regardless of what the DGX
+   actually happens to be serving on a given day.
+
+2. What the DGX is ACTUALLY, currently serving (test_dgx_model_names_match_expected
+   below): reads the real config/ufo/agents_dgx.yaml and asserts on its real
+   values. Update that test (not the synthetic fixture above) when the DGX's
+   real model layout changes.
 """
 from pathlib import Path
 
@@ -10,12 +20,24 @@ import pytest
 import yaml
 
 from ufo.config.config_loader import ConfigLoader, clear_config_cache
-from ufo.llm.config_helper import reset_backend_caches, resolve_backend_profile, set_backend_selection
+from ufo.llm.config_helper import (
+    BackendProfileError,
+    reset_backend_caches,
+    resolve_agent_config,
+    resolve_backend_profile,
+    set_backend_selection,
+    set_process_override,
+    clear_process_override,
+)
 from ufo.llm.endpoint import is_local_endpoint
+from ufo.llm import AgentType
 
 DGX_HOST = "192.168.1.10"
 
-DGX_CONFIG = {
+# Synthetic/placeholder profile for mechanism tests -- see module docstring.
+# These model names and ports are NOT a claim about what the DGX actually
+# serves; that's covered separately by test_dgx_model_names_match_expected.
+SYNTHETIC_DGX_CONFIG = {
     "HOST_AGENT": {
         "API_TYPE": "openai",
         "API_MODEL": "Qwen3-VL-8B",
@@ -51,7 +73,7 @@ def dgx_config_root(tmp_path, monkeypatch):
     ufo_dir = config_dir / "ufo"
     ufo_dir.mkdir(parents=True)
     with open(ufo_dir / "agents_dgx.yaml", "w", encoding="utf-8") as f:
-        yaml.safe_dump(DGX_CONFIG, f)
+        yaml.safe_dump(SYNTHETIC_DGX_CONFIG, f)
     with open(ufo_dir / "system.yaml", "w", encoding="utf-8") as f:
         yaml.safe_dump({"UFO_ROOT": str(tmp_path), "LOG_LEVEL": "INFO"}, f)
     monkeypatch.setenv("UFO_DGX_HOST", DGX_HOST)
@@ -166,29 +188,45 @@ def test_dgx_uses_different_ports(dgx_config_root):
     assert host_port != app_port
 
 
-def test_dgx_env_var_not_set_falls_back(dgx_config_root, monkeypatch):
-    """If UFO_DGX_HOST is unset, env var placeholder should still be in API_BASE (not expanded)."""
+def test_dgx_env_var_not_set_profile_resolves_fine(dgx_config_root, monkeypatch):
+    """resolve_backend_profile() loads the whole file and must NOT fail just
+    because some unrelated agent block references an unset var -- different
+    agent blocks can reference different providers' env vars, so a user who
+    only cares about HOST_AGENT shouldn't be blocked by e.g. an unset key on
+    BACKUP_AGENT. The check is scoped per-agent instead (see below)."""
     monkeypatch.delenv("UFO_DGX_HOST", raising=False)
     reset_backend_caches(clear_override=True)
     prof = resolve_backend_profile("dgx")
-    for agent in ["HOST_AGENT", "APP_AGENT"]:
-        # The raw ${UFO_DGX_HOST} may be left unexpanded if env var was missing at resolve time
-        # but the structure should still be valid
-        assert ":8080" in prof["HOST_AGENT"]["API_BASE"] or ":8081" in prof["APP_AGENT"]["API_BASE"]
+    assert prof is not None
+    assert "${UFO_DGX_HOST}" in prof["HOST_AGENT"]["API_BASE"]
+
+
+def test_dgx_env_var_not_set_fails_fast_per_agent(dgx_config_root, monkeypatch):
+    """Resolving a specific DGX agent's config must still raise rather than
+    silently return an unusable URL -- scoped to the agent block actually
+    being used, not the whole profile."""
+    monkeypatch.delenv("UFO_DGX_HOST", raising=False)
+    reset_backend_caches(clear_override=True)
+    set_backend_selection("dgx")
+    try:
+        with pytest.raises(BackendProfileError, match="UFO_DGX_HOST"):
+            resolve_agent_config(AgentType.HOST)
+    finally:
+        reset_backend_caches(clear_override=True)
 
 
 def test_dgx_model_names_match_expected():
-    """DGX config model names should match the DGX Spark network layout."""
+    """DGX config model names should match the models actually running on gx10."""
     dgx_yaml_path = Path(__file__).resolve().parent.parent / "config" / "ufo" / "agents_dgx.yaml"
     if not dgx_yaml_path.exists():
         pytest.skip("agents_dgx.yaml not found in real config")
     with open(dgx_yaml_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    assert data["HOST_AGENT"]["API_MODEL"] == "Qwen3-VL-8B"
-    assert ":8080" in data["HOST_AGENT"]["API_BASE"]
-    assert data["APP_AGENT"]["API_MODEL"] == "Gemma-4-12B"
-    assert ":8081" in data["APP_AGENT"]["API_BASE"]
-    assert data["BACKUP_AGENT"]["API_MODEL"] == "Qwen3-VL-8B"
-    assert ":8080" in data["BACKUP_AGENT"]["API_BASE"]
-    assert data["EVALUATION_AGENT"]["API_MODEL"] == "Gemma-4-12B"
-    assert ":8081" in data["EVALUATION_AGENT"]["API_BASE"]
+    assert data["HOST_AGENT"]["API_MODEL"] == "gemma4-ufo"
+    assert ":11434" in data["HOST_AGENT"]["API_BASE"]
+    assert data["APP_AGENT"]["API_MODEL"] == "gemma4-ufo"
+    assert data["EVALUATION_AGENT"]["API_MODEL"] == "qwen-abliterated"
+    assert ":11434" in data["APP_AGENT"]["API_BASE"]
+    assert data["BACKUP_AGENT"]["API_MODEL"] == "gemma4-ufo"
+    assert ":11434" in data["BACKUP_AGENT"]["API_BASE"]
+    assert ":8000" in data["EVALUATION_AGENT"]["API_BASE"]

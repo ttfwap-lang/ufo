@@ -62,6 +62,8 @@ galaxy/webui/frontend/.env.development.local
 config/*/agents.yaml
 config/*/agent.yaml
 ufo/config/config.yaml
+ufo.env
+*.env
 ufo/config/config_llm.yaml
 
 # But keep config templates and default configs (except agents.yaml and agent.yaml)

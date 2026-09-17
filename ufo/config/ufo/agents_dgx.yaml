@@ -1,57 +1,65 @@
 # =============================================================================
 # UFO DGX Network LLM Configuration
 # =============================================================================
-# Connects to Qwen3-VL models running on a network-attached NVIDIA DGX Spark
-# via OpenAI-compatible llama-server endpoints (no local LiteLLM proxy needed).
+# Connects to the models actually running on the NVIDIA DGX Spark (gx10):
+#   - gemma4:26b  (vision-capable, served via Ollama's OpenAI-compat API on :11434)
+#       -> baked into a derived tag "gemma4-ufo" with num_ctx=8192 set server-side,
+#          because Ollama's /v1/chat/completions endpoint errors on this model
+#          ("Gemma4Assistant requires ctx_other to be set") unless a model-level
+#          default context is present. Recreate with:
+#            ollama create gemma4-ufo -f Modelfile   # FROM gemma4:26b / PARAMETER num_ctx 8192
+#   - qwen-abliterated (text-only, served via vLLM's OpenAI-compat API on :8000)
+#       -> huihui-ai/Huihui-Qwen3.8-27B-abliterated, no vision support, used only
+#          for the non-visual EVALUATION_AGENT role.
 #
-# Set the DGX host IP via environment variable:
-#   set UFO_DGX_HOST=192.168.1.10   (or your DGX's network IP)
+# Qwen3-VL-8B / Gemma-4-12B via a dedicated llama-server (ports 8080/8081) were
+# NOT stood up: the DGX's 121GB unified memory is already committed to the
+# qwen-abliterated workload (~85GB) plus gemma4-ufo (~20GB) at ~36GB headroom.
+# Adding two more models is not safe on this box without freeing memory first.
 #
-# Default DGX host: 192.168.1.10
-# Default Qwen port: 8080
+# Set the DGX host via environment variable (LAN IP, or the Tailscale IP
+# 100.111.170.95 which is stable across network changes):
+#   set UFO_DGX_HOST=100.111.170.95
 #
 # To switch to this config from the widget:
 #   Terminal → AI Backend → Switch to DGX (widget will prompt for host IP)
-#
-# To switch back to cloud:
-#   Terminal → AI Backend → Switch to Cloud
 # =============================================================================
 
 HOST_AGENT:
   VISUAL_MODE: true
   REASONING_MODEL: false
-  API_TYPE: openai
-  API_BASE: "http://${UFO_DGX_HOST}:8080/v1"
-  API_KEY: "sk-local"
-  API_MODEL: "Qwen3-VL-8B"
+  API_TYPE: ollama
+  API_BASE: "http://${UFO_DGX_HOST}:11434"
+  API_KEY: "ollama"
+  API_MODEL: "gemma4-ufo"
   PROMPT: ufo/prompts/share/base/host_agent.yaml
   EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/host_agent_example.yaml
 
 APP_AGENT:
   VISUAL_MODE: true
   REASONING_MODEL: false
-  API_TYPE: openai
-  API_BASE: "http://${UFO_DGX_HOST}:8081/v1"
-  API_KEY: "sk-local"
-  API_MODEL: "Gemma-4-12B"
+  API_TYPE: ollama
+  API_BASE: "http://${UFO_DGX_HOST}:11434"
+  API_KEY: "ollama"
+  API_MODEL: "gemma4-ufo"
   PROMPT: ufo/prompts/share/base/app_agent.yaml
   EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/app_agent_example.yaml
   EXAMPLE_PROMPT_AS: ufo/prompts/examples/{mode}/app_agent_example_as.yaml
 
 BACKUP_AGENT:
   VISUAL_MODE: true
-  API_TYPE: openai
-  API_BASE: "http://${UFO_DGX_HOST}:8080/v1"
-  API_KEY: "sk-local"
-  API_MODEL: "Qwen3-VL-8B"
+  API_TYPE: ollama
+  API_BASE: "http://${UFO_DGX_HOST}:11434"
+  API_KEY: "ollama"
+  API_MODEL: "gemma4-ufo"
 
 EVALUATION_AGENT:
   VISUAL_MODE: false
   REASONING_MODEL: false
   API_TYPE: openai
-  API_BASE: "http://${UFO_DGX_HOST}:8081/v1"
+  API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
   API_KEY: "sk-local"
-  API_MODEL: "Gemma-4-12B"
+  API_MODEL: "qwen-abliterated"
 
 OMNIPARSER:
   ENDPOINT: ''

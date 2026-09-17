@@ -81,11 +81,16 @@ def _ensure_llm_reachable(logger: logging.Logger) -> None:
         api_type = host.get('API_TYPE', '')
         api_base = host.get('API_BASE', '')
         api_key = host.get('API_KEY', '')
-        if api_type != 'openai' or not api_base:
+        # 'ollama' added alongside 'openai': the DGX profile's HOST_AGENT now
+        # serves via Ollama, not a generic OpenAI-compatible llama-server, and
+        # this probe was silently skipping it entirely (api_type != 'openai'
+        # returned early), so a DGX-down condition never triggered fallback.
+        if api_type not in ('openai', 'ollama') or not api_base:
             return
         if not is_local_endpoint(api_base=api_base, api_key=api_key, api_type=api_type):
             return
-        health_url = f"{api_base.rstrip('/')}/health"
+        health_path = '/api/tags' if api_type == 'ollama' else '/health'
+        health_url = f"{api_base.rstrip('/')}{health_path}"
         try:
             req = urllib.request.Request(health_url, method='GET')
             with urllib.request.urlopen(req, timeout=5.0) as resp:
