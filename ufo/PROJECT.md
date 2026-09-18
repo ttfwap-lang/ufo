@@ -1,5 +1,17 @@
 # Project: UFO Evaluation Suite Alignment & Codebase Compliance
 
+> **⚠️ SUPERSEDED — historical record only.**
+>
+> This document tracks the M1-M3/E2E milestone work for the evaluation suite alignment. The **current authoritative project plan** is the corrected remediation plan at [`docs/plans/E2E_REMEDIATION_PLAN.md`](docs/plans/E2E_REMEDIATION_PLAN.md), which covers:
+> - Track A (Phases 0-10): DGX config, Windows automation, packaging, security, stubs, CI/CD, terminal modularization, DGX device agent, golden path tests
+> - Track B (Phases 11-15): DI container, LLMClient protocol, composition agents, DeviceAgent interface, observability
+> - Explicit dependency graph, corrected package paths, and falsifiable verification checklists
+>
+> **Current authoritative status** is in CI-generated docs:
+> - [`docs/status.md`](docs/status.md) — phase status, blockers, DGX backend
+> - [`docs/testing.md`](docs/testing.md) — test suite, CI workflow, runner provisioning
+> - [`docs/architecture.md`](docs/architecture.md) — package layout, config flow, Galaxy orchestration
+
 ## Architecture
 - Core components:
   - Evaluation Suite Harness: `tests/eval_suite/eval_runner.py` (Source of Truth)

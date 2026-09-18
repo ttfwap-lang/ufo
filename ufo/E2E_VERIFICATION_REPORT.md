@@ -10,6 +10,11 @@
 >
 > `config/ufo/agents_dgx.yaml` and `litellm_config.yaml` already reflect the current architecture. The remaining gap — `scripts/terminal.py` / `scripts/terminal_config.py` still hardcoding `:8080`/`:8081` and "Qwen3-VL" in DGX-related menu text/defaults — is tracked in **[`docs/plans/E2E_REMEDIATION_PLAN.md`](docs/plans/E2E_REMEDIATION_PLAN.md), Phase 1**. This report's "100% complete" conclusion below refers only to the narrow, now-obsolete scope it tested, not to overall E2E/DGX readiness — see the remediation plan for the current, falsifiable checklist.
 >
+> **Current authoritative status is in CI-generated docs:**
+> - [`docs/status.md`](docs/status.md) — project phase status, blockers, DGX backend
+> - [`docs/testing.md`](docs/testing.md) — test suite status, coverage, CI workflow
+> - [`docs/architecture.md`](docs/architecture.md) — package layout, config flow, Galaxy orchestration, DGX network path
+>
 > Kept below unedited as a record of what was actually tested at the time.
 
 ## Executive Summary

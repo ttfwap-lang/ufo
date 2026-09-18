@@ -1,5 +1,15 @@
 # E2E Test Suite Ready — UFO Evaluation Suite
 
+> **⚠️ SUPERSEDED — historical record only.**
+>
+> This document describes the evaluation suite test infrastructure as of the M3/E2E milestone completion. The **current authoritative testing status** is in the CI-generated [`docs/testing.md`](docs/testing.md), which reflects:
+> - Actual test commands and coverage for the full Track A scope (Phases 0-10)
+> - Phase-specific test requirements (automation/, terminal/, golden paths)
+> - CI workflow configuration and self-hosted runner provisioning status
+> - Static analysis config (ruff/mypy) as actually configured in `pyproject.toml`
+>
+> The evaluation suite (164 tests passing) remains valid and is part of the `eval` extra, but the broader E2E test strategy has expanded per the remediation plan.
+
 ## Test Runner
 - **Primary Pytest Command**:
   `python -m pytest tests/test_eval_suite.py tests/test_eval_runner.py tests/test_eval_runner_empirical.py tests/test_eval_runner_empirical_2.py tests/test_eval_suite_stress.py tests/test_stage_r1_r2.py tests/test_r1_notepad_empirical.py tests/test_empirical_harness.py tests/test_empirical_verification.py tests/test_empirical_challenger_m1_2.py -v`

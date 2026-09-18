@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "tail": "^2.2.6"
+  }
+}
