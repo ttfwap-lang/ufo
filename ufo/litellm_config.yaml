@@ -85,6 +85,6 @@ router_settings:
     - {"ufo-host-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
     - {"ufo-app-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
     - {"ufo-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
-    - {"ufo-dgx-model": ["ufo-dgx-model", "ufo-dgx-app-model", "claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
-    - {"ufo-dgx-app-model": ["ufo-dgx-app-model", "ufo-dgx-model", "claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+    - {"ufo-dgx-model": ["ufo-dgx-app-model", "claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+    - {"ufo-dgx-app-model": ["ufo-dgx-model", "claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
 

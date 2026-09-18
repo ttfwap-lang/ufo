@@ -3,6 +3,7 @@ Code Interpreter MCP Server
 Provides MCP server for executing arbitrary Python code to manipulate files, PDFs, etc.
 """
 import logging
+import shutil
 import subprocess
 import tempfile
 import os
@@ -34,7 +35,12 @@ def create_code_interpreter_mcp_server(*args, **kwargs) -> FastMCP:
             fd, path = tempfile.mkstemp(suffix='.py')
             with os.fdopen(fd, 'w', encoding='utf-8') as f:
                 f.write(code)
-            python_exe = sys.executable if sys.executable and os.path.isfile(sys.executable) else os.environ.get('PYTHON_EXE', sys.executable)
+            if sys.executable and os.path.isfile(sys.executable):
+                python_exe = sys.executable
+            else:
+                python_exe = os.environ.get('PYTHON_EXE') or shutil.which('python3') or shutil.which('python')
+            if not python_exe:
+                raise ToolError('Could not locate a Python executable to run the generated code (sys.executable is invalid and PYTHON_EXE is not set).')
             result = subprocess.run([python_exe, path], capture_output=True, text=True, timeout=60)
             try:
                 os.remove(path)

@@ -1,45 +1,101 @@
+[build-system]
+requires = ["setuptools>=80", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ufo"
+version = "3.0.0"
+description = "UFO³: Multi-Device Agent Galaxy (Windows ARM64 + DGX Spark)"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [{name = "Microsoft", email = "ufo@microsoft.com"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+core = [
+    "aiohttp>=3.10", "aiohappyeyeballs>=2.7", "anyio>=4.0",
+    "pydantic>=2.10,<3", "pydantic-settings>=2.10", "PyYAML>=6.0",
+    "rich>=13.0", "click>=8.1", "colorama>=0.4",
+    "websockets>=12.0", "httpx>=0.28", "tenacity>=9.0",
+    "python-dotenv>=1.0", "keyring>=25.0", "uv>=0.7",
+    "dependency-injector>=4.45",
+    "structlog>=25.0", "opentelemetry-api>=1.28", "opentelemetry-sdk>=1.28",
+    "sqlalchemy>=2.0", "alembic>=1.13",
+]
+windows = [
+    "playwright>=1.48", "playwright-python>=1.48",
+]
+dgx = [
+    "ollama>=0.4", "openai>=1.0", "httpx>=0.28",
+]
+galaxy = [
+    "fastapi>=0.115", "uvicorn>=0.32", "websockets>=12.0",
+    "pydantic>=2.10,<3", "pydantic-settings>=2.10",
+]
+eval = [
+    "pytest>=9.0", "pytest-asyncio>=1.4", "pytest-cov>=6.0",
+    "ruff>=0.16", "mypy>=1.10", "hypothesis>=6.100",
+]
+ml = [
+    "torch>=2.5", "transformers>=4.48", "sentence-transformers>=3.0",
+    "faiss-cpu>=1.11", "chromadb>=1.0", "langchain>=0.3",
+    "langgraph>=0.2", "fastembed>=0.4",
+]
+legacy = [
+    "pywinauto>=0.6.9", "uiautomation>=2.0", "comtypes>=1.4", "pywin32>=312",
+]
+# all excludes ml to avoid heavy ML dependency conflicts
+all = ["core", "windows", "dgx", "galaxy", "eval"]
+
+[project.entry-points.console_scripts]
+ufo-terminal = "ufo.terminal.__main__:main"
+ufo-galaxy = "ufo.galaxy.cli:main"
+ufo-eval = "ufo.eval_suite.cli:main"
+ufo = "ufo.__main__:main"
+
+[tool.uv.sources]
+ufo = {path = "."}
+
 [tool.ruff]
-# Target Python 3.10 (UFO's venv python version)
 target-version = "py310"
 line-length = 120
-exclude = [
-    "python_env",
-    ".git",
-    "__pycache__",
-    "*.egg-info",
-    "logs",
-]
-
-[tool.ruff.lint]
-# E = pycodestyle errors, F = pyflakes, I = isort, W = warnings
-select = ["E", "F", "I", "W"]
-ignore = [
-    "E501",   # line too long (handled by formatter)
-    "E402",   # module level import not at top (UFO uses sys.path.insert)
-]
-
+select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM", "T20"]
+ignore = ["E501", "E402", "SIM102", "SIM103"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 
 [tool.mypy]
 python_version = "3.10"
-# Lenient mode — UFO has untyped third-party deps
-ignore_missing_imports = true
-follow_imports = "silent"
+strict = true
 warn_unused_ignores = true
-no_strict_optional = true
-exclude = [
-    "python_env/",
-    "logs/",
-]
+disallow_untyped_defs = true
+no_implicit_optional = true
+exclude = ["logs/", "python_env/", "scripts/legacy/", "ufo/legacy/"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "ufo/automation/tests", "ufo/terminal/tests", "ufo/llm/tests"]
 asyncio_mode = "auto"
-# Skip benchmark/load tests by default — they require specific hardware contexts
-addopts = "--ignore=tests/benchmark_harness.py --ignore=tests/load_test_harness.py"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning",
+addopts = "--strict-markers --strict-config -q"
+markers = [
+    "requires_dgx: marks tests requiring DGX Spark hardware",
+    "requires_windows: marks tests requiring Windows",
+    "integration: marks integration tests",
 ]
+
+[tool.coverage.run]
+source = ["ufo"]
+omit = ["*/tests/*", "*/legacy/*", "scripts/legacy/*"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "def __repr__", "raise NotImplementedError"]
+fail_under = 80

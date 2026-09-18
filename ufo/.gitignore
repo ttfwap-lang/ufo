@@ -91,3 +91,7 @@ ruff_errors.json
 gen-lang-client-*.json
 test_cap.png
 *.bak
+
+# DGX/infra audit dumps — contain host process listings, PIDs, usernames
+dgx_audit.json
+pr_diff_review.txt

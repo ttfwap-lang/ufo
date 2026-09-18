@@ -1,5 +1,17 @@
 # E2E Verification Report: DGX Spark Network Qwen Integration
 
+> **⚠️ SUPERSEDED — historical record only, do not use as current-state reference.**
+>
+> This report documents a verification pass against an **earlier DGX backend design**: a single `llama-server` endpoint at `192.168.1.10:8080` serving `Qwen3-VL-8B`. That design has since been replaced. The current DGX backend (verified live in `dgx_audit.json`, captured 2026-09-18) is:
+> - **Ollama `:11434`** — `gemma4-ufo` (vision) — used by `HOST_AGENT`/`APP_AGENT`/`BACKUP_AGENT`
+> - **vLLM `:8000`** — `qwen-abliterated` (text) — used by `EVALUATION_AGENT`
+> - Host is a Tailscale address (`100.111.170.95` at last check), not `192.168.1.10`
+> - `llama-server` is **not running** on the DGX at all — confirmed by live process listing
+>
+> `config/ufo/agents_dgx.yaml` and `litellm_config.yaml` already reflect the current architecture. The remaining gap — `scripts/terminal.py` / `scripts/terminal_config.py` still hardcoding `:8080`/`:8081` and "Qwen3-VL" in DGX-related menu text/defaults — is tracked in **[`docs/plans/E2E_REMEDIATION_PLAN.md`](docs/plans/E2E_REMEDIATION_PLAN.md), Phase 1**. This report's "100% complete" conclusion below refers only to the narrow, now-obsolete scope it tested, not to overall E2E/DGX readiness — see the remediation plan for the current, falsifiable checklist.
+>
+> Kept below unedited as a record of what was actually tested at the time.
+
 ## Executive Summary
 
 The UFO widget terminal has been **fully verified end-to-end** for DGX Spark network Qwen model support. All 8 implementation changes are complete, committed, and pushed. All 164 existing tests pass. All modified Python files pass AST syntax validation and ruff/mypy checks (only pre-existing style warnings remain).

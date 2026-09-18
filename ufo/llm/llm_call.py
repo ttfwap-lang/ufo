@@ -22,7 +22,7 @@ from pydantic import BaseModel, ValidationError
 from ufo.dlq.dead_letter_queue import record_dlq_event
 from ufo.llm import AgentType
 from ufo.llm.base import BaseService
-from ufo.llm.config_helper import get_agent_config
+from ufo.llm.config_helper import BackendProfileError, get_agent_config
 from ufo.llm.llm_result import LLMResult
 
 logger = logging.getLogger(__name__)
@@ -265,7 +265,7 @@ async def get_completions(messages, agent: str=AgentType.APP, use_backup_engine:
             try:
                 get_agent_config(AgentType.EVALUATION)
                 agent_type = AgentType.EVALUATION
-            except (ValueError, AttributeError):
+            except (ValueError, AttributeError, BackendProfileError):
                 agent_type = AgentType.APP
         else:
             agent_type = AgentType.EVALUATION
