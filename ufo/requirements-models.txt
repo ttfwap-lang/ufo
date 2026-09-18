@@ -1,3 +1,0 @@
-torch
-llava
-huggingface_hub
