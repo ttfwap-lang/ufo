@@ -305,7 +305,7 @@ class ConfigLoader:
             raise FileNotFoundError(f"No configuration found for '{module}'.\nExpected at: {module_path}/\n")
         return config
 
-    def _apply_env_overrides(self, config_data: Dict[str, Any], prefix: str='UFO_', reserved_suffixes: Optional[tuple]=('ENV', 'ROOT', 'DIR')) -> None:
+    def _apply_env_overrides(self, config_data: Dict[str, Any], prefix: str='UFO_', reserved_suffixes: Optional[tuple]=('ENV', 'ROOT', 'DIR', 'DGX_HOST')) -> None:
         """
         Apply explicit environment variable overrides starting with the specified prefix.
         Does NOT bulk-copy os.environ and ignores environment variables matching reserved suffixes (e.g. UFO_ENV).
@@ -378,7 +378,7 @@ class ConfigLoader:
         env = env or self._env
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
         config_data = self._load_with_fallback('ufo', env)
-        self._apply_env_overrides(config_data, prefix='UFO_', reserved_suffixes=('ENV', 'ROOT', 'DIR'))
+        self._apply_env_overrides(config_data, prefix='UFO_', reserved_suffixes=('ENV', 'ROOT', 'DIR', 'DGX_HOST'))
         self._apply_legacy_transforms(config_data)
         return UFOConfig.from_dict(config_data)
 

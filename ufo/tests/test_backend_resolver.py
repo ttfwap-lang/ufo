@@ -22,6 +22,8 @@ from ufo.llm.config_helper import (
     set_process_override,
 )
 
+from tests.test_dgx_model_audit import SYNTHETIC_DGX_CONFIG
+
 
 def create_minimal_profile(model_name: str) -> dict:
     return {'HOST_AGENT': {'API_TYPE': 'openai', 'API_MODEL': model_name}, 'APP_AGENT': {'API_TYPE': 'openai', 'API_MODEL': model_name}}
@@ -53,12 +55,10 @@ def temp_config_root(tmp_path):
     write_yaml(ufo_dir / 'agents.yaml', create_minimal_profile('disk_model'))
     write_yaml(ufo_dir / 'agents_cloud.yaml', create_minimal_profile('cloud_model'))
     write_yaml(ufo_dir / 'agents_local_vision.yaml', create_minimal_profile('local_model'))
-    write_yaml(ufo_dir / 'agents_dgx.yaml', {
-        'HOST_AGENT': {'API_TYPE': 'openai', 'API_MODEL': 'Qwen3-VL-8B', 'API_BASE': 'http://${UFO_DGX_HOST}:8080/v1', 'API_KEY': 'sk-local'},
-        'APP_AGENT': {'API_TYPE': 'openai', 'API_MODEL': 'Gemma-4-12B', 'API_BASE': 'http://${UFO_DGX_HOST}:8081/v1', 'API_KEY': 'sk-local'},
-        'BACKUP_AGENT': {'API_TYPE': 'openai', 'API_MODEL': 'Qwen3-VL-8B', 'API_BASE': 'http://${UFO_DGX_HOST}:8080/v1', 'API_KEY': 'sk-local'},
-        'EVALUATION_AGENT': {'API_TYPE': 'openai', 'API_MODEL': 'Gemma-4-12B', 'API_BASE': 'http://${UFO_DGX_HOST}:8081/v1', 'API_KEY': 'sk-local'},
-    })
+    # Shared with tests/test_dgx_model_audit.py's SYNTHETIC_DGX_CONFIG rather than a
+    # second hand-duplicated copy — the two had already silently drifted (this fixture
+    # was missing that module's TIMEOUT field) before being unified here.
+    write_yaml(ufo_dir / 'agents_dgx.yaml', SYNTHETIC_DGX_CONFIG)
     write_yaml(ufo_dir / 'system.yaml', {'UFO_ROOT': str(tmp_path), 'LOG_LEVEL': 'INFO'})
     ConfigLoader.reset()
     clear_config_cache()
@@ -207,6 +207,16 @@ def test_launcher_commands(temp_config_root, monkeypatch):
     import sys
     import urllib.request
 
+    sb_path = Path(__file__).resolve().parent.parent / 'scripts' / 'switch_backend.py'
+    pcs_path = Path(__file__).resolve().parent.parent / 'scripts' / 'smoke_tests' / 'prepare_cloud_smoke.py'
+    if not sb_path.is_file() or not pcs_path.is_file():
+        pytest.skip(
+            f"scripts/switch_backend.py and scripts/smoke_tests/prepare_cloud_smoke.py are "
+            f"gitignored ('scripts/*' in .gitignore) and not present on this checkout "
+            f"(missing: {sb_path if not sb_path.is_file() else pcs_path}); this test only "
+            f"runs on a dev machine where scripts/ has been populated locally."
+        )
+
     def stub_probe_stack():
         return (True, 'Mock')
 
@@ -225,13 +235,11 @@ def test_launcher_commands(temp_config_root, monkeypatch):
                 pass
         return MockResp()
     monkeypatch.setattr(urllib.request, 'urlopen', stub_urlopen)
-    sb_path = Path(__file__).resolve().parent.parent / 'scripts' / 'switch_backend.py'
     spec = importlib.util.spec_from_file_location('switch_backend', str(sb_path))
     sb = importlib.util.module_from_spec(spec)
     sys.modules['switch_backend'] = sb
     spec.loader.exec_module(sb)
     monkeypatch.setattr(sb, 'probe_local_stack', stub_probe_stack)
-    pcs_path = Path(__file__).resolve().parent.parent / 'scripts' / 'smoke_tests' / 'prepare_cloud_smoke.py'
     spec_pcs = importlib.util.spec_from_file_location('prepare_cloud_smoke', str(pcs_path))
     pcs = importlib.util.module_from_spec(spec_pcs)
     sys.modules['prepare_cloud_smoke'] = pcs

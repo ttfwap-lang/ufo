@@ -12,8 +12,9 @@ Supports:
 - Dedicated local adapter types (ollama, llava, cogagent)
 """
 
-import os
 from typing import Any, Dict, Optional
+
+from ufo.llm.config_helper import get_dgx_host
 
 
 def is_local_endpoint(
@@ -39,8 +40,10 @@ def is_local_endpoint(
             for local_id in ("127.0.0.1", "localhost", "0.0.0.0", ":4000", ":8080", ":8081", ":11434", ":8000", ":1234")
         ):
             return True
-        # 3. DGX Spark on the local network (via UFO_DGX_HOST env var)
-        dgx_host = os.getenv("UFO_DGX_HOST", "").strip().lower()
+        # 3. DGX Spark on the local network (via UFO_DGX_HOST env var).
+        # Reuses config_helper.get_dgx_host() rather than a second inline
+        # os.getenv() so the two can't drift on how the value is normalized.
+        dgx_host = (get_dgx_host() or "").lower()
         if dgx_host and api_base_str:
             if dgx_host in api_base_str or f":{dgx_host}" in api_base_str:
                 return True

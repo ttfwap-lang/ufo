@@ -50,9 +50,13 @@ def _probe_endpoint(url: str, timeout: float=2.0) -> bool:
     except Exception:
         return False
 
-def _get_dgx_host() -> Optional[str]:
-    """Get the DGX host IP from environment variable."""
-    return os.getenv('UFO_DGX_HOST')
+def get_dgx_host() -> Optional[str]:
+    """Get the DGX host IP/hostname from the UFO_DGX_HOST environment variable,
+    stripped of incidental whitespace, or None if unset/blank. Shared with
+    ufo.llm.endpoint.is_local_endpoint() so both places normalize the same way.
+    """
+    value = os.getenv('UFO_DGX_HOST', '').strip()
+    return value or None
 
 def _probe_local_auto() -> bool:
     """Probe for any available local LLM endpoint (localhost or DGX)."""
@@ -60,7 +64,7 @@ def _probe_local_auto() -> bool:
     # gemma4-ufo via Ollama on :11434 and qwen-abliterated via vLLM on :8000
     # (not the :8080/:8081 llama-server layout this used to assume) — probe
     # what's actually there, not what the config used to be.
-    dgx_host = _get_dgx_host()
+    dgx_host = get_dgx_host()
     if dgx_host:
         if _probe_endpoint(f'http://{dgx_host}:11434/api/tags') or _probe_endpoint(f'http://{dgx_host}:8000/v1/models'):
             return True
@@ -97,6 +101,7 @@ def get_backend_selection() -> dict:
     return {'selected': 'disk', 'source': 'default'}
 
 def set_backend_selection(selection: str, profile_path: Optional[str]=None, updated_by: str='api') -> dict:
+    global _auto_probe_memo
     loader = ConfigLoader.get_instance()
     state_path = loader.base_path / 'ufo' / 'backend_state.json'
     if selection not in ['local', 'cloud', 'auto', 'profile', 'disk', 'dgx']:
@@ -105,7 +110,10 @@ def set_backend_selection(selection: str, profile_path: Optional[str]=None, upda
         raise ValueError('Profile selection requires profile_path')
     resolved_auto = None
     if selection == 'auto':
-        is_local = _probe_local_auto()
+        with _route_lock:
+            if _auto_probe_memo is None:
+                _auto_probe_memo = _probe_local_auto()
+            is_local = _auto_probe_memo
         resolved_auto = 'local' if is_local else 'cloud'
     if selection != 'disk':
         validation_target = resolved_auto if selection == 'auto' else selection
@@ -159,7 +167,13 @@ def _get_file_stat_key(path: Path) -> str:
     except Exception:
         return '0:0'
 
-def resolve_backend_profile(selection: Optional[str]=None, profile_path: Optional[str]=None) -> Optional[Dict[str, Any]]:
+def _resolve_backend_profile_full(selection: Optional[str]=None, profile_path: Optional[str]=None) -> Optional[Dict[str, Any]]:
+    """Resolve the backend profile and return the internal cache entry
+    (``{'data': ..., 'unresolved_by_block': ...}``) rather than a bare copy of
+    the data. ``unresolved_by_block`` is computed once per cache entry so
+    hot-path callers (``resolve_agent_config``) don't have to re-walk and
+    re-regex the same already-resolved agent dict on every single call.
+    """
     global _auto_probe_memo
     loader = ConfigLoader.get_instance()
     state_path = loader.base_path / 'ufo' / 'backend_state.json'
@@ -186,34 +200,52 @@ def resolve_backend_profile(selection: Optional[str]=None, profile_path: Optiona
         target_path = ufo_dir / 'agents.yaml'
     else:
         return None
-    state_stat = _get_file_stat_key(state_path)
-    target_stat = _get_file_stat_key(target_path)
-    cache_key = f'{selection}:{profile_path}:{state_stat}:{target_stat}'
-    with _route_lock:
-        if cache_key in _profile_cache:
-            return copy.deepcopy(_profile_cache[cache_key]['data'])
     if not target_path.exists():
         raise BackendProfileError(f'Target profile path does not exist: {target_path}')
     try:
         with open(target_path, 'r', encoding='utf-8') as f:
-            raw_data = yaml.safe_load(f.read())
+            raw_text = f.read()
+    except Exception as e:
+        raise BackendProfileError(f'Failed to load profile {target_path}: {e}')
+    # The cache key must include the *current value* of every env var this
+    # profile's raw text references, not just the file's own mtime/size —
+    # otherwise changing e.g. UFO_DGX_HOST mid-process (the file itself never
+    # changes) would keep serving a stale, already-expanded host forever
+    # until reset_backend_caches() is called explicitly.
+    referenced_vars = sorted({m.group(1) or m.group(2) for m in ConfigLoader.ENV_PLACEHOLDER_PATTERN.finditer(raw_text)})
+    env_fingerprint = ','.join((f'{name}={os.getenv(name, "")}' for name in referenced_vars))
+    state_stat = _get_file_stat_key(state_path)
+    target_stat = _get_file_stat_key(target_path)
+    cache_key = f'{selection}:{profile_path}:{state_stat}:{target_stat}:{env_fingerprint}'
+    with _route_lock:
+        cached_entry = _profile_cache.get(cache_key)
+    if cached_entry is not None:
+        return cached_entry
+    try:
+        raw_data = yaml.safe_load(raw_text)
         if not isinstance(raw_data, dict):
             raise BackendProfileError(f'Profile is not a dict: {target_path}')
         data = copy.deepcopy(raw_data)
         data = loader._expand_env_vars(data)
-        loader._apply_env_overrides(data, prefix='UFO_', reserved_suffixes=('ENV', 'ROOT', 'DIR'))
+        loader._apply_env_overrides(data, prefix='UFO_', reserved_suffixes=('ENV', 'ROOT', 'DIR', 'DGX_HOST'))
         loader._apply_legacy_transforms(data)
         host = data.get('HOST_AGENT')
         app = data.get('APP_AGENT')
         if not isinstance(host, dict) or not isinstance(app, dict):
             raise BackendProfileError(f'Profile missing HOST_AGENT or APP_AGENT dicts: {target_path}')
+        unresolved_by_block = {block_key: frozenset(_find_unresolved_env_placeholders(block_val)) for block_key, block_val in data.items() if isinstance(block_val, dict)}
+        entry = {'data': data, 'unresolved_by_block': unresolved_by_block}
         with _route_lock:
-            _profile_cache[cache_key] = {'data': copy.deepcopy(data)}
-        return copy.deepcopy(data)
+            _profile_cache[cache_key] = entry
+        return entry
     except BackendProfileError:
         raise
     except Exception as e:
         raise BackendProfileError(f'Failed to load profile {target_path}: {e}')
+
+def resolve_backend_profile(selection: Optional[str]=None, profile_path: Optional[str]=None) -> Optional[Dict[str, Any]]:
+    entry = _resolve_backend_profile_full(selection, profile_path)
+    return copy.deepcopy(entry['data']) if entry else None
 
 def set_process_override(selection: str) -> bool:
     global _process_override, _process_override_cache
@@ -254,14 +286,17 @@ def resolve_agent_config(agent_type: str) -> Dict[str, Any]:
     with _route_lock:
         current_route = _process_override
         cached_override = _process_override_cache
+    unresolved_by_block: Optional[Dict[str, frozenset]] = None
     if current_route and cached_override:
-        prof = copy.deepcopy(cached_override)
+        prof = cached_override
     else:
         try:
-            prof = resolve_backend_profile()
+            entry = _resolve_backend_profile_full()
         except BackendProfileError as e:
             state = get_backend_selection()
             raise BackendProfileError(f"Resolution failed for active selection '{state.get('selected', 'unknown')}': {e}") from e
+        prof = entry['data'] if entry else None
+        unresolved_by_block = entry['unresolved_by_block'] if entry else None
     if prof:
         cloud_map = {AgentType.HOST: 'HOST_AGENT', AgentType.APP: 'APP_AGENT', AgentType.BACKUP: 'BACKUP_AGENT', AgentType.EVALUATION: 'EVALUATION_AGENT', AgentType.OPERATOR: 'OPERATOR', AgentType.PREFILL: 'HOST_AGENT', AgentType.FILTER: 'HOST_AGENT'}
         if agent_type in cloud_map:
@@ -275,7 +310,13 @@ def resolve_agent_config(agent_type: str) -> Dict[str, Any]:
                 # env vars (e.g. HOST_AGENT=Anthropic, BACKUP_AGENT=OpenAI),
                 # so a user who only configured one provider's key must still
                 # be able to use the agent(s) that actually need it.
-                unresolved = _find_unresolved_env_placeholders(agent_dict)
+                # Reuse the precomputed set from the profile cache when available
+                # (the common, hot-path case) instead of re-walking/re-regexing
+                # this dict on every single get_completions() call.
+                if unresolved_by_block is not None:
+                    unresolved = unresolved_by_block.get(key, frozenset())
+                else:
+                    unresolved = _find_unresolved_env_placeholders(agent_dict)
                 if unresolved:
                     raise BackendProfileError(f"Agent block '{key}' has unresolved environment variable(s) {sorted(unresolved)}: set them before using this agent.")
                 return copy.deepcopy(agent_dict)

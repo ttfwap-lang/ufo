@@ -4,17 +4,18 @@ title UFO Interactive Desktop Shell (Elevated)
 chcp 65001 >nul
 color 0A
 
+for %%I in ("%~dp0..") do set "UFO_ROOT=%%~fI"
+
 :: Check for Administrator privileges
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo Requesting administrative privileges...
-    powershell -NoProfile -Command "Start-Process cmd -ArgumentList '/k cd /d C:\Users\lnxzf\Desktop\projects\ufo\ufo & \"\"%~f0\"\"' -Verb RunAs"
+    powershell -NoProfile -Command "Start-Process cmd -ArgumentList '/k cd /d \"\"%UFO_ROOT%\"\" & \"\"%~f0\"\"' -Verb RunAs"
     exit /b
 )
 
-set "BF_DIR=C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity"
-set "UFO_ROOT=C:\Users\lnxzf\Desktop\projects\ufo\ufo"
-set "PYTHON_EXE=C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe"
+if not defined BF_DIR (for %%I in ("%~dp0..\..\bankfidelity\bankfidelity") do set "BF_DIR=%%~fI")
+if not defined PYTHON_EXE set "PYTHON_EXE=python"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONPATH=%UFO_ROOT%;%BF_DIR%"
 

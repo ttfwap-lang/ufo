@@ -3,6 +3,7 @@ import pkgutil
 import importlib.util
 import sys
 import platform
+from pathlib import Path
 current_dir = os.path.dirname(__file__)
 WINDOWS_ONLY_SERVERS = {'ui_mcp_server', 'excel_wincom_mcp_server', 'ppt_wincom_mcp_server', 'word_wincom_mcp_server', 'pdf_reader_mcp_server'}
 
@@ -15,9 +16,15 @@ def load_all_servers():
     On non-Windows platforms, Windows-specific servers are skipped.
     """
     is_windows = platform.system() == 'Windows'
-    _ufo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    _ufo_pkg = os.path.dirname(os.path.dirname(__file__))
-    for p in [_ufo_root, _ufo_pkg]:
+    # __file__ is <repo_root>/client/mcp/local_servers/__init__.py, and
+    # <repo_root> itself IS the "ufo" package (it has __init__.py at its
+    # root and every internal module imports itself as ufo.X) — so the
+    # package dir is 3 parents up, and the dir that must be on sys.path for
+    # "import ufo...." to resolve is one level above that.
+    _here = Path(__file__).resolve()
+    _ufo_pkg = _here.parents[3]
+    _ufo_root = _here.parents[4]
+    for p in [str(_ufo_root), str(_ufo_pkg)]:
         if os.path.isdir(p) and p not in sys.path:
             sys.path.insert(0, p)
     for finder, name, ispkg in pkgutil.iter_modules([current_dir]):

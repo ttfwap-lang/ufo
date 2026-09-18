@@ -4,8 +4,8 @@ title Booting UFO AI Dream Team (Local LLMs)
 color 0A
 chcp 65001 >nul
 
-set "UFO_ROOT=C:\Users\lnxzf\Desktop\projects\ufo\ufo"
-set "PYTHON_EXE=C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe"
+for %%I in ("%~dp0..") do set "UFO_ROOT=%%~fI"
+if not defined PYTHON_EXE set "PYTHON_EXE=python"
 
 :MENU
 cls
