@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import logging
 import sys
 import urllib.error
@@ -60,7 +61,16 @@ def _run_preflight_checks(logger: logging.Logger) -> None:
     except ImportError:
         pass
 
-def _ensure_llm_reachable(logger: logging.Logger) -> None:
+def _probe_health_sync(health_url: str, timeout: float) -> bool:
+    """Blocking HTTP GET, meant to be run off the event loop via asyncio.to_thread."""
+    try:
+        req = urllib.request.Request(health_url, method='GET')
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+async def _ensure_llm_reachable(logger: logging.Logger) -> None:
     """
     Probe the configured LLM endpoint. If unreachable (local stack down),
     switch the in-memory route to cloud config (agents_cloud.yaml) with zero disk writes.
@@ -91,14 +101,13 @@ def _ensure_llm_reachable(logger: logging.Logger) -> None:
             return
         health_path = '/api/tags' if api_type == 'ollama' else '/health'
         health_url = f"{api_base.rstrip('/')}{health_path}"
-        try:
-            req = urllib.request.Request(health_url, method='GET')
-            with urllib.request.urlopen(req, timeout=5.0) as resp:
-                if resp.status == 200:
-                    logger.info(f'AUTO-FALLBACK: Local LLM at {api_base} is healthy')
-                    return
-        except Exception:
-            pass
+        # Run the blocking urllib call in a worker thread: this coroutine runs
+        # inside async main() before any other work has started, and a slow/
+        # unreachable host would otherwise stall the event loop itself for up
+        # to the full timeout rather than just delaying this one startup step.
+        if await asyncio.to_thread(_probe_health_sync, health_url, 5.0):
+            logger.info(f'AUTO-FALLBACK: Local LLM at {api_base} is healthy')
+            return
         logger.warning(f'AUTO-FALLBACK: Local LLM at {api_base} is unreachable')
         if set_process_override('cloud'):
             logger.warning('AUTO-FALLBACK: Switched active LLM route to Claude/OpenAI cloud API in memory (zero disk writes).')
@@ -137,7 +146,7 @@ async def main(parsed_args: Optional[argparse.Namespace]=None):
     logger = logging.getLogger('UFO_Main')
     if not skip_preflight:
         _run_preflight_checks(logger)
-    _ensure_llm_reachable(logger)
+    await _ensure_llm_reachable(logger)
     watchdog = None
     try:
         from ufo.utils.llm_resilience import get_watchdog

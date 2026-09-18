@@ -10,8 +10,8 @@ echo WARNING: This test will take over your mouse and keyboard.
 echo Please do not touch your mouse or keyboard until the test finishes.
 echo.
 
-set "UFO_ROOT=C:\Users\lnxzf\Desktop\projects\ufo\ufo"
-set "PYTHON_EXE=C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe"
+for %%I in ("%~dp0..") do set "UFO_ROOT=%%~fI"
+if not defined PYTHON_EXE set "PYTHON_EXE=python"
 
 "%PYTHON_EXE%" "%UFO_ROOT%\scratch\sandbox_ui_test.py"
 set EXIT_CODE=%ERRORLEVEL%

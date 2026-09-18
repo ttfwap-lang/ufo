@@ -4,7 +4,7 @@ title BANKFIDELITY // CROSS-BANK TRANSFER MATRIX STRESS TEST
 color 0B
 chcp 65001 >nul
 
-set "BF_DIR=C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity"
+if not defined BF_DIR (for %%I in ("%~dp0..\..\..\bankfidelity\bankfidelity") do set "BF_DIR=%%~fI")
 
 cls
 echo ==============================================================================

@@ -5,7 +5,7 @@ color 0B
 chcp 65001 >nul
 
 for %%I in ("%~dp0..") do set "UFO_ROOT=%%~fI"
-if not defined BF_DIR (for %%I in ("%~dp0..\..\bankfidelity\bankfidelity") do set "BF_DIR=%%~fI")
+if not defined BF_DIR (for %%I in ("%UFO_ROOT%\..\..\bankfidelity\bankfidelity") do set "BF_DIR=%%~fI")
 if not defined PYTHON_EXE set "PYTHON_EXE=python"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONPATH=%UFO_ROOT%;%BF_DIR%"
