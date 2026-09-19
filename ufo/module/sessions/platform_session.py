@@ -71,23 +71,13 @@ class LinuxBaseSession(BaseSession):
             ],
         )
 
-    async def evaluation(self) -> None:
-        """
-        Evaluation logic for Linux sessions.
-        """
-        raise NotImplementedError(
-            "Evaluation is not yet implemented for Linux sessions. "
-            "Override this method in a LinuxBaseSession subclass to add evaluation."
-        )
-
-    def save_log_to_markdown(self) -> None:
-        """
-        Save the log of the session to markdown file.
-        """
-        raise NotImplementedError(
-            "Markdown logging is not yet implemented for Linux sessions. "
-            "Override this method in a LinuxBaseSession subclass to add logging."
-        )
+    # `evaluation()` and `save_log_to_markdown()` are intentionally not
+    # overridden here: `BaseSession` (ufo/module/basic.py) already provides
+    # a fully generic implementation of both that only depends on
+    # `request_to_evaluate()` (implemented by concrete Linux session
+    # subclasses) and `self.log_path`/`self.context`, none of which is
+    # Windows-UI-specific. Overriding them with a stub here would shadow a
+    # working implementation, so Linux sessions simply inherit it.
 
     def reset(self) -> None:
         """
@@ -124,23 +114,13 @@ class MobileBaseSession(BaseSession):
             ],
         )
 
-    async def evaluation(self) -> None:
-        """
-        Evaluation logic for Mobile sessions.
-        """
-        raise NotImplementedError(
-            "Evaluation is not yet implemented for Mobile sessions. "
-            "Override this method in a MobileBaseSession subclass to add evaluation."
-        )
-
-    def save_log_to_markdown(self) -> None:
-        """
-        Save the log of the session to markdown file.
-        """
-        raise NotImplementedError(
-            "Markdown logging is not yet implemented for Mobile sessions. "
-            "Override this method in a MobileBaseSession subclass to add logging."
-        )
+    # `evaluation()` and `save_log_to_markdown()` are intentionally not
+    # overridden here: `BaseSession` (ufo/module/basic.py) already provides
+    # a fully generic implementation of both that only depends on
+    # `request_to_evaluate()` (implemented by concrete Mobile session
+    # subclasses) and `self.log_path`/`self.context`, none of which is
+    # Windows-UI-specific. Overriding them with a stub here would shadow a
+    # working implementation, so Mobile sessions simply inherit it.
 
     def reset(self) -> None:
         """

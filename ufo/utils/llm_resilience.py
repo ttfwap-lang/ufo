@@ -55,6 +55,32 @@ DEFAULT_SERVERS = [
     ),
 ]
 LLAMA_SERVER_PATH = str(_LLAMA_SERVER)
+
+
+def _servers_for_active_backend() -> List[LLMServerConfig]:
+    """Only watch/restart local llama-servers the active backend actually uses.
+
+    The watchdog used to monitor the hardcoded :8080/:8081 llama-server layout
+    unconditionally. With the DGX (or any remote/Ollama) backend those ports
+    are never served, so it declared them dead, exhausted restarts, and
+    force-failed-over to a cloud API -- silently moving screenshots off the
+    private DGX. A server is watched only if some active agent's API_BASE
+    points at it on localhost.
+    """
+    try:
+        from urllib.parse import urlparse
+
+        from ufo.llm.config_helper import resolve_backend_profile
+        prof = resolve_backend_profile() or {}
+    except Exception:
+        return list(DEFAULT_SERVERS)
+    used_ports = set()
+    for agent_cfg in prof.values():
+        if isinstance(agent_cfg, dict) and agent_cfg.get('API_BASE'):
+            u = urlparse(str(agent_cfg['API_BASE']))
+            if u.hostname in ('127.0.0.1', 'localhost') and u.port:
+                used_ports.add(u.port)
+    return [s for s in DEFAULT_SERVERS if s.port in used_ports]
 UFO_DIR = _UFO_ROOT
 
 class LLMWatchdog:
@@ -73,7 +99,7 @@ class LLMWatchdog:
         :param check_interval: Seconds between health checks
         :param health_timeout: Seconds to wait for health endpoint response
         """
-        self.servers = servers or DEFAULT_SERVERS
+        self.servers = servers if servers is not None else _servers_for_active_backend()
         self.check_interval = check_interval
         self.health_timeout = health_timeout
         self._thread: Optional[threading.Thread] = None

@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import secrets
 import sys
 
@@ -16,8 +17,9 @@ def parse_args():
         "--api-key",
         dest="api_key",
         type=str,
-        default=None,
-        help="API key for authenticating HTTP and WebSocket requests. Auto-generated if not provided.",
+        default=os.environ.get("UFO_WS_TOKEN") or None,
+        help="API key for authenticating HTTP and WebSocket requests. Defaults to $UFO_WS_TOKEN "
+        "(keeps it out of the process list); auto-generated if neither is set.",
     )
     parser.add_argument(
         "--platform",
@@ -49,7 +51,7 @@ if __name__ == "__main__":
 
 # Setup logger before importing other UFO modules
 if cli_args:
-    from ufo.logging.setup import setup_logger
+    from ufo.ufo_logging.setup import setup_logger
 
     setup_logger(cli_args.log_level)
 else:
@@ -68,6 +70,24 @@ from ufo.server.services.api import create_api_router
 from ufo.server.services.session_manager import SessionManager
 from ufo.server.services.client_connection_manager import ClientConnectionManager
 from ufo.server.ws.handler import UFOWebSocketHandler
+
+
+class _MaskTokenFilter(logging.Filter):
+    """Mask the WebSocket ?token= secret in uvicorn's connection log lines."""
+
+    import re as _re
+    _pattern = _re.compile(r"(token=)[^&\s\"']+")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.args:
+            record.args = tuple(self._pattern.sub(r"\1***", a) if isinstance(a, str) else a for a in record.args)
+        if isinstance(record.msg, str):
+            record.msg = self._pattern.sub(r"\1***", record.msg)
+        return True
+
+
+for _name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+    logging.getLogger(_name).addFilter(_MaskTokenFilter())
 
 
 logger = logging.getLogger(__name__)
@@ -110,7 +130,7 @@ if __name__ == "__main__":
     # Arguments already parsed at module level
     if cli_args is None:
         cli_args = parse_args()
-        from ufo.logging.setup import setup_logger
+        from ufo.ufo_logging.setup import setup_logger
 
         setup_logger(cli_args.log_level)
 
@@ -135,7 +155,10 @@ if __name__ == "__main__":
     logger.info(f"Starting UFO Server on {cli_args.host}:{cli_args.port}")
     logger.info(f"Platform: {cli_args.platform or 'auto-detected'}")
     logger.info(f"Log level: {cli_args.log_level}")
-    print(f"\n** UFO Server API key: {_api_key}")
+    if cli_args.api_key:
+        print("\n** UFO Server API key: (supplied via --api-key or UFO_WS_TOKEN, not printed)")
+    else:
+        print(f"\n** UFO Server API key: {_api_key}")
     print("** Pass this key as 'X-API-Key' header for HTTP requests and 'token' query param for WebSocket.\n")
     uvicorn.run(
         app,
@@ -143,4 +166,5 @@ if __name__ == "__main__":
         port=cli_args.port,
         reload=False,
         ws_max_size=100 * 1024 * 1024,
+        access_log=False,  # access lines would include the ?token= secret
     )

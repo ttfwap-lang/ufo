@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import json
 import logging
 import sys
 import urllib.error
@@ -99,6 +100,9 @@ async def _ensure_llm_reachable(logger: logging.Logger) -> None:
             return
         if not is_local_endpoint(api_base=api_base, api_key=api_key, api_type=api_type):
             return
+        if '${' in api_base:
+            logger.error(f'AUTO-FALLBACK: API_BASE {api_base!r} has an unresolved environment variable (e.g. set UFO_DGX_HOST). Not failing over to a cloud API, since that would send screenshots off this network unasked.')
+            return
         health_path = '/api/tags' if api_type == 'ollama' else '/health'
         health_url = f"{api_base.rstrip('/')}{health_path}"
         # Run the blocking urllib call in a worker thread: this coroutine runs
@@ -161,9 +165,27 @@ async def main(parsed_args: Optional[argparse.Namespace]=None):
         from ufo.module.session_pool import SessionFactory, SessionPool
         from ufo.utils.ipc import UfoTaskResult
 
-        sessions = SessionFactory().create_session(task=parsed_args.task, mode=parsed_args.mode, plan=parsed_args.plan, request=parsed_args.request)
-        clients = SessionPool(sessions)
-        await clients.run_all()
+        attempt_outcomes = []
+        if parsed_args.mode == 'normal' and parsed_args.request:
+            # Retry-until-verified: sequential attempts, each continuing from the last.
+            from ufo.module import attempts
+
+            latest = {}
+
+            async def run_attempt(task_name: str, request: str):
+                attempt_sessions = SessionFactory().create_session(task=task_name, mode=parsed_args.mode, plan=parsed_args.plan, request=request)
+                if not attempt_sessions:
+                    raise RuntimeError(f'No session was created for task {task_name!r}.')
+                await SessionPool(attempt_sessions).run_all()
+                latest['sessions'] = attempt_sessions
+                return attempt_sessions[0]
+
+            attempt_outcomes = await attempts.run_until_verified(parsed_args.task, parsed_args.request, run_attempt)
+            sessions = latest['sessions']
+        else:
+            sessions = SessionFactory().create_session(task=parsed_args.task, mode=parsed_args.mode, plan=parsed_args.plan, request=parsed_args.request)
+            clients = SessionPool(sessions)
+            await clients.run_all()
 
         output_str = "Completed"
         if sessions and sessions[0].is_error():
@@ -178,8 +200,12 @@ async def main(parsed_args: Optional[argparse.Namespace]=None):
             res = UfoTaskResult(status="success", task_id=parsed_args.task, output=output_str)
         log_dir = Path("logs") / parsed_args.task
         log_dir.mkdir(parents=True, exist_ok=True)
+        result_payload = res.model_dump()
+        if attempt_outcomes:
+            result_payload['verified'] = attempt_outcomes[-1].success
+            result_payload['attempts'] = attempts.outcomes_as_dicts(attempt_outcomes)
         with open(log_dir / "result.json", "w", encoding="utf-8") as f:
-            f.write(res.model_dump_json())
+            f.write(json.dumps(result_payload))
 
     except Exception as e:
         logger.critical(f'FATAL SYSTEM CRASH: {e}', exc_info=True)

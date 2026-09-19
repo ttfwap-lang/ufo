@@ -174,6 +174,10 @@ class GalaxySession(BaseSession):
         """
         super()._init_context()
         all_devices = self._client.device_manager.get_all_devices(connected=False)
+        connected = self._client.device_manager.get_all_devices(connected=True)
+        if connected:
+            # Don't let the planner assign work to devices that aren't reachable.
+            all_devices = connected
         self.logger.info(f'🔍 DEBUG: Retrieved {len(all_devices)} devices from registry: {list(all_devices.keys())}')
         self.context.set(ContextNames.DEVICE_INFO, all_devices)
         self.logger.info(f'The following devices has been registered and added to the context: {self.context.get(ContextNames.DEVICE_INFO)}')

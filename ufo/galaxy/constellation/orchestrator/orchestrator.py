@@ -394,7 +394,7 @@ class TaskConstellationOrchestrator:
             await self._event_bus.publish_event(completed_event)
             if self._logger:
                 self._logger.debug(f'Task {task.task_id} is marked as completed. Completed tasks ids: {[t.task_id for t in constellation.get_completed_tasks()]}')
-                self._logger.info(f'Task {task.task_id} completed successfully')
+                self._logger.info(f"Task {task.task_id} finished: {'success' if is_success else 'FAILED'}")
         except Exception as e:
             if task.should_retry():
                 if self._logger:

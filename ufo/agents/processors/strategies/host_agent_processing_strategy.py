@@ -319,9 +319,20 @@ class HostLLMInteractionStrategy(BaseProcessingStrategy):
         """
         max_retries = ufo_config.system.json_parsing_retry
         last_exception = None
+        attempt_prompt = prompt_message
         for retry_count in range(max_retries):
+            if retry_count > 0 and last_exception is not None and isinstance(prompt_message, list):
+                # At temperature 0 an identical prompt tends to produce the
+                # identical bad reply; tell the model what was wrong.
+                attempt_prompt = list(prompt_message) + [{
+                    'role': 'user',
+                    'content': f'Your previous reply could not be used ({str(last_exception)[:200]}). '
+                               'Reply with exactly one JSON object with the fields "observation", "thought", '
+                               '"current_subtask", "message", "function", "arguments", "status", "plan", "comment". '
+                               'No text outside the JSON.',
+                }]
             try:
-                result = await host_agent.get_response(prompt_message, AgentType.HOST, True)
+                result = await host_agent.get_response(attempt_prompt, AgentType.HOST, True)
                 response_text = result.responses[0] if result.responses else ''
                 cost = result.cost
                 host_agent.response_to_dict(response_text)
@@ -524,7 +535,20 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
                 raise ValueError('No target ID specified for application selection')
             if not target_registry:
                 raise ValueError('Target registry not available')
-            target = target_registry.get(target_id)
+            target = target_registry.get(str(target_id))
+            if not target:
+                # Smaller local models often answer with the window title
+                # instead of its numeric ID. Accept a unique case-insensitive
+                # name match rather than failing the whole round.
+                needle = str(target_id).strip().lower()
+                candidates = [t for t in target_registry.all_targets() if (t.name or '').strip().lower() == needle]
+                if not candidates:
+                    candidates = [t for t in target_registry.all_targets() if needle and needle in (t.name or '').lower()]
+                if candidates:
+                    if len(candidates) > 1:
+                        self.logger.warning(f"Ambiguous target name '{target_id}' matched {len(candidates)} windows; using the first.")
+                    target = candidates[0]
+                    target_id = target.id
             if not target:
                 raise ValueError(f"Target with ID '{target_id}' not found")
             self.logger.info(f'Selecting target: {target.name} (ID: {target_id}, Kind: {target.kind})')

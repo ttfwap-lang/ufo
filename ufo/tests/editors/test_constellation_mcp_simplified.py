@@ -3,6 +3,7 @@ Test script for the Constellation Editor MCP Server.
 Tests only the available MCP tools.
 """
 import sys
+import asyncio
 import os
 import json
 current_dir = os.path.dirname(os.path.abspath(__file__))

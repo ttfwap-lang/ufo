@@ -65,6 +65,7 @@ except ImportError:
         IOS = "ios"
         WEB = "web"
         API = "api"
+        DGX_SPARK = "dgx_spark"
 
     class DependencyType(Enum):
         UNCONDITIONAL = "unconditional"

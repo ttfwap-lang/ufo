@@ -26,6 +26,7 @@ from ufo.automator.puppeteer import AppPuppeteer
 from ufo.automator.ui_control import ui_tree
 from ufo.automator.ui_control.inspector import ControlInspectorFacade
 from ufo.automator.ui_control.screenshot import PhotographerFacade
+from ufo.automator.ui_control.grounding.venus import get_grounder
 from ufo.client.mcp.mcp_registry import MCPRegistry
 from ufo.config import LazyUFOConfig, get_config
 from ufo.aip.messages import ControlInfo, Rect, WindowInfo
@@ -76,6 +77,19 @@ def _control2control_info(control: UIAWrapper, annotation_id: Optional[str]=None
     """
     return ControlInfo(annotation_id=annotation_id, name=control.element_info.name if hasattr(control, 'element_info') else None, automation_id=control.element_info.automation_id if hasattr(control, 'element_info') else None, class_name=control.class_name(), rectangle=_get_control_rectangle(control), is_enabled=control.is_enabled(), is_visible=control.is_visible(), control_type=control.element_info.control_type if hasattr(control, 'element_info') else None)
 
+def _rect_tuple(control: UIAWrapper):
+    try:
+        r = control.rectangle()
+        return (r.left, r.top, r.right, r.bottom)
+    except Exception:
+        return None
+
+
+def _snapshot_rects(control_dict: Dict[str, UIAWrapper]) -> Dict[str, Any]:
+    """Position of each control when the control list was collected (for check_ui_stable)."""
+    return {cid: _rect_tuple(ctl) for cid, ctl in (control_dict or {}).items()}
+
+
 class UIServerState:
     _instance = None
     _initialized = False
@@ -95,6 +109,7 @@ class UIServerState:
             self.last_app_windows: Optional[Dict[str, UIAWrapper]] = None
             self.grounding_service = None
             self.control_dict: Optional[Dict[str, UIAWrapper]] = None
+            self.control_rects: Dict[str, Any] = {}
             UIServerState._initialized = True
             self.logger = logging.getLogger(__name__)
 
@@ -196,6 +211,29 @@ def create_app_action_mcp_server(*args, **kwargs) -> FastMCP:
         """
         action = ActionCommandInfo(function='click_on_coordinates', arguments={'x': x, 'y': y, 'button': button, 'double': double}, status='CONTINUE')
         return _execute_action(action)
+
+    @action_mcp.tool(tags={'AppAgent'}, exclude_args=[])
+    def click_on_description(description: Annotated[str, Field(description="A short, specific description of the element to click as it appears on screen, e.g. 'the Bold button in the toolbar' or 'the Save button in the dialog'.")], button: Annotated[str, Field(description="Mouse button to use ('left', 'right', 'middle')")]='left', double: Annotated[bool, Field(description='Whether to perform a double click')]=False) -> Annotated[str, Field(description='The result of the click action.')]:
+        """
+        Click an element by describing it, when it is NOT in the control item list (custom-drawn UIs, canvases, icons without accessibility info).
+        A vision grounding model finds the element in the current window and confirms it before clicking; if it cannot find it, nothing is clicked.
+        Prefer click_input when the element has an id in the control list.
+        """
+        if not ui_state.selected_app_window:
+            raise ToolError('No window is selected, please select a window first.')
+        grounder = get_grounder(configs.get('GROUNDING_MODEL') if configs else None)
+        if grounder is None:
+            raise ToolError('Grounding model is not configured (GROUNDING_MODEL in config/ufo/system.yaml).')
+        import os
+        import tempfile
+        shot_path = os.path.join(tempfile.gettempdir(), 'ufo_grounding_window.png')
+        ui_state.photographer.capture_app_window_screenshot(ui_state.selected_app_window, save_path=shot_path)
+        found = grounder.locate(shot_path, description)
+        if found is None:
+            raise ToolError(f"Could not find '{description}' in the current window; nothing was clicked. Describe it differently or use another action.")
+        action = ActionCommandInfo(function='click_on_coordinates', arguments={'x': found.fx, 'y': found.fy, 'button': button, 'double': double}, status='CONTINUE')
+        result = _execute_action(action)
+        return f"Clicked '{description}' at window fraction ({found.fx:.3f}, {found.fy:.3f}). {result}"
 
     @action_mcp.tool(tags={'AppAgent'}, exclude_args=[])
     def drag_on_coordinates(start_x: Annotated[float, Field(description='The relative fractional x-coordinate of the starting point to drag from, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], start_y: Annotated[float, Field(description='The relative fractional y-coordinate of the starting point to drag from, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], end_x: Annotated[float, Field(description='The relative fractional x-coordinate of the ending point to drag to, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], end_y: Annotated[float, Field(description='The relative fractional y-coordinate of the ending point to drag to, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], button: Annotated[str, Field(description="Mouse button to use ('left', 'right', 'middle')")]='left', duration: Annotated[float, Field(description='Duration of the drag operation in seconds')]=1.0, key_hold: Annotated[Optional[str], Field(description="Key to hold during drag operation (e.g., 'ctrl', 'shift')")]=None) -> Annotated[str, Field(description='The result of the drag action.')]:
@@ -360,6 +398,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
         control_dict = {str(i + 1): control for i, control in enumerate(controls_list)}
         result = ui_state.control_inspector.get_control_info_list_of_dict(control_dict, field_list=field_list)
         ui_state.control_dict = control_dict
+        ui_state.control_rects = _snapshot_rects(control_dict)
         return result
 
     @data_mcp.tool()
@@ -374,6 +413,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
         controls_list = ui_state.control_inspector.find_control_elements_in_descendants(ui_state.selected_app_window, control_type_list=configs.get('CONTROL_LIST', []), class_name_list=configs.get('CONTROL_LIST', []))
         control_dict = {str(i + 1): control for i, control in enumerate(controls_list)}
         ui_state.control_dict = control_dict
+        ui_state.control_rects = _snapshot_rects(control_dict)
         target_info_list = []
         for id, control in control_dict.items():
             control_info = ui_state.control_inspector.get_control_info(control, field_list)
@@ -429,6 +469,38 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
         except Exception as e:
             logger.error(f'Desktop screenshot failed: {e}, returning empty image')
             return ui_state.photographer._empty_image_string
+
+    @data_mcp.tool()
+    def check_ui_stable(control_id: str) -> Dict[str, Any]:
+        """
+        Check, between actions of one multi-action step, that the selected window is still in the
+        foreground and that control_id is still visible at the position it had when the control
+        list was collected. Returns {"stable": bool, "reason": str}.
+        """
+        window = ui_state.selected_app_window
+        if window is None:
+            return {'stable': False, 'reason': 'no window selected'}
+        try:
+            import win32gui
+            if win32gui.GetForegroundWindow() != window.handle:
+                return {'stable': False, 'reason': 'another window is now in front'}
+        except Exception:
+            pass
+        control = (ui_state.control_dict or {}).get(str(control_id))
+        if control is None:
+            return {'stable': False, 'reason': f'control {control_id} is not in the current control list'}
+        is_virtual = type(getattr(control, 'element_info', None)).__name__ == 'VirtualUIAElementInfo'
+        if not is_virtual:  # vision-detected controls have no live UI element to query
+            try:
+                if not control.is_visible():
+                    return {'stable': False, 'reason': f'control {control_id} is no longer visible'}
+            except Exception:
+                return {'stable': False, 'reason': f'control {control_id} no longer exists'}
+        before = (getattr(ui_state, 'control_rects', None) or {}).get(str(control_id))
+        after = _rect_tuple(control)
+        if before is not None and after is not None and before != after:
+            return {'stable': False, 'reason': f'control {control_id} moved'}
+        return {'stable': True, 'reason': ''}
 
     @data_mcp.tool()
     def get_ui_tree() -> Dict[str, Any]:
@@ -493,6 +565,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
                 elif control_id in ui_state.control_dict:
                     ui_state.logger.warning(f"Control ID '{control_id}' already exists in control_dict. Overwriting existing control.")
                 ui_state.control_dict[control_id] = wrapped_control
+                ui_state.control_rects[control_id] = _rect_tuple(wrapped_control)
                 added_ids.append(control_id)
                 added_count += 1
             result_msg = f'Successfully added {added_count} controls to control dictionary.'

@@ -1,9 +1,11 @@
 import argparse
 import asyncio
 import logging
+import os
 import platform as platform_module
 import sys
 import tracemalloc
+import urllib.parse
 from ufo.client.computer import ComputerManager
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
 from ufo.client.ufo_client import UFOClient
@@ -21,6 +23,10 @@ parser.add_argument('--task_name', dest='task_name', default=None, help='The nam
 parser.add_argument('--log-level', dest='log_level', default='WARNING', help='Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL, OFF). Use OFF to disable logs (default: WARNING)')
 parser.add_argument('--platform', dest='platform', default=None, choices=['windows', 'linux', 'mobile'], help='Platform override (windows, linux, or mobile). If not specified, auto-detected from system.')
 args = parser.parse_args()
+if os.environ.get('UFO_WS_TOKEN') and 'token=' not in args.ws_server_url:
+    # Token from the environment keeps it out of the process list.
+    _sep = '&' if '?' in args.ws_server_url else '?'
+    args.ws_server_url = f"{args.ws_server_url}{_sep}{urllib.parse.urlencode({'token': os.environ['UFO_WS_TOKEN']})}"
 if args.platform is None:
     detected_platform = platform_module.system().lower()
     if detected_platform in ['windows', 'linux', 'mobile']:
@@ -39,13 +45,17 @@ async def main():
     logger.info(f'UFO Client initialized for platform: {args.platform}')
     ws_client = UFOWebSocketClient(args.ws_server_url, client, max_retries=args.max_retries)
     try:
-        asyncio.create_task(ws_client.connect_and_listen())
+        listener = asyncio.create_task(ws_client.connect_and_listen())
     except Exception as e:
         logger.error(f'[WS] WebSocket client error: {str(e)}', exc_info=True)
         sys.exit(1)
     if args.request_text:
         await ws_client.connected_event.wait()
         await ws_client.start_task(args.request_text, args.task_name)
-    await asyncio.Future()
+    # The listener only returns once it has given up reconnecting; exit non-zero
+    # so a supervisor (systemd Restart=always) starts a fresh client.
+    await listener
+    logger.error('[WS] Listener stopped after exhausting reconnect attempts; exiting.')
+    sys.exit(1)
 if __name__ == '__main__':
     asyncio.run(main())

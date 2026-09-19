@@ -87,7 +87,9 @@ class ConstellationDeviceManager:
         :return: True if registration (and connection if enabled) successful
         """
         try:
-            self.device_registry.register_device(device_id, server_url, os, capabilities, metadata)
+            profile = self.device_registry.register_device(device_id, server_url, os, capabilities, metadata)
+            if profile is not None:
+                profile.auto_connect = auto_connect
             if auto_connect:
                 return await self.connect_device(device_id)
             return True
@@ -408,6 +410,8 @@ class ConstellationDeviceManager:
             if is_actually_connected:
                 self.logger.debug(f'✅ Device {device_id} already connected (status: {device_info.status.value})')
                 results[device_id] = True
+            elif not getattr(device_info, 'auto_connect', True):
+                self.logger.debug(f'Device {device_id} has auto_connect disabled; not reconnecting.')
             else:
                 self.logger.info(f'🔄 Device {device_id} needs reconnection (status: {device_info.status.value}), attempting to connect...')
                 try:
@@ -428,12 +432,12 @@ class ConstellationDeviceManager:
     async def shutdown(self) -> None:
         """Shutdown the device manager and disconnect all devices"""
         self.logger.info('🛑 Shutting down device manager')
-        for device_id in self.device_registry.get_all_devices():
+        for device_id in list(self.device_registry.get_all_devices()):
             self.task_queue_manager.cancel_all_tasks(device_id)
         self.message_processor.stop_all_handlers()
         self.heartbeat_manager.stop_all_heartbeats()
         await self.connection_manager.disconnect_all()
-        for task in self._reconnect_tasks.values():
+        for task in list(self._reconnect_tasks.values()):
             if not task.done():
                 task.cancel()
                 try:

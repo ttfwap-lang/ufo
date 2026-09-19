@@ -1,10 +1,29 @@
 from abc import ABC, abstractmethod
 import logging
-from langchain_community.vectorstores import Chroma
+import os
+from langchain_community.vectorstores import FAISS
 from ufo.config import get_offline_learner_indexer_config
 from ufo.rag import web_search
-from ufo.utils import get_hugginface_embedding
+from ufo.utils import get_hugginface_embedding, resolve_data_path
 logger = logging.getLogger(__name__)
+
+
+def load_faiss_index(path: str, kind: str):
+    """Load a FAISS index written by FAISS.save_local (experience summarizer,
+    demonstration recorder, offline learner). Returns None if missing/broken.
+    The indexes are produced locally by UFO itself, so pickle loading is
+    trusted here."""
+    if not path:
+        return None
+    path = resolve_data_path(path)
+    if not os.path.exists(os.path.join(path, 'index.faiss')):
+        logger.info(f'No {kind} index at {path} yet.')
+        return None
+    try:
+        return FAISS.load_local(path, get_hugginface_embedding(), allow_dangerous_deserialization=True)
+    except Exception as e:
+        logger.warning(f'Failed to load {kind} indexer from {path}, error: {e}.')
+        return None
 
 class RetrieverFactory:
     """
@@ -97,14 +116,7 @@ class OfflineDocRetriever(Retriever):
         """
         if path:
             logger.info(f'Loading offline indexer from {path}...')
-        else:
-            return None
-        try:
-            db = Chroma(persist_directory=path, embedding_function=get_hugginface_embedding())
-            return db
-        except Exception as e:
-            logger.warning(f'Failed to load experience indexer from {path}, error: {e}.')
-            return None
+        return load_faiss_index(path, 'offline docs')
 
 class ExperienceRetriever(Retriever):
     """
@@ -123,12 +135,7 @@ class ExperienceRetriever(Retriever):
         Create an experience indexer.
         :param db_path: The path to the database.
         """
-        try:
-            db = Chroma(persist_directory=db_path, embedding_function=get_hugginface_embedding())
-            return db
-        except Exception as e:
-            logger.warning(f'Failed to load experience indexer from {db_path}, error: {e}.')
-            return None
+        return load_faiss_index(db_path, 'experience')
 
 class OnlineDocRetriever(Retriever):
     """
@@ -150,13 +157,15 @@ class OnlineDocRetriever(Retriever):
         :param top_k: The number of documents to retrieve.
         :return: The created indexer.
         """
-        bing_retriever = web_search.BingSearchWeb()
-        result_list = bing_retriever.search(self.query, top_k=top_k)
-        documents = bing_retriever.create_documents(result_list)
+        search_web = web_search.get_search_web()
+        result_list = search_web.search(self.query, top_k=top_k)
+        if not result_list:
+            return None
+        documents = search_web.create_documents(result_list)
         if len(documents) == 0:
             return None
         try:
-            indexer = bing_retriever.create_indexer(documents)
+            indexer = search_web.create_indexer(documents)
             logger.info(f'Online indexer created successfully for {len(documents)} searched results.')
         except Exception as e:
             logger.warning(f'Failed to create online indexer, error: {e}.')
@@ -180,9 +189,4 @@ class DemonstrationRetriever(Retriever):
         Create a demonstration indexer.
         :db_path: The path to the database.
         """
-        try:
-            db = Chroma(persist_directory=db_path, embedding_function=get_hugginface_embedding())
-            return db
-        except Exception as e:
-            logger.warning(f'Failed to load experience indexer from {db_path}, error: {e}.')
-            return None
+        return load_faiss_index(db_path, 'demonstration')

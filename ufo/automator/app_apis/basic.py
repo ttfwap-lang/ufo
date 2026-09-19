@@ -74,6 +74,16 @@ class WinCOMReceiverBasic(ReceiverBasic):
         except Exception:
             return ''
 
+    def document_dir(self) -> str:
+        """Folder of the open document, or the user's Documents folder if it was never saved."""
+        import os
+        folder = ''
+        try:
+            folder = os.path.dirname(self.com_object.FullName)
+        except Exception:
+            pass
+        return folder or os.path.join(os.path.expanduser('~'), 'Documents')
+
     def save(self) -> None:
         """
         Save the current state of the app.

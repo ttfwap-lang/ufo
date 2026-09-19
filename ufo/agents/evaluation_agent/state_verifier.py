@@ -56,6 +56,18 @@ class SettlementResult(BaseModel):
     foreground_valid: bool = Field(default=True, description='Whether foreground HWND matched')
     control_enabled: bool = Field(default=True, description='Whether target control was enabled')
 
+
+def _run_coroutine_sync(coro):
+    """Run a coroutine from synchronous code, even if an event loop is already running."""
+    import asyncio
+    import concurrent.futures
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
+
 class VerificationResult(BaseModel):
     """Result of a post-action visual verification."""
     success: bool = Field(default=False, description='Whether the action achieved the intent')
@@ -187,10 +199,19 @@ class StateVerifier:
             pre_mime = 'image/png' if pre_ext == '.png' else 'image/jpeg'
             post_mime = 'image/png' if post_ext == '.png' else 'image/jpeg'
             messages = [{'role': 'user', 'content': [{'type': 'text', 'text': prompt}, {'type': 'image_url', 'image_url': {'url': f'data:{pre_mime};base64,{pre_b64}'}}, {'type': 'image_url', 'image_url': {'url': f'data:{post_mime};base64,{post_b64}'}}]}]
+            from ufo.llm import response_format_override
+
+            def _ask(agent_type, backup):
+                async def _call():
+                    with response_format_override.response_format({'type': 'json_object'}):
+                        return await get_completion(messages, agent=agent_type, use_backup_engine=backup)
+                return _run_coroutine_sync(_call())
+
             try:
-                response_text, _cost = get_completion(messages, agent=AgentType.EVALUATION, use_backup_engine=True)
-            except (ValueError, AttributeError):
-                response_text, _cost = get_completion(messages, agent=AgentType.BACKUP, use_backup_engine=False)
+                result = _ask(AgentType.EVALUATION, True)
+            except (ValueError, AttributeError, RuntimeError):
+                result = _ask(AgentType.BACKUP, False)
+            response_text = result.responses[0] if result.responses else ''
             return self._parse_verification_response(response_text)
         except Exception as e:
             logger.error(f'Visual diff verification failed: {e}')

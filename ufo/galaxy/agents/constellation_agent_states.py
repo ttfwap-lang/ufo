@@ -315,7 +315,11 @@ class ContinueConstellationAgentState(ConstellationAgentState):
                         break
             if completed_task_events:
                 task_ids = [event.task_id for event in completed_task_events]
-                latest_constellation = completed_task_events[-1].data.get('constellation') if hasattr(completed_task_events[-1], 'data') and completed_task_events[-1].data else agent.current_constellation
+                last_data = getattr(completed_task_events[-1], 'data', None) or {}
+                latest_constellation = last_data.get('constellation') or agent.current_constellation
+                if latest_constellation is None:
+                    agent.logger.warning('Task completion event carried no constellation and none is current; skipping edit.')
+                    return
                 merged_constellation = await self._get_merged_constellation(agent, latest_constellation)
                 await agent.process_editing(context=context, task_ids=task_ids, before_constellation=merged_constellation)
         except Exception as e:

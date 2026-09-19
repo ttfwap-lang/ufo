@@ -6,7 +6,7 @@ import os
 from typing import Tuple
 
 from ufo.config.config_loader import LazyUFOConfig
-from ufo.utils import print_with_color
+from ufo.utils import print_with_color, resolve_data_path
 
 from .parser.psr_record_parser import PSRRecordParser
 from .summarizer.summarizer import DemonstrationSummarizer
@@ -58,7 +58,7 @@ def main():
 
         is_save, index = __asker(summaries)
         if is_save and index >= 0:
-            demonstration_path = configs.get("DEMONSTRATION_SAVED_PATH", "demonstration")
+            demonstration_path = resolve_data_path(configs.get("DEMONSTRATION_SAVED_PATH", "demonstration"))
             create_folder(demonstration_path)
 
             save_to_json(

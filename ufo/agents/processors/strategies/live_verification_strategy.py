@@ -39,20 +39,25 @@ class LiveVisualVerifier:
             pre_url = self.photographer.encode_image_from_path(request.pre_screenshot_path)
             post_url = self.photographer.encode_image_from_path(request.post_screenshot_path)
             prompt_message = [{'role': 'system', 'content': 'You are a real-time GUI Action Verifier for automated desktop tasks. Compare Image 1 [BEFORE ACTION] and Image 2 [AFTER ACTION]. Determine if the intended action took effect on the GUI window. Respond ONLY in valid JSON matching this schema:\n{\n  "verified": true|false,\n  "confidence_score": 0.0-1.0,\n  "status": "success"|"no_visible_change"|"unexpected_state"|"error_dialog_detected",\n  "observed_visual_changes": "description of visual changes",\n  "detected_ui_diffs": ["change 1", "change 2"],\n  "failure_reason": null or "explanation",\n  "suggested_recovery_action": null or "action"\n}'}, {'role': 'user', 'content': [{'type': 'text', 'text': f'[BEFORE ACTION] Step {request.step_id} for subtask: {request.subtask}'}, {'type': 'image_url', 'image_url': {'url': pre_url}}, {'type': 'text', 'text': f'[AFTER ACTION] Intended Action: {request.intended_action}'}, {'type': 'image_url', 'image_url': {'url': post_url}}, {'type': 'text', 'text': f'Target Control Info: {json.dumps(request.target_control_info)}\nApplication: {request.app_process_name}\nDid the GUI visually change as expected?'}]}]
-            if agent and hasattr(agent, 'get_response'):
+            if not (agent and hasattr(agent, 'get_response')):
+                return ActionVerificationResult(verified=True, confidence_score=0.0, status=VerificationStatus.CAPTURE_FAILED, observed_visual_changes='No model available; action was not visually verified.', detected_ui_diffs=[])
+            from ufo.llm import response_format_override
+            # The APP agent's response schema would otherwise force an
+            # action-shaped reply with no "verified" field at all.
+            with response_format_override.response_format({'type': 'json_object'}):
                 result = await agent.get_response(prompt_message, AgentType.APP, True)
-                response_text = result.responses[0] if result.responses else ''
-                response_dict = utils.response_to_dict(response_text)
-            else:
-                response_dict = {'verified': True, 'confidence_score': 0.95, 'status': 'success', 'observed_visual_changes': 'Visual state transitioned cleanly.', 'detected_ui_diffs': ['UI state updated']}
+            response_text = result.responses[0] if result.responses else ''
+            response_dict = utils.json_parser(response_text)
+            if not isinstance(response_dict, dict) or 'verified' not in response_dict:
+                return ActionVerificationResult(verified=True, confidence_score=0.0, status=VerificationStatus.CAPTURE_FAILED, observed_visual_changes='Verifier reply was unusable; action was not visually verified.', detected_ui_diffs=[])
             status_str = response_dict.get('status', 'success')
             try:
                 status_enum = VerificationStatus(status_str)
             except ValueError:
                 status_enum = VerificationStatus.SUCCESS
-            return ActionVerificationResult(verified=bool(response_dict.get('verified', True)), confidence_score=float(response_dict.get('confidence_score', 0.9)), status=status_enum, observed_visual_changes=str(response_dict.get('observed_visual_changes', '')), detected_ui_diffs=list(response_dict.get('detected_ui_diffs', [])), failure_reason=response_dict.get('failure_reason'), suggested_recovery_action=response_dict.get('suggested_recovery_action'))
+            return ActionVerificationResult(verified=bool(response_dict.get('verified')), confidence_score=float(response_dict.get('confidence_score', 0.0) or 0.0), status=status_enum, observed_visual_changes=str(response_dict.get('observed_visual_changes', '')), detected_ui_diffs=list(response_dict.get('detected_ui_diffs', [])), failure_reason=response_dict.get('failure_reason'), suggested_recovery_action=response_dict.get('suggested_recovery_action'))
         except Exception as e:
-            return ActionVerificationResult(verified=True, confidence_score=0.7, status=VerificationStatus.SUCCESS, observed_visual_changes=f'Verification fallback due to exception: {str(e)}', detected_ui_diffs=[])
+            return ActionVerificationResult(verified=True, confidence_score=0.0, status=VerificationStatus.CAPTURE_FAILED, observed_visual_changes=f'Verification skipped after error: {e}', detected_ui_diffs=[])
 
 @depends_on('clean_screenshot_path', 'execution_result', 'parsed_response')
 @provides('verification_result', 'post_screenshot_path')
@@ -105,17 +110,12 @@ class AppLiveVisualVerificationStrategy(BaseProcessingStrategy):
             result = await self.verifier.verify(request, agent)
             context.set_local('verification_result', result)
             if not result.verified:
-                self.logger.warning(f'Live Visual Verification FAILED: {result.failure_reason}. Triggering rollback (Ticket 3.2).')
-                try:
-                    import pyautogui
-                    pyautogui.hotkey('ctrl', 'z')
-                    self.logger.info('Automated rollback: Ctrl+Z undo sent to application')
-                    if result.suggested_recovery_action:
-                        self.logger.info(f'Suggested recovery action: {result.suggested_recovery_action}')
-                        context.set_local('suggested_recovery_action', result.suggested_recovery_action)
-                except Exception as undo_err:
-                    self.logger.warning(f'Automated rollback failed: {undo_err}')
-                return ProcessingResult(success=False, error=f'Visual Verification Failed: {result.failure_reason}', data={'verification_result': result, 'post_screenshot_path': post_screenshot_path, 'rollback_attempted': True}, phase=ProcessingPhase.LIVE_VERIFICATION)
+                # No blind Ctrl+Z: it goes to whichever window has focus and
+                # can undo unrelated work. Hand the failure to the next step.
+                self.logger.warning(f'Live Visual Verification FAILED: {result.failure_reason}')
+                if result.suggested_recovery_action:
+                    context.set_local('suggested_recovery_action', result.suggested_recovery_action)
+                return ProcessingResult(success=False, error=f'Visual Verification Failed: {result.failure_reason}', data={'verification_result': result, 'post_screenshot_path': post_screenshot_path}, phase=ProcessingPhase.LIVE_VERIFICATION)
             return ProcessingResult(success=True, data={'verification_result': result, 'post_screenshot_path': post_screenshot_path}, phase=ProcessingPhase.LIVE_VERIFICATION)
         except Exception as e:
             self.logger.warning(f'Live visual verification encountered error: {str(e)}')

@@ -175,9 +175,9 @@ class VisionFallbackManager:
             if not endpoint or 'xxx' in endpoint:
                 logger.debug('OmniParser endpoint not set — skipping Stage 1')
                 return None
-            from ufo.llm.grounding_model.omniparser_service import OmniParser
+            from ufo.llm.grounding_model.omniparser_service import get_omniparser
             from ufo.automator.ui_control.grounding.omniparser import OmniparserGrounding
-            service = OmniParser(endpoint=endpoint)
+            service = get_omniparser(endpoint)
             grounding = OmniparserGrounding(service=service)
             box_threshold = 0.05
             iou_threshold = 0.1
@@ -231,7 +231,9 @@ class VisionFallbackManager:
             agent_type = self._cloud_vlm_agent
             if hasattr(AgentType, agent_type.replace('_AGENT', '')):
                 agent_type = getattr(AgentType, agent_type.replace('_AGENT', ''), AgentType.BACKUP)
-            llm_result = await get_completion(messages, agent=agent_type, use_backup_engine=False)
+            from ufo.llm import response_format_override
+            with response_format_override.response_format({'type': 'json_object'}):
+                llm_result = await get_completion(messages, agent=agent_type, use_backup_engine=False)
             response_text = llm_result.responses[0] if llm_result.responses else ''
             parsed = self._parse_json_response(response_text)
             if parsed and parsed.get('center_x', 0) > 0:
@@ -250,8 +252,9 @@ class VisionFallbackManager:
             import requests
             api_key = os.environ.get("REDUCTO_API_KEY")
             if not api_key:
-                # Use the default known key for BankFidelity integration if env var missing
-                api_key = "605a959c5370e7540599d9e25adee460e6902de8a3f5ee7adba463b2e76ecb02c4b1bcc096b6deb885baf1950f106595"
+                # Opt-in only: this stage uploads a desktop screenshot to a third-party API.
+                logger.info("Reducto grounding skipped: REDUCTO_API_KEY is not set.")
+                return None
             
             headers = {"Authorization": f"Bearer {api_key}"}
             

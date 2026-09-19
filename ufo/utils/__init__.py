@@ -469,3 +469,12 @@ def save_image_string(image_string: str, save_path: str) -> Image.Image:
             return load_image(save_path)
         except Exception:
             return Image.new('RGB', (1, 1), color='white')
+
+def resolve_data_path(path: str) -> str:
+    """Resolve a relative data path (e.g. "vectordb/experience/") against the
+    directory UFO is launched from (the parent of the ``ufo`` package), so
+    readers and writers agree regardless of the current working directory."""
+    if not path or os.path.isabs(path):
+        return path
+    base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return os.path.normpath(os.path.join(base, path))

@@ -522,7 +522,7 @@ class GalaxyTrajectory:
                     for device_id, device in device_info.items():
                         device_os = device.get('os', 'N/A')
                         status = device.get('status', 'N/A')
-                        heartbeat = device.get('last_heartbeat', 'N/A')
+                        heartbeat = str(device.get('last_heartbeat') or 'N/A')
                         if len(heartbeat) > 19:
                             heartbeat = heartbeat[:19]
                         file.write(f'| {device_id} | {device_os} | {status} | {heartbeat} |\n')

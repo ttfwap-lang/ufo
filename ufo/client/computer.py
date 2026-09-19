@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 import copy
+import os
 import inspect
 import json
 import logging
@@ -158,7 +159,7 @@ class Computer:
         for tool_call in tool_calls:
             result = await self._run_action(tool_call)
             results.append(result)
-            self.logger.debug(f'Action {tool_call.tool_name} executed with result: {result}')
+            self.logger.debug(f'Action {tool_call.tool_name} executed with result: {_redact_secrets(str(result))}')
         return results
 
     async def register_mcp_servers(self, server_dict: Dict[str, BaseMCPServer], tool_type: str) -> None:
@@ -257,7 +258,7 @@ class Computer:
         tools = []
         for tool in self._tools_registry.values():
             if (tool_type is None or tool.tool_type == tool_type) and (namespace is None or tool.namespace == namespace) and (not remove_meta or tool.tool_name not in self._meta_tools):
-                tools.append(tool.tool_info.model_dump())
+                tools.append(_hide_injected_args(tool.tool_info.model_dump()))
         content = [TextContent(type='text', text=json.dumps(tools))]
         tool_result = CallToolResult(content=content, structured_content=None, data=tools, is_error=False, meta={})
         return tool_result
@@ -284,6 +285,12 @@ class Computer:
         if not tool_info:
             raise ValueError(f'Tool {tool_key} is not registered in current computer: {self._name}')
         parameters = copy.deepcopy(command.parameters) if command.parameters else {}
+        props = (tool_info.input_schema or {}).get('properties', {}) if isinstance(tool_info.input_schema, dict) else {}
+        if 'api_key' in props and os.environ.get('UFO_MCP_API_KEY'):
+            # Remote MCP servers (e.g. the Linux executor) authenticate via an
+            # api_key argument; inject it here so the secret never has to
+            # appear in the model's prompt or output.
+            parameters['api_key'] = os.environ['UFO_MCP_API_KEY']
         tool_info.parameters = parameters
         if not tool_info:
             raise ValueError(f'Tool {tool_key} is not registered.')
@@ -345,18 +352,26 @@ class ComputerManager:
         key = f"{agent_name}::{process_name}::{root_name or 'default'}"
         if key not in self.computers:
             mcp_config = self.configs.get(self._configs_key, {})
-            agent_config = mcp_config.get(agent_name) or mcp_config.get(agent_name.upper()) or mcp_config.get(agent_name.lower()) or mcp_config.get(agent_name.capitalize()) or {}
+            agent_config = mcp_config.get(agent_name) or {}
+            if not agent_config:
+                # Config keys are HOST_AGENT / APP_AGENT, agent names are
+                # HostAgent / AppAgent: compare case- and underscore-insensitively.
+                wanted = agent_name.replace('_', '').lower()
+                for key, value in mcp_config.items():
+                    if isinstance(value, dict) and key.replace('_', '').lower() == wanted:
+                        agent_config = value
+                        break
             if not agent_config:
                 if 'mcp_servers' in mcp_config or True:
                     action_ui = 'AppUIExecutor' if 'app' in agent_name.lower() else 'HostUIExecutor'
                     agent_config = {'default': {'data_collection': [{'name': 'UICollector', 'namespace': 'UICollector', 'type': 'local'}], 'action': [{'name': action_ui, 'namespace': action_ui, 'type': 'local'}, {'name': 'CommandLineExecutor', 'namespace': 'CommandLineExecutor', 'type': 'local'}]}}
                 else:
                     raise ValueError(f'Agent configuration for {agent_name} not found.')
-            if root_name not in agent_config:
+            # Executable names vary in case (WINWORD.EXE vs winword.exe); match case-insensitively.
+            root = next((k for k in agent_config if root_name and k.lower() == root_name.lower()), None)
+            if root is None:
                 self.logger.info(f"Root name '{root_name}' not found in agent configuration for {agent_name}. Using default configuration.")
                 root = 'default'
-            else:
-                root = root_name
             agent_instance_config = agent_config.get(root, None)
             if agent_instance_config is None:
                 raise ValueError(f'Agent configuration for root_name={root} not found for agent_name={agent_name}.')
@@ -415,15 +430,68 @@ class CommandRouter:
             result = await computer.run_actions([tool_call])
             namespace = tool_call.namespace if tool_call else None
             call_tool_result: CallToolResult = result[0]
-            text_content = call_tool_result.data if call_tool_result.data else None
+            text_content = _tool_result_payload(call_tool_result)
             if not call_tool_result.is_error:
                 results.append(Result(status=ResultStatus.SUCCESS, result=text_content, error=None, call_id=call_id, namespace=namespace))
             else:
                 has_failed = True
-                results.append(Result(status=ResultStatus.FAILURE, error=call_tool_result.content[0].text, result=None, call_id=call_id, namespace=namespace))
-                self.logger.warning(f'Command {call_id} (tool: {command.tool_name}) failed with error: {text_content}')
+                error_text = _redact_secrets(call_tool_result.content[0].text)
+                results.append(Result(status=ResultStatus.FAILURE, error=error_text, result=None, call_id=call_id, namespace=namespace))
+                self.logger.warning(f'Command {call_id} (tool: {command.tool_name}) failed with error: {error_text}')
             await asyncio.sleep(0.1)
         return results
+
+
+
+def _redact_secrets(text: str) -> str:
+    """Mask the injected MCP key; tool validation errors echo their input arguments back."""
+    key = os.environ.get('UFO_MCP_API_KEY')
+    if not key or not isinstance(text, str):
+        return text
+    import re
+    # Pydantic truncates long values ("13cfd9c62571..."), so mask any prefix of 8+ chars too.
+    text = text.replace(key, '***')
+    return re.sub(re.escape(key[:8]) + r'[0-9A-Za-z]*(\.\.\.)?', '***', text)
+
+def _hide_injected_args(tool_info: dict) -> dict:
+    """Drop arguments the client fills in itself (see command2tool) from what the model sees."""
+    if not os.environ.get('UFO_MCP_API_KEY'):
+        return tool_info
+    schema = tool_info.get('input_schema')
+    if isinstance(schema, dict) and 'api_key' in schema.get('properties', {}):
+        schema = dict(schema)
+        schema['properties'] = {k: v for k, v in schema['properties'].items() if k != 'api_key'}
+        if isinstance(schema.get('required'), list):
+            schema['required'] = [r for r in schema['required'] if r != 'api_key']
+        tool_info = dict(tool_info, input_schema=schema)
+    return tool_info
+
+def _tool_result_payload(call_tool_result: 'CallToolResult'):
+    """Extract a tool's return value across FastMCP versions.
+
+    FastMCP 2.x populated ``.data`` for typed returns; FastMCP 3/4 leave it
+    ``None`` for untyped ones (e.g. ``-> List``) and only provide
+    ``structured_content`` or the JSON in ``content[0].text``. Without this
+    fallback every data-collection tool (window list, controls, screenshots)
+    silently yielded nothing and the agent saw an empty desktop.
+    """
+    import json as _json
+    data = getattr(call_tool_result, 'data', None)
+    if data is not None and data != []:
+        return data
+    structured = getattr(call_tool_result, 'structured_content', None)
+    if structured is not None:
+        if isinstance(structured, dict) and set(structured.keys()) == {'result'}:
+            return structured['result']
+        return structured
+    content = getattr(call_tool_result, 'content', None) or []
+    if content and getattr(content[0], 'text', None) is not None:
+        text = content[0].text
+        try:
+            return _json.loads(text)
+        except (ValueError, TypeError):
+            return text
+    return None
 
 def test_command_router():
     """

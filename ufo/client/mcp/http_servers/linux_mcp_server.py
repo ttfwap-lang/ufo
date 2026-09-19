@@ -154,7 +154,7 @@ def _validate_cwd(cwd: Optional[str]) -> Optional[str]:
 
 def create_bash_mcp_server(host: str='localhost', port: int=8010) -> None:
     """Create an MCP server for Linux command execution."""
-    mcp = FastMCP('Linux Bash MCP Server', instructions='MCP server for executing shell commands on Linux.', stateless_http=False, json_response=True, host=host, port=port)
+    mcp = FastMCP('Linux Bash MCP Server', instructions='MCP server for executing shell commands on Linux.')
 
     @mcp.tool()
     async def execute_command(command: Annotated[str, Field(description='Shell command to execute on the Linux system. Only allow-listed base commands are permitted (e.g. ls, cat, grep, find, df, ps). Shell metacharacters, pipes, and chaining operators are blocked. Examples: \'ls -la /home\', \'cat /etc/os-release\', \'grep -r "pattern" /path\'.')], api_key: Annotated[str, Field(description='API key for authentication. Must match the UFO_MCP_API_KEY environment variable configured on the server.')], timeout: Annotated[int, Field(description='Maximum execution time in seconds (1-120). Default is 30.')]=30, cwd: Annotated[Optional[str], Field(description="Working directory for command execution. Must be an absolute path. Defaults to the server's current directory.")]=None) -> Annotated[Dict[str, Any], Field(description="Dictionary containing execution results with keys: 'success', 'exit_code', 'stdout', 'stderr', or 'error'.")]:
@@ -207,7 +207,7 @@ def create_bash_mcp_server(host: str='localhost', port: int=8010) -> None:
             except Exception as e:
                 info[k] = f'Error: {e}'
         return info
-    mcp.run(transport='streamable-http', middleware=[Middleware(LocalhostGuardMiddleware)])
+    mcp.run(transport='streamable-http', host=host, port=port, json_response=True, stateless_http=False, middleware=[Middleware(LocalhostGuardMiddleware)])
 
 def main():
     parser = argparse.ArgumentParser(description='Linux Bash MCP Server')

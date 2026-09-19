@@ -2,6 +2,7 @@
 Web Research MCP Server for Microsoft UFO
 Provides tools for web searches and fetching HTML/text from public URLs.
 """
+from ufo.rag import ddg_search
 import json
 import logging
 import urllib.request
@@ -70,31 +71,11 @@ def create_web_research_mcp_server(*args, **kwargs) -> FastMCP:
         if not query or not query.strip():
             raise ToolError("Search query cannot be empty.")
         try:
-            encoded_query = urllib.parse.urlencode({"q": query.strip()})
-            search_url = f"https://html.duckduckgo.com/html/?{encoded_query}"
-            req = urllib.request.Request(
-                search_url,
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                html = resp.read().decode("utf-8", errors="replace")
-
-            # Extract result snippets
-            results = []
-            links = re.findall(r'<a class="result__url" href="([^"]+)".*?>(.*?)</a>', html, re.DOTALL)
-            titles = re.findall(r'<a class="result__snippet[^"]*"[^>]*>(.*?)</a>', html, re.DOTALL)
-
-            for i in range(min(max_results, len(links))):
-                link = links[i][0].strip()
-                snippet = _strip_html(titles[i]) if i < len(titles) else ""
-                results.append(f"{i+1}. URL: {link}\n   Snippet: {snippet}")
-
-            if not results:
-                # Fallback simple title extraction
-                simple_links = re.findall(r'<a[^>]+class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, re.DOTALL)
-                for i, (lnk, title) in enumerate(simple_links[:max_results]):
-                    results.append(f"{i+1}. { _strip_html(title) }\n   URL: {lnk}")
-
+            hits = ddg_search.search(query, max_results=max_results)
+            results = [
+                f"{i+1}. {h['name']}\n   URL: {h['url']}\n   Snippet: {h['snippet']}"
+                for i, h in enumerate(hits)
+            ]
             return "\n\n".join(results) if results else f"No search results found for query: {query}"
         except Exception as e:
             raise ToolError(f"Web search failed: {e}")

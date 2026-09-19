@@ -395,11 +395,16 @@ class AppAgentPrompter(BasicPrompter):
                 modified_examples.append(ex_copy)
             additional_examples = modified_examples
 
-        example_dict = [
+        # Retrieved (task-relevant) examples first, then a capped number of the
+        # built-in ones: all ten built-ins alone are ~7k tokens, too much for a
+        # local model's context next to screenshots and history.
+        max_static = int(getattr(ufo_config.system, "APPAGENT_MAX_STATIC_EXAMPLES", 3) or 0)
+        static_examples = [
             self.example_prompt_template[key]
             for key in self.example_prompt_template.keys()
             if key.startswith("example")
-        ] + additional_examples
+        ][:max_static]
+        example_dict = additional_examples + static_examples
 
         example_list = []
 

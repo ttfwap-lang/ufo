@@ -8,7 +8,7 @@ TOP_P: 0.0  # The top_p of the model: the lower the value, the more conservative
 TIMEOUT: 120  # The call timeout(s), default is 2 mins (120s needed for local CPU inference)
 
 # Control Backend
-CONTROL_BACKEND: ["uia"]  # The backend for control action: uia, omniparser
+CONTROL_BACKEND: ["uia", "omniparser"]  # UIA + OmniParser V2 vision (hybrid detection)
 IOU_THRESHOLD_FOR_MERGE: 0.1  # The iou threshold for merging the boxes between controls
 
 # Execution Limits
@@ -19,7 +19,8 @@ VISUAL_MODE: False
 RECTANGLE_TIME: 1
 
 # Action Configuration
-ACTION_SEQUENCE: False  # Whether to output the action sequence (from legacy config)
+APPAGENT_MAX_STATIC_EXAMPLES: 3  # built-in AppAgent examples added to the prompt (retrieved experiences come first)
+ACTION_SEQUENCE: True  # AppAgent may return up to 4 actions per step; later ones are skipped if the UI changes
 SHOW_VISUAL_OUTLINE_ON_SCREEN: False  # Skip rendering visual outline on screen if not necessary
 MAXIMIZE_WINDOW: False  # Whether to maximize the application window before the action
 JSON_PARSING_RETRY: 3  # The retry times for the json parsing
@@ -74,7 +75,7 @@ SAVE_FULL_SCREEN: False  # Whether to save the full screen at each step
 
 # Task Management
 TASK_STATUS: True  # Whether to record the status of the tasks in batch execution mode
-SAVE_EXPERIENCE: "always_not"  # always, always_not, ask, auto
+SAVE_EXPERIENCE: "auto"  # always, always_not, ask, auto
 
 # Evaluation
 EVA_SESSION: False  # Whether to include the session in the evaluation
@@ -87,12 +88,19 @@ USE_CUSTOMIZATION: False  # Whether to use the customization
 QA_PAIR_FILE: "customization/global_memory.jsonl"
 QA_PAIR_NUM: 20  # The number of QA pairs for the customization
 
+# UI-Venus-2 grounding model (DGX, via SSH tunnel): "describe element" -> screen point.
+# Used by the click_on_description tool and the click_input fallback.
+GROUNDING_MODEL:
+  ENABLED: true
+  ENDPOINT: "http://127.0.0.1:8002/v1"
+  MODEL: "ui-venus"
+
 # Omniparser
 OMNIPARSER:
-  ENDPOINT: ""  # Set to your OmniParser service URL (e.g., http://localhost:8001)
+  ENDPOINT: "http://127.0.0.1:7861"  # OmniParser V2 on the DGX via SSH tunnel (see scripts/gx10_up.ps1)
   BOX_THRESHOLD: 0.05
   IOU_THRESHOLD: 0.1
-  USE_PADDLEOCR: True
+  USE_PADDLEOCR: False  # PaddleOCR is not installed on the DGX (aarch64); EasyOCR is used
   IMGSZ: 640
 
 # Control Filtering Configuration
@@ -217,7 +225,7 @@ DISTRIBUTED_FLEET:
 # Control Plane — Operator monitoring and HITL gateway
 CONTROL_PLANE:
   ENABLED: false                            # Set true to enable the API server
-  HOST: "0.0.0.0"                           # Bind address
+  HOST: "127.0.0.1"                         # Bind address (non-local requires API_KEY)
   PORT: 8800                                # API port
   API_KEY: ""                               # If set, required in X-API-Key header
   REDIS_URL: "redis://127.0.0.1:6379/0"

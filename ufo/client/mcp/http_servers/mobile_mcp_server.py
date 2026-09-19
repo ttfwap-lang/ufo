@@ -174,7 +174,7 @@ def create_mobile_data_collection_server(host: str='', port: int=8020, adb_path:
     if adb_path is None:
         adb_path = 'adb'
     mobile_state = MobileServerState()
-    mcp = FastMCP('Mobile Data Collection MCP Server', instructions='MCP server for retrieving Android device information via ADB (screenshots, UI tree, device info, etc.).', stateless_http=False, json_response=True, host=host, port=port)
+    mcp = FastMCP('Mobile Data Collection MCP Server', instructions='MCP server for retrieving Android device information via ADB (screenshots, UI tree, device info, etc.).')
 
     @mcp.tool()
     async def capture_screenshot() -> Annotated[str, Field(description='Base64 encoded image data URI of the screenshot (data:image/png;base64,...)')]:
@@ -357,7 +357,7 @@ def create_mobile_data_collection_server(host: str='', port: int=8020, adb_path:
             print(f'Error in get_app_window_controls_target_info: {str(e)}')
             print(traceback.format_exc())
             return []
-    mcp.run(transport='streamable-http')
+    mcp.run(transport='streamable-http', host=host, port=port, json_response=True, stateless_http=False)
 
 def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional[str]=None) -> None:
     """
@@ -367,7 +367,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
     if adb_path is None:
         adb_path = 'adb'
     mobile_state = MobileServerState()
-    mcp = FastMCP('Mobile Action MCP Server', instructions='MCP server for controlling Android devices via ADB (tap, swipe, type, launch apps, etc.).', stateless_http=False, json_response=True, host=host, port=port)
+    mcp = FastMCP('Mobile Action MCP Server', instructions='MCP server for controlling Android devices via ADB (tap, swipe, type, launch apps, etc.).')
 
     @mcp.tool()
     async def tap(x: Annotated[int, Field(description='X coordinate to tap (pixels from left)')], y: Annotated[int, Field(description='Y coordinate to tap (pixels from top)')]) -> Annotated[Dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), 'output' (str), or 'error' (str)")]:
@@ -599,7 +599,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
             return {'success': True, 'message': message}
         except Exception as e:
             return {'success': False, 'error': str(e)}
-    mcp.run(transport='streamable-http')
+    mcp.run(transport='streamable-http', host=host, port=port, json_response=True, stateless_http=False)
 
 def _detect_adb_path() -> str:
     """Auto-detect ADB path or return 'adb' to use from PATH."""

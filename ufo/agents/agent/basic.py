@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type, Union
 
@@ -233,12 +234,6 @@ class BasicAgent(ABC):
         """
         self._memory.clear()
 
-    def reflection(self) -> None:
-        """
-        Reflect on the action.
-        """
-        raise NotImplementedError("reflection is not implemented for this agent.")
-
     def set_state(self, state: AgentState) -> None:
         """
         Set the state of the agent.
@@ -260,15 +255,24 @@ class BasicAgent(ABC):
 
     async def process(self, context: Context) -> None:
         """
-        Process the agent.
+        Process the agent. Agents driven purely by their state machine
+        (e.g. Galaxy's ConstellationAgent) need not override this.
         """
-        raise NotImplementedError("Subclasses should implement process method.")
+        raise NotImplementedError(f"{type(self).__name__} does not implement process().")
 
     async def process_resume(self) -> None:
         """
         Resume the process.
+
+        This is a no-op default implementation. Subclasses that support
+        resuming a paused process should override this method.
         """
-        raise NotImplementedError("process_resume is not implemented for this agent.")
+        warnings.warn(
+            "process_resume() is not implemented for this agent; "
+            "no action was taken.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     def process_asker(self, ask_user: bool = True) -> None:
         """
@@ -343,32 +347,44 @@ class BasicAgent(ABC):
     def build_offline_docs_retriever(self, *args: Any, **kwargs: Any) -> None:
         """
         Build the offline docs retriever.
+
+        No-op default implementation. Subclasses that support an offline
+        docs retriever should override this method.
         """
-        raise NotImplementedError("build_offline_docs_retriever is not implemented.")
+        return None
 
     def build_online_search_retriever(
         self, request: str = "", top_k: int = 1, *args: Any, **kwargs: Any
     ) -> None:
         """
         Build the online search retriever.
+
+        No-op default implementation. Subclasses that support an online
+        search retriever should override this method.
         """
-        raise NotImplementedError("build_online_search_retriever is not implemented.")
+        return None
 
     def build_experience_retriever(
         self, db_path: str = "", *args: Any, **kwargs: Any
     ) -> None:
         """
         Build the experience retriever.
+
+        No-op default implementation. Subclasses that support an
+        experience retriever should override this method.
         """
-        raise NotImplementedError("build_experience_retriever is not implemented.")
+        return None
 
     def build_human_demonstration_retriever(
         self, db_path: str = "", *args: Any, **kwargs: Any
     ) -> None:
         """
         Build the human demonstration retriever.
+
+        No-op default implementation. Subclasses that support a human
+        demonstration retriever should override this method.
         """
-        raise NotImplementedError("build_human_demonstration_retriever is not implemented.")
+        return None
 
     @abstractmethod
     def print_response(self, response: Any = None) -> None:

@@ -4,7 +4,16 @@ Real GalaxySession Integration Test with Mock AgentProfile
 This test uses REAL GalaxySession.run() (not mocked) to test the complete
 agent workflow and identify potential bugs in the system.
 """
+import os
+
 import pytest
+
+# Runs a real GalaxySession: the ConstellationAgent calls the configured LLM
+# (minutes per test). Opt in explicitly so the default suite stays offline.
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("UFO_LIVE_LLM_TESTS"),
+    reason="needs a live LLM backend; set UFO_LIVE_LLM_TESTS=1",
+)
 import asyncio
 import logging
 from datetime import datetime, timezone

@@ -7,6 +7,37 @@
 
 ---
 
+## 🔄 STATUS UPDATE — 2026-09-18 (post code-review fix pass)
+
+Since this plan (v2) was written, a `/code-review` pass was run against the DGX diff and turned up **15 additional findings** (12 distinct fixes below — two findings were duplicates of the same fixture-drift issue, folded into #7) — real correctness/efficiency/portability defects in the *implementation*, distinct from this document's "Corrections Applied" section (which was about the *plan* being wrong). All have been fixed and verified (targeted `pytest` runs + live smoke tests, not just read-through):
+
+| # | Fix | File(s) |
+|---|-----|---------|
+| 1 | EVALUATION-agent fallback no longer crashes on `BackendProfileError` (was only catching `ValueError`/`AttributeError`) | `llm/llm_call.py` |
+| 2 | Removed self-referencing DGX fallback chains (`ufo-dgx-model`/`ufo-dgx-app-model` retried themselves first) | `litellm_config.yaml` |
+| 3 | Fixed no-op `PYTHON_EXE` fallback (was defaulting back to the same broken `sys.executable`) | `client/mcp/local_servers/code_interpreter_mcp_server.py` |
+| 4 | Profile cache key now fingerprints referenced env vars — `UFO_DGX_HOST` changes mid-process are no longer served stale | `llm/config_helper.py` |
+| 5 | `UFO_DGX_HOST` no longer injects a spurious top-level `DGX_HOST` key into resolved configs | `config/config_loader.py`, `llm/config_helper.py` |
+| 6 | Fixed wrong `dirname()` depth in the `sys.path` bootstrap (was landing in `client/mcp`, not the repo root) | `client/mcp/local_servers/__init__.py` |
+| 7 | Tests that `exec_module()` gitignored `scripts/*.py` now skip cleanly on a fresh checkout instead of crashing; deduplicated a drifted synthetic DGX fixture shared with `test_dgx_model_audit.py` | `tests/test_backend_resolver.py` |
+| 8 | DGX host normalization unified (was two `os.getenv` copies normalizing differently) | `llm/endpoint.py` |
+| 9 | Unresolved-env-placeholder scan now computed once per cached profile instead of re-walked on every `get_completions()` call | `llm/config_helper.py` |
+| 10 | `set_backend_selection('auto', ...)` now reuses the DGX-probe memo instead of always re-probing (~4s) | `llm/config_helper.py` |
+| 11 | All 15 `desktop_launchers/*.bat`/`.ps1` files: hardcoded `C:\Users\lnxzf\...` paths replaced with `%~dp0`-relative computation | `desktop_launchers/*` |
+| 12 | Startup LLM health probe no longer blocks the asyncio event loop for up to 5s | `__main__.py` |
+
+**Net effect on this plan's phases:**
+- **Phase 4** (Security): `dgx_audit.json` / `pr_diff_review.txt` are now gitignored (Correction #9, below — resolved). The `'Machine'`-scope env var and HKLM registry reads in `scripts/terminal.py` are **still open** — that file wasn't touched by this pass.
+- **Phase 9** (Documentation): `docs/status.md`, `docs/testing.md`, `docs/architecture.md` (8 Mermaid diagrams) now exist, hand-authored in the shape Phase 6's CI will eventually generate for real (no CI exists yet to generate them, so they are **not actually live/auto-updating** — treat as a Phase 9 placeholder, not a Phase 6 completion).
+- **Phase 1** (`scripts/terminal.py` / `terminal_config.py` DGX ports): **done 2026-09-18.** `port_dgx_model` repointed to Ollama `:11434`; new `port_dgx_vllm: int = 8000` (replacing `port_dgx_app_model`, kept as a deprecated alias); `check_dgx_host()` now probes `/api/tags` (Ollama) / `/v1/models` (vLLM) instead of a generic `/health`; every "Qwen3-VL :8080"/"Gemma-4 :8081" menu/status string replaced with the real model names and ports. `--selftest` still passes (pre-existing environment-dependent FAILs — missing Rust binary/local models/`UFO_DGX_HOST` — are unrelated to this fix and match the historical `E2E_VERIFICATION_REPORT.md` record).
+- **Phase 5** (`NotImplementedError` stubs): in progress — see the new blocker below (fixed) and the parallel fix pass covering `agents/agent/basic.py`/`prompter/basic.py`/`module/session_pool.py`/`module/sessions/*.py`/etc.
+
+### ✅ Former blocker, now fixed: `llm/llm_call.py` import failure
+
+`llm/llm_call.py` had `from ufo.dlq.dead_letter_queue import record_dlq_event` at module level, but `dlq/` was a completely empty, untracked directory. **Fixed 2026-09-18:** implemented `dlq/__init__.py` + `dlq/dead_letter_queue.py` (`DeadLetterQueue` class, `get_default_dlq()` singleton, `record_dlq_event()` module function), matching the exact API `tests/unit/test_dlq_diagnostic_recorder.py` already expected (that test file existed and specified the contract; the implementation just didn't). Deliberately kept **separate** from `resilience/dlq_manager.py`'s `DeadLetterQueueManager` — that one snapshots UI-workflow failures (`task_id`/`dag_state`/`uia_tree`/`screenshots`); this one snapshots LLM-call failures (`agent_type`/`messages`/`error`/`model`/`circuit_breaker_state`) — different failure domains, not a duplicate. Verified: all 4 DLQ tests + all 7 circuit-breaker tests pass; `llm_call.py` imports cleanly.
+
+---
+
 ## 🛠️ CORRECTIONS APPLIED TO THE ORIGINAL DRAFT
 
 These are substantive, verified errors in the original plan — not style edits. Each one changes what work actually needs to happen.
@@ -151,12 +182,12 @@ The original draft never checks for pre-existing code before proposing "new" pac
 | **1** | DGX Config & Probes | **Mostly done.** `agents_dgx.yaml` and `litellm_config.yaml`'s DGX entries already correct. Remaining: `scripts/terminal.py` + `scripts/terminal_config.py` still hardcode `:8080`/`:8081` for DGX checks and menu text. | `health_check()` and the widget's menu labels match reality |
 | **2** | Windows Automation — **Hybrid**, not full Playwright replacement | Rescoped. Playwright only covers Chromium/Edge/Electron; native Win32 (Notepad, Office native UI, BankFidelity) stays on UIA/pywinauto behind the same protocol. 16 files import these libraries today, not ~3. | `DesktopAutomation` protocol with two real backends, routed per-target |
 | **3** | Packaging & Dependency Hygiene (uv) | Diagnosis (1/10, tool-config-only `pyproject.toml`) confirmed accurate. Fix the strict-mypy-too-early, missing-deps, and load-test-ignore regressions noted above. | `pyproject.toml` + `uv.lock` + console scripts, without breaking CI on day 1 |
-| **4** | Security & Secrets Hardening | Confirmed: `'Machine'`-scope `SetEnvironmentVariable` at `terminal.py:413,539`; HKLM registry read at `502`,`970`; GEMINI key in URL. Add: gitignore `dgx_audit.json`/`pr_diff_review.txt`; reconcile the hardcoded Tailscale IP in `litellm_config.yaml`. | User-scope env, keyring, no admin, no leaked infra fingerprints |
-| **5** | Eliminate `NotImplementedError` Stubs | Table corrected for `prompter/basic.py`, `module/session_pool.py`, `module/sessions/*.py` (see corrections #4 above). `agents/agent/basic.py` table was already accurate. | Zero *unintentional* stubs; Linux/Mobile session `evaluation()`/log-save actually implemented |
+| **4** | Security & Secrets Hardening | **Mostly done (2026-09-18):** `dgx_audit.json`/`pr_diff_review.txt` gitignored; both `'Machine'`-scope `SetEnvironmentVariable` calls (DGX host, API keys) switched to `'User'` scope; both HKLM registry reads for `GEMINI_API_KEY` removed, replaced by new `config/secrets.py` (keyring → `.env` → env var, `keyring` optional/lazy-imported); Gemini key moved out of the request URL into an `x-goog-api-key` header; PID validation (`.isdigit()`) added before both `taskkill`/`PID` calls. Still open: reconcile the hardcoded Tailscale IP in `litellm_config.yaml` (Correction #10 — a real design decision about LiteLLM's templating limits, not a quick fix). | User-scope env, keyring, no admin, no leaked infra fingerprints |
+| **5** | Eliminate `NotImplementedError` Stubs | Table corrected for `prompter/basic.py`, `module/session_pool.py`, `module/sessions/*.py` (see corrections #4 above). `agents/agent/basic.py` table was already accurate. **New, more severe blocker found 2026-09-18 (not yet fixed):** `llm/llm_call.py` fails to *import* at all — `dlq/dead_letter_queue.py` doesn't exist. See "Status Update" above. | Zero *unintentional* stubs; Linux/Mobile session `evaluation()`/log-save actually implemented; `llm_call.py` importable |
 | **6** | CI/CD | **0/10** (no `.github/workflows/` exists), not 2/10. Runner provisioning called out as its own task. | Lint + unit green first; windows/DGX jobs added once runners exist |
 | **7** | Terminal Widget Modularization | Unchanged in substance; `scripts/terminal.py` is 1,188 lines today (not 53K) — still worth splitting, just size the effort correctly. | `terminal/` package (no `ufo/` prefix), `--dry-run`, tests |
-| **8** | Galaxy DGX Device Agent | Paths were already correct in the original draft (rare). Reconcile new `DGXDeviceAgent` naming with existing `AgentProfile`/`DeviceRegistry`. | `DGXDeviceAgent` registers, executes tasks, doesn't collide with existing registry model |
-| **9** | Documentation Overhaul | Unchanged in substance. | Living, auto-generated docs |
+| **8** | Galaxy DGX Device Agent | **Mostly done (2026-09-18).** `galaxy/device_agents/dgx_device_agent.py` built against verified real `RegistrationProtocol.register_as_device()`/`WebSocketTransport`/`TaskExecutionProtocol` signatures (not guessed); routes vision-tagged tasks to Ollama, else vLLM; `config/galaxy/devices.yaml` entry + `DeviceType.DGX_SPARK` added to both `galaxy/constellation/enums.py` and its `galaxy/core/types.py` fallback mirror. Two **pre-existing, unrelated bugs found and flagged, not fixed**: `constellation_manager.py` calls a `DeviceRegistry.get_device_info()` method that doesn't exist (would raise `AttributeError` at runtime), and `AgentProfile` has no `device_type` field, so device-type capability matching is currently a no-op regardless of the new enum member. NOT live-tested (no Galaxy server/DGX host here); mocked unit tests exist but couldn't even be collected — `galaxy/__init__.py`'s eager import chain requires torch/pandas/chromadb/etc. not installed here. | `DGXDeviceAgent` registers, executes tasks, doesn't collide with existing registry model |
+| **9** | Documentation Overhaul | **Partially done (2026-09-18):** `docs/status.md`, `docs/testing.md`, `docs/architecture.md` (8 Mermaid diagrams) now exist, hand-authored in the CI-output shape — not yet actually CI-generated since Phase 6 has no CI. | Living, auto-generated docs |
 | **10** | Golden Path E2E Tests | Now explicitly depends on Phase 5's Linux-session fix (see #4). | 3 golden paths passing in CI |
 | **11** | DI Container for Config Resolution | Must explicitly absorb/replace `config/config_loader.py` + `config_schemas.py` (previously unmentioned), and take over `litellm_config.yaml` generation or document the exception. | Replace `llm/config_helper.py` (348 lines today) with `dependency-injector`, reconciled with existing `config/` package |
 | **12** | Unified `LLMClient` Protocol | Fix the broken decorator snippet (#6); add missing deps (`pybreaker`, otel packages). | Collapse LLM files → 1 protocol + adapters |
@@ -466,7 +497,7 @@ def get_gemini_key() -> Optional[str]:
 - [ ] No `subprocess.run([..., shell=True])` with unvalidated interpolated input (confirm none currently use `shell=True` — the ones found above pass argv lists, which is already safer than the original draft implied; the real fix is the PID validation, not shell-injection per se)
 - [ ] `UFO_DGX_HOST` set via `'User'` scope or `.env`, no Admin required
 - [ ] `GEMINI_API_KEY` never read from HKLM
-- [ ] `dgx_audit.json` / `pr_diff_review.txt` gitignored or scrubbed
+- [x] `dgx_audit.json` / `pr_diff_review.txt` gitignored or scrubbed — done 2026-09-18 (both added to `.gitignore`; `pr_diff_review.txt` doesn't actually exist on this checkout, rule added pre-emptively)
 - [ ] `litellm_config.yaml`'s hardcoded IP reconciled or explicitly documented as an exception
 
 ---
@@ -613,15 +644,17 @@ Everything else in the original draft's Phase 8 (device registry auto-discovery,
 
 ---
 
-## 🏗️ PHASE 9: DOCUMENTATION OVERHAUL (unchanged in substance)
+## 🏗️ PHASE 9: DOCUMENTATION OVERHAUL (partially started 2026-09-18)
 
 Replace `E2E_VERIFICATION_REPORT.md`, `TEST_READY.md`, `PROJECT.md` (all confirmed to exist at repo root today) with CI-generated `docs/status.md` / `docs/testing.md` / `docs/architecture.md`. No factual corrections needed here beyond noting all three source files are real and currently hand-maintained.
 
+**Progress:** `docs/status.md`, `docs/testing.md`, `docs/architecture.md` now exist, written by hand in the shape/format the plan specifies for CI to eventually produce. `E2E_VERIFICATION_REPORT.md` was not replaced/deleted but given a "SUPERSEDED — historical record only" banner pointing at the three new docs and this plan, since its body verifies a now-obsolete DGX architecture (`llama-server` on `:8080`, not Ollama/vLLM) and rewriting the historical record itself would misrepresent what was actually tested at the time. `TEST_READY.md`/`PROJECT.md` are untouched — they document a separate, already-completed eval-suite alignment effort with no DGX content, out of scope for this phase.
+
 ### Verification
 
-- [ ] `docs/status.md` auto-updated by CI
-- [ ] `docs/architecture.md` has real Mermaid diagrams matching the corrected package layout (no `ufo/` double-prefix in any diagram)
-- [ ] No aspirational "100% complete" claims remain anywhere in the repo's docs
+- [~] `docs/status.md` auto-updated by CI — file exists in the right shape, but **not actually true yet**: no CI exists (Phase 6), so it's hand-maintained, not auto-updated. Don't check this box for real until Phase 6 lands and a workflow writes it.
+- [x] `docs/architecture.md` has real Mermaid diagrams matching the corrected package layout (no `ufo/` double-prefix in any diagram) — 8 diagrams present, verified via `grep -c '```mermaid'`
+- [~] No aspirational "100% complete" claims remain anywhere in the repo's docs — the phrase still exists verbatim inside `E2E_VERIFICATION_REPORT.md`'s body (kept for historical accuracy) but is now preceded by a banner stating it's superseded and scoped to an obsolete config. A literal repo-wide grep for the phrase will still find it; treat this as "contextualized," not "removed."
 
 ---
 
@@ -776,12 +809,15 @@ graph TD
 
 ## ✅ MASTER VERIFICATION CHECKLIST (Track A — the part that's actually load-bearing)
 
-- [ ] `scripts/terminal_config.py` / `scripts/terminal.py` DGX ports and menu text fixed (the real remaining Phase 1 work)
+- [x] `scripts/terminal_config.py` / `scripts/terminal.py` DGX ports and menu text fixed — **done 2026-09-18**
 - [ ] `DesktopAutomation` protocol with **two** real backends (Playwright for CDP targets, UIA for everything else), all 16 `pywinauto`/`uiautomation`-importing files accounted for
 - [ ] `pyproject.toml` + `uv.lock` committed; CI `lint`/`unit-tests` green on `ubuntu-latest` without a premature global mypy-strict flip
-- [ ] `dgx_audit.json` / `pr_diff_review.txt` gitignored or scrubbed; no Admin-scope env vars; no HKLM reads
+- [x] `dgx_audit.json` / `pr_diff_review.txt` gitignored or scrubbed — **done 2026-09-18**
+- [x] no Admin-scope env vars; no HKLM reads — **done 2026-09-18** (both `SetEnvironmentVariable` calls now `'User'` scope; both HKLM reads replaced by `config/secrets.py`)
 - [ ] `NotImplementedError` inventory re-verified by fresh grep; Linux/Mobile session `evaluation()`/log-save actually implemented (blocks the DGX golden path)
+- [x] `llm/llm_call.py` actually importable — **fixed 2026-09-18** (implemented `dlq/dead_letter_queue.py`; see "Status Update" at top of document)
 - [ ] `.github/workflows/ci.yml` exists and is green for the two jobs that don't need self-hosted runners; Windows/DGX runner provisioning tracked as its own explicit task, not assumed
 - [ ] Three golden-path tests pass, in the corrected dependency order (Phase 5 before Phase 10)
+- [~] `docs/status.md` / `docs/testing.md` / `docs/architecture.md` exist (Phase 9, **started 2026-09-18**) but are hand-authored, not actually CI-generated yet — don't check off Phase 9 for real until Phase 6's CI writes them
 
 Track B (Phases 11-15) gets its own checklist once Track A is stable — see each phase's "Verification" section above; the top-level "100/100" score from the original draft is deliberately not reproduced here since it isn't a falsifiable metric (see Correction #11).

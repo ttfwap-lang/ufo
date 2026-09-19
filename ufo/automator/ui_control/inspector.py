@@ -1,10 +1,13 @@
 from __future__ import annotations
 import functools
+import logging
 import platform
 import time
 from abc import ABC, abstractmethod
 from typing import Callable, Dict, List, Optional, cast, TYPE_CHECKING, Any
 import psutil
+
+logger = logging.getLogger(__name__)
 if TYPE_CHECKING or platform.system() == 'Windows':
     import comtypes.gen.UIAutomationClient as UIAutomationClient_dll
     import pywinauto

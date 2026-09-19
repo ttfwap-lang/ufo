@@ -1,3 +1,10 @@
+# NOTE (Phase 2 hybrid automation, see docs/plans/E2E_REMEDIATION_PLAN.md):
+# this module's direct pywinauto usage is a candidate to eventually route
+# through ufo.automation.factory.get_desktop_automation() (native Win32
+# targets resolve to ufo.automation.uia_adapter.UIADesktop). Left as-is
+# for now -- this is one of 14 files with direct pywinauto/uiautomation
+# imports, and migrating call sites needs careful per-call-site review,
+# not a bulk rewrite.
 import logging
 import platform
 import time
@@ -108,49 +115,69 @@ class ControlReceiver(ReceiverBasic):
         else:
             result = self.atomic_execution('click_input', params)
         if isinstance(result, str) and result.startswith('An error occurred'):
-            logger.warning('UI Click failed, triggering Omniparser fallback (Ticket 2.2)...')
+            logger.warning('UI click failed; trying vision fallback.')
             try:
-                import os
-                import tempfile
-                from ufo.automator.ui_control.grounding.omniparser import OmniparserGrounding
-                screenshot_path = os.path.join(tempfile.gettempdir(), 'omniparser_fallback.png')
-                assert self.application is not None, 'Application window required for Omniparser fallback'
-                rect = self.application.rectangle()
-                import pyautogui
-                pyautogui.screenshot(screenshot_path, region=(rect.left, rect.top, rect.width(), rect.height()))
-                from ufo.llm.grounding_model.omniparser_service import OmniParser
-                omniparser_cfg = getattr(ufo_config.system, 'omniparser', None) or {}
-                endpoint = omniparser_cfg.get('ENDPOINT', '') if isinstance(omniparser_cfg, dict) else ''
-                if not endpoint:
-                    raise RuntimeError('OmniParser endpoint not configured in system.yaml')
-                service = OmniParser(endpoint=endpoint)
-                parser = OmniparserGrounding(service=service)
-                raw_boxes = parser.predict(screenshot_path)
-                parsed_boxes = parser.parse_results(raw_boxes, self.application)
-                target_text = ''
-                try:
-                    if hasattr(self.control, 'window_text'):
-                        target_text = self.control.window_text()
-                except Exception:
-                    pass
-                best_box = None
-                for box in parsed_boxes:
-                    if target_text and target_text.lower() in str(box.get('name', '')).lower():
-                        best_box = box
-                        break
-                if not best_box and parsed_boxes:
-                    best_box = parsed_boxes[0]
-                if best_box:
-                    cx = (best_box['x0'] + best_box['x1']) / 2
-                    cy = (best_box['y0'] + best_box['y1']) / 2
-                    pyautogui.click(cx, cy)
-                    logger.info(f'Omniparser fallback successful. Clicked at ({cx}, {cy})')
-                    return f'Click action recovered via Omniparser at ({cx}, {cy})'
-                else:
-                    logger.warning('Omniparser fallback failed: target not found.')
+                point = self._vision_fallback_point()
             except Exception as e:
-                logger.warning(f'Omniparser fallback exception: {e}')
+                logger.warning(f'Vision fallback error: {e}')
+                point = None
+            if point is None:
+                # Never click a guess: an unrelated element is worse than a reported failure.
+                return f'Click failed and the element could not be located visually; nothing was clicked. {result}'
+            import pyautogui
+            pyautogui.click(point[0], point[1])
+            logger.info(f'Vision fallback clicked at {point}')
+            return f'Click recovered via vision fallback at {point}'
         return f'Click action has been executed, with parameters: {params}'
+
+    def _vision_fallback_point(self):
+        """Screen point for self.control found visually, or None.
+
+        OmniParser label match first; then UI-Venus with its confirm step.
+        """
+        import os
+        import tempfile
+        import pyautogui
+        if self.application is None:
+            return None
+        name = ''
+        try:
+            name = (self.control.element_info.name or '') if hasattr(self.control, 'element_info') else ''
+            if not name and hasattr(self.control, 'window_text'):
+                name = self.control.window_text() or ''
+        except Exception:
+            pass
+        name = name.strip()
+        if not name:
+            return None
+        rect = self.application.rectangle()
+        screenshot_path = os.path.join(tempfile.gettempdir(), 'ufo_click_fallback.png')
+        pyautogui.screenshot(screenshot_path, region=(rect.left, rect.top, rect.width(), rect.height()))
+        omniparser_cfg = getattr(ufo_config.system, 'omniparser', None) or {}
+        endpoint = omniparser_cfg.get('ENDPOINT', '') if isinstance(omniparser_cfg, dict) else ''
+        if endpoint:
+            from ufo.automator.ui_control.grounding.omniparser import OmniparserGrounding
+            from ufo.llm.grounding_model.omniparser_service import get_omniparser
+            parser = OmniparserGrounding(service=get_omniparser(endpoint))
+            boxes = parser.parse_results(parser.predict(screenshot_path, use_paddleocr=False), self.application)
+            wanted = name.lower()
+            exact = [b for b in boxes if str(b.get('name', '')).strip().lower() == wanted]
+            partial = [b for b in boxes if wanted in str(b.get('name', '')).lower()]
+            match = (exact or partial or [None])[0]
+            if match is not None:
+                return ((match['x0'] + match['x1']) / 2, (match['y0'] + match['y1']) / 2)
+        from ufo.automator.ui_control.grounding.venus import get_grounder
+        grounder = get_grounder(getattr(ufo_config.system, 'GROUNDING_MODEL', None))
+        if grounder is not None:
+            control_type = ''
+            try:
+                control_type = self.control.element_info.control_type or ''
+            except Exception:
+                pass
+            found = grounder.locate(screenshot_path, f"the '{name}' {control_type}".strip())
+            if found is not None:
+                return (rect.left + found.fx * rect.width(), rect.top + found.fy * rect.height())
+        return None
 
     def click_on_coordinates(self, params: Dict[str, str]) -> str:
         """

@@ -7,11 +7,12 @@ from urllib.parse import quote_plus
 import requests
 from langchain_core.documents import Document
 from langchain_text_splitters import HTMLHeaderTextSplitter
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 
 from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.utils import get_hugginface_embedding
 from ufo.utils.url_security import safe_get, validate_url
+from ufo.rag import ddg_search
 
 ufo_config = LazyUFOConfig()
 logger = logging.getLogger(__name__)
@@ -112,7 +113,7 @@ class BingSearchWeb:
         """
         document_list = []
 
-        for result in result_list:
+        for result in result_list or []:
             documents = self.get_url_text(result["url"])
             for document in documents:
                 page_content = document.page_content
@@ -133,6 +134,31 @@ class BingSearchWeb:
         :return: The created indexer.
         """
 
-        db = Chroma.from_documents(documents, get_hugginface_embedding())
+        db = FAISS.from_documents(documents, get_hugginface_embedding())
 
         return db
+
+
+class DuckDuckGoSearchWeb(BingSearchWeb):
+    """
+    Keyless web search (DuckDuckGo HTML endpoint); page fetching, document
+    creation and indexing are shared with BingSearchWeb.
+    """
+
+    def __init__(self):
+        self.api_key = None
+
+    def search(self, query: str, top_k: int = 1):
+        try:
+            return ddg_search.search(query, max_results=max(int(top_k), 1))
+        except Exception as e:
+            logger.warning(f"Error when searching DuckDuckGo: {e}")
+            return None
+
+
+def get_search_web() -> BingSearchWeb:
+    """Bing when a real BING_API_KEY is configured, otherwise DuckDuckGo."""
+    key = str(ufo_config.rag.bing_api_key or "").strip()
+    if key and not key.startswith("${"):
+        return BingSearchWeb()
+    return DuckDuckGoSearchWeb()

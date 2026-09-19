@@ -11,6 +11,7 @@ This module contains all the processing strategies for App Agent including:
 
 Each strategy is designed to be modular, testable, and follows the dependency injection pattern.
 """
+import asyncio
 import json
 import os
 import time
@@ -32,7 +33,7 @@ from ufo.automator.ui_control.screenshot import PhotographerFacade
 from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.aip.messages import Command, Result, ResultStatus
 from ufo.llm import AgentType
-from ufo.llm.grounding_model.omniparser_service import OmniParser
+from ufo.llm.grounding_model.omniparser_service import get_omniparser
 from ufo.module.context import ContextNames
 from ufo.module.dispatcher import BasicCommandDispatcher
 ufo_config = LazyUFOConfig()
@@ -289,7 +290,13 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
         omniparser_config = ufo_config.system.omniparser
         omniparser_endpoint = omniparser_config.get('ENDPOINT', '') if omniparser_config else ''
         if omniparser_endpoint:
-            omniparser_service = OmniParser(endpoint=omniparser_endpoint)
+            try:
+                omniparser_service = get_omniparser(omniparser_endpoint)
+            except Exception as e:
+                # The gradio client connects on construction; an unreachable
+                # parser must degrade to UIA-only, not break the AppAgent.
+                self.logger.warning(f'OmniParser at {omniparser_endpoint} unavailable, using UIA only: {e}')
+                return None
             return OmniparserGrounding(service=omniparser_service)
         else:
             self.logger.warning('OmniParser endpoint is not configured.')
@@ -379,7 +386,7 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
             if not clean_screenshot_path or not os.path.exists(clean_screenshot_path):
                 return []
             omniparser_config = ufo_config.system.omniparser
-            grounding_controls = self.grounding_service.screen_parsing(clean_screenshot_path, application_window_info, box_threshold=omniparser_config.get('BOX_THRESHOLD', 0.05) if omniparser_config else 0.05, iou_threshold=omniparser_config.get('IOU_THRESHOLD', 0.1) if omniparser_config else 0.1, use_paddleocr=omniparser_config.get('USE_PADDLEOCR', True) if omniparser_config else True, imgsz=omniparser_config.get('IMGSZ', 640) if omniparser_config else 640)
+            grounding_controls = await asyncio.to_thread(self.grounding_service.screen_parsing, clean_screenshot_path, application_window_info, box_threshold=omniparser_config.get('BOX_THRESHOLD', 0.05) if omniparser_config else 0.05, iou_threshold=omniparser_config.get('IOU_THRESHOLD', 0.1) if omniparser_config else 0.1, use_paddleocr=omniparser_config.get('USE_PADDLEOCR', True) if omniparser_config else True, imgsz=omniparser_config.get('IMGSZ', 640) if omniparser_config else 640)
             return grounding_controls
         except Exception as e:
             self.logger.warning(f'Grounding control collection failed: {str(e)}')
@@ -432,7 +439,7 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
             if not command_dispatcher:
                 self.logger.warning('Command dispatcher not available for adding controls')
                 return
-            control_list_data = [asdict(target) for target in added_controls]
+            control_list_data = [target.model_dump(mode='json') for target in added_controls]
             result = await command_dispatcher.execute_commands([Command(tool_name='add_control_list', parameters={'control_list': control_list_data}, tool_type='data_collection')])
             if result and result[0].status == ResultStatus.SUCCESS:
                 self.logger.info(f'Successfully added {len(added_controls)} new controls')
@@ -542,18 +549,15 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                 if not isinstance(actions, list):
                     actions = [actions] if actions else []
                     
+                from ufo.agents.processors.strategies.response_checks import app_response_problems, feedback_text
+                hallucination_errors.extend(
+                    app_response_problems(actions, getattr(parsed_response, 'status', None), valid_control_ids, self._valid_tool_names(agent, context))
+                )
                 for act in actions:
                     if not act: continue
-                    # Action is returned as Dict sometimes from _parse_app_response before model validation?
-                    # Wait, _parse_app_response returns AppAgentResponse object which has ActionCommandInfo
                     function = getattr(act, 'function', '')
-                    arguments = getattr(act, 'arguments', {})
-                    if function in ('set_edit_text', 'click_input', 'texts', 'select_application_window'):
-                        control_id = arguments.get('id')
-                        if control_id and str(control_id) not in valid_control_ids:
-                            hallucination_errors.append(f"Control ID '{control_id}' does not exist in the current UI.")
-                    
-                    if function == 'set_edit_text' and arguments.get('text'):
+                    arguments = getattr(act, 'arguments', None) or {}
+                    if function == 'set_edit_text' and isinstance(arguments, dict) and arguments.get('text'):
                         val = arguments.get('text')
                         if "balance" in (subtask or "").lower() or "transfer" in (subtask or "").lower():
                             try:
@@ -567,7 +571,7 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                     break
                     
                 correction_attempts += 1
-                error_feedback = "Self-Correction Required: You hallucinated the following:\\n- " + "\\n- ".join(hallucination_errors) + "\\nPlease regenerate your response correcting these errors."
+                error_feedback = feedback_text(hallucination_errors)
                 self.logger.warning(f"Hallucination detected: {error_feedback}. Re-prompting.")
                 
                 # Append error feedback to prompt
@@ -577,7 +581,7 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                         if isinstance(last_msg["content"], list):
                             last_msg["content"].append({"type": "text", "text": error_feedback})
                         elif isinstance(last_msg["content"], str):
-                            last_msg["content"] += "\\n" + error_feedback
+                            last_msg["content"] += "\n" + error_feedback
 
             if correction_attempts >= max_self_corrections:
                 self.logger.error("Max self-correction attempts reached. Proceeding with potentially flawed response.")
@@ -588,6 +592,17 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
             error_msg = f'App LLM interaction failed: {str(e)}'
             self.logger.error(error_msg)
             return self.handle_error(e, ProcessingPhase.LLM_INTERACTION, context)
+
+    @staticmethod
+    def _valid_tool_names(agent, context) -> set:
+        """Names of the tools this AppAgent was actually given (empty if unknown)."""
+        try:
+            from ufo.module.context import ContextNames
+            tool_info = context.global_context.get(ContextNames.TOOL_INFO) or {}
+            tools = tool_info.get(getattr(agent, 'name', ''), []) or []
+            return {getattr(t, 'tool_name', None) for t in tools} - {None}
+        except Exception:
+            return set()
 
     def _collect_image_strings(self, last_control_screenshot_path: str, clean_screenshot_path: str, annotated_screenshot_path: str, concat_screenshot_save_path: str):
         """
@@ -802,14 +817,13 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                     if not isinstance(act_dict.get('arguments'), dict):
                         act_dict['arguments'] = {}
                     args = act_dict['arguments']
-                    if 'command' in args:
-                        val = args.pop('command')
-                        if 'bash_command' not in args:
-                            args['bash_command'] = val
-                    if 'cmd' in args:
-                        val = args.pop('cmd')
-                        if 'bash_command' not in args:
-                            args['bash_command'] = val
+                    # Different tools name their shell argument differently:
+                    # run_shell(bash_command) vs execute_command(command).
+                    shell_arg = 'bash_command' if str(act_dict.get('function') or '') == 'run_shell' else 'command'
+                    for alias in ('command', 'bash_command', 'cmd'):
+                        if alias != shell_arg and alias in args:
+                            val = args.pop(alias)
+                            args.setdefault(shell_arg, val)
                     if 'app_name' in args:
                         val = args.pop('app_name')
                         if 'name' not in args:
@@ -839,7 +853,14 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                         else:
                             args['text'] = str(args['text'])
                 if isinstance(action, str):
-                    args = response_dict.pop('arguments', None) or response_dict.pop('Args', {}) or {}
+                    args = response_dict.pop('arguments', None) or response_dict.pop('Args', None) or {}
+                    if not args:
+                        # LangChain-style output from smaller local models:
+                        # {"action": "fn", "action_input": "{...json...}"}
+                        for alt_key in ('action_input', 'tool_input', 'input', 'parameters', 'params', 'args'):
+                            if response_dict.get(alt_key):
+                                args = response_dict.pop(alt_key)
+                                break
                     response_dict['action'] = {'function': action, 'arguments': args}
                     action = response_dict['action']
                 if isinstance(action, dict):
@@ -863,6 +884,31 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
             return parsed_response
         except Exception as e:
             raise Exception(f'Failed to parse app response: {str(e)}')
+
+REPEATED_FAILURE_LIMIT = 3
+MAX_ACTIONS_PER_STEP = 4
+
+
+def _record_and_check_repeated_failure(agent, actions, execution_results) -> bool:
+    """True once the identical action has failed REPEATED_FAILURE_LIMIT times consecutively."""
+    import json as _json
+    acts = actions if isinstance(actions, list) else [actions]
+    signature = _json.dumps([[getattr(a, 'function', None), getattr(a, 'arguments', None)] for a in acts if a], sort_keys=True, default=str)
+    failed = bool(execution_results) and all(str(getattr(r, 'status', '')).lower().endswith('failure') for r in execution_results)
+    history = getattr(agent, '_repeated_failure', None) or {'sig': None, 'count': 0}
+    if failed and signature == history['sig']:
+        history['count'] += 1
+    elif failed:
+        history = {'sig': signature, 'count': 1}
+    else:
+        history = {'sig': None, 'count': 0}
+    try:
+        agent._repeated_failure = history
+    except Exception:
+        return False
+    return history['count'] >= REPEATED_FAILURE_LIMIT
+
+
 
 @depends_on('parsed_response', 'log_path', 'session_step')
 @provides('execution_result', 'action_info', 'control_log', 'status', 'selected_control_screenshot_path')
@@ -914,6 +960,15 @@ class AppActionExecutionStrategy(BaseProcessingStrategy):
             selected_control_screenshot_path = log_path + f'action_step{session_step}_selected_controls.png'
             self._save_annotated_screenshot(application_window_info=context.get_local('application_window_info'), clean_screenshot_path=context.get_local('clean_screenshot_path'), save_path=selected_control_screenshot_path, target_list=control_objects)
             status = parsed_response.action.status if isinstance(parsed_response.action, ActionCommandInfo) else action_info.status
+            if not status:
+                # The model's top-level "status" is the authoritative signal
+                # when the per-action object (built from function/arguments
+                # only) carries none; otherwise keep the round going.
+                status = (getattr(parsed_response, 'status', None) or 'CONTINUE')
+                status = str(status).upper()
+            if _record_and_check_repeated_failure(agent, parsed_response.action, execution_results):
+                self.logger.warning(f'The same action failed {REPEATED_FAILURE_LIMIT} times in a row; ending this subtask as FAIL.')
+                status = 'FAIL'
             return ProcessingResult(success=True, data={'execution_result': execution_results, 'action_info': action_info, 'selected_control_screenshot_path': selected_control_screenshot_path, 'control_log': control_log, 'status': status}, phase=ProcessingPhase.ACTION_EXECUTION)
         except Exception as e:
             error_msg = f'App action execution failed: {str(e)}'
@@ -979,21 +1034,57 @@ class AppActionExecutionStrategy(BaseProcessingStrategy):
         """
         if not actions:
             return []
-        try:
-            commands = []
-            if isinstance(actions, ActionCommandInfo):
-                actions = [actions]
-            for action in actions:
-                if not action.function:
+        if isinstance(actions, ActionCommandInfo):
+            actions = [actions]
+        if not command_dispatcher:
+            raise Exception('Failed to execute app action: Command dispatcher not available')
+
+        def skipped(reason: str) -> Result:
+            return Result(status=ResultStatus.SKIPPED, result=None, error=reason)
+
+        # One result per action, in order, so action info and results stay aligned.
+        results: List[Result] = []
+        stop_reason = ''
+        executed = 0
+        for action in actions:
+            if stop_reason:
+                results.append(skipped(stop_reason))
+                continue
+            if not action.function:
+                results.append(skipped('No function given.'))
+                continue
+            if executed >= MAX_ACTIONS_PER_STEP:
+                results.append(skipped(f'Only {MAX_ACTIONS_PER_STEP} actions run per step.'))
+                continue
+            target_id = (action.arguments or {}).get('id') if isinstance(action.arguments, dict) else None
+            if executed > 0 and target_id is not None:
+                # Earlier actions in this step may have changed the window
+                # (dialog, menu, navigation); don't act on a stale control map.
+                stable, why = await self._ui_still_stable(command_dispatcher, str(target_id))
+                if not stable:
+                    stop_reason = f'UI changed after the previous action ({why}); re-plan from the new screen.'
+                    results.append(skipped(stop_reason))
                     continue
-                command = self._action_to_command(action)
-                commands.append(command)
-            if not command_dispatcher:
-                raise ValueError('Command dispatcher not available')
-            execution_result = await command_dispatcher.execute_commands(commands)
-            return execution_result
+            try:
+                result = (await command_dispatcher.execute_commands([self._action_to_command(action)]))[0]
+            except Exception as e:
+                raise Exception(f'Failed to execute app action: {str(e)}')
+            results.append(result)
+            executed += 1
+            if result.status != ResultStatus.SUCCESS:
+                stop_reason = 'Skipped because a previous action in this step failed.'
+        return results
+
+    async def _ui_still_stable(self, command_dispatcher: BasicCommandDispatcher, control_id: str) -> tuple:
+        """(stable, reason) from the check_ui_stable data tool; unknown counts as stable."""
+        try:
+            res = await command_dispatcher.execute_commands([Command(tool_name='check_ui_stable', parameters={'control_id': control_id}, tool_type='data_collection')])
+            payload = res[0].result if res else None
+            if isinstance(payload, dict):
+                return bool(payload.get('stable', True)), str(payload.get('reason', ''))
         except Exception as e:
-            raise Exception(f'Failed to execute app action: {str(e)}')
+            self.logger.debug(f'check_ui_stable unavailable: {e}')
+        return True, ''
 
     def _action_to_command(self, action: ActionCommandInfo) -> Command:
         """
@@ -1177,6 +1268,10 @@ class AppMemoryUpdateStrategy(BaseProcessingStrategy):
         try:
             self.logger.warning('SHAKE-UP PROTOCOL TRIGGERED!')
             try:
+                # NOTE (Phase 2 hybrid automation, see docs/plans/E2E_REMEDIATION_PLAN.md):
+                # candidate to route through ufo.automation.factory.get_desktop_automation()
+                # instead of importing pywinauto directly; left as-is pending per-call-site
+                # review (one of 14 files with direct pywinauto/uiautomation imports).
                 from pywinauto.keyboard import send_keys
                 send_keys('{VK_ESCAPE}')
                 self.logger.info('Sent ESCAPE key.')

@@ -139,7 +139,11 @@ class GalaxyClient:
             if not self._session:
                 self.logger.warning('Session was terminated during execution')
                 return {'session_name': self.session_name, 'request': request, 'task_name': task_name, 'status': 'stopped', 'execution_time': execution_time, 'message': 'Task was stopped by user', 'timestamp': datetime.now().isoformat()}
-            result = {'session_name': self.session_name, 'request': request, 'task_name': task_name, 'status': 'completed', 'execution_time': execution_time, 'rounds': len(self._session._rounds) if self._session._rounds else 0, 'start_time': start_time.isoformat(), 'end_time': end_time.isoformat(), 'trajectory_path': self._session.log_path if hasattr(self._session, 'log_path') else None, 'session_results': self._session.session_results if hasattr(self._session, 'session_results') else None}
+            session_results = self._session.session_results if hasattr(self._session, 'session_results') else None
+            inner_status = str((session_results or {}).get('status', '')).lower() if isinstance(session_results, dict) else ''
+            # Report the session's real outcome instead of always "completed".
+            outer_status = 'failed' if inner_status in ('failed', 'fail', 'error') else 'completed'
+            result = {'session_name': self.session_name, 'request': request, 'task_name': task_name, 'status': outer_status, 'execution_time': execution_time, 'rounds': len(self._session._rounds) if self._session._rounds else 0, 'start_time': start_time.isoformat(), 'end_time': end_time.isoformat(), 'trajectory_path': self._session.log_path if hasattr(self._session, 'log_path') else None, 'session_results': self._session.session_results if hasattr(self._session, 'session_results') else None}
             if self._session and self._session.current_constellation:
                 constellation = self._session.current_constellation
                 result['constellation'] = {'id': constellation.constellation_id, 'name': constellation.name, 'task_count': len(constellation.tasks), 'dependency_count': len(constellation.dependencies), 'state': constellation.state.value}

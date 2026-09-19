@@ -37,13 +37,13 @@ def create_fallback_omniparser_mcp_server(*args, **kwargs) -> FastMCP:
         if not endpoint or 'xxx' in endpoint:
             raise ToolError('OmniParser endpoint is not configured. Update OMNIPARSER.ENDPOINT in config/ufo/system.yaml with a valid OmniParser service URL.')
         try:
-            from ufo.llm.grounding_model.omniparser_service import OmniParser
+            from ufo.llm.grounding_model.omniparser_service import get_omniparser
             from ufo.automator.ui_control.grounding.omniparser import OmniparserGrounding
             from ufo.automator.ui_control.screenshot import PhotographerFacade
             photographer = PhotographerFacade()
             screenshot_path = os.path.join(tempfile.gettempdir(), 'ufo_omniparser_screenshot.png')
             photographer.capture_desktop_screen_screenshot(screenshot_path)
-            service = OmniParser(endpoint=endpoint)
+            service = get_omniparser(endpoint)
             grounding = OmniparserGrounding(service=service)
             results = grounding.predict(screenshot_path, box_threshold=omniparser_config.get('BOX_THRESHOLD', 0.05), iou_threshold=omniparser_config.get('IOU_THRESHOLD', 0.1), use_paddleocr=omniparser_config.get('USE_PADDLEOCR', True), imgsz=omniparser_config.get('IMGSZ', 640))
             return json.dumps({'status': 'success', 'bounding_boxes': results, 'count': len(results)})

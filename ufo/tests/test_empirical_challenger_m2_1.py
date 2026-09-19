@@ -165,15 +165,11 @@ def test_polymorphic_retriever_methods():
         )
         host_agent: BasicAgent = create_test_host_agent()
 
-        # BasicAgent default implementations raise NotImplementedError for non-overridden retriever calls on HostAgent
-        with pytest.raises(NotImplementedError):
-            host_agent.build_offline_docs_retriever()
-        with pytest.raises(NotImplementedError):
-            host_agent.build_online_search_retriever()
-        with pytest.raises(NotImplementedError):
-            host_agent.build_experience_retriever()
-        with pytest.raises(NotImplementedError):
-            host_agent.build_human_demonstration_retriever()
+        # BasicAgent default implementations are no-ops for non-overridden retriever calls on HostAgent
+        assert host_agent.build_offline_docs_retriever() is None
+        assert host_agent.build_online_search_retriever() is None
+        assert host_agent.build_experience_retriever() is None
+        assert host_agent.build_human_demonstration_retriever() is None
 
         # AppAgent overrides retriever methods
         app_agent.build_offline_docs_retriever()

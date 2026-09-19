@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import time
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
@@ -265,6 +267,8 @@ class HostAgent(BasicAgent):
         if not self._context_provision_executed:
             await self.context_provision(context=context)
             self._context_provision_executed = True
+        if getattr(self, "_task_started_at", None) is None:
+            self._task_started_at = time.time()
         self.processor = HostAgentProcessor(agent=self, global_context=context)
         # self.processor = HostAgentProcessor(agent=self, context=context)
         await self.processor.process()
@@ -278,7 +282,91 @@ class HostAgent(BasicAgent):
                 f"Forcing ERROR to prevent silent round termination."
             )
             self.status = "ERROR"
+        if str(self.status).upper() == HostAgentStatus.FINISH.value:
+            await self._verify_goal_before_finish(context)
         self.logger.info(f"Host agent status updated to: {self.status}")
+
+    async def _verify_goal_before_finish(self, context: Context) -> None:
+        """Re-check a FINISH against the screen; a confident 'not done' reopens the task."""
+        from ufo.agents.processors.strategies import goal_verifier
+        from ufo.llm import AgentType, response_format_override
+
+        if not goal_verifier.GOAL_VERIFY_ENABLED:
+            return
+        rejections = getattr(self, "_goal_rejections", 0)
+        pctx = self.processor.processing_context
+        summary = " ".join(str(x) for x in (pctx.get_local("result"), pctx.get_local("host_message")) if x)
+        user_request = str(context.get(ContextNames.REQUEST) or "")
+
+        # Deterministic checks (files, processes, editor/Office text) settle the
+        # verdict outright when they can; otherwise they become evidence for the LLM.
+        checks_summary = ""
+        try:
+            from ufo.verification import registry
+
+            evaluation = await asyncio.to_thread(
+                registry.evaluate, user_request, getattr(self, "_task_started_at", None)
+            )
+            checks_summary = evaluation.summary()
+            if checks_summary:
+                self.logger.info(f"Goal verification checks:\n{checks_summary}")
+            if evaluation.achieved is not None:
+                failed = "; ".join(f"{r.name}: {r.detail}" for r in evaluation.failed)
+                verdict = goal_verifier.GoalVerdict(
+                    evaluation.achieved,
+                    1.0,
+                    "Deterministic checks passed." if evaluation.achieved else f"Deterministic check failed: {failed}",
+                    failed,
+                )
+                self._apply_goal_verdict(verdict, rejections)
+                return
+        except Exception as e:
+            self.logger.warning(f"Goal verification: deterministic checks failed to run: {e}")
+        if checks_summary:
+            summary = f"{summary}\n\nAUTOMATED CHECKS:\n{checks_summary}"
+
+        screenshot_url = None
+        try:
+            res = await context.command_dispatcher.execute_commands(
+                [Command(tool_name="capture_desktop_screenshot", parameters={"all_screens": False}, tool_type="data_collection")]
+            )
+            if res and isinstance(res[0].result, str) and res[0].result.startswith("data:image/"):
+                screenshot_url = res[0].result
+        except Exception as e:
+            self.logger.warning(f"Goal verification: screenshot failed: {e}")
+
+        async def ask(messages):
+            with response_format_override.response_format({"type": "json_object"}):
+                result = await self.get_response(messages, AgentType.HOST, True)
+            return result.responses[0] if result.responses else ""
+
+        verdict = await goal_verifier.verify_goal(user_request, summary, screenshot_url, ask)
+        self._apply_goal_verdict(verdict, rejections)
+
+    def _apply_goal_verdict(self, verdict, rejections: int) -> None:
+        """Record the verdict; a rejection reopens the task with the reason on the blackboard.
+
+        Once the rejection limit is reached the FINISH stands, but the negative
+        verdict is kept so the session outcome (and module.attempts) sees it.
+        """
+        from ufo.agents.processors.strategies import goal_verifier
+
+        self.last_goal_verdict = verdict
+        self.logger.info(
+            f"Goal verification: achieved={verdict.achieved} confidence={verdict.confidence:.2f} reason={verdict.reason!r}"
+        )
+        if verdict.rejects and rejections >= goal_verifier.GOAL_VERIFY_MAX_REJECTIONS:
+            self.logger.warning("Goal verification: rejection limit reached, ending the round unverified.")
+        elif verdict.rejects:
+            self._goal_rejections = rejections + 1
+            self.blackboard.add_questions(
+                {
+                    "question": "Goal check before finishing",
+                    "answer": f"NOT DONE YET: {verdict.reason} Still missing: {verdict.missing or 'see screenshot'}. "
+                    "Continue working on the request instead of finishing.",
+                }
+            )
+            self.status = HostAgentStatus.CONTINUE.value
 
     async def context_provision(self, context: Context) -> None:
         """

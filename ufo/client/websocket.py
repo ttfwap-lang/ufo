@@ -20,6 +20,12 @@ class UFOWebSocketClient:
     Handles task_request, heartbeat, result_ack, notify_ack.
     """
 
+
+    @property
+    def _safe_url(self) -> str:
+        """ws_url with any token query value masked, for logging."""
+        import re as _re
+        return _re.sub(r'token=[^&]+', 'token=***', str(self.ws_url))
     def __init__(self, ws_url: str, ufo_client: 'UFOClient', max_retries: int=3, timeout: float=120):
         """
         Initialize the WebSocket client.
@@ -54,7 +60,7 @@ class UFOWebSocketClient:
                     self.logger.error(f'[WS] ❌ Max retries ({self.max_retries}) reached. Exiting.')
                     break
                 if self.retry_count == 0:
-                    self.logger.info(f'[WS] Connecting to {self.ws_url}...')
+                    self.logger.info(f'[WS] Connecting to {self._safe_url}...')
                 else:
                     self.logger.info(f'[WS] Reconnecting... (attempt {self.retry_count + 1}/{self.max_retries})')
                 self.connected_event.clear()
@@ -79,7 +85,7 @@ class UFOWebSocketClient:
                 self.retry_count += 1
                 await self._maybe_retry()
             except ConnectionRefusedError as e:
-                self.logger.warning(f'[WS] Connection refused: Server not available at {self.ws_url}')
+                self.logger.warning(f'[WS] Connection refused: Server not available at {self._safe_url}')
                 self.connected_event.clear()
                 self.retry_count += 1
                 await self._maybe_retry()
@@ -252,7 +258,7 @@ class UFOWebSocketClient:
             self.logger.info(f'[WS] Retrying in {wait_time}s... ({self.retry_count}/{self.max_retries})')
             await asyncio.sleep(wait_time)
         else:
-            self.logger.error(f'[WS] ❌ Max retries reached ({self.max_retries}). Please check if server is running at {self.ws_url}')
+            self.logger.error(f'[WS] ❌ Max retries reached ({self.max_retries}). Please check if server is running at {self._safe_url}')
 
     def is_connected(self) -> bool:
         """

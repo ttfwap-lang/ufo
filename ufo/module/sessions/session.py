@@ -62,11 +62,22 @@ class Session(WindowsBaseSession):
             if interactor.experience_asker():
                 await self.experience_saver()
         elif save_experience == 'auto':
-            task_completed = self.results.get('complete', 'no')
-            if task_completed.lower() == 'yes':
+            if self._task_confirmed_complete():
                 await self.experience_saver()
+            else:
+                self.logger.info('Experience not saved: task completion was not confirmed.')
         elif save_experience == 'always_not':
             pass
+
+    def _task_confirmed_complete(self) -> bool:
+        """True if the evaluation agent or the goal verifier confirmed success."""
+        results = self.results
+        entries = results if isinstance(results, list) else [results]
+        for entry in entries:
+            if isinstance(entry, dict) and str(entry.get('complete', '')).lower() == 'yes':
+                return True
+        verdict = getattr(self._host_agent, 'last_goal_verdict', None)
+        return bool(verdict is not None and verdict.achieved is True and verdict.confidence >= 0.6)
 
     def _init_context(self) -> None:
         """

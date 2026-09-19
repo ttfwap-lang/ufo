@@ -8,7 +8,7 @@ import datetime
 import logging
 from typing import Optional
 from uuid import uuid4
-from ufo.aip.messages import ClientMessage, ClientMessageType, ServerMessage, ServerMessageType, TaskStatus
+from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, ServerMessage, ServerMessageType, TaskStatus
 from ufo.aip.protocol.base import AIPProtocol
 
 class HeartbeatProtocol(AIPProtocol):
@@ -28,14 +28,16 @@ class HeartbeatProtocol(AIPProtocol):
         self._heartbeat_task: Optional[asyncio.Task] = None
         self._heartbeat_interval: float = 30.0
 
-    async def send_heartbeat(self, client_id: str, metadata: Optional[dict]=None) -> None:
+    async def send_heartbeat(self, client_id: str, metadata: Optional[dict]=None, client_type: ClientType=ClientType.DEVICE) -> None:
         """
         Send a single heartbeat message (client-side).
 
         :param client_id: Client ID
         :param metadata: Optional metadata dictionary
+        :param client_type: Must match the type this connection registered as,
+            or the server rejects the heartbeat as a role spoof.
         """
-        heartbeat_msg = ClientMessage(type=ClientMessageType.HEARTBEAT, client_id=client_id, status=TaskStatus.OK, timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(), metadata=metadata)
+        heartbeat_msg = ClientMessage(type=ClientMessageType.HEARTBEAT, client_id=client_id, client_type=client_type, status=TaskStatus.OK, timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(), metadata=metadata)
         await self.send_message(heartbeat_msg)
         self.logger.debug(f'Sent heartbeat from {client_id}')
 

@@ -46,7 +46,7 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
             else:
                 df = pd.DataFrame(data_list[1:], columns=data_list[0])
             df = df.dropna(axis=0, how='all')
-            df = df.applymap(self.format_value)
+            df = df.map(self.format_value) if hasattr(df, 'map') else df.applymap(self.format_value)
             return df.to_markdown(index=False)
         except Exception as e:
             raise RuntimeError(f'Error occurred while converting table to markdown: {e}')
@@ -197,12 +197,12 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
         """
         excel_ext_to_fileformat = {'.xlsx': 51, '.xlsm': 52, '.xlsb': 50, '.xls': 56, '.xltx': 54, '.xltm': 53, '.csv': 6, '.txt': 42, '.pdf': 57, '.xps': 58, '.xml': 46, '.html': 44, '.htm': 44, '.prn': 36}
         if not file_dir:
-            file_dir = os.path.dirname(self.com_object.FullName)
+            file_dir = self.document_dir()
         if not file_name:
             file_name = os.path.splitext(os.path.basename(self.com_object.FullName))[0]
         if not file_ext:
             file_ext = '.csv'
-        document_dir = os.path.dirname(self.com_object.FullName)
+        document_dir = self.document_dir()
         file_dir = validate_save_path(file_dir, document_dir)
         file_path = os.path.join(file_dir, file_name + file_ext)
         try:
@@ -250,6 +250,69 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
         if isinstance(value, (int, float)):
             return '{:.0f}'.format(value)
         return value
+
+    def _sheet(self, sheet_name: Union[str, int]):
+        try:
+            return self.com_object.Sheets(sheet_name)
+        except Exception:
+            raise ValueError(f'Sheet {sheet_name!r} not found. Sheets: {[s.Name for s in self.com_object.Sheets]}')
+
+    def set_cell_values(self, sheet_name: Union[str, int], start_cell: str, values: List[List[Any]]) -> str:
+        """Write a 2-D block of values starting at start_cell (e.g. 'B2')."""
+        if not values or not isinstance(values, list):
+            raise ValueError('values must be a non-empty list of rows.')
+        rows = [row if isinstance(row, list) else [row] for row in values]
+        width = max(len(r) for r in rows)
+        rows = [r + [None] * (width - len(r)) for r in rows]
+        sheet = self._sheet(sheet_name)
+        # Range.Resize is a parameterized property that late-bound COM mis-invokes;
+        # build the block from its corner cells instead.
+        top_left = sheet.Range(start_cell)
+        r0, c0 = top_left.Row, top_left.Column
+        target = sheet.Range(sheet.Cells(r0, c0), sheet.Cells(r0 + len(rows) - 1, c0 + width - 1))
+        target.Value = tuple(tuple(r) for r in rows)
+        return f'Wrote {len(rows)}x{width} values to {target.Address}.'
+
+    def set_formula(self, sheet_name: Union[str, int], cell: str, formula: str) -> str:
+        """Set a formula (e.g. '=SUM(B2:B10)') in a cell or range and return the computed value."""
+        if not formula.startswith('='):
+            formula = '=' + formula
+        rng = self._sheet(sheet_name).Range(cell)
+        rng.Formula = formula
+        return f'{cell} = {formula} -> {rng.Cells(1, 1).Value}'
+
+    def add_sheet(self, name: str) -> str:
+        """Add a worksheet at the end with the given name."""
+        sheets = self.com_object.Sheets
+        # Positional (Before, After): the After= keyword is ignored by late-bound COM.
+        sheet = sheets.Add(None, sheets(sheets.Count))
+        sheet.Name = name
+        return f"Added sheet '{sheet.Name}'."
+
+    def create_chart(self, sheet_name: Union[str, int], data_range: str, chart_type: str = 'column', title: str = '') -> str:
+        """Create a chart from data_range (e.g. 'A1:B6', header row included) on the same sheet."""
+        types = {'column': 51, 'bar': 57, 'line': 4, 'pie': 5, 'scatter': -4169, 'area': 1}
+        if chart_type not in types:
+            raise ValueError(f'chart_type must be one of {sorted(types)}')
+        sheet = self._sheet(sheet_name)
+        data = sheet.Range(data_range)
+        left = data.Left + data.Width + 20
+        chart_obj = sheet.ChartObjects().Add(left, data.Top, 420, 260)
+        chart = chart_obj.Chart
+        chart.ChartType = types[chart_type]
+        chart.SetSourceData(data)
+        if title:
+            chart.HasTitle = True
+            chart.ChartTitle.Text = title
+        return f"Created a {chart_type} chart from {data_range}{' titled ' + repr(title) if title else ''}."
+
+    def sort_range(self, sheet_name: Union[str, int], data_range: str, key_column: int, ascending: bool = True, has_header: bool = True) -> str:
+        """Sort data_range by its key_column-th column (1-based)."""
+        rng = self._sheet(sheet_name).Range(data_range)
+        key = rng.Columns(key_column)
+        # Sort(Key1, Order1, ..., Header)
+        rng.Sort(Key1=key, Order1=1 if ascending else 2, Header=1 if has_header else 2)
+        return f"Sorted {data_range} by column {key_column} ({'ascending' if ascending else 'descending'})."
 
     @property
     def type_name(self):

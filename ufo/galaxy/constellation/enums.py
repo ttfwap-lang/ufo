@@ -74,3 +74,4 @@ class DeviceType(Enum):
     IOS = "ios"
     WEB = "web"
     API = "api"
+    DGX_SPARK = "dgx_spark"  # NVIDIA DGX Spark (Blackwell GB10) LLM inference device

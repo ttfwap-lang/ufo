@@ -11,11 +11,22 @@ class TestLLMWatchdogHealthCheck(unittest.TestCase):
 
     def test_watchdog_init(self):
         """Test watchdog can be instantiated with default config."""
+        from unittest.mock import patch
         from ufo.utils.llm_resilience import LLMWatchdog, DEFAULT_SERVERS
-        watchdog = LLMWatchdog()
+        local_llama = {"HOST_AGENT": {"API_BASE": "http://127.0.0.1:8080/v1"}, "APP_AGENT": {"API_BASE": "http://localhost:8081/v1"}}
+        with patch("ufo.llm.config_helper.resolve_backend_profile", return_value=local_llama):
+            watchdog = LLMWatchdog()
         self.assertEqual(len(watchdog.servers), len(DEFAULT_SERVERS))
         self.assertEqual(watchdog.check_interval, 30.0)
         self.assertEqual(watchdog.health_timeout, 5.0)
+
+    def test_watchdog_ignores_ports_the_backend_does_not_use(self):
+        """A DGX/Ollama backend never serves :8080/:8081; watching them caused a false cloud failover."""
+        from unittest.mock import patch
+        from ufo.utils.llm_resilience import LLMWatchdog
+        dgx = {"HOST_AGENT": {"API_BASE": "http://127.0.0.1:11434"}, "EVALUATION_AGENT": {"API_BASE": "http://127.0.0.1:8000/v1"}}
+        with patch("ufo.llm.config_helper.resolve_backend_profile", return_value=dgx):
+            self.assertEqual(LLMWatchdog().servers, [])
 
     def test_watchdog_singleton(self):
         """Test get_watchdog returns the same instance."""

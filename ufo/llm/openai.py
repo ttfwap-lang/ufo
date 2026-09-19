@@ -115,8 +115,15 @@ class BaseOpenAIService(BaseService):
             response_format = response_format_mapping.get(AgentType(self.agent_type))
             if response_format:
                 base_params['response_format'] = _pydantic_to_response_format(response_format)
+        from ufo.llm import response_format_override
+        if response_format_override.current() is not None:
+            base_params['response_format'] = response_format_override.current()
         if not self.config_llm.get('REASONING_MODEL', False):
-            base_params.update({'temperature': temperature, 'top_p': top_p})
+            base_params['temperature'] = temperature
+            # top_p=0 is invalid for vLLM/most OpenAI-compatible servers (must be
+            # in (0, 1]); at temperature 0 it has no effect anyway, so omit it.
+            if top_p is not None and top_p > 0:
+                base_params['top_p'] = top_p
         if stream:
             base_params.update({'stream': True, 'stream_options': {'include_usage': True}})
         response = await asyncio.to_thread(self.client.chat.completions.create, **base_params)
@@ -155,7 +162,9 @@ class BaseOpenAIService(BaseService):
         inputs = self._messages_to_responses_input(messages)
         base_params: Dict[str, Any] = {'model': self.model, 'input': inputs}
         if not self.config_llm.get('REASONING_MODEL', False):
-            base_params.update({'temperature': temperature, 'top_p': top_p})
+            base_params['temperature'] = temperature
+            if top_p is not None and top_p > 0:
+                base_params['top_p'] = top_p
         if max_tokens is not None:
             base_params['max_output_tokens'] = max_tokens
         if self.json_schema_enabled:

@@ -6,8 +6,8 @@ RAG_OFFLINE_DOCS_RETRIEVED_TOPK: 1  # The topk for the offline retrieved documen
 
 # Online Search RAG
 BING_API_KEY: "${BING_API_KEY}"  # The Bing search API key
-RAG_ONLINE_SEARCH: False  # Whether to use the online search for the RAG
-RAG_ONLINE_SEARCH_TOPK: 5  # The topk for the online search
+RAG_ONLINE_SEARCH: True  # Web search (DuckDuckGo, or Bing when BING_API_KEY is set)
+RAG_ONLINE_SEARCH_TOPK: 1  # The topk for the online search
 RAG_ONLINE_RETRIEVED_TOPK: 1  # The topk for the online retrieved documents
 
 # Experience RAG

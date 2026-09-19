@@ -4219,6 +4219,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pybreaker"
+version = "1.4.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f2/89/fbf98e383f1ec6d117af2cd983efdb3eb7018b63834c427025764194cac2/pybreaker-1.4.1.tar.gz", hash = "sha256:8df2d245c73ba40c8242c56ffb4f12138fbadc23e296224740c2028ea9dc1178", size = 15555, upload-time = "2025-09-21T15:12:04.499Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/75/e64d3d40a741e2be21d69154f4e5c43a66f0c603c5ef11f49e01429a5932/pybreaker-1.4.1-py3-none-any.whl", hash = "sha256:b4dab4a05195b7f2a64a6c1a6c4ba7a96534ef56ea7210e6bcb59f28897160e0", size = 12915, upload-time = "2025-09-21T15:12:02.284Z" },
+]
+
+[[package]]
 name = "pycparser"
 version = "3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5894,6 +5903,7 @@ all = [
     { name = "opentelemetry-instrumentation-httpx" },
     { name = "opentelemetry-sdk" },
     { name = "playwright" },
+    { name = "pybreaker" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pytest" },
@@ -5928,6 +5938,7 @@ core = [
     { name = "opentelemetry-instrumentation-aiohttp-client" },
     { name = "opentelemetry-instrumentation-httpx" },
     { name = "opentelemetry-sdk" },
+    { name = "pybreaker" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
@@ -6029,6 +6040,8 @@ requires-dist = [
     { name = "opentelemetry-sdk", marker = "extra == 'core'", specifier = ">=1.28" },
     { name = "playwright", marker = "extra == 'all'", specifier = ">=1.48" },
     { name = "playwright", marker = "extra == 'windows'", specifier = ">=1.48" },
+    { name = "pybreaker", marker = "extra == 'all'", specifier = ">=1.2" },
+    { name = "pybreaker", marker = "extra == 'core'", specifier = ">=1.2" },
     { name = "pydantic", marker = "extra == 'all'", specifier = ">=2.10" },
     { name = "pydantic", marker = "extra == 'core'", specifier = ">=2.10" },
     { name = "pydantic", marker = "extra == 'galaxy'", specifier = ">=2.10" },

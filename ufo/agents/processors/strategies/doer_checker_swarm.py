@@ -122,11 +122,15 @@ class DoerCheckerSwarmStrategy(BaseProcessingStrategy):
         prompt_parts[1]['content'] = user_content
         if hasattr(agent, 'get_response'):
             try:
-                llm_result = await agent.get_response(prompt_parts, AgentType.APP, True)
+                from ufo.llm import response_format_override
+                with response_format_override.response_format({'type': 'json_object'}):
+                    llm_result = await agent.get_response(prompt_parts, AgentType.APP, True)
                 response_text = llm_result.responses[0] if llm_result.responses else ''
                 result = utils.json_parser(response_text)
-                return {'approved': bool(result.get('approved', True)), 'confidence': float(result.get('confidence', 0.9)), 'reason': str(result.get('reason', ''))}
+                if not isinstance(result, dict) or 'approved' not in result:
+                    return {'approved': True, 'confidence': 0.0, 'reason': 'Checker reply unusable; action not independently checked.'}
+                return {'approved': bool(result.get('approved')), 'confidence': float(result.get('confidence', 0.0) or 0.0), 'reason': str(result.get('reason', ''))}
             except Exception as e:
                 logger.warning(f'Checker LLM call failed: {e}')
-                return {'approved': True, 'confidence': 0.5, 'reason': f'Checker error: {e}'}
-        return {'approved': True, 'confidence': 0.95, 'reason': 'No checker agent available'}
+                return {'approved': True, 'confidence': 0.0, 'reason': f'Checker error; action not independently checked: {e}'}
+        return {'approved': True, 'confidence': 0.0, 'reason': 'No checker agent available; action not independently checked.'}

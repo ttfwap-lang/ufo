@@ -32,10 +32,6 @@ def create_hardware_mcp_server(host: str = "", port: int = 8006) -> None:
     mcp = FastMCP(
         "Hardware MCP Server",
         instructions="MCP server for controlling hardware components (keyboard, mouse, screen)",
-        stateless_http=True,
-        json_response=True,
-        host=host,
-        port=port,
     )
 
     @mcp.tool()
@@ -207,7 +203,7 @@ def create_hardware_mcp_server(host: str = "", port: int = 8006) -> None:
         image_data = PhotographerFacade().encode_image_from_path(image_path)
         return image_data
 
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", host=host, port=port, json_response=True, stateless_http=True)
 
 def main():
     parser = argparse.ArgumentParser(description="Hardware MCP Server")

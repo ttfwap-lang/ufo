@@ -295,9 +295,44 @@ class BaseRound(ABC):
 
     async def evaluation(self) -> None:
         """
-        Evaluate the round. Subclasses should override this method.
+        Evaluate the round using the shared EvaluationAgent.
+
+        This is a generic, platform-agnostic implementation shared by all
+        round types (Windows/Linux/Mobile/Galaxy) since `BaseRound` is
+        instantiated directly rather than always being subclassed. It
+        mirrors `BaseSession.evaluation()` but scopes the evaluated request
+        and results to this single round.
         """
-        raise NotImplementedError('evaluation() is not implemented for this round type. Override this method in a subclass to add evaluation logic.')
+        log_path = self.context.get(ContextNames.LOG_PATH)
+        is_visual = ufo_config.evaluation_agent.visual_mode
+        evaluator = EvaluationAgent(
+            name='eva_agent',
+            is_visual=is_visual,
+            main_prompt=ufo_config.system.EVALUATION_PROMPT,
+            example_prompt='',
+        )
+        try:
+            result, cost = await evaluator.evaluate(
+                request=self.request,
+                log_path=log_path,
+                eva_all_screenshots=ufo_config.system.eva_all_screenshots,
+                context=self.context,
+            )
+        except Exception:
+            result, cost = await evaluator.evaluate(
+                request=self.request,
+                log_path=log_path,
+                eva_all_screenshots=False,
+                context=self.context,
+            )
+        additional_info = {'level': 'round', 'round_id': self.id, 'request': self.request, 'type': 'evaluation_result'}
+        result.update(additional_info)
+        self.context.set(ContextNames.SESSION_COST, self.context.get(ContextNames.SESSION_COST) + cost)
+        evaluator.print_response(result)
+        eval_logger = self.context.get(ContextNames.EVALUATION_LOGGER)
+        if eval_logger is not None:
+            eval_logger.write(json.dumps(result))
+        self.logger.info(f'Round {self.id} evaluation result: {result}')
 
     @property
     def application_window(self) -> UIAWrapper:
@@ -410,13 +445,6 @@ class BaseSession(ABC):
         return: The request of the session.
         """
         pass
-
-    def create_following_round(self) -> BaseRound:
-        """
-        Create a following round.
-        return: The following round.
-        """
-        raise NotImplementedError('create_following_round() is not implemented. Override this method in a subclass to support follow-up rounds.')
 
     def add_round(self, id: int, round: BaseRound) -> None:
         """
@@ -590,7 +618,7 @@ class BaseSession(ABC):
         summarizer = ExperienceSummarizer(ufo_config.app_agent.visual_mode, ufo_config.system.EXPERIENCE_PROMPT, ufo_config.system.APPAGENT_EXAMPLE_PROMPT, ufo_config.system.API_PROMPT)
         experience = summarizer.read_logs(self.log_path)
         summaries, cost = await summarizer.get_summary_list(experience)
-        experience_path = ufo_config.system.EXPERIENCE_SAVED_PATH
+        experience_path = utils.resolve_data_path(ufo_config.system.EXPERIENCE_SAVED_PATH)
         utils.create_folder(experience_path)
         summarizer.create_or_update_yaml(summaries, os.path.join(experience_path, 'experience.yaml'))
         summarizer.create_or_update_vector_db(summaries, os.path.join(experience_path, 'experience_db'))

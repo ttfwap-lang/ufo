@@ -7,6 +7,7 @@ Single responsibility: Health monitoring with AIP abstraction.
 import asyncio
 import logging
 from typing import Dict
+from ufo.aip.messages import ClientType
 from ufo.aip.protocol.heartbeat import HeartbeatProtocol
 from .connection_manager import WebSocketConnectionManager
 from .device_registry import DeviceRegistry
@@ -54,7 +55,7 @@ class HeartbeatManager:
                 protocol = self._heartbeat_protocols[device_id]
                 task_name = self.connection_manager.task_name
                 client_id = f'{task_name}@{device_id}'
-                await protocol.send_heartbeat(client_id=client_id, metadata={'device_id': device_id})
+                await protocol.send_heartbeat(client_id=client_id, metadata={'device_id': device_id}, client_type=ClientType.CONSTELLATION)
                 await asyncio.sleep(self.heartbeat_interval)
             except Exception as e:
                 self.logger.error(f'💓 Heartbeat error for device {device_id}: {e}')

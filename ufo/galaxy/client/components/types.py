@@ -40,6 +40,7 @@ class AgentProfile:
     connection_attempts: int = 0
     max_retries: int = 5
     current_task_id: Optional[str] = None  # Track current executing task
+    auto_connect: bool = True  # False: never (re)connected automatically
 
 
 @dataclass

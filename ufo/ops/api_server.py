@@ -24,7 +24,7 @@ Deployment:
 Config in system.yaml:
     CONTROL_PLANE:
       ENABLED: false
-      HOST: "0.0.0.0"
+      HOST: "127.0.0.1"
       PORT: 8800
       API_KEY: ""                 # If set, required in X-API-Key header
       REDIS_URL: "redis://127.0.0.1:6379/0"
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 def _load_ops_config() -> Dict[str, Any]:
     """Load control plane config from system.yaml."""
-    defaults = {'ENABLED': False, 'HOST': '0.0.0.0', 'PORT': 8800, 'API_KEY': '', 'REDIS_URL': 'redis://127.0.0.1:6379/0'}
+    defaults = {'ENABLED': False, 'HOST': '127.0.0.1', 'PORT': 8800, 'API_KEY': '', 'REDIS_URL': 'redis://127.0.0.1:6379/0'}
     try:
         from ufo.config.config_loader import get_ufo_config
         cfg = get_ufo_config()
@@ -237,8 +237,11 @@ async def submit_workflow(submission: WorkflowSubmission):
 def run_server(host: str=None, port: int=None) -> None:
     """Start the control plane server."""
     import uvicorn
-    h = host or _config.get('HOST', '0.0.0.0')
+    h = host or _config.get('HOST', '127.0.0.1')
     p = port or int(_config.get('PORT', 8800))
+    if h not in ('127.0.0.1', 'localhost', '::1') and not _config.get('API_KEY'):
+        # This API drives agents that can run arbitrary shell commands.
+        raise SystemExit(f'[ControlPlane] Refusing to listen on {h} without CONTROL_PLANE.API_KEY set.')
     logger.info(f'[ControlPlane] Starting on {h}:{p}')
     uvicorn.run(app, host=h, port=p, log_level='info')
 if __name__ == '__main__':

@@ -7,8 +7,7 @@ mcp_servers:
     - -m
     - ufo.client.mcp.local_servers.ui_mcp_server
     command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
-    description: Data collection server that captures screenshots and window information
-      for GUI automation.
+    description: Data collection server that captures screenshots and window information for GUI automation.
   HostUIExecutor:
     type: local
     args:
@@ -62,8 +61,7 @@ mcp_servers:
     - -m
     - ufo.client.mcp.local_servers.code_interpreter_mcp_server
     command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
-    description: Arbitrary Python Code Execution for PDF/XLSX parsing and Graphic
-      edits.
+    description: Arbitrary Python Code Execution for PDF/XLSX parsing and Graphic edits.
   mcp_rdp_controller:
     type: local
     args:
@@ -145,14 +143,22 @@ mcp_servers:
     - ufo.client.mcp.local_servers.ui_tars_mcp_server
     command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: UI-TARS Visual Computer Use engine for Canvas, Electron, and non-UIA applications.
+  SystemToolkit:
+    type: local
+    args:
+    - -W
+    - ignore
+    - -m
+    - ufo.client.mcp.local_servers.system_toolkit_mcp_server
+    command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
+    description: Clipboard, window management, hotkeys, open path/URL, wait for window, system info and OS settings.
   bankfidelity:
     type: stdio
     command: C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity\target\debug\dual-core-pdf-pipeline.exe
     args:
     - mcp
     cwd: C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity
-    description: BankFidelity Native Statement Editor, Precision Balancer & Visual
-      Auditor MCP Server.
+    description: BankFidelity Native Statement Editor, Precision Balancer & Visual Auditor MCP Server.
 HOST_AGENT:
   default:
     data_collection:
@@ -165,6 +171,9 @@ HOST_AGENT:
       type: local
     - name: CommandLineExecutor
       namespace: CommandLineExecutor
+      type: local
+    - name: SystemToolkit
+      namespace: SystemToolkit
       type: local
     - name: VirtualBoxExecutor
       namespace: VirtualBoxExecutor
@@ -200,20 +209,14 @@ APP_AGENT:
     - name: CommandLineExecutor
       namespace: CommandLineExecutor
       type: local
+    - name: SystemToolkit
+      namespace: SystemToolkit
+      type: local
     - name: FileSystemExecutor
       namespace: FileSystemExecutor
       type: local
     - name: WebResearchExecutor
       namespace: WebResearchExecutor
-      type: local
-    - name: server_5_WordCOMExecutor
-      namespace: server_5_WordCOMExecutor
-      type: local
-    - name: excel_wincom_mcp_server
-      namespace: excel_wincom_mcp_server
-      type: local
-    - name: PowerPointCOMExecutor
-      namespace: PowerPointCOMExecutor
       type: local
     - name: PDFReaderExecutor
       namespace: PDFReaderExecutor
@@ -233,3 +236,146 @@ APP_AGENT:
     - name: bankfidelity
       namespace: bankfidelity
       type: stdio
+  WINWORD.EXE:
+    data_collection:
+    - name: UICollector
+      namespace: UICollector
+      type: local
+    action:
+    - name: AppUIExecutor
+      namespace: AppUIExecutor
+      type: local
+    - name: server_5_WordCOMExecutor
+      namespace: server_5_WordCOMExecutor
+      type: local
+    - name: CommandLineExecutor
+      namespace: CommandLineExecutor
+      type: local
+    - name: SystemToolkit
+      namespace: SystemToolkit
+      type: local
+    - name: FileSystemExecutor
+      namespace: FileSystemExecutor
+      type: local
+    - name: WebResearchExecutor
+      namespace: WebResearchExecutor
+      type: local
+    - name: PDFReaderExecutor
+      namespace: PDFReaderExecutor
+      type: local
+    - name: mcp_code_interpreter
+      namespace: mcp_code_interpreter
+      type: local
+    - name: mcp_rdp_controller
+      namespace: mcp_rdp_controller
+      type: local
+    - name: mcp_fallback_omniparser
+      namespace: mcp_fallback_omniparser
+      type: local
+    - name: UITarsExecutor
+      namespace: UITarsExecutor
+      type: local
+    - name: bankfidelity
+      namespace: bankfidelity
+      type: stdio
+  EXCEL.EXE:
+    data_collection:
+    - name: UICollector
+      namespace: UICollector
+      type: local
+    action:
+    - name: AppUIExecutor
+      namespace: AppUIExecutor
+      type: local
+    - name: excel_wincom_mcp_server
+      namespace: excel_wincom_mcp_server
+      type: local
+    - name: CommandLineExecutor
+      namespace: CommandLineExecutor
+      type: local
+    - name: SystemToolkit
+      namespace: SystemToolkit
+      type: local
+    - name: FileSystemExecutor
+      namespace: FileSystemExecutor
+      type: local
+    - name: WebResearchExecutor
+      namespace: WebResearchExecutor
+      type: local
+    - name: PDFReaderExecutor
+      namespace: PDFReaderExecutor
+      type: local
+    - name: mcp_code_interpreter
+      namespace: mcp_code_interpreter
+      type: local
+    - name: mcp_rdp_controller
+      namespace: mcp_rdp_controller
+      type: local
+    - name: mcp_fallback_omniparser
+      namespace: mcp_fallback_omniparser
+      type: local
+    - name: UITarsExecutor
+      namespace: UITarsExecutor
+      type: local
+    - name: bankfidelity
+      namespace: bankfidelity
+      type: stdio
+  POWERPNT.EXE:
+    data_collection:
+    - name: UICollector
+      namespace: UICollector
+      type: local
+    action:
+    - name: AppUIExecutor
+      namespace: AppUIExecutor
+      type: local
+    - name: PowerPointCOMExecutor
+      namespace: PowerPointCOMExecutor
+      type: local
+    - name: CommandLineExecutor
+      namespace: CommandLineExecutor
+      type: local
+    - name: SystemToolkit
+      namespace: SystemToolkit
+      type: local
+    - name: FileSystemExecutor
+      namespace: FileSystemExecutor
+      type: local
+    - name: WebResearchExecutor
+      namespace: WebResearchExecutor
+      type: local
+    - name: PDFReaderExecutor
+      namespace: PDFReaderExecutor
+      type: local
+    - name: mcp_code_interpreter
+      namespace: mcp_code_interpreter
+      type: local
+    - name: mcp_rdp_controller
+      namespace: mcp_rdp_controller
+      type: local
+    - name: mcp_fallback_omniparser
+      namespace: mcp_fallback_omniparser
+      type: local
+    - name: UITarsExecutor
+      namespace: UITarsExecutor
+      type: local
+    - name: bankfidelity
+      namespace: bankfidelity
+      type: stdio
+LinuxAgent:
+  default:
+    action:
+    - name: BashExecutor
+      namespace: BashExecutor
+      type: http
+      host: localhost
+      port: 8010
+      path: /mcp
+      reset: false
+ConstellationAgent:
+  default:
+    action:
+    - name: ConstellationEditor
+      namespace: ConstellationEditor
+      type: local
+      reset: false

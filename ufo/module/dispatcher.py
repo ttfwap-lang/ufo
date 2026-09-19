@@ -25,7 +25,7 @@ class BasicCommandDispatcher(ABC):
         :param timeout: The timeout for waiting for the result.
         :return: The list of results from the commands, or None if timed out.
         """
-        raise NotImplementedError('execute_commands() must be implemented by subclasses of BasicCommandDispatcher.')
+        pass
 
     def generate_error_results(self, commands: List[Command], error: Exception) -> Optional[List[Result]]:
         """

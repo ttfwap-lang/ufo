@@ -27,6 +27,13 @@ from ufo.module.sessions.mobile_session import MobileSession, MobileServiceSessi
 ufo_config = LazyUFOConfig()
 
 
+class UnsupportedPlatformError(ValueError):
+    """
+    Raised when a session or service session is requested for a platform
+    that the session factory does not know how to create.
+    """
+
+
 class SessionPool:
     """
     The manager for the UFO clients.
@@ -124,8 +131,8 @@ class SessionFactory:
         elif current_platform == "mobile":
             return self._create_mobile_session(task, mode, plan, request, **kwargs)
         else:
-            raise NotImplementedError(
-                f"Platform {current_platform} is not supported yet."
+            raise UnsupportedPlatformError(
+                f"Unsupported session/platform type: {current_platform!r}."
             )
 
     def _create_windows_session(
@@ -333,8 +340,9 @@ class SessionFactory:
                 task_protocol=task_protocol,
             )
         else:
-            raise NotImplementedError(
-                f"Service session not supported on {current_platform}"
+            raise UnsupportedPlatformError(
+                f"Unsupported session/platform type for service session: "
+                f"{current_platform!r}."
             )
 
     def create_follower_session_in_batch(

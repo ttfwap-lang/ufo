@@ -95,3 +95,6 @@ test_cap.png
 # DGX/infra audit dumps — contain host process listings, PIDs, usernames
 dgx_audit.json
 pr_diff_review.txt
+
+# Local credentials - never commit
+config/secrets.py

@@ -26,6 +26,23 @@ def _is_cli_command_allowed(command_str: str) -> bool:
         return False
     return True
 
+
+def _resolve_executable(args: List[str]) -> List[str]:
+    """Prefer a real ``<name>.exe`` over an extensionless PATH entry.
+
+    Git for Windows puts shell-script wrappers (Git/usr/bin/notepad) ahead of
+    System32 on PATH. Launching bare ``notepad`` then opened that script's
+    text in Notepad instead of starting the program.
+    """
+    import os
+    import shutil
+    if not args or os.path.splitext(args[0])[1]:
+        return args
+    exe = shutil.which(args[0] + '.exe')
+    if exe:
+        return [exe] + list(args[1:])
+    return args
+
 @MCPRegistry.register_factory_decorator('CommandLineExecutor')
 @MCPRegistry.register_factory_decorator('cli_mcp_server')
 def create_cli_mcp_server(*args, **kwargs) -> FastMCP:
@@ -52,6 +69,7 @@ def create_cli_mcp_server(*args, **kwargs) -> FastMCP:
             args = shlex.split(bash_command, posix=is_posix)
             if args and args[0].lower() == 'start' and (len(args) > 1):
                 args = args[1:]
+            args = _resolve_executable(args)
             proc = subprocess.Popen(args, shell=False)
             time.sleep(0.5)
             return f"Process launched successfully (PID: {proc.pid}) with command: {bash_command}"

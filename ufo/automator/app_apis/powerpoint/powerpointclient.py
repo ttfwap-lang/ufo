@@ -58,25 +58,81 @@ class PowerPointWinCOMReceiver(WinCOMReceiverBasic):
         ppt_ext_to_fileformat = {'.pptx': 24, '.ppt': 0, '.pdf': 32, '.xps': 33, '.potx': 25, '.pot': 5, '.ppsx': 27, '.pps': 1, '.odp': 35, '.jpg': 17, '.png': 18, '.gif': 19, '.bmp': 20, '.tif': 21, '.tiff': 21, '.rtf': 6, '.html': 12, '.mp4': 39, '.wmv': 38, '.xml': 10}
         ppt_ext_to_formatstr = {'.jpg': 'JPG', '.png': 'PNG', '.gif': 'GIF', '.bmp': 'BMP', '.tif': 'TIF', '.tiff': 'TIF'}
         if not file_dir:
-            file_dir = os.path.dirname(self.com_object.FullName)
+            file_dir = self.document_dir()
         if not file_name:
             file_name = os.path.splitext(os.path.basename(self.com_object.FullName))[0]
         if not file_ext:
             file_ext = '.pptx'
-        document_dir = os.path.dirname(self.com_object.FullName)
+        document_dir = self.document_dir()
         file_dir = validate_save_path(file_dir, document_dir)
         file_path = os.path.join(file_dir, file_name + file_ext)
         try:
             if self.com_object.Slides.Count == 1 and file_ext in ppt_ext_to_formatstr.keys():
                 self.com_object.Slides(1).Export(file_path, ppt_ext_to_formatstr.get(file_ext, 'PNG'))
             elif current_slide_only and file_ext in ppt_ext_to_formatstr.keys():
-                current_slide_idx = self.com_object.SlideShowWindow.View.Slide.SlideIndex
+                current_slide_idx = self._current_slide_index()
                 self.com_object.Slides(current_slide_idx).Export(file_path, ppt_ext_to_formatstr.get(file_ext, 'PNG'))
             else:
                 self.com_object.SaveAs(file_path, FileFormat=ppt_ext_to_fileformat.get(file_ext, 24))
             return f'Document is saved to {file_path}.'
         except Exception as e:
             raise RuntimeError(f'Failed to save document. Error: {e}')
+
+    def _current_slide_index(self) -> int:
+        """Index of the slide being shown: slideshow if running, else the editing window's slide."""
+        try:
+            return self.com_object.SlideShowWindow.View.Slide.SlideIndex
+        except Exception:
+            return self.client.ActiveWindow.View.Slide.SlideIndex
+
+    def add_slide(self, title: str = '', body: str = '', layout: str = 'title_and_content', position: int = -1) -> str:
+        """Add a slide (layout: title, title_and_content, title_only, blank) with optional title/body text."""
+        layouts = {'title': 1, 'title_and_content': 2, 'title_only': 11, 'blank': 12}
+        if layout not in layouts:
+            raise ValueError(f'layout must be one of {sorted(layouts)}')
+        slides = self.com_object.Slides
+        index = slides.Count + 1 if position in (-1, None) else max(1, min(position, slides.Count + 1))
+        slide = slides.Add(index, layouts[layout])
+        placeholders = slide.Shapes.Placeholders
+        if title and placeholders.Count >= 1:
+            placeholders(1).TextFrame.TextRange.Text = title
+        if body and placeholders.Count >= 2:
+            placeholders(2).TextFrame.TextRange.Text = body
+        return f'Added slide {index} ({layout}).'
+
+    def set_slide_text(self, slide_index: int, placeholder_index: int, text: str) -> str:
+        """Replace the text of a placeholder (1 = title, 2 = body on most layouts) on a slide."""
+        slide = self.com_object.Slides(slide_index)
+        placeholders = slide.Shapes.Placeholders
+        if placeholder_index < 1 or placeholder_index > placeholders.Count:
+            raise ValueError(f'Slide {slide_index} has {placeholders.Count} placeholders.')
+        placeholders(placeholder_index).TextFrame.TextRange.Text = text
+        return f'Set placeholder {placeholder_index} on slide {slide_index}.'
+
+    def get_slides_text(self) -> str:
+        """All text on every slide, one block per slide."""
+        blocks = []
+        for slide in self.com_object.Slides:
+            texts = []
+            for shape in slide.Shapes:
+                try:
+                    if shape.HasTextFrame and shape.TextFrame.HasText:
+                        texts.append(shape.TextFrame.TextRange.Text.strip())
+                except Exception:
+                    continue
+            blocks.append(f'Slide {slide.SlideIndex}: ' + ' | '.join(t for t in texts if t))
+        return '\n'.join(blocks) if blocks else 'The presentation has no slides.'
+
+    def insert_image(self, slide_index: int, image_path: str, left: float = 50, top: float = 100, width: float = 0) -> str:
+        """Insert a picture on a slide at (left, top) points; width in points (0 keeps original size)."""
+        if not os.path.isfile(image_path):
+            raise FileNotFoundError(f'Image not found: {image_path}')
+        slide = self.com_object.Slides(slide_index)
+        shape = slide.Shapes.AddPicture(os.path.abspath(image_path), False, True, left, top)
+        if width:
+            shape.LockAspectRatio = True
+            shape.Width = width
+        return f'Inserted image {os.path.basename(image_path)} on slide {slide_index}.'
 
     @property
     def type_name(self):
@@ -117,7 +173,7 @@ class SaveAsCommand(WinCOMCommand):
         Execute the command to save the document to PDF.
         :return: The result of saving the document to PDF.
         """
-        return self.receiver.save_as(self.params.get('file_dir'), self.params.get('file_name'), self.params.get('file_ext'))
+        return self.receiver.save_as(self.params.get('file_dir'), self.params.get('file_name'), self.params.get('file_ext'), self.params.get('current_slide_only', False))
 
     @classmethod
     def name(cls) -> str:

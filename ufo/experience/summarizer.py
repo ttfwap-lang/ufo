@@ -45,7 +45,9 @@ class ExperienceSummarizer:
         :param prompt_message: The prompt message.
         return: The summary and the cost.
         """
-        llm_result = await get_completion(prompt_message, AgentType.APP, use_backup_engine=True)
+        from ufo.llm import response_format_override
+        with response_format_override.response_format({'type': 'json_object'}):
+            llm_result = await get_completion(prompt_message, AgentType.APP, use_backup_engine=True)
         response_string = llm_result.responses[0] if llm_result.responses else ''
         cost = llm_result.cost
         try:
@@ -118,6 +120,8 @@ class ExperienceSummarizer:
         :param db_path: The path of the vector database.
         """
         document_list = []
+        if not summaries:
+            return
         for summary in summaries:
             request = summary['request']
             document_list.append(Document(page_content=request, metadata=summary))

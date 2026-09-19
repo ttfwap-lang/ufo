@@ -164,13 +164,17 @@ def _is_retryable_error(error: Exception) -> bool:
         import openai
         if isinstance(error, (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError, openai.InternalServerError)):
             return True
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError, TypeError):
+        # ImportError: openai not installed.
+        # AttributeError: openai installed but version lacks one of the error classes.
+        # TypeError: openai is stubbed/mocked (e.g. in test isolation) so the
+        #   attributes are not real type objects and isinstance rejects them.
         pass
     try:
         import anthropic
         if isinstance(error, (anthropic.RateLimitError, anthropic.APITimeoutError, anthropic.APIConnectionError, anthropic.InternalServerError)):
             return True
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError, TypeError):
         pass
     status_code = getattr(error, 'status_code', None) or getattr(error, 'code', None)
     if status_code in {429, 500, 502, 503, 504}:

@@ -39,6 +39,12 @@ class PlaceHolderService(BaseService):
         :param kwargs: Additional keyword arguments to be passed to the underlying completion method.
         :return: A list of generated completions for each message and the cost set to be None.
         """
+        # Intentional, documented guard: `PlaceHolderService` is a deliberate
+        # sentinel registered in `BaseService`'s provider factory (see
+        # llm/base.py) for agent configs that have not been assigned a real
+        # LLM provider yet. It has no completions to generate by design, so
+        # this is not a stub awaiting implementation -- it exists to fail
+        # loudly and clearly rather than silently returning garbage.
         raise NotImplementedError(
             "PlaceHolderService cannot generate completions. "
             "Configure a real LLM provider (e.g., gemini, openai, ollama) in your agent config."

@@ -2,7 +2,10 @@ import json
 import logging
 import os
 import ast
+import copy
+import hashlib
 import platform
+from collections import OrderedDict
 from typing import Any, Dict, List, TYPE_CHECKING
 if TYPE_CHECKING or platform.system() == 'Windows':
     from pywinauto.controls.uiawrapper import UIAWrapper
@@ -13,6 +16,9 @@ else:
 from ufo.agents.processors.schemas.target import TargetInfo, TargetKind
 from ufo.automator.ui_control.grounding.basic import BasicGrounding
 logger = logging.getLogger(__name__)
+
+_PREDICT_CACHE_SIZE = 64
+_PREDICT_CACHE: 'OrderedDict[tuple, List[Dict[str, Any]]]' = OrderedDict()
 
 class OmniparserGrounding(BasicGrounding):
     """
@@ -35,6 +41,14 @@ class OmniparserGrounding(BasicGrounding):
         if not os.path.exists(image_path):
             logger.warning(f'The image path {image_path} does not exist.')
             return list_of_grounding_results
+        # Results are window-independent fractions, so identical pixels always
+        # parse identically: skip the remote round trip when the screen hasn't changed.
+        with open(image_path, 'rb') as f:
+            cache_key = (hashlib.sha256(f.read()).hexdigest(), box_threshold, iou_threshold, use_paddleocr, imgsz, api_name)
+        cached = _PREDICT_CACHE.get(cache_key)
+        if cached is not None:
+            _PREDICT_CACHE.move_to_end(cache_key)
+            return copy.deepcopy(cached)
         try:
             results = self.service.chat_completion(image_path, box_threshold, iou_threshold, use_paddleocr, imgsz, api_name)
             grounding_results = results[1].splitlines()
@@ -51,6 +65,9 @@ class OmniparserGrounding(BasicGrounding):
                     list_of_grounding_results.append(item)
                 except (ValueError, SyntaxError) as parse_err:
                     logger.debug('Skipping unparseable OmniParser result item: %s', parse_err)
+        _PREDICT_CACHE[cache_key] = copy.deepcopy(list_of_grounding_results)
+        while len(_PREDICT_CACHE) > _PREDICT_CACHE_SIZE:
+            _PREDICT_CACHE.popitem(last=False)
         return list_of_grounding_results
 
     def parse_results(self, results: List[Dict[str, Any]], application_window: UIAWrapper=None) -> List[Dict[str, Any]]:

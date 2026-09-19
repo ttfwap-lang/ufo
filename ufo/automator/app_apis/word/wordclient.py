@@ -122,12 +122,12 @@ class WordWinCOMReceiver(WinCOMReceiverBasic):
         """
         ext_to_fileformat = {'.doc': 0, '.dot': 1, '.txt': 2, '.rtf': 6, '.unicode.txt': 7, '.htm': 8, '.html': 8, '.mht': 9, '.xml': 11, '.docx': 12, '.docm': 13, '.dotx': 14, '.dotm': 15, '.pdf': 17, '.xps': 18}
         if not file_dir:
-            file_dir = os.path.dirname(self.com_object.FullName)
+            file_dir = self.document_dir()
         if not file_name:
             file_name = os.path.splitext(os.path.basename(self.com_object.FullName))[0]
         if not file_ext:
             file_ext = '.pdf'
-        document_dir = os.path.dirname(self.com_object.FullName)
+        document_dir = self.document_dir()
         file_dir = validate_save_path(file_dir, document_dir)
         file_path = os.path.join(file_dir, file_name + file_ext)
         try:
@@ -135,6 +135,66 @@ class WordWinCOMReceiver(WinCOMReceiverBasic):
             return f'Document is saved to {file_path}.'
         except Exception as e:
             raise RuntimeError(f'Error occurred while saving document: {e}')
+
+    def get_document_text(self, max_chars: int = 20000) -> str:
+        """Return the document's plain text (truncated to max_chars)."""
+        text = self.com_object.Content.Text or ''
+        text = text.replace('\r', '\n')
+        if len(text) > max_chars:
+            return text[:max_chars] + f'\n... [truncated, {len(text) - max_chars} more characters]'
+        return text
+
+    def insert_text(self, text: str, position: str = 'end') -> str:
+        """Insert text at the 'end' or 'start' of the document, or at the 'cursor'."""
+        position = (position or 'end').lower()
+        if position == 'cursor':
+            self.client.Selection.TypeText(text)
+        else:
+            rng = self.com_object.Content
+            if position == 'start':
+                rng.InsertBefore(text)
+            else:
+                rng.InsertAfter(text)
+        return f'Inserted {len(text)} characters at the {position}.'
+
+    def find_replace(self, find_text: str, replace_text: str, replace_all: bool = True, match_case: bool = False) -> str:
+        """Find and replace text in the whole document."""
+        if not find_text:
+            raise ValueError('find_text must not be empty.')
+        count = self.com_object.Content.Text.count(find_text) if match_case else self.com_object.Content.Text.lower().count(find_text.lower())
+        finder = self.com_object.Content.Find
+        finder.ClearFormatting()
+        finder.Replacement.ClearFormatting()
+        # Execute(FindText, MatchCase, MatchWholeWord, MatchWildcards, MatchSoundsLike,
+        #         MatchAllWordForms, Forward, Wrap, Format, ReplaceWith, Replace)
+        finder.Execute(find_text, match_case, False, False, False, False, True, 1, False, replace_text, 2 if replace_all else 1)
+        replaced = count if replace_all else min(count, 1)
+        return f"Replaced {replaced} occurrence(s) of '{find_text}'."
+
+    def apply_style(self, style_name: str, start_paragraph: int, end_paragraph: int = -1) -> str:
+        """Apply a named style (e.g. 'Heading 1', 'Title', 'Normal') to a range of paragraphs (1-based)."""
+        paragraphs = self.com_object.Paragraphs
+        total = paragraphs.Count
+        start = max(1, start_paragraph)
+        end = total if end_paragraph in (-1, None) else min(end_paragraph, total)
+        if start > end:
+            raise ValueError(f'Paragraph range {start_paragraph}-{end_paragraph} is invalid (document has {total}).')
+        rng = self.com_object.Range(paragraphs(start).Range.Start, paragraphs(end).Range.End)
+        rng.Style = style_name
+        return f"Applied style '{style_name}' to paragraphs {start}-{end}."
+
+    def insert_image(self, image_path: str, width: float = 0) -> str:
+        """Insert a picture at the end of the document; optional width in points."""
+        if not os.path.isfile(image_path):
+            raise FileNotFoundError(f'Image not found: {image_path}')
+        rng = self.com_object.Content
+        rng.Collapse(0)
+        shape = self.com_object.InlineShapes.AddPicture(os.path.abspath(image_path), False, True, rng)
+        if width:
+            ratio = shape.Height / shape.Width if shape.Width else 1
+            shape.Width = width
+            shape.Height = width * ratio
+        return f'Inserted image {os.path.basename(image_path)}.'
 
     @property
     def type_name(self):

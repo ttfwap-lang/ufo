@@ -27,6 +27,7 @@ from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.module import interactor
 from ufo.module.context import Context, ContextNames
 from ufo.prompter.agent_prompter import AppAgentPrompter
+from ufo.utils import resolve_data_path
 
 console = Console()
 
@@ -368,7 +369,7 @@ class AppAgent(BasicAgent):
         :param context: The context.
         """
         if not self._context_provision_executed:
-            await self.context_provision(context=context)
+            await self.context_provision(request=self._rag_request(context), context=context)
             self._context_provision_executed = True
 
         if not self._processor_cls:
@@ -460,6 +461,19 @@ class AppAgent(BasicAgent):
             "demonstration", db_path
         )
 
+    def _rag_request(self, context: Context) -> str:
+        """The query used for online search: the current subtask, else the user request."""
+        if context is None:
+            return ""
+        for key in (ContextNames.SUBTASK, ContextNames.REQUEST):
+            try:
+                value = context.get(key)
+            except Exception:
+                value = None
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return ""
+
     async def context_provision(
         self, request: str = "", context: Context = None
     ) -> None:
@@ -481,7 +495,7 @@ class AppAgent(BasicAgent):
         # Load the online search indexer for the app agent if available.
 
         if ufo_config.rag.online_search and request:
-            console.print("[SEARCH] Creating a Bing search indexer...", style="magenta")
+            console.print("[SEARCH] Creating a web search indexer...", style="magenta")
             self.build_online_search_retriever(
                 request, ufo_config.rag.online_search_topk
             )
@@ -490,14 +504,14 @@ class AppAgent(BasicAgent):
         if ufo_config.rag.experience:
             console.print("[EXP] Creating an experience indexer...", style="magenta")
             experience_path = ufo_config.rag.experience_saved_path
-            db_path = os.path.join(experience_path, "experience_db")
+            db_path = os.path.join(resolve_data_path(experience_path), "experience_db")
             self.build_experience_retriever(db_path)
 
         # Load the demonstration indexer for the app agent if available.
         if ufo_config.rag.demonstration:
             console.print("[DEMO] Creating an demonstration indexer...", style="magenta")
             demonstration_path = ufo_config.rag.demonstration_saved_path
-            db_path = os.path.join(demonstration_path, "demonstration_db")
+            db_path = os.path.join(resolve_data_path(demonstration_path), "demonstration_db")
             self.build_human_demonstration_retriever(db_path)
 
         await self._load_mcp_context(context)

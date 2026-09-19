@@ -96,6 +96,11 @@ class MobileSession(MobileBaseSession):
             else:
                 return interactor.first_request()
         else:
+            if self._init_request:
+                # Request came from the server/Galaxy (no terminal to ask):
+                # one round per request, never block on stdin.
+                self._finish = True
+                return ''
             request, iscomplete = interactor.new_request()
             if iscomplete:
                 self._finish = True

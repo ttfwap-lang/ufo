@@ -27,6 +27,12 @@ class DeviceConfig:
     auto_connect: bool = True
     max_retries: int = 5
 
+    def __post_init__(self) -> None:
+        # Lets devices.yaml reference secrets such as "?token=${UFO_DGX_WS_TOKEN}"
+        # instead of committing them.
+        import os
+        self.server_url = os.path.expandvars(self.server_url)
+
 @dataclass
 class ConstellationConfig:
     """Configuration for the constellation system"""
