@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import importlib
 import sys
 import types
 import unittest
@@ -33,10 +34,16 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _stub_module(name: str, attrs: dict[str, Any] | None = None) -> types.ModuleType:
-    """Register a stub module so that deep imports succeed without the real package."""
+    """Return the real module when it imports; register a stub only in trimmed
+    environments (a stub for an importable module would leak into later tests)."""
     if name in sys.modules:
         return sys.modules[name]
+    try:
+        return importlib.import_module(name)
+    except Exception:
+        pass
     mod = types.ModuleType(name)
+    mod.__ufo_test_stub__ = True
     for attr, value in (attrs or {}).items():
         setattr(mod, attr, value)
     sys.modules[name] = mod
@@ -72,19 +79,26 @@ def _ensure_repo_on_path() -> None:
             super().__init__(session_id)
 
     sm_mod = _stub_module("ufo.server.services.session_manager")
-    sm_mod.SessionManager = _SessionManagerStub
-    sm_mod.SessionOwnershipError = _SessionOwnershipErrorStub
+    if getattr(sm_mod, "__ufo_test_stub__", False):  # never patch the real module
+        sm_mod.SessionManager = _SessionManagerStub
+        sm_mod.SessionOwnershipError = _SessionOwnershipErrorStub
 
     class _WebSocketCommandDispatcherStub:  # pragma: no cover
         pass
 
     dispatcher_mod = _stub_module("ufo.module.dispatcher")
-    dispatcher_mod.WebSocketCommandDispatcher = _WebSocketCommandDispatcherStub
+    if getattr(dispatcher_mod, "__ufo_test_stub__", False):
+        dispatcher_mod.WebSocketCommandDispatcher = _WebSocketCommandDispatcherStub
 
     # ``ufo.utils`` is small but the package's ``__init__`` imports
     # pywinauto. Inject a minimal stub exposing only the function we
     # actually need (``sanitize_task_name``).
-    if "ufo.utils" not in sys.modules:
+    try:
+        import ufo.utils  # noqa: F401  (real module when available)
+        has_utils = True
+    except Exception:
+        has_utils = False
+    if not has_utils:
         utils_mod = types.ModuleType("ufo.utils")
 
         def _passthrough_sanitize(name, fallback=None):

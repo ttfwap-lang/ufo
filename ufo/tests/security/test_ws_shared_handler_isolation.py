@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import importlib
 import sys
 import types
 import unittest
@@ -29,11 +30,27 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def _stub_module(name: str) -> types.ModuleType:
+    """Return the real module when it imports; stub it only in trimmed environments.
+
+    Installing a stub for an importable module would leak into every test
+    collected afterwards (they would import the empty stub).
+    """
     if name in sys.modules:
         return sys.modules[name]
+    try:
+        return importlib.import_module(name)
+    except Exception:
+        pass
     mod = types.ModuleType(name)
+    mod.__ufo_test_stub__ = True
     sys.modules[name] = mod
     return mod
+
+
+def _set_if_stub(mod: types.ModuleType, **attrs) -> None:
+    if getattr(mod, "__ufo_test_stub__", False):
+        for key, value in attrs.items():
+            setattr(mod, key, value)
 
 
 # ``art`` is an optional dependency pulled in transitively by some
@@ -67,8 +84,7 @@ class _SessionOwnershipErrorStub(PermissionError):  # pragma: no cover
 
 
 _sm_mod = _stub_module("ufo.server.services.session_manager")
-_sm_mod.SessionManager = _SessionManagerStub  # type: ignore[attr-defined]
-_sm_mod.SessionOwnershipError = _SessionOwnershipErrorStub  # type: ignore[attr-defined]
+_set_if_stub(_sm_mod, SessionManager=_SessionManagerStub, SessionOwnershipError=_SessionOwnershipErrorStub)
 
 
 class _WebSocketCommandDispatcherStub:  # pragma: no cover
@@ -76,12 +92,12 @@ class _WebSocketCommandDispatcherStub:  # pragma: no cover
 
 
 _dispatcher_mod = _stub_module("ufo.module.dispatcher")
-_dispatcher_mod.WebSocketCommandDispatcher = (  # type: ignore[attr-defined]
-    _WebSocketCommandDispatcherStub
-)
+_set_if_stub(_dispatcher_mod, WebSocketCommandDispatcher=_WebSocketCommandDispatcherStub)
 
 
-if "ufo.utils" not in sys.modules:
+try:
+    import ufo.utils  # noqa: F401  (real module when available)
+except Exception:
     _utils_mod = types.ModuleType("ufo.utils")
 
     def _passthrough_sanitize(name, fallback=None):

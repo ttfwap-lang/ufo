@@ -38,6 +38,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def _stub_module(name: str, attrs: Optional[dict]=None) -> types.ModuleType:
     if name in sys.modules:
         return sys.modules[name]
+    try:  # prefer the real module; a stub for an importable module leaks into later tests
+        import importlib
+        return importlib.import_module(name)
+    except Exception:
+        pass
     mod = types.ModuleType(name)
     for attr, value in (attrs or {}).items():
         setattr(mod, attr, value)

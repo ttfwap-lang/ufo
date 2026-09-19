@@ -152,6 +152,9 @@ class TaskConstellationOrchestrator:
             raise ValueError('ConstellationDeviceManager not set. Use set_device_manager() first.')
         if self._logger:
             self._logger.info(f'Starting orchestration of constellation {constellation.constellation_id}')
+        if constellation.task_count == 0:
+            # Nothing to run usually means the planner produced no tasks; surface it.
+            raise ValueError('Invalid DAG: constellation has no tasks')
         is_valid, errors = constellation.validate_dag()
         if not is_valid:
             raise ValueError(f'Invalid DAG: {errors}')
@@ -575,6 +578,8 @@ class TaskConstellationOrchestrator:
         cloned._constellation_id = str(uuid.uuid4())
         if name:
             cloned.name = name
+        if self._constellation_manager:
+            self._constellation_manager.register_constellation(cloned)
         return cloned
 
     def merge_constellations(self, constellation1: TaskConstellation, constellation2: TaskConstellation, name: str='Merged Constellation') -> TaskConstellation:
@@ -586,4 +591,6 @@ class TaskConstellationOrchestrator:
         for t_id, task in constellation2.tasks.items():
             new_task = TaskStar(task_id=f'c2_{t_id}', description=task.description)
             merged.add_task(new_task)
+        if self._constellation_manager:
+            self._constellation_manager.register_constellation(merged)
         return merged

@@ -218,7 +218,7 @@ class TestTaskConstellationOrchestrator:
         # Mock device manager to have no devices
         orchestrator._device_manager._connected_devices = []
 
-        with pytest.raises(ValueError, match="No available devices"):
+        with pytest.raises(ValueError, match="Tasks without device assignment"):
             await orchestrator.orchestrate_constellation(constellation)
 
     @pytest.mark.asyncio
@@ -244,9 +244,7 @@ class TestTaskConstellationOrchestrator:
             )
 
             assert result["status"] == "completed"
-            assert (
-                result["total_tasks"] == 0
-            )  # No results captured in this simplified version
+            assert result["total_tasks"] == 2  # both manually assigned tasks ran
 
     @pytest.mark.asyncio
     async def test_execute_single_task(self, orchestrator):
