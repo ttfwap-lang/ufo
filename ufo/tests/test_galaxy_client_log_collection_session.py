@@ -162,7 +162,7 @@ class TestGalaxyClientLogCollectionSession:
         ]
 
         return ConstellationConfig(
-            constellation_id="log_collection_test_constellation",
+            task_name="log_collection_test_constellation",
             heartbeat_interval=30.0,
             reconnect_delay=5.0,
             max_concurrent_tasks=3,
@@ -226,7 +226,7 @@ class TestGalaxyClientLogCollectionSession:
         mock_constellation.state = Mock()
         mock_constellation.state.value = "completed"
 
-        mock_session._current_constellation = mock_constellation
+        mock_session.current_constellation = mock_constellation
 
         # Mock the run method as AsyncMock and add side effect
         async def mock_run_side_effect():
@@ -307,7 +307,9 @@ class TestGalaxyClientLogCollectionSession:
             await client.initialize()
 
             # Verify ConstellationClient was created and initialized
-            mock_client_class.assert_called_once_with(config=mock_constellation_config)
+            mock_client_class.assert_called_once_with(
+                config=mock_constellation_config, task_name=client.task_name
+            )
             mock_constellation_client.initialize.assert_called_once()
 
             # Verify client state
@@ -348,10 +350,8 @@ class TestGalaxyClientLogCollectionSession:
             await client.initialize()
 
             # Process the request
-            result = await client.process_request(
-                request=log_collection_request,
-                task_name="log_collection_and_excel_generation",
-            )
+            client.task_name = "log_collection_and_excel_generation"
+            result = await client.process_request(request=log_collection_request)
 
             # Verify GalaxySession was created with correct parameters
             mock_session_class.assert_called_once()
@@ -465,9 +465,8 @@ class TestGalaxyClientLogCollectionSession:
             await client.initialize()
 
             # Process request that will fail
-            result = await client.process_request(
-                request="This request will fail", task_name="failing_task"
-            )
+            client.task_name = "failing_task"
+            result = await client.process_request(request="This request will fail")
 
             # Verify error handling
             assert result["status"] == "failed"

@@ -70,9 +70,14 @@ def sanitize_task_name(task_name: Optional[str], fallback: Optional[str]=None) -
 
 def is_safe_task_name(task_name: Optional[str]) -> bool:
     """
-    Return True. Under unrestricted capability rules, all task names are allowed.
+    Return True if task_name is already a safe single path component: non-empty,
+    only ``[A-Za-z0-9._-]`` and not starting with a dot (so no ``..``, hidden
+    directories or separators). Used by the HTTP dispatch API, where task names
+    become log directory names.
     """
-    return True
+    if not isinstance(task_name, str) or not task_name:
+        return False
+    return sanitize_task_name(task_name, fallback='') == task_name
 
 def check_json_format(string: str) -> bool:
     """

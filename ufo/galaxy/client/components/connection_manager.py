@@ -61,6 +61,7 @@ class WebSocketConnectionManager:
             self.logger.debug(f'📨 Message handler started for {device_info.device_id}')
             success = await self._register_constellation_client(device_info)
             if not success:
+                message_processor.stop_message_handler(device_info.device_id)
                 await transport.close()
                 raise ConnectionError('Failed to register constellation client')
         except websockets.InvalidURI as e:

@@ -54,7 +54,7 @@ async def test_mock_constellation_agent_creation():
     context.set(ContextNames.REQUEST, "Create a simple test workflow")
 
     # Test constellation creation
-    constellation = await mock_agent.process_creation(context)
+    constellation, timing_info = await mock_agent.process_creation(context)
 
     assert constellation is not None
     assert constellation.name is not None

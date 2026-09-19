@@ -12,7 +12,7 @@ for testing purposes, without requiring actual LLM integration or external depen
 import asyncio
 import logging
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from ufo.galaxy.agents.constellation_agent import ConstellationAgent
 from ufo.galaxy.constellation.orchestrator.orchestrator import (
@@ -116,12 +116,12 @@ class MockConstellationAgent(ConstellationAgent):
     async def process_creation(
         self,
         context: Context,
-    ) -> TaskConstellation:
+    ) -> Tuple[TaskConstellation, Dict[str, float]]:
         """
         Process a user request and generate a constellation (Mock implementation).
 
         :param context: Processing context
-        :return: Generated constellation
+        :return: (generated constellation, timing info) like ConstellationAgent.process_creation
         :raises ConstellationError: If constellation generation fails
         """
         # Get request from context or use a default

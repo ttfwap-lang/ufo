@@ -30,7 +30,7 @@ class GalaxyRound(BaseRound):
     A round in GalaxySession that manages constellation execution.
     """
 
-    def __init__(self, request: str, agent: ConstellationAgent, context: Context, should_evaluate: bool, id: int, orchestrator: Optional[Any]=None):
+    def __init__(self, request: str, agent: ConstellationAgent, context: Context, should_evaluate: bool, id: int, orchestrator: Optional[Any]=None, session: Optional[Any]=None):
         """
         Initialize GalaxyRound with orchestrator support.
 
@@ -40,6 +40,7 @@ class GalaxyRound(BaseRound):
         :param should_evaluate: Whether to evaluate the round
         :param id: Round identifier
         :param orchestrator: Optional orchestrator instance
+        :param session: Parent GalaxySession; its cancellation flag stops the round
         """
         super().__init__(request, agent, context, should_evaluate, id)
         if orchestrator and hasattr(agent, 'orchestrator'):
@@ -49,6 +50,10 @@ class GalaxyRound(BaseRound):
         self._orchestrator = orchestrator
         self._constellation = None
         self._is_finished = False
+        self._session = session
+
+    def _cancellation_requested(self) -> bool:
+        return bool(self._session is not None and getattr(self._session, '_cancellation_requested', False))
 
     async def run(self) -> None:
         """
@@ -63,6 +68,9 @@ class GalaxyRound(BaseRound):
             from ..agents.constellation_agent_states import StartConstellationAgentState
             self._agent.set_state(StartConstellationAgentState())
             while not self.is_finished():
+                if self._cancellation_requested():
+                    self.logger.info(f'GalaxyRound {self._id} stopped: cancellation requested')
+                    break
                 await self._agent.handle(self._context)
                 self.state = self._agent.state.next_state(self._agent)
                 self.logger.info(f'Transitioning from {self._agent.state.name()} to {self.state.name()}')
@@ -297,7 +305,7 @@ class GalaxySession(BaseSession):
         if not request:
             return None
         round_id = len(self._rounds)
-        galaxy_round = GalaxyRound(request=request, agent=self._agent, context=self._context, should_evaluate=self._should_evaluate, id=round_id)
+        galaxy_round = GalaxyRound(request=request, agent=self._agent, context=self._context, should_evaluate=self._should_evaluate, id=round_id, session=self)
         self.add_round(round_id, galaxy_round)
         return galaxy_round
 

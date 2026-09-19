@@ -246,7 +246,7 @@ class GalaxyTrajectory:
         ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1.02, 1), fontsize=9, framealpha=0.95, edgecolor='#CCCCCC', ncol=1)
         plt.tight_layout()
         image_dir = self.folder_path / 'topology_images'
-        image_dir.mkdir(exist_ok=True)
+        image_dir.mkdir(parents=True, exist_ok=True)
         clean_id = constellation_id.replace(':', '_').replace('/', '_')
         image_filename = f'step{step_number}_{state}_{clean_id}.png'
         image_path = image_dir / image_filename

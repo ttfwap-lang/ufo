@@ -19,7 +19,15 @@ from ufo.aip.messages import (
     ServerMessageType,
     TaskStatus,
 )
+from ufo.aip.protocol.task_execution import TaskExecutionProtocol
+from ufo.aip.transport.websocket import WebSocketTransport
 from ufo.module.dispatcher import WebSocketCommandDispatcher
+
+
+def _dispatcher_for(session, websocket):
+    """Build the dispatcher the way the server does: transport -> task protocol."""
+    transport = WebSocketTransport(websocket)
+    return WebSocketCommandDispatcher(session, TaskExecutionProtocol(transport)), transport
 
 
 class MockWebSocket:
@@ -90,16 +98,15 @@ async def test_websocket_command_dispatcher_with_aip():
     mock_ws = MockWebSocket()
     mock_session = MockSession()
 
-    dispatcher = WebSocketCommandDispatcher(mock_session, mock_ws)
+    dispatcher, transport = _dispatcher_for(mock_session, mock_ws)
 
     # Verify AIP components are initialized
-    assert dispatcher.transport is not None
     assert dispatcher.protocol is not None
 
     # Manually set transport to connected state (mock doesn't auto-connect)
     from ufo.aip.transport.base import TransportState
 
-    dispatcher.transport._state = TransportState.CONNECTED
+    transport._state = TransportState.CONNECTED
 
     # Create test commands
     commands = [
@@ -142,7 +149,7 @@ async def test_command_dispatcher_error_handling():
     mock_ws = MockWebSocket()
     mock_session = MockSession()
 
-    dispatcher = WebSocketCommandDispatcher(mock_session, mock_ws)
+    dispatcher, _ = _dispatcher_for(mock_session, mock_ws)
 
     # Create a command that will fail
     commands = [
@@ -173,7 +180,7 @@ async def test_dispatcher_backward_compatibility():
     mock_session = MockSession()
 
     # Old code should still work
-    dispatcher = WebSocketCommandDispatcher(mock_session, mock_ws)
+    dispatcher, _ = _dispatcher_for(mock_session, mock_ws)
 
     # Test make_server_response (used by existing code)
     commands = [Command(tool_name="test", tool_type="action")]
@@ -191,7 +198,7 @@ async def test_set_result_with_aip():
     mock_ws = MockWebSocket()
     mock_session = MockSession()
 
-    dispatcher = WebSocketCommandDispatcher(mock_session, mock_ws)
+    dispatcher, _ = _dispatcher_for(mock_session, mock_ws)
 
     # Create a pending request
     response_id = "resp_test_123"

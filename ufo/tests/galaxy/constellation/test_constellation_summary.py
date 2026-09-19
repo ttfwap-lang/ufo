@@ -57,6 +57,9 @@ from ufo.galaxy.constellation.task_constellation import TaskConstellation
 def test_working_vs_broken():
     """Test both working and broken cases"""
     log_file = project_root / 'logs' / 'galaxy' / 'task_1' / 'response.log'
+    if not log_file.exists():
+        import pytest
+        pytest.skip(f'needs a recorded Galaxy session log at {log_file}')
     with open(log_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     print('\n' + '=' * 80)

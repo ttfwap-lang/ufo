@@ -9,6 +9,9 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 
+# Manual script (run with a response.log path), not a pytest test module.
+__test__ = False
+
 def test_constellation_parsing(log_file_path: str):
     """Test parsing constellation_before and constellation_after from log file"""
     print(f'Reading log file: {log_file_path}\n')

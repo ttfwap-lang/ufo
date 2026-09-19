@@ -615,8 +615,10 @@ class UFOWebSocketHandler:
             return
         self.logger.info(f'[WS] [AIP] 🌟 Constellation requesting device info for {device_id}')
         device_info = await self.get_device_info(device_id)
+        error = device_info.get('error') if isinstance(device_info, dict) else None
         if ctx.device_info_protocol is not None:
-            await ctx.device_info_protocol.send_device_info_response(device_info=device_info, request_id=request_id)
+            # An unknown device is reported with status ERROR (the error also stays in result).
+            await ctx.device_info_protocol.send_device_info_response(device_info=device_info, request_id=request_id, error=error)
         self.logger.info(f'[WS] [AIP] 📤 Sent device info response for {device_id} to constellation')
 
     async def get_device_info(self, device_id: str) -> dict:

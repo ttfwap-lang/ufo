@@ -19,7 +19,31 @@ from ufo.aip.messages import (
 )
 from ufo.server.services.ws_manager import WSManager
 from ufo.server.ws.handler import UFOWebSocketHandler
+from ufo.server.ws.handler import ConnectionContext
+from ufo.aip.protocol.device_info import DeviceInfoProtocol
+from ufo.aip.transport.websocket import WebSocketTransport
+from starlette.websockets import WebSocketState
 from ufo.server.services.session_manager import SessionManager
+
+
+def _fastapi_ws_mock():
+    """AsyncMock shaped like a connected FastAPI WebSocket."""
+    ws = AsyncMock()
+    ws.client_state = WebSocketState.CONNECTED
+    ws.application_state = WebSocketState.CONNECTED
+    return ws
+
+
+def _constellation_ctx(ws, target_id=None):
+    """Per-connection context of a registered constellation client."""
+    transport = WebSocketTransport(ws)
+    return ConnectionContext(
+        transport=transport,
+        device_info_protocol=DeviceInfoProtocol(transport),
+        registered_client_id="constellation_001",
+        registered_client_type=ClientType.CONSTELLATION,
+        registered_target_id=target_id,
+    )
 
 
 class TestAgentProfileIntegration:
@@ -32,7 +56,7 @@ class TestAgentProfileIntegration:
         session_manager = SessionManager()
         handler = UFOWebSocketHandler(ws_manager, session_manager)
 
-        mock_websocket = AsyncMock()
+        mock_websocket = _fastapi_ws_mock()
         mock_websocket.accept = AsyncMock()
         mock_websocket.send_text = AsyncMock()
         mock_websocket.receive_text = AsyncMock()
@@ -65,10 +89,10 @@ class TestAgentProfileIntegration:
         mock_websocket.receive_text.return_value = device_reg_message.model_dump_json()
 
         # Connect device
-        client_id = await handler.connect(mock_websocket)
+        ctx = await handler.connect(mock_websocket)  # returns the per-connection context
 
         # Verify device was registered
-        assert client_id == "device_001"
+        assert ctx.registered_client_id == "device_001"
         assert ws_manager.is_device_connected("device_001")
 
         # Verify system info was stored
@@ -97,13 +121,14 @@ class TestAgentProfileIntegration:
 
         ws_manager.add_client(
             "device_001",
-            mock_device_ws,
-            ClientType.DEVICE,
-            {"system_info": device_system_info},
+            platform="linux",
+            ws=mock_device_ws,
+            client_type=ClientType.DEVICE,
+            metadata={"system_info": device_system_info},
         )
 
         # Now constellation requests device info
-        mock_constellation_ws = AsyncMock()
+        mock_constellation_ws = _fastapi_ws_mock()
 
         constellation_request = ClientMessage(
             type=ClientMessageType.DEVICE_INFO_REQUEST,
@@ -116,7 +141,8 @@ class TestAgentProfileIntegration:
 
         # Handle the request
         await handler.handle_device_info_request(
-            constellation_request, mock_constellation_ws
+            constellation_request,
+            _constellation_ctx(mock_constellation_ws, constellation_request.target_id),
         )
 
         # Verify response was sent
@@ -139,7 +165,7 @@ class TestAgentProfileIntegration:
         session_manager = SessionManager()
         handler = UFOWebSocketHandler(ws_manager, session_manager)
 
-        mock_constellation_ws = AsyncMock()
+        mock_constellation_ws = _fastapi_ws_mock()
 
         constellation_request = ClientMessage(
             type=ClientMessageType.DEVICE_INFO_REQUEST,
@@ -151,7 +177,8 @@ class TestAgentProfileIntegration:
         )
 
         await handler.handle_device_info_request(
-            constellation_request, mock_constellation_ws
+            constellation_request,
+            _constellation_ctx(mock_constellation_ws, constellation_request.target_id),
         )
 
         # Verify error response

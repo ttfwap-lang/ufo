@@ -24,7 +24,7 @@ import networkx as nx
 from ufo.galaxy.trajectory.galaxy_parser import GalaxyTrajectory
 
 
-def test_topology_visualization():
+def test_topology_visualization(tmp_path=Path("test_output")):
     """Test topology graph generation with different task statuses."""
     
     # Sample data with different task statuses
@@ -35,16 +35,17 @@ def test_topology_visualization():
         "task_4": {"status": "failed", "description": "Task 4"},
     }
 
+    # Same shape as TaskConstellation.to_dict()["dependencies"]: line_id -> dependency
     dependencies = {
-        "task_2": [{"task_name": "task_1", "is_satisfied": True}],
-        "task_3": [{"task_name": "task_2", "is_satisfied": False}],
-        "task_4": [{"task_name": "task_1", "is_satisfied": True}],
+        "line_1": {"from_task_id": "task_1", "to_task_id": "task_2", "is_satisfied": True},
+        "line_2": {"from_task_id": "task_2", "to_task_id": "task_3", "is_satisfied": False},
+        "line_3": {"from_task_id": "task_1", "to_task_id": "task_4", "is_satisfied": True},
     }
 
     # Create a temporary GalaxyTrajectory instance just to use the image generation method
     # We'll use a fake path since we're only testing the visualization method
     temp_trajectory = GalaxyTrajectory.__new__(GalaxyTrajectory)
-    temp_trajectory.folder_path = Path("test_output")
+    temp_trajectory.folder_path = Path(tmp_path)
     
     # Generate the topology image
     image_path = temp_trajectory._generate_topology_image(
@@ -56,7 +57,7 @@ def test_topology_visualization():
     )
     
     # Verify image was created
-    output_image = Path("test_output/topology_images") / image_path.split('/')[-1]
+    output_image = Path(tmp_path) / "topology_images" / image_path.split('/')[-1]
     assert output_image.exists(), f"Image should be created at {output_image}"
     
     # Check file size is reasonable (should be around 50-60KB)

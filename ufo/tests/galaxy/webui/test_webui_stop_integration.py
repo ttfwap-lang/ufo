@@ -50,11 +50,22 @@ async def mock_app_state():
 
         client._session = MagicMock()
         client._session.force_finish = AsyncMock()
+        client._session.request_cancellation = AsyncMock()
 
         app_state.galaxy_client = client
         app_state._request_counter = 5  # Simulate some requests processed
 
         yield app_state
+
+
+@pytest.fixture
+def new_constellation_client():
+    """The ConstellationClient that initialize() creates when restarting."""
+    new_client = MagicMock()
+    new_client.initialize = AsyncMock()
+    new_client.shutdown = AsyncMock()
+    with patch("ufo.galaxy.galaxy_client.ConstellationClient", return_value=new_client):
+        yield new_client
 
 
 @pytest_asyncio.fixture
@@ -65,10 +76,12 @@ def galaxy_service(mock_app_state):
 
 
 @pytest.mark.asyncio
-async def test_stop_task_and_restart_full_flow(galaxy_service, mock_app_state):
+async def test_stop_task_and_restart_full_flow(galaxy_service, mock_app_state, new_constellation_client):
     """Test the complete stop_task_and_restart flow."""
     # Arrange
     original_counter = mock_app_state._request_counter
+    old_client = mock_app_state.galaxy_client._client
+    old_session = mock_app_state.galaxy_client._session
 
     # Mock create_next_session
     with patch.object(
@@ -84,12 +97,13 @@ async def test_stop_task_and_restart_full_flow(galaxy_service, mock_app_state):
         result = await galaxy_service.stop_task_and_restart()
 
         # Assert
-        # 1. shutdown(force=True) 应该被调用
-        mock_app_state.galaxy_client._client.shutdown.assert_called_once()
-        mock_app_state.galaxy_client._session.force_finish.assert_called()
+        # 1. shutdown(force=True): the running session is cancelled, old client shut down
+        old_session.request_cancellation.assert_called_once()
+        old_client.shutdown.assert_called_once()
 
-        # 2. initialize 应该被调用
-        mock_app_state.galaxy_client._client.initialize.assert_called_once()
+        # 2. initialize() creates and initializes a fresh constellation client
+        new_constellation_client.initialize.assert_called_once()
+        assert mock_app_state.galaxy_client._client is new_constellation_client
 
         # 3. request counter 应该被重置
         assert mock_app_state._request_counter == 0
@@ -104,7 +118,7 @@ async def test_stop_task_and_restart_full_flow(galaxy_service, mock_app_state):
 
 
 @pytest.mark.asyncio
-async def test_stop_task_cancels_running_task(galaxy_service, mock_app_state):
+async def test_stop_task_cancels_running_task(galaxy_service, mock_app_state, new_constellation_client):
     """Test that stop_task_and_restart cancels a running task."""
 
     # Arrange
@@ -145,25 +159,31 @@ async def test_stop_task_without_active_client(galaxy_service, mock_app_state):
 
 
 @pytest.mark.asyncio
-async def test_stop_task_handles_shutdown_error(galaxy_service, mock_app_state):
-    """Test that stop_task_and_restart handles shutdown errors gracefully."""
+async def test_stop_task_handles_shutdown_error(galaxy_service, mock_app_state, new_constellation_client):
+    """Errors while shutting down are contained by GalaxyClient.shutdown(); the restart still happens."""
     # Arrange
-    mock_app_state.galaxy_client._session.force_finish.side_effect = RuntimeError(
+    mock_app_state.galaxy_client._session.request_cancellation.side_effect = RuntimeError(
         "Shutdown error"
     )
+    with patch.object(
+        mock_app_state.galaxy_client, "create_next_session", new_callable=AsyncMock
+    ) as mock_create_session:
+        mock_create_session.return_value = {"status": "success", "session_name": "s"}
 
-    # Act & Assert
-    with pytest.raises(RuntimeError, match="Shutdown error"):
-        await galaxy_service.stop_task_and_restart()
+        # Act
+        result = await galaxy_service.stop_task_and_restart()
+
+    # Assert
+    assert result["status"] == "success"
+    new_constellation_client.initialize.assert_called_once()
+    assert mock_app_state._request_counter == 0
 
 
 @pytest.mark.asyncio
-async def test_stop_task_handles_initialization_error(galaxy_service, mock_app_state):
+async def test_stop_task_handles_initialization_error(galaxy_service, mock_app_state, new_constellation_client):
     """Test that stop_task_and_restart handles initialization errors."""
     # Arrange
-    mock_app_state.galaxy_client._client.initialize.side_effect = RuntimeError(
-        "Init error"
-    )
+    new_constellation_client.initialize.side_effect = RuntimeError("Init error")
 
     # Act & Assert
     with pytest.raises(RuntimeError, match="Init error"):
@@ -171,14 +191,12 @@ async def test_stop_task_handles_initialization_error(galaxy_service, mock_app_s
 
 
 @pytest.mark.asyncio
-async def test_stop_task_resets_counter_even_on_error(galaxy_service, mock_app_state):
+async def test_stop_task_resets_counter_even_on_error(galaxy_service, mock_app_state, new_constellation_client):
     """Test that request counter is NOT reset if error occurs before reset point."""
     # Arrange
     original_counter = mock_app_state._request_counter
-    # Make shutdown fail
-    mock_app_state.galaxy_client._session.force_finish.side_effect = RuntimeError(
-        "Test error"
-    )
+    # Make re-initialization fail (before the counter reset point)
+    new_constellation_client.initialize.side_effect = RuntimeError("Test error")
 
     # Act
     with pytest.raises(RuntimeError):

@@ -112,7 +112,11 @@ async def test_websocket_request_with_client():
                 # Send request
                 websocket.send_json({"type": "request", "text": "Test request"})
 
-                # Should receive completion
+                # Acknowledged immediately, then completed when processing finishes
+                response = websocket.receive_json()
+                assert response["type"] == "request_received"
+                assert response["status"] == "processing"
+
                 response = websocket.receive_json()
                 assert response["type"] == "request_completed"
                 assert response["status"] == "completed"
@@ -136,10 +140,11 @@ async def test_websocket_reset():
             # Send reset
             websocket.send_json({"type": "reset"})
 
-            # Should receive acknowledgment
+            # Acknowledged; with no Galaxy client there is nothing to reset
             response = websocket.receive_json()
             assert response["type"] == "reset_acknowledged"
-            assert response["status"] == "ready"
+            assert response["status"] == "warning"
+            assert "No active client" in response["message"]
 
 
 @pytest.mark.asyncio

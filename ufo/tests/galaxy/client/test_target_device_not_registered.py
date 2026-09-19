@@ -42,14 +42,17 @@ from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
 WS_CLIENT_API = ["send", "recv", "close", "closed", "ping", "wait_closed"]
 
 
-def _recv_once(message):
-    """recv() that delivers one message and then stays quiet like a real idle socket."""
+def _recv_once(message, websocket):
+    """recv() that answers once, after the client has sent its registration (like a
+    real server), and then stays quiet like an idle socket."""
     delivered = []
 
     async def recv():
-        if not delivered:
-            delivered.append(True)
-            return message
+        while not delivered:
+            if websocket.send.await_count:
+                delivered.append(True)
+                return message
+            await asyncio.sleep(0.01)
         await asyncio.Event().wait()
 
     return recv
@@ -114,7 +117,7 @@ class TestTargetDeviceNotRegistered:
         )
 
         # Setup mock to return error response
-        mock_websocket.recv = _recv_once(error_response.model_dump_json())
+        mock_websocket.recv = _recv_once(error_response.model_dump_json(), mock_websocket)
         mock_websocket.send = AsyncMock()
         mock_websocket.close = AsyncMock()
 
@@ -190,14 +193,13 @@ class TestTargetDeviceNotRegistered:
         mock_websocket1.closed = False
         mock_websocket1.send = AsyncMock()
         mock_websocket1.close = AsyncMock()
-        mock_websocket1.recv = _recv_once(error_response.model_dump_json())
+        mock_websocket1.recv = _recv_once(error_response.model_dump_json(), mock_websocket1)
 
         mock_websocket2 = AsyncMock(spec=WS_CLIENT_API)
         mock_websocket2.closed = False
         mock_websocket2.send = AsyncMock()
         mock_websocket2.close = AsyncMock()
-        mock_websocket2.recv = _recv_once(success_response.model_dump_json()
-        )
+        mock_websocket2.recv = _recv_once(success_response.model_dump_json(), mock_websocket2)
 
         # Mock websockets.connect to return different websockets for each call
         call_count = [0]
@@ -208,6 +210,8 @@ class TestTargetDeviceNotRegistered:
             return result
 
         with patch("websockets.connect", side_effect=mock_connect):
+            # The test drives both attempts itself; disable background auto-reconnect.
+            device_manager._schedule_reconnection = Mock()
             # Mock additional methods needed for successful connection
             device_manager.heartbeat_manager.start_heartbeat = Mock()
             device_manager.connection_manager.request_device_info = AsyncMock(
@@ -317,7 +321,7 @@ class TestTargetDeviceNotRegistered:
             response_id="error_response",
         )
 
-        mock_websocket.recv = _recv_once(error_response.model_dump_json())
+        mock_websocket.recv = _recv_once(error_response.model_dump_json(), mock_websocket)
 
         # Mock websockets.connect as an async function
         async def mock_connect(*args, **kwargs):
@@ -376,7 +380,7 @@ class TestTargetDeviceNotRegistered:
             response_id="error_response",
         )
 
-        mock_websocket.recv = _recv_once(error_response.model_dump_json())
+        mock_websocket.recv = _recv_once(error_response.model_dump_json(), mock_websocket)
 
         # Mock websockets.connect as an async function
         async def mock_connect(*args, **kwargs):

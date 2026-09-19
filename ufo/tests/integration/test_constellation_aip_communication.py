@@ -39,7 +39,10 @@ class MockWebSocket:
         self.sent_messages.append(message)
 
     async def recv(self):
-        """Mock receive method."""
+        """Mock receive method. Like a real server, nothing is answered before
+        the client has sent its first (registration) message."""
+        while not self.sent_messages:
+            await asyncio.sleep(0.005)
         return await self.receive_queue.get()
 
     async def close(self):
@@ -73,9 +76,9 @@ def connection_manager():
 
 
 @pytest.fixture
-def message_processor(connection_manager):
+def message_processor(device_registry, heartbeat_manager, connection_manager):
     """Create a message processor for testing."""
-    processor = MessageProcessor(connection_manager)
+    processor = MessageProcessor(device_registry, heartbeat_manager, connection_manager)
     return processor
 
 
@@ -102,14 +105,13 @@ async def test_connection_manager_uses_aip_transport(
     device_info = AgentProfile(
         device_id=device_id,
         server_url=ws_url,
-        os_type="Windows",
-        os_version="11",
+        os="Windows",
     )
 
     # Mock websockets.connect
     mock_ws = MockWebSocket()
 
-    with patch("websockets.connect", return_value=mock_ws):
+    with patch("websockets.connect", new=AsyncMock(return_value=mock_ws)):
         # Add registration response to queue (server responds with HEARTBEAT status=OK)
         reg_response = ServerMessage(
             type=ServerMessageType.HEARTBEAT,
@@ -136,14 +138,14 @@ async def test_connection_manager_uses_aip_transport(
 
 
 @pytest.mark.asyncio
-async def test_registration_with_aip_protocol(connection_manager):
+async def test_registration_with_aip_protocol(connection_manager, message_processor):
     """Test constellation registration using AIP RegistrationProtocol."""
     device_id = "test_device"
     ws_url = "ws://localhost:5005/ws"
 
     mock_ws = MockWebSocket()
 
-    with patch("websockets.connect", return_value=mock_ws):
+    with patch("websockets.connect", new=AsyncMock(return_value=mock_ws)):
         # Prepare registration response
         reg_response = ServerMessage(
             type=ServerMessageType.HEARTBEAT,
@@ -153,7 +155,9 @@ async def test_registration_with_aip_protocol(connection_manager):
         mock_ws.add_message(reg_response.model_dump_json())
 
         # Connect and register
-        await connection_manager.connect_to_device(device_id, ws_url)
+        await connection_manager.connect_to_device(
+            AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
+        )
 
         # Verify registration message was sent
         assert len(mock_ws.sent_messages) > 0
@@ -163,7 +167,7 @@ async def test_registration_with_aip_protocol(connection_manager):
         assert reg_msg.type == ClientMessageType.REGISTER
         assert reg_msg.client_type == ClientType.CONSTELLATION
         assert reg_msg.client_id == f"test_constellation@{device_id}"
-        assert reg_msg.metadata["target_device"] == device_id
+        assert reg_msg.metadata["targeted_device_id"] == device_id
 
         # Verify registration future was resolved
         assert connection_manager.is_connected(device_id)
@@ -173,14 +177,14 @@ async def test_registration_with_aip_protocol(connection_manager):
 
 
 @pytest.mark.asyncio
-async def test_send_task_to_device_with_aip(connection_manager):
+async def test_send_task_to_device_with_aip(connection_manager, message_processor):
     """Test sending task to device using AIP Transport."""
     device_id = "test_device"
     ws_url = "ws://localhost:5005/ws"
 
     mock_ws = MockWebSocket()
 
-    with patch("websockets.connect", return_value=mock_ws):
+    with patch("websockets.connect", new=AsyncMock(return_value=mock_ws)):
         # Setup: Register first
         reg_response = ServerMessage(
             type=ServerMessageType.HEARTBEAT,
@@ -189,7 +193,9 @@ async def test_send_task_to_device_with_aip(connection_manager):
         )
         mock_ws.add_message(reg_response.model_dump_json())
 
-        await connection_manager.connect_to_device(device_id, ws_url)
+        await connection_manager.connect_to_device(
+            AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
+        )
 
         # Clear sent messages from registration
         mock_ws.sent_messages.clear()
@@ -208,7 +214,7 @@ async def test_send_task_to_device_with_aip(connection_manager):
         # Prepare task response
         task_response = ServerMessage(
             type=ServerMessageType.TASK_END,
-            session_id=f"{task_name}@{task_id}",
+            session_id=f"{connection_manager.task_name}@{task_id}",
             result={"status": "completed"},
             status=TaskStatus.COMPLETED,
             timestamp=datetime.now(timezone.utc).isoformat(),
@@ -227,7 +233,7 @@ async def test_send_task_to_device_with_aip(connection_manager):
         # Parse the task message
         task_msg = ClientMessage.model_validate_json(mock_ws.sent_messages[0])
         assert task_msg.type == ClientMessageType.TASK
-        assert task_msg.session_id == f"{task_name}@{task_id}"
+        assert task_msg.session_id == f"{connection_manager.task_name}@{task_id}"
         assert task_msg.request == "Open Excel and create a spreadsheet"
 
         # Verify result
@@ -239,14 +245,14 @@ async def test_send_task_to_device_with_aip(connection_manager):
 
 
 @pytest.mark.asyncio
-async def test_heartbeat_with_aip_protocol(connection_manager, heartbeat_manager):
+async def test_heartbeat_with_aip_protocol(connection_manager, heartbeat_manager, message_processor):
     """Test heartbeat sending using AIP HeartbeatProtocol."""
     device_id = "test_device"
     ws_url = "ws://localhost:5005/ws"
 
     mock_ws = MockWebSocket()
 
-    with patch("websockets.connect", return_value=mock_ws):
+    with patch("websockets.connect", new=AsyncMock(return_value=mock_ws)):
         # Setup: Register first
         reg_response = ServerMessage(
             type=ServerMessageType.HEARTBEAT,
@@ -255,7 +261,9 @@ async def test_heartbeat_with_aip_protocol(connection_manager, heartbeat_manager
         )
         mock_ws.add_message(reg_response.model_dump_json())
 
-        await connection_manager.connect_to_device(device_id, ws_url)
+        await connection_manager.connect_to_device(
+            AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
+        )
 
         # Clear sent messages
         mock_ws.sent_messages.clear()
@@ -265,6 +273,9 @@ async def test_heartbeat_with_aip_protocol(connection_manager, heartbeat_manager
 
         # Wait for at least one heartbeat
         await asyncio.sleep(0.7)
+
+        # Heartbeat protocol exists while the heartbeat runs
+        assert device_id in heartbeat_manager._heartbeat_protocols
 
         # Stop heartbeat
         heartbeat_manager.stop_heartbeat(device_id)
@@ -279,22 +290,22 @@ async def test_heartbeat_with_aip_protocol(connection_manager, heartbeat_manager
         assert heartbeat_msg.status == TaskStatus.OK
         assert heartbeat_msg.metadata["device_id"] == device_id
 
-        # Verify heartbeat protocol was created
-        assert device_id in heartbeat_manager._heartbeat_protocols
+        # Stopping removes the protocol
+        assert device_id not in heartbeat_manager._heartbeat_protocols
 
         # Cleanup
         await connection_manager.disconnect_device(device_id)
 
 
 @pytest.mark.asyncio
-async def test_request_device_info_with_aip(connection_manager):
+async def test_request_device_info_with_aip(connection_manager, message_processor):
     """Test requesting device info using AIP Transport."""
     device_id = "test_device"
     ws_url = "ws://localhost:5005/ws"
 
     mock_ws = MockWebSocket()
 
-    with patch("websockets.connect", return_value=mock_ws):
+    with patch("websockets.connect", new=AsyncMock(return_value=mock_ws)):
         # Setup: Register first
         reg_response = ServerMessage(
             type=ServerMessageType.HEARTBEAT,
@@ -303,25 +314,30 @@ async def test_request_device_info_with_aip(connection_manager):
         )
         mock_ws.add_message(reg_response.model_dump_json())
 
-        await connection_manager.connect_to_device(device_id, ws_url)
+        await connection_manager.connect_to_device(
+            AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
+        )
 
         # Clear sent messages
         mock_ws.sent_messages.clear()
 
-        # Prepare device info response
-        device_info_response = ServerMessage(
-            type=ServerMessageType.DEVICE_INFO_RESPONSE,
-            device_info={
-                "os": "Windows",
-                "version": "11",
-                "capabilities": ["ui_automation"],
-            },
-            timestamp=datetime.now(timezone.utc).isoformat(),
-        )
-        mock_ws.add_message(device_info_response.model_dump_json())
+        async def respond_to_request():
+            # Answer the DEVICE_INFO_REQUEST, echoing its request_id as response_id
+            while not mock_ws.sent_messages:
+                await asyncio.sleep(0.01)
+            request = ClientMessage.model_validate_json(mock_ws.sent_messages[0])
+            device_info_response = ServerMessage(
+                type=ServerMessageType.DEVICE_INFO_RESPONSE,
+                status=TaskStatus.OK,
+                response_id=request.request_id,
+                result={"os": "Windows", "version": "11", "capabilities": ["ui_automation"]},
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+            mock_ws.add_message(device_info_response.model_dump_json())
 
-        # Request device info
-        info = await connection_manager.request_device_info(device_id, timeout=1.0)
+        responder = asyncio.create_task(respond_to_request())
+        info = await connection_manager.request_device_info(device_id)
+        await responder
 
         # Verify device info request was sent
         assert len(mock_ws.sent_messages) > 0
@@ -332,7 +348,7 @@ async def test_request_device_info_with_aip(connection_manager):
 
         # Verify response
         assert info is not None
-        assert info.device_info["os"] == "Windows"
+        assert info["os"] == "Windows"
 
         # Cleanup
         await connection_manager.disconnect_device(device_id)
@@ -348,7 +364,7 @@ async def test_message_processor_handles_aip_messages(
 
     mock_ws = MockWebSocket()
 
-    with patch("websockets.connect", return_value=mock_ws):
+    with patch("websockets.connect", new=AsyncMock(return_value=mock_ws)):
         # Setup connection
         reg_response = ServerMessage(
             type=ServerMessageType.HEARTBEAT,
@@ -357,13 +373,15 @@ async def test_message_processor_handles_aip_messages(
         )
         mock_ws.add_message(reg_response.model_dump_json())
 
-        await connection_manager.connect_to_device(device_id, ws_url)
+        await connection_manager.connect_to_device(
+            AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
+        )
 
         # Create a task future
         task_id = "task_123"
-        session_id = f"excel_task@{task_id}"
+        session_id = f"{connection_manager.task_name}@{task_id}"
         future = asyncio.get_event_loop().create_future()
-        connection_manager._pending_task_responses[session_id] = future
+        connection_manager._pending_tasks[session_id] = (device_id, future)
 
         # Process a task result message
         task_result_msg = ServerMessage(
@@ -374,7 +392,7 @@ async def test_message_processor_handles_aip_messages(
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        await message_processor.process_message(device_id, task_result_msg)
+        await message_processor._process_server_message(device_id, task_result_msg)
 
         # Verify future was resolved
         assert future.done()
@@ -386,14 +404,14 @@ async def test_message_processor_handles_aip_messages(
 
 
 @pytest.mark.asyncio
-async def test_disconnect_cleans_up_aip_protocols(connection_manager):
+async def test_disconnect_cleans_up_aip_protocols(connection_manager, message_processor):
     """Test that disconnecting cleans up all AIP protocol instances."""
     device_id = "test_device"
     ws_url = "ws://localhost:5005/ws"
 
     mock_ws = MockWebSocket()
 
-    with patch("websockets.connect", return_value=mock_ws):
+    with patch("websockets.connect", new=AsyncMock(return_value=mock_ws)):
         # Setup connection
         reg_response = ServerMessage(
             type=ServerMessageType.HEARTBEAT,
@@ -402,7 +420,9 @@ async def test_disconnect_cleans_up_aip_protocols(connection_manager):
         )
         mock_ws.add_message(reg_response.model_dump_json())
 
-        await connection_manager.connect_to_device(device_id, ws_url)
+        await connection_manager.connect_to_device(
+            AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
+        )
 
         # Verify protocols were created
         assert device_id in connection_manager._transports
@@ -422,7 +442,7 @@ async def test_disconnect_cleans_up_aip_protocols(connection_manager):
 
 
 @pytest.mark.asyncio
-async def test_error_handling_in_aip_communication(connection_manager):
+async def test_error_handling_in_aip_communication(connection_manager, message_processor):
     """Test error handling when AIP communication fails."""
     device_id = "test_device"
     ws_url = "ws://localhost:5005/ws"
@@ -430,12 +450,14 @@ async def test_error_handling_in_aip_communication(connection_manager):
     # Test connection failure
     with patch("websockets.connect", side_effect=ConnectionError("Network error")):
         with pytest.raises(ConnectionError):
-            await connection_manager.connect_to_device(device_id, ws_url)
+            await connection_manager.connect_to_device(
+            AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
+        )
 
     # Test send failure after connection
     mock_ws = MockWebSocket()
 
-    with patch("websockets.connect", return_value=mock_ws):
+    with patch("websockets.connect", new=AsyncMock(return_value=mock_ws)):
         # Setup connection
         reg_response = ServerMessage(
             type=ServerMessageType.HEARTBEAT,
@@ -444,7 +466,9 @@ async def test_error_handling_in_aip_communication(connection_manager):
         )
         mock_ws.add_message(reg_response.model_dump_json())
 
-        await connection_manager.connect_to_device(device_id, ws_url)
+        await connection_manager.connect_to_device(
+            AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
+        )
 
         # Mock transport send to fail
         transport = connection_manager._transports[device_id]
@@ -475,43 +499,36 @@ async def test_error_handling_in_aip_communication(connection_manager):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_operations_with_aip(connection_manager):
+async def test_concurrent_operations_with_aip(connection_manager, message_processor):
     """Test concurrent operations on multiple devices using AIP."""
     devices = ["device_1", "device_2", "device_3"]
     ws_url = "ws://localhost:5005/ws"
 
     mock_websockets = {}
+    for device_id in devices:
+        # One socket per device, each answering its registration with HEARTBEAT/OK
+        mock_ws = MockWebSocket()
+        mock_ws.add_message(
+            ServerMessage(
+                type=ServerMessageType.HEARTBEAT,
+                status=TaskStatus.OK,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            ).model_dump_json()
+        )
+        mock_websockets[device_id] = mock_ws
 
     async def mock_connect(url, **kwargs):
-        # Extract device_id from URL or create a new mock for each connection
-        device_id = (
-            url.split("/")[-1] if "/" in url else f"device_{len(mock_websockets)}"
-        )
-        mock_ws = MockWebSocket()
-        mock_websockets[device_id] = mock_ws
-        return mock_ws
+        return mock_websockets[url.rsplit("/", 1)[-1]]
 
     with patch("websockets.connect", side_effect=mock_connect):
         # Connect to all devices concurrently
-        connection_tasks = []
-        for device_id in devices:
-            # Prepare registration response
-            mock_ws = MockWebSocket()
-            mock_websockets[device_id] = mock_ws
-            reg_response = ServerMessage(
-                type=ServerMessageType.HEARTBEAT,
-                client_id=f"test_constellation@{device_id}",
-                session_id=f"session_{device_id}",
-                timestamp=datetime.now(timezone.utc).isoformat(),
+        connection_tasks = [
+            connection_manager.connect_to_device(
+                AgentProfile(device_id=device_id, server_url=f"{ws_url}/{device_id}", os="Windows"),
+                message_processor,
             )
-            mock_ws.add_message(reg_response.model_dump_json())
-
-        # Actually connect
-        for device_id in devices:
-            task = connection_manager.connect_to_device(
-                device_id, f"{ws_url}/{device_id}"
-            )
-            connection_tasks.append(task)
+            for device_id in devices
+        ]
 
         # Wait for all connections
         await asyncio.gather(*connection_tasks)
@@ -531,14 +548,14 @@ async def test_concurrent_operations_with_aip(connection_manager):
 
 
 @pytest.mark.asyncio
-async def test_heartbeat_cleanup_on_stop(heartbeat_manager, connection_manager):
+async def test_heartbeat_cleanup_on_stop(heartbeat_manager, connection_manager, message_processor):
     """Test that heartbeat manager properly cleans up protocol instances."""
     device_id = "test_device"
     ws_url = "ws://localhost:5005/ws"
 
     mock_ws = MockWebSocket()
 
-    with patch("websockets.connect", return_value=mock_ws):
+    with patch("websockets.connect", new=AsyncMock(return_value=mock_ws)):
         # Setup connection
         reg_response = ServerMessage(
             type=ServerMessageType.HEARTBEAT,
@@ -547,7 +564,9 @@ async def test_heartbeat_cleanup_on_stop(heartbeat_manager, connection_manager):
         )
         mock_ws.add_message(reg_response.model_dump_json())
 
-        await connection_manager.connect_to_device(device_id, ws_url)
+        await connection_manager.connect_to_device(
+            AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
+        )
 
         # Start heartbeat
         heartbeat_manager.start_heartbeat(device_id)

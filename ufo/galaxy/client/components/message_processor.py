@@ -39,6 +39,7 @@ class MessageProcessor:
         self.heartbeat_manager = heartbeat_manager
         self.connection_manager = connection_manager
         self._message_handlers: Dict[str, asyncio.Task] = {}
+        self._handler_transports: Dict[str, Any] = {}
         self._disconnection_handler: Optional[callable] = None
         self.logger = logging.getLogger(f'{__name__}.MessageProcessor')
 
@@ -77,9 +78,17 @@ class MessageProcessor:
         :param device_id: Unique device identifier
         :param transport: AIP Transport for the device connection
         """
-        if device_id not in self._message_handlers:
-            self._message_handlers[device_id] = asyncio.create_task(self._handle_device_messages(device_id, transport))
-            self.logger.debug(f'📨 Started message handler for device {device_id}')
+        existing = self._message_handlers.get(device_id)
+        if existing is not None:
+            if not existing.done() and self._handler_transports.get(device_id) is transport:
+                return  # already listening on this connection
+            # A finished handler, or one bound to an earlier connection (e.g. after a
+            # rejected registration), must not block listening on the new transport.
+            if not existing.done():
+                existing.cancel()
+        self._message_handlers[device_id] = asyncio.create_task(self._handle_device_messages(device_id, transport))
+        self._handler_transports[device_id] = transport
+        self.logger.debug(f'📨 Started message handler for device {device_id}')
 
     def stop_message_handler(self, device_id: str) -> None:
         """
@@ -95,6 +104,7 @@ class MessageProcessor:
             if not task.done():
                 task.cancel()
             del self._message_handlers[device_id]
+            self._handler_transports.pop(device_id, None)
             self.logger.debug(f'📨 Stopped message handler for device {device_id}')
 
     async def _handle_device_messages(self, device_id: str, transport: 'WebSocketTransport') -> None:
@@ -137,22 +147,32 @@ class MessageProcessor:
                     self.logger.error(f'❌ Unexpected error processing message from device {device_id}: {e}', exc_info=True)
         except ConnectionError as e:
             self.logger.warning(f'🔌 Connection to device {device_id} closed: {e} (messages received: {message_count})')
-            await self._handle_disconnection(device_id)
+            await self._handle_disconnection_if_current(device_id, transport)
         except websockets.ConnectionClosed as e:
             self.logger.warning(f'🔌 Connection to device {device_id} closed (code: {e.code}, reason: {e.reason}, messages received: {message_count})')
-            await self._handle_disconnection(device_id)
+            await self._handle_disconnection_if_current(device_id, transport)
         except asyncio.CancelledError:
             self.logger.info(f'📨 Message handler for device {device_id} was cancelled')
             raise
         except websockets.WebSocketException as e:
             self.logger.warning(f'⚠️ WebSocket error for device {device_id}: {e}')
-            await self._handle_disconnection(device_id)
+            await self._handle_disconnection_if_current(device_id, transport)
         except OSError as e:
             self.logger.warning(f'⚠️ Network error for device {device_id}: {e}')
-            await self._handle_disconnection(device_id)
+            await self._handle_disconnection_if_current(device_id, transport)
         except Exception as e:
             self.logger.error(f'❌ Unexpected message handler error for device {device_id}: {e}')
-            await self._handle_disconnection(device_id)
+            await self._handle_disconnection_if_current(device_id, transport)
+
+    async def _handle_disconnection_if_current(self, device_id: str, transport: 'WebSocketTransport') -> None:
+        """Run disconnection handling only if transport is still the device's live
+        connection; a stale handler from an earlier connection must not tear down
+        the connection that replaced it."""
+        current = self._handler_transports.get(device_id)
+        if current is not None and current is not transport:
+            self.logger.debug(f'📨 Ignoring close of a superseded connection for device {device_id}')
+            return
+        await self._handle_disconnection(device_id)
 
     async def _process_server_message(self, device_id: str, server_msg: ServerMessage) -> None:
         """
