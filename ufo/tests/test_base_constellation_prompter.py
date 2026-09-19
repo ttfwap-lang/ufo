@@ -41,7 +41,7 @@ class TestBaseConstellationPrompter:
 
     def test_format_device_info_empty(self):
         """Test formatting empty device info."""
-        result = self.prompter._format_device_info({})
+        result = self.prompter._format_agent_profile({})
         assert result == "No devices available."
 
     def test_format_device_info_single_device(self):
@@ -58,9 +58,9 @@ class TestBaseConstellationPrompter:
         )
 
         device_dict = {"laptop_001": device_info}
-        result = self.prompter._format_device_info(device_dict)
+        result = self.prompter._format_agent_profile(device_dict)
 
-        assert "Available Devices:" in result
+        assert "Available Device Agent Profiles:" in result
         assert "Device ID: laptop_001" in result
         assert "web_browsing, office_applications" in result
         assert "os: windows, location: office" in result
@@ -84,12 +84,13 @@ class TestBaseConstellationPrompter:
         )
 
         device_dict = {"laptop_001": device1, "server_002": device2}
-        result = self.prompter._format_device_info(device_dict)
+        result = self.prompter._format_agent_profile(device_dict)
 
+        # Disconnected devices are left out so the planner only assigns to usable devices.
         assert "laptop_001" in result
-        assert "server_002" in result
         assert "web_browsing" in result
-        assert "database_management" in result
+        assert "server_002" not in result
+        assert "database_management" not in result
 
     def test_format_constellation_none(self):
         """Test formatting None constellation."""
@@ -146,12 +147,10 @@ class TestBaseConstellationPrompter:
 
         # Check dependency information
         assert "Task Dependencies:" in result
-        assert "task_001 → task_002 (unconditional)" in result
-        assert "✗ Not Satisfied" in result
-
-        # Check execution info
-        assert "Execution Info:" in result
-        assert "Started: 2025-09-25T14:30:00+00:00" in result
+        assert "task_001 → task_002" in result
+        # Dependency type/satisfaction and execution timing are intentionally
+        # not shown to the planner (same as upstream).
+        assert "Modification Summary:" in result
 
     def test_format_constellation_with_completed_task(self):
         """Test formatting constellation with completed task and result."""
@@ -188,7 +187,7 @@ class TestBaseConstellationPrompter:
             "Result: {'analysis_complete': True, 'accuracy': 0.95, 'details': 'Analysis showed positive trends with 95% a"
             in result
         )
-        assert "Duration: 1800.00s" in result
+        assert "READ-ONLY" in result  # completed tasks cannot be modified
 
     def test_format_constellation_with_failed_task(self):
         """Test formatting constellation with failed task."""
@@ -261,9 +260,9 @@ class TestBaseConstellationPrompter:
 
         result = self.prompter._format_constellation(mock_constellation)
 
-        assert "task_001 → task_002 (conditional)" in result
+        assert "task_001 → task_002" in result
         assert "Only if data quality is acceptable" in result
-        assert "✓ Satisfied" in result
+        assert "Satisfied" not in result  # satisfaction markers are not shown (upstream)
 
     def test_format_constellation_exception_handling(self):
         """Test handling of constellation formatting exceptions."""

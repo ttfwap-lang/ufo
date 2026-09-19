@@ -7,7 +7,7 @@ import logging
 import sys
 import websockets
 from datetime import datetime, timezone
-from aip.messages import ClientMessage, ClientMessageType, TaskStatus
+from ufo.aip.messages import ClientMessage, ClientMessageType, TaskStatus
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 

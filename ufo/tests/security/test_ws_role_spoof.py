@@ -97,7 +97,7 @@ def _ensure_repo_on_path() -> None:
 _ensure_repo_on_path()
 
 
-from aip.messages import (  # noqa: E402
+from ufo.aip.messages import (  # noqa: E402
     ClientMessage,
     ClientMessageType,
     ClientType,

@@ -12,14 +12,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from aip.protocol.heartbeat import HeartbeatProtocol
-from aip.resilience import (
+from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+from ufo.aip.resilience import (
     HeartbeatManager,
     ReconnectionPolicy,
     ReconnectionStrategy,
     TimeoutManager,
 )
-from aip.transport import TransportState
+from ufo.aip.transport import TransportState
 
 
 class TestReconnectionStrategy:
@@ -87,7 +87,7 @@ class TestHeartbeatManager:
     @pytest.fixture
     def mock_protocol(self):
         """Create mock heartbeat protocol."""
-        from aip.transport import Transport, TransportState
+        from ufo.aip.transport import Transport, TransportState
 
         class MockTransport(Transport):
             def __init__(self):

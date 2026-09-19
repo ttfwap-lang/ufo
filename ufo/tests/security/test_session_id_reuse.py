@@ -52,7 +52,7 @@ def _ensure_repo_on_path() -> None:
         art_mod.text2art = lambda *args, **kwargs: ''
         sys.modules['art'] = art_mod
 _ensure_repo_on_path()
-from aip.messages import ClientMessage, ClientMessageType, ClientType, TaskStatus
+from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, TaskStatus
 from ufo.server.services.client_connection_manager import ClientConnectionManager
 _MODULES_TO_RESTORE = ('ufo.server.services.session_manager', 'ufo.server.ws.handler', 'ufo.module.dispatcher', 'ufo.module.basic', 'ufo.module.session_pool', 'ufo.module.context')
 

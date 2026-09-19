@@ -29,9 +29,9 @@ async def mock_app_state():
     """Create a mock AppState with GalaxyClient for testing."""
     app_state = AppState()
 
-    with patch("galaxy.galaxy_client.get_galaxy_config"), patch(
-        "galaxy.galaxy_client.ConstellationConfig"
-    ), patch("galaxy.galaxy_client.setup_logger"):
+    with patch("ufo.galaxy.galaxy_client.get_galaxy_config"), patch(
+        "ufo.galaxy.galaxy_client.ConstellationConfig"
+    ), patch("ufo.galaxy.galaxy_client.setup_logger"):
 
         # Create a mock Galaxy client
         client = GalaxyClient(

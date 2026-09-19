@@ -24,6 +24,17 @@ from ufo.galaxy.constellation import TaskConstellation, TaskStar
 from ufo.galaxy.constellation.enums import TaskStatus, ConstellationState, TaskPriority
 
 
+async def _running_task():
+    """A real asyncio task that stays pending until cancelled."""
+    return asyncio.create_task(asyncio.sleep(3600))
+
+
+async def _finished_task():
+    task = asyncio.create_task(asyncio.sleep(0))
+    await task
+    return task
+
+
 @pytest_asyncio.fixture
 def mock_orchestrator():
     """Create a mock TaskConstellationOrchestrator for testing."""
@@ -73,13 +84,8 @@ async def test_cancel_execution_sets_flags(mock_orchestrator):
 async def test_cancel_execution_cancels_running_tasks(mock_orchestrator):
     """Test that cancel_execution cancels all running tasks."""
     # Arrange
-    mock_task1 = AsyncMock()
-    mock_task1.done.return_value = False
-    mock_task1.cancel = MagicMock()
-
-    mock_task2 = AsyncMock()
-    mock_task2.done.return_value = False
-    mock_task2.cancel = MagicMock()
+    mock_task1 = await _running_task()
+    mock_task2 = await _running_task()
 
     mock_orchestrator._execution_tasks = {"task_1": mock_task1, "task_2": mock_task2}
 
@@ -87,8 +93,8 @@ async def test_cancel_execution_cancels_running_tasks(mock_orchestrator):
     await mock_orchestrator.cancel_execution("test_constellation")
 
     # Assert
-    mock_task1.cancel.assert_called_once()
-    mock_task2.cancel.assert_called_once()
+    assert mock_task1.cancelled()
+    assert mock_task2.cancelled()
     assert len(mock_orchestrator._execution_tasks) == 0  # 应该被清空
 
 
@@ -96,13 +102,8 @@ async def test_cancel_execution_cancels_running_tasks(mock_orchestrator):
 async def test_cancel_execution_skips_completed_tasks(mock_orchestrator):
     """Test that cancel_execution skips already completed tasks."""
     # Arrange
-    mock_task_done = AsyncMock()
-    mock_task_done.done.return_value = True  # 已完成
-    mock_task_done.cancel = MagicMock()
-
-    mock_task_running = AsyncMock()
-    mock_task_running.done.return_value = False  # 运行中
-    mock_task_running.cancel = MagicMock()
+    mock_task_done = await _finished_task()  # already finished
+    mock_task_running = await _running_task()  # still running
 
     mock_orchestrator._execution_tasks = {
         "task_done": mock_task_done,
@@ -113,8 +114,8 @@ async def test_cancel_execution_skips_completed_tasks(mock_orchestrator):
     await mock_orchestrator.cancel_execution("test_constellation")
 
     # Assert
-    mock_task_done.cancel.assert_not_called()  # 不应该取消已完成的任务
-    mock_task_running.cancel.assert_called_once()  # 应该取消运行中的任务
+    assert not mock_task_done.cancelled()  # finished tasks are left alone
+    assert mock_task_running.cancelled()  # running tasks are cancelled
 
 
 @pytest.mark.asyncio
@@ -224,19 +225,23 @@ async def test_cancel_execution_waits_for_task_cancellation(mock_orchestrator):
     cancellation_completed = False
 
     async def mock_task_cancellation():
-        await asyncio.sleep(0.1)
         nonlocal cancellation_completed
-        cancellation_completed = True
-        raise asyncio.CancelledError()
+        try:
+            await asyncio.sleep(3600)
+        finally:
+            await asyncio.sleep(0.05)  # cleanup that must finish before cancel returns
+            cancellation_completed = True
 
     mock_task = asyncio.create_task(mock_task_cancellation())
+    await asyncio.sleep(0)  # let it start
     mock_orchestrator._execution_tasks = {"task_1": mock_task}
 
     # Act
     await mock_orchestrator.cancel_execution("test_constellation")
 
-    # Assert
+    # Assert: cancel_execution waited for the task's cleanup
     assert cancellation_completed is True
+    assert mock_task.done()
     assert len(mock_orchestrator._execution_tasks) == 0
 
 
@@ -244,13 +249,11 @@ async def test_cancel_execution_waits_for_task_cancellation(mock_orchestrator):
 async def test_multiple_cancel_execution_calls_are_idempotent(mock_orchestrator):
     """Test that multiple cancel_execution calls are handled gracefully."""
     # Arrange
-    mock_task = AsyncMock()
-    mock_task.done.return_value = False
-    mock_task.cancel = MagicMock()
+    mock_task = await _running_task()
 
     mock_orchestrator._execution_tasks = {"task_1": mock_task}
 
-    # Act - 调用两次
+    # Act - call twice
     await mock_orchestrator.cancel_execution("test_constellation")
     await mock_orchestrator.cancel_execution("test_constellation")
 

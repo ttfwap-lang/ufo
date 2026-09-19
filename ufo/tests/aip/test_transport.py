@@ -11,7 +11,7 @@ import asyncio
 
 import pytest
 
-from aip.transport import Transport, TransportState, WebSocketTransport
+from ufo.aip.transport import Transport, TransportState, WebSocketTransport
 
 
 class MockTransport(Transport):

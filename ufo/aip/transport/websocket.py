@@ -87,27 +87,29 @@ class WebSocketTransport(Transport):
         if self._state == TransportState.CONNECTED:
             self.logger.warning('Already connected, disconnecting first')
             await self.close()
+        from ufo.utils.redact import redact
+        safe_url = redact(url)  # never log or raise the ?token= secret
         try:
             self._state = TransportState.CONNECTING
-            self.logger.info(f'Connecting to {url}')
+            self.logger.info(f'Connecting to {safe_url}')
             connect_params = {'ping_interval': self.ping_interval, 'ping_timeout': self.ping_timeout, 'close_timeout': self.close_timeout, 'max_size': self.max_size}
             connect_params.update(kwargs)
             self._ws = await websockets.connect(url, **connect_params)
             self._adapter = create_adapter(self._ws)
             self._state = TransportState.CONNECTED
-            self.logger.info(f'Connected to {url}')
+            self.logger.info(f'Connected to {safe_url}')
         except WebSocketException as e:
             self._state = TransportState.ERROR
             self.logger.error(f'WebSocket error during connection: {e}')
-            raise ConnectionError(f'Failed to connect to {url}: {e}') from e
+            raise ConnectionError(f'Failed to connect to {safe_url}: {redact(str(e))}') from e
         except OSError as e:
             self._state = TransportState.ERROR
             self.logger.error(f'Network error during connection: {e}')
-            raise ConnectionError(f'Network error connecting to {url}: {e}') from e
+            raise ConnectionError(f'Network error connecting to {safe_url}: {redact(str(e))}') from e
         except Exception as e:
             self._state = TransportState.ERROR
             self.logger.error(f'Unexpected error during connection: {e}')
-            raise ConnectionError(f'Unexpected error connecting to {url}: {e}') from e
+            raise ConnectionError(f'Unexpected error connecting to {safe_url}: {redact(str(e))}') from e
 
     async def send(self, data: bytes) -> None:
         """

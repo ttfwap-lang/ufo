@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 import websockets
 from ufo.galaxy.core.types import ExecutionResult
 from ufo.galaxy.core.events import DeviceEvent, EventType, get_event_bus
+from ufo.utils.redact import redact
 from ufo.aip.messages import TaskStatus
 from .components import AgentProfile, DeviceRegistry, DeviceStatus, HeartbeatManager, MessageProcessor, TaskQueueManager, TaskRequest, WebSocketConnectionManager
 
@@ -55,7 +56,7 @@ class ConstellationDeviceManager:
         snapshot = {}
         all_devices = self.device_registry.get_all_devices()
         for device_id, device_info in all_devices.items():
-            snapshot[device_id] = {'device_id': device_info.device_id, 'status': device_info.status.value, 'os': device_info.os, 'server_url': device_info.server_url, 'capabilities': device_info.capabilities, 'metadata': device_info.metadata, 'last_heartbeat': device_info.last_heartbeat.isoformat() if device_info.last_heartbeat else None, 'connection_attempts': device_info.connection_attempts, 'max_retries': device_info.max_retries, 'current_task_id': device_info.current_task_id}
+            snapshot[device_id] = {'device_id': device_info.device_id, 'status': device_info.status.value, 'os': device_info.os, 'server_url': redact(device_info.server_url), 'capabilities': device_info.capabilities, 'metadata': device_info.metadata, 'last_heartbeat': device_info.last_heartbeat.isoformat() if device_info.last_heartbeat else None, 'connection_attempts': device_info.connection_attempts, 'max_retries': device_info.max_retries, 'current_task_id': device_info.current_task_id}
         return snapshot
 
     async def _publish_device_event(self, event_type: EventType, device_id: str, device_info: AgentProfile) -> None:
@@ -68,7 +69,7 @@ class ConstellationDeviceManager:
         """
         try:
             all_devices_snapshot = self._get_device_registry_snapshot()
-            device_data = {'device_id': device_info.device_id, 'status': device_info.status.value, 'os': device_info.os, 'server_url': device_info.server_url, 'capabilities': device_info.capabilities, 'metadata': device_info.metadata, 'last_heartbeat': device_info.last_heartbeat.isoformat() if device_info.last_heartbeat else None, 'connection_attempts': device_info.connection_attempts, 'max_retries': device_info.max_retries, 'current_task_id': device_info.current_task_id}
+            device_data = {'device_id': device_info.device_id, 'status': device_info.status.value, 'os': device_info.os, 'server_url': redact(device_info.server_url), 'capabilities': device_info.capabilities, 'metadata': device_info.metadata, 'last_heartbeat': device_info.last_heartbeat.isoformat() if device_info.last_heartbeat else None, 'connection_attempts': device_info.connection_attempts, 'max_retries': device_info.max_retries, 'current_task_id': device_info.current_task_id}
             event = DeviceEvent(event_type=event_type, source_id=f'device_manager.{device_id}', timestamp=time.time(), data={'event_name': event_type.value, 'device_count': len(all_devices_snapshot)}, device_id=device_id, device_status=device_info.status.value, device_info=device_data, all_devices=all_devices_snapshot)
             await self.event_bus.publish_event(event)
             self.logger.debug(f'📢 Published {event_type.value} event for device {device_id}')
@@ -292,6 +293,11 @@ class ConstellationDeviceManager:
         if device_info.status not in [DeviceStatus.CONNECTED, DeviceStatus.IDLE, DeviceStatus.BUSY]:
             raise ValueError(f'Device {device_id} is not connected (status: {device_info.status.value})')
         task_request = TaskRequest(task_id=task_id, device_id=device_id, request=task_description, task_name=task_id, metadata=task_data, timeout=timeout)
+        if self.device_registry.is_device_busy(device_id):
+            # A device runs one task at a time; queue and wait for our turn.
+            self.logger.info(f'⏸️  Device {device_id} is BUSY. Task {task_id} will be queued.')
+            future = self.task_queue_manager.enqueue_task(device_id, task_request)
+            return await future
         return await self._execute_task_on_device(device_id, task_request)
 
     async def _execute_task_on_device(self, device_id: str, task_request: TaskRequest) -> ExecutionResult:
@@ -317,17 +323,20 @@ class ConstellationDeviceManager:
         except ConnectionError as e:
             self.logger.error(f'❌ Device {device_id} disconnected during task {task_request.task_id}: {e}')
             result = ExecutionResult(task_id=task_request.task_id, status=TaskStatus.FAILED, error=str(e), result={'error_type': 'device_disconnection', 'message': f'Device {device_id} disconnected during task execution', 'device_id': device_id, 'task_id': task_request.task_id}, metadata={'device_id': device_id, 'disconnected': True, 'error_category': 'connection_error'})
-            self.task_queue_manager.fail_task(device_id, task_request.task_id, e)
+            # Queued callers get the same FAILED result as direct callers.
+            self.task_queue_manager.complete_task(device_id, task_request.task_id, result)
             return result
         except asyncio.TimeoutError as e:
             self.logger.error(f'❌ Task {task_request.task_id} timed out on device {device_id}')
             result = ExecutionResult(task_id=task_request.task_id, status=TaskStatus.FAILED, error=f'Task execution timed out after {task_request.timeout} seconds', result={'error_type': 'timeout', 'message': f'Task timed out after {task_request.timeout} seconds', 'device_id': device_id, 'task_id': task_request.task_id}, metadata={'device_id': device_id, 'timeout': task_request.timeout, 'error_category': 'timeout_error'})
-            self.task_queue_manager.fail_task(device_id, task_request.task_id, e)
+            # Queued callers get the same FAILED result as direct callers.
+            self.task_queue_manager.complete_task(device_id, task_request.task_id, result)
             return result
         except Exception as e:
             self.logger.error(f'❌ Task {task_request.task_id} failed on device {device_id}: {e}')
             result = ExecutionResult(task_id=task_request.task_id, status=TaskStatus.FAILED, error=str(e), result={'error_type': 'execution_error', 'message': str(e), 'device_id': device_id, 'task_id': task_request.task_id}, metadata={'device_id': device_id, 'error_category': 'general_error'})
-            self.task_queue_manager.fail_task(device_id, task_request.task_id, e)
+            # Queued callers get the same FAILED result as direct callers.
+            self.task_queue_manager.complete_task(device_id, task_request.task_id, result)
             return result
         finally:
             self.device_registry.set_device_idle(device_id, task_request.task_id)
@@ -383,7 +392,7 @@ class ConstellationDeviceManager:
         device_info = self.device_registry.get_device(device_id)
         if not device_info:
             return {'error': f'Device {device_id} not found'}
-        return {'device_id': device_info.device_id, 'status': device_info.status.value, 'server_url': device_info.server_url, 'capabilities': device_info.capabilities, 'metadata': device_info.metadata, 'last_heartbeat': device_info.last_heartbeat.isoformat() if device_info.last_heartbeat else None, 'connection_attempts': device_info.connection_attempts, 'max_retries': device_info.max_retries, 'current_task_id': device_info.current_task_id, 'queued_tasks': self.task_queue_manager.get_queue_size(device_id), 'queued_task_ids': self.task_queue_manager.get_queued_task_ids(device_id)}
+        return {'device_id': device_info.device_id, 'status': device_info.status.value, 'server_url': redact(device_info.server_url), 'capabilities': device_info.capabilities, 'metadata': device_info.metadata, 'last_heartbeat': device_info.last_heartbeat.isoformat() if device_info.last_heartbeat else None, 'connection_attempts': device_info.connection_attempts, 'max_retries': device_info.max_retries, 'current_task_id': device_info.current_task_id, 'queued_tasks': self.task_queue_manager.get_queue_size(device_id), 'queued_task_ids': self.task_queue_manager.get_queued_task_ids(device_id)}
 
     def get_task_queue_status(self, device_id: str) -> Dict[str, Any]:
         """

@@ -258,7 +258,7 @@ class TestStrategyBehaviorDifferentiation:
         return context
 
     @pytest.mark.asyncio
-    @patch("galaxy.agents.processors.strategies.base_constellation_strategy.json")
+    @patch("ufo.galaxy.agents.processors.strategies.base_constellation_strategy.json")
 
     async def test_creation_vs_editing_llm_strategies_different_behavior(
         self, mock_json, mock_agent, mock_context

@@ -6,6 +6,7 @@ Serves as a support component for the main GalaxyClient system.
 """
 import logging
 from typing import Any, Dict, List, Optional
+from ufo.utils.redact import redact
 from .config_loader import ConstellationConfig, DeviceConfig
 from .device_manager import ConstellationDeviceManager
 
@@ -123,7 +124,7 @@ class ConstellationClient:
 
     def get_config_summary(self) -> Dict[str, Any]:
         """Get a summary of the current configuration."""
-        return {'task_name': self.config.task_name, 'devices_count': len(self.config.devices), 'devices': [{'device_id': device.device_id, 'server_url': device.server_url, 'capabilities': device.capabilities, 'auto_connect': device.auto_connect} for device in self.config.devices], 'settings': {'heartbeat_interval': self.config.heartbeat_interval, 'reconnect_delay': self.config.reconnect_delay, 'max_concurrent_tasks': self.config.max_concurrent_tasks}}
+        return {'task_name': self.config.task_name, 'devices_count': len(self.config.devices), 'devices': [{'device_id': device.device_id, 'server_url': redact(device.server_url), 'capabilities': device.capabilities, 'auto_connect': device.auto_connect} for device in self.config.devices], 'settings': {'heartbeat_interval': self.config.heartbeat_interval, 'reconnect_delay': self.config.reconnect_delay, 'max_concurrent_tasks': self.config.max_concurrent_tasks}}
 
     async def add_device_to_config(self, device_id: str, server_url: str, capabilities: Optional[List[str]]=None, metadata: Optional[Dict[str, Any]]=None, auto_connect: bool=True, register_immediately: bool=True) -> bool:
         """Add a new device to the configuration and optionally register it."""

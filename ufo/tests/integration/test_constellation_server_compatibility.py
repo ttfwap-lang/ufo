@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime, timezone
 import json
 
-from aip.messages import (
+from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
     ClientType,
@@ -21,11 +21,11 @@ from aip.messages import (
     ServerMessageType,
     TaskStatus,
 )
-from aip.protocol.registration import RegistrationProtocol
-from aip.protocol.heartbeat import HeartbeatProtocol
-from aip.protocol.task_execution import TaskExecutionProtocol
-from aip.protocol.device_info import DeviceInfoProtocol
-from aip.transport.websocket import WebSocketTransport
+from ufo.aip.protocol.registration import RegistrationProtocol
+from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+from ufo.aip.protocol.task_execution import TaskExecutionProtocol
+from ufo.aip.protocol.device_info import DeviceInfoProtocol
+from ufo.aip.transport.websocket import WebSocketTransport
 
 
 class MockServer:

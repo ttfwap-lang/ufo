@@ -126,7 +126,7 @@ class TestAgentPresenterIntegration(unittest.TestCase):
     def test_list_action_command_info_color_print(self, mock_console_class):
         """Test that ListActionCommandInfo.color_print uses presenter"""
         from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
-        from aip.messages import Result, ResultStatus
+        from ufo.aip.messages import Result, ResultStatus
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
         action1 = Mock(spec=ActionCommandInfo)

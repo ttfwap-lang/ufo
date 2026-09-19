@@ -30,9 +30,9 @@ from ufo.module.context import Context
 @pytest_asyncio.fixture
 def mock_session():
     """Create a mock GalaxySession for testing."""
-    with patch("galaxy.session.galaxy_session.get_galaxy_config"), patch(
-        "galaxy.session.galaxy_session.utils"
-    ), patch("galaxy.session.galaxy_session.get_event_bus"):
+    with patch("ufo.galaxy.session.galaxy_session.get_galaxy_config"), patch(
+        "ufo.galaxy.session.galaxy_session.utils"
+    ), patch("ufo.galaxy.session.galaxy_session.get_event_bus"):
 
         mock_client = MagicMock()
         mock_client.device_manager = MagicMock()
@@ -91,7 +91,7 @@ async def test_request_cancellation_without_constellation(mock_session):
 async def test_round_checks_cancellation_flag():
     """Test that GalaxyRound checks cancellation flag during execution."""
     # Arrange
-    with patch("galaxy.session.galaxy_session.get_galaxy_config"):
+    with patch("ufo.galaxy.session.galaxy_session.get_galaxy_config"):
         mock_agent = MagicMock(spec=ConstellationAgent)
         mock_agent.handle = AsyncMock()
         mock_agent.state = MagicMock()
@@ -143,7 +143,7 @@ async def test_round_checks_cancellation_flag():
 async def test_round_stops_immediately_on_cancellation():
     """Test that round stops immediately when cancellation is requested."""
     # Arrange
-    with patch("galaxy.session.galaxy_session.get_galaxy_config"):
+    with patch("ufo.galaxy.session.galaxy_session.get_galaxy_config"):
         mock_agent = MagicMock(spec=ConstellationAgent)
         mock_agent.handle = AsyncMock()
         mock_agent.state = MagicMock()

@@ -70,6 +70,12 @@ class TaskConstellation(IConstellation):
         """Get the constellation state."""
         return self._state
 
+    @state.setter
+    def state(self, value: ConstellationState) -> None:
+        """Set the state explicitly (e.g. CANCELLED when the orchestrator stops execution)."""
+        self._state = value
+        self._updated_at = datetime.now(timezone.utc)
+
     @property
     def tasks(self) -> Dict[str, TaskStar]:
         """Get a copy of all tasks."""
@@ -324,6 +330,8 @@ class TaskConstellation(IConstellation):
 
     def update_state(self) -> None:
         """Update the constellation state based on task states."""
+        if self._state == ConstellationState.CANCELLED:
+            return  # terminal: late task updates must not revive a cancelled run
         if not self._tasks:
             self._state = ConstellationState.CREATED
             return

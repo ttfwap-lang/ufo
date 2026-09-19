@@ -10,7 +10,7 @@ Tests endpoint implementations for server, client, and constellation.
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from aip.endpoints import (
+from ufo.aip.endpoints import (
     AIPEndpoint,
     DeviceServerEndpoint,
     DeviceClientEndpoint,
@@ -113,7 +113,7 @@ class TestBackwardCompatibility:
 
     def test_import_from_contracts(self):
         """Test importing from ufo.contracts.contracts works."""
-        from aip.messages import (
+        from ufo.aip.messages import (
             ClientMessage,
             ClientMessageType,
             ServerMessage,
@@ -128,7 +128,7 @@ class TestBackwardCompatibility:
 
     def test_message_creation_compatibility(self):
         """Test creating messages with old import path."""
-        from aip.messages import ClientMessage, ClientMessageType, TaskStatus
+        from ufo.aip.messages import ClientMessage, ClientMessageType, TaskStatus
 
         msg = ClientMessage(
             type=ClientMessageType.HEARTBEAT,

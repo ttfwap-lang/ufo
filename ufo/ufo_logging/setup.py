@@ -105,6 +105,11 @@ def setup_logger(level: str = logging.INFO):
         json_file_handler.setFormatter(ScrubbingJSONFormatter())
         root_logger.addHandler(json_file_handler)
 
+        # Mask secrets (e.g. ?token= in device server URLs) on every handler.
+        from ufo.utils.redact import RedactingFilter
+        for handler in root_logger.handlers:
+            handler.addFilter(RedactingFilter())
+
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     """
     Global exception handler to ensure unhandled exceptions are caught and logged with full stack traces.

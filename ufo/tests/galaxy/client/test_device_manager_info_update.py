@@ -60,7 +60,7 @@ class TestDeviceManagerInfoUpdate:
         # Mock background services
         manager.message_processor.start_message_handler = Mock()
         manager.heartbeat_manager.start_heartbeat = Mock()
-        manager.event_manager.notify_device_connected = AsyncMock()
+        manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Connect to device
         success = await manager.connect_device(device_id)
@@ -152,7 +152,7 @@ class TestDeviceManagerInfoUpdate:
         # Mock background services
         manager.message_processor.start_message_handler = Mock()
         manager.heartbeat_manager.start_heartbeat = Mock()
-        manager.event_manager.notify_device_connected = AsyncMock()
+        manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Connect to device
         success = await manager.connect_device(device_id)
@@ -226,7 +226,7 @@ class TestDeviceManagerInfoUpdate:
             # Mock background services
             manager.message_processor.start_message_handler = Mock()
             manager.heartbeat_manager.start_heartbeat = Mock()
-            manager.event_manager.notify_device_connected = AsyncMock()
+            manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
             # Connect device
             await manager.connect_device(device_id)

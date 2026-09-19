@@ -23,6 +23,7 @@ from typing import Dict, Any
 from ufo.galaxy.client.device_manager import ConstellationDeviceManager
 from ufo.galaxy.client.components import DeviceStatus, AgentProfile, TaskRequest
 from ufo.galaxy.core.types import ExecutionResult
+from ufo.aip.messages import TaskStatus
 
 
 class TestAssignTaskToDevice:
@@ -131,7 +132,7 @@ class TestAssignTaskToDevice:
             return mock_execution_result
 
         device_manager.connection_manager.send_task_to_device = mock_send_task
-        device_manager.event_manager.notify_task_completed = AsyncMock()
+        device_manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Record initial state
         device_info = device_manager.device_registry.get_device(device_id)
@@ -178,7 +179,7 @@ class TestAssignTaskToDevice:
             return mock_execution_result
 
         device_manager.connection_manager.send_task_to_device = mock_send_task
-        device_manager.event_manager.notify_task_completed = AsyncMock()
+        device_manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Submit task (should be queued)
         task_future = asyncio.create_task(
@@ -236,7 +237,7 @@ class TestAssignTaskToDevice:
             )
 
         device_manager.connection_manager.send_task_to_device = mock_send_task
-        device_manager.event_manager.notify_task_completed = AsyncMock()
+        device_manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Submit 3 tasks concurrently
         tasks = [
@@ -286,18 +287,18 @@ class TestAssignTaskToDevice:
         device_manager.connection_manager.send_task_to_device = AsyncMock(
             side_effect=test_exception
         )
-        device_manager.event_manager.notify_task_completed = AsyncMock()
+        device_manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
-        # Assign task and expect exception
-        with pytest.raises(Exception) as exc_info:
-            await device_manager.assign_task_to_device(
-                task_id="task_001",
-                device_id=device_id,
-                task_description="Failing task",
-                task_data={},
-            )
+        # Execution errors come back as a FAILED result (the method never raises)
+        result = await device_manager.assign_task_to_device(
+            task_id="task_001",
+            device_id=device_id,
+            task_description="Failing task",
+            task_data={},
+        )
 
-        assert str(exc_info.value) == "Task execution failed"
+        assert result.status == TaskStatus.FAILED
+        assert result.error == "Task execution failed"
 
         # Verify device is set back to IDLE even after error
         device_info = device_manager.device_registry.get_device(device_id)
@@ -325,7 +326,7 @@ class TestAssignTaskToDevice:
             return mock_execution_result
 
         device_manager.connection_manager.send_task_to_device = mock_send_task
-        device_manager.event_manager.notify_task_completed = AsyncMock()
+        device_manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Submit 3 tasks
         task1 = asyncio.create_task(
@@ -361,9 +362,9 @@ class TestAssignTaskToDevice:
         # Verify task 1 succeeded
         assert results[0].is_successful is True
 
-        # Verify task 2 failed
-        assert isinstance(results[1], Exception)
-        assert "Task 2 failed" in str(results[1])
+        # Verify task 2 failed (reported as a FAILED result, not an exception)
+        assert results[1].status == TaskStatus.FAILED
+        assert "Task 2 failed" in results[1].error
 
         # Verify task 3 succeeded (queue continued after error)
         assert results[2].is_successful is True
@@ -435,7 +436,7 @@ class TestAssignTaskToDevice:
             return mock_execution_result
 
         device_manager.connection_manager.send_task_to_device = mock_send_task
-        device_manager.event_manager.notify_task_completed = AsyncMock()
+        device_manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Submit task 1 (will start executing)
         task1 = asyncio.create_task(
@@ -539,7 +540,7 @@ class TestAssignTaskToDevice:
             return mock_execution_result
 
         device_manager.connection_manager.send_task_to_device = mock_send_task
-        device_manager.event_manager.notify_task_completed = AsyncMock()
+        device_manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Submit tasks to both devices concurrently
         tasks = []
@@ -610,7 +611,7 @@ class TestAssignTaskToDevice:
             )
 
         device_manager.connection_manager.send_task_to_device = mock_slow_task
-        device_manager.event_manager.notify_task_completed = AsyncMock()
+        device_manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Assign task with short timeout
         task = asyncio.create_task(
@@ -660,7 +661,7 @@ class TestAssignTaskToDevice:
             return mock_execution_result
 
         device_manager.connection_manager.send_task_to_device = mock_send_task
-        device_manager.event_manager.notify_task_completed = AsyncMock()
+        device_manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Assign task with specific parameters
         await device_manager.assign_task_to_device(
@@ -701,8 +702,8 @@ class TestAssignTaskIntegration:
         manager.connection_manager.request_device_info = AsyncMock()
 
         # Mock event manager
-        manager.event_manager.notify_device_connected = AsyncMock()
-        manager.event_manager.notify_task_completed = AsyncMock()
+        manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
+        manager.event_bus.publish_event = AsyncMock()  # events now go through the event bus
 
         # Mock message processor and heartbeat
         manager.message_processor.start_message_handler = Mock()

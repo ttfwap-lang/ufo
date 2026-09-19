@@ -10,16 +10,16 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime, timezone
 
-from aip.messages import (
+from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
     ServerMessage,
     ServerMessageType,
     TaskStatus,
 )
-from aip.protocol.heartbeat import HeartbeatProtocol
-from aip.protocol.registration import RegistrationProtocol
-from aip.transport.websocket import WebSocketTransport
+from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+from ufo.aip.protocol.registration import RegistrationProtocol
+from ufo.aip.transport.websocket import WebSocketTransport
 
 
 class MockTransport:
@@ -139,8 +139,8 @@ async def test_websocket_transport_adapter():
     transport._websocket = mock_ws
 
     # Create adapter
-    from aip.transport.adapters import WebSocketsLibAdapter
-    from aip.transport.base import TransportState
+    from ufo.aip.transport.adapters import WebSocketsLibAdapter
+    from ufo.aip.transport.base import TransportState
 
     transport._adapter = WebSocketsLibAdapter(mock_ws)
     transport._state = TransportState.CONNECTED  # Set connected state

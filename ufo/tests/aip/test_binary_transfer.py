@@ -15,15 +15,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from aip.messages import (
+from ufo.aip.messages import (
     BinaryMetadata,
     ChunkMetadata,
     FileTransferStart,
     FileTransferComplete,
 )
-from aip.protocol import AIPProtocol
-from aip.transport import WebSocketTransport
-from aip.transport.adapters import (
+from ufo.aip.protocol import AIPProtocol
+from ufo.aip.transport import WebSocketTransport
+from ufo.aip.transport.adapters import (
     FastAPIWebSocketAdapter,
     WebSocketAdapter,
     WebSocketsLibAdapter,

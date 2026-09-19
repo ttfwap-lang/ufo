@@ -33,13 +33,27 @@ from ufo.galaxy.client.components.device_registry import DeviceRegistry
 from ufo.galaxy.client.components.heartbeat_manager import HeartbeatManager
 from ufo.galaxy.client.components.types import AgentProfile, TaskRequest
 
-from aip.messages import (
+from ufo.aip.messages import (
     ServerMessage,
     ServerMessageType,
     TaskStatus,
     ClientMessage,
     ClientMessageType,
 )
+
+
+def _attach(connection_manager, device_id, mock_websocket):
+    """Register a connected fake AIP transport for device_id (sends go to mock_websocket.send)."""
+    transport = MagicMock()
+    transport.is_connected = True
+    transport.send = mock_websocket.send
+    connection_manager._transports[device_id] = transport
+    connection_manager._task_protocols[device_id] = MagicMock()
+
+
+def _session_id(connection_manager, task_id):
+    """Pending tasks are keyed as '<constellation task_name>@<task_id>'."""
+    return f"{connection_manager.task_name}@{task_id}"
 
 
 class TestTaskResponseMechanism:
@@ -139,7 +153,8 @@ class TestTaskResponseMechanism:
 
         # Verify Future was created and is pending
         assert task_id in connection_manager._pending_tasks
-        task_future = connection_manager._pending_tasks[task_id]
+        owner, task_future = connection_manager._pending_tasks[task_id]
+        assert owner == device_id
         assert isinstance(task_future, asyncio.Future)
         assert not task_future.done()
 
@@ -451,7 +466,7 @@ class TestTaskResponseMechanism:
         4. send_task_to_device returns with result
         """
         # Set up connection
-        connection_manager._connections[device_info.device_id] = mock_websocket
+        _attach(connection_manager, device_info.device_id, mock_websocket)
         message_processor.set_connection_manager(connection_manager)
 
         # Simulate server response after delay
@@ -462,7 +477,7 @@ class TestTaskResponseMechanism:
             server_response = ServerMessage(
                 type=ServerMessageType.TASK_END,
                 response_id=task_request.task_id,
-                session_id="session_001",
+                session_id=_session_id(connection_manager, task_request.task_id),
                 status=TaskStatus.COMPLETED,
                 result={"output": "task executed successfully"},
                 timestamp=datetime.now(timezone.utc).isoformat(),
@@ -484,7 +499,7 @@ class TestTaskResponseMechanism:
         await response_task
 
         # Verify result
-        assert result.status == True  # ExecutionResult.status is a boolean
+        assert result.status == TaskStatus.COMPLETED
         assert result.result == {"output": "task executed successfully"}
         assert result.task_id == task_request.task_id
 
@@ -504,7 +519,7 @@ class TestTaskResponseMechanism:
         - No memory leaks
         """
         # Set up connection
-        connection_manager._connections[device_info.device_id] = mock_websocket
+        _attach(connection_manager, device_info.device_id, mock_websocket)
 
         # Create task with short timeout
         task_request = TaskRequest(
@@ -516,13 +531,13 @@ class TestTaskResponseMechanism:
         )
 
         # Try to send task (should timeout)
-        with pytest.raises(ConnectionError, match="timed out"):
+        with pytest.raises(asyncio.TimeoutError, match="timed out"):
             await connection_manager.send_task_to_device(
                 device_info.device_id, task_request
             )
 
         # Verify Future was cleaned up
-        assert task_request.task_id not in connection_manager._pending_tasks
+        assert _session_id(connection_manager, task_request.task_id) not in connection_manager._pending_tasks
 
     @pytest.mark.asyncio
     async def test_send_task_exception_cleans_up_future(
@@ -537,7 +552,7 @@ class TestTaskResponseMechanism:
         - No memory leaks on error
         """
         # Set up connection with failing WebSocket
-        connection_manager._connections[device_info.device_id] = mock_websocket
+        _attach(connection_manager, device_info.device_id, mock_websocket)
         mock_websocket.send.side_effect = Exception("WebSocket send failed")
 
         # Try to send task (should fail)
@@ -547,7 +562,7 @@ class TestTaskResponseMechanism:
             )
 
         # Verify Future was cleaned up
-        assert task_request.task_id not in connection_manager._pending_tasks
+        assert _session_id(connection_manager, task_request.task_id) not in connection_manager._pending_tasks
 
     @pytest.mark.asyncio
     async def test_multiple_concurrent_tasks(
@@ -563,7 +578,7 @@ class TestTaskResponseMechanism:
         - No interference between tasks
         """
         # Set up connection
-        connection_manager._connections[device_info.device_id] = mock_websocket
+        _attach(connection_manager, device_info.device_id, mock_websocket)
         message_processor.set_connection_manager(connection_manager)
 
         # Create multiple task requests
@@ -585,6 +600,7 @@ class TestTaskResponseMechanism:
                 server_response = ServerMessage(
                     type=ServerMessageType.TASK_END,
                     response_id=req.task_id,
+                    session_id=_session_id(connection_manager, req.task_id),
                     status=TaskStatus.COMPLETED,
                     result={"task_index": i},
                     timestamp=datetime.now(timezone.utc).isoformat(),
@@ -611,11 +627,11 @@ class TestTaskResponseMechanism:
         for i, result in enumerate(results):
             assert result.task_id == f"task_{i}"
             assert result.result == {"task_index": i}
-            assert result.status == True  # ExecutionResult.status is boolean
+            assert result.status == TaskStatus.COMPLETED
 
         # Verify all Futures are cleaned up
         for req in task_requests:
-            assert req.task_id not in connection_manager._pending_tasks
+            assert _session_id(connection_manager, req.task_id) not in connection_manager._pending_tasks
 
     @pytest.mark.asyncio
     async def test_task_with_error_status(
@@ -635,7 +651,7 @@ class TestTaskResponseMechanism:
         - Error information is preserved
         """
         # Set up connection
-        connection_manager._connections[device_info.device_id] = mock_websocket
+        _attach(connection_manager, device_info.device_id, mock_websocket)
         message_processor.set_connection_manager(connection_manager)
 
         # Simulate server error response
@@ -644,6 +660,7 @@ class TestTaskResponseMechanism:
             server_response = ServerMessage(
                 type=ServerMessageType.TASK_END,
                 response_id=task_request.task_id,
+                session_id=_session_id(connection_manager, task_request.task_id),
                 status=TaskStatus.ERROR,
                 error="Task execution failed: Invalid command",
                 timestamp=datetime.now(timezone.utc).isoformat(),
@@ -662,9 +679,7 @@ class TestTaskResponseMechanism:
         await response_task
 
         # Verify error status and message
-        assert (
-            result.status == False
-        )  # ExecutionResult.status is boolean (False for error)
+        assert result.status == TaskStatus.ERROR
         assert result.error == "Task execution failed: Invalid command"
 
     @pytest.mark.asyncio

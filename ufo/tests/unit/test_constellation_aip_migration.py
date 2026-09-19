@@ -13,7 +13,7 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from datetime import datetime, timezone
 
-from aip.messages import (
+from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
     ClientType,
@@ -21,9 +21,9 @@ from aip.messages import (
     ServerMessageType,
     TaskStatus,
 )
-from aip.protocol.heartbeat import HeartbeatProtocol
-from aip.protocol.registration import RegistrationProtocol
-from aip.transport.websocket import WebSocketTransport
+from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+from ufo.aip.protocol.registration import RegistrationProtocol
+from ufo.aip.transport.websocket import WebSocketTransport
 from ufo.galaxy.client.components.connection_manager import WebSocketConnectionManager
 from ufo.galaxy.client.components.heartbeat_manager import HeartbeatManager
 from ufo.galaxy.client.components.message_processor import MessageProcessor

@@ -28,7 +28,7 @@ from ufo.galaxy.client.components import (
     MessageProcessor,
 )
 from ufo.galaxy.core.types import ExecutionResult
-from aip.messages import ServerMessage, ServerMessageType, TaskStatus
+from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
 
 
 class TestDeviceDisconnectionReconnection:

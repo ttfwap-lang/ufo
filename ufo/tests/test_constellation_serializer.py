@@ -35,7 +35,7 @@ class TestConstellationSerializer:
         data = ConstellationSerializer.to_dict(constellation)
 
         assert data["name"] == "Test Constellation"
-        assert data["state"] == ConstellationState.CREATED.value
+        assert data["state"] == ConstellationState.READY.value  # has a ready task
         assert "task_1" in data["tasks"]
         assert data["tasks"]["task_1"]["description"] == "Test task"
         assert data["metadata"] == {}

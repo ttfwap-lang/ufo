@@ -13,14 +13,14 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from aip.transport.adapters import (
+from ufo.aip.transport.adapters import (
     WebSocketsLibAdapter,
     FastAPIWebSocketAdapter,
     create_adapter,
     State,
 )
-from aip.transport.websocket import WebSocketTransport
-from aip.messages import ServerMessageType, TaskStatus
+from ufo.aip.transport.websocket import WebSocketTransport
+from ufo.aip.messages import ServerMessageType, TaskStatus
 from ufo.server.services.session_manager import SessionManager, SessionOwnershipError
 from ufo.module.basic import BaseSession
 

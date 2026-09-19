@@ -32,6 +32,23 @@ class DeviceConfig:
         # instead of committing them.
         import os
         self.server_url = os.path.expandvars(self.server_url)
+        # UFO_GALAXY_AUTO_CONNECT="windowsagent,dgx_gx10" enables auto_connect for
+        # devices whose server was started for this run (e.g. the local Windows device).
+        forced = {d.strip() for d in os.environ.get("UFO_GALAXY_AUTO_CONNECT", "").split(",") if d.strip()}
+        if self.device_id in forced:
+            self.auto_connect = True
+
+def _resolve_config_path(config_path: str) -> str:
+    """Relative paths such as "config/galaxy/devices.yaml" (DEVICE_INFO) are
+    tried against the current directory first, then the ufo package root, so
+    Galaxy works whether it is launched from the package or the repo root."""
+    import os
+    if os.path.isabs(config_path) or os.path.exists(config_path):
+        return config_path
+    package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    candidate = os.path.join(package_root, config_path)
+    return candidate if os.path.exists(candidate) else config_path
+
 
 @dataclass
 class ConstellationConfig:
@@ -86,6 +103,7 @@ class ConstellationConfig:
         """
         if yaml is None:
             raise ImportError('PyYAML is required for YAML configuration files. Install with: pip install PyYAML')
+        config_path = _resolve_config_path(config_path)
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config_data = yaml.safe_load(f)

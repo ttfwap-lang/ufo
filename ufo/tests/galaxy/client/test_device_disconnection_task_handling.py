@@ -16,7 +16,7 @@ import websockets
 from ufo.galaxy.client.device_manager import ConstellationDeviceManager
 from ufo.galaxy.client.components import DeviceStatus
 from ufo.galaxy.core.types import ExecutionResult
-from aip.messages import TaskStatus
+from ufo.aip.messages import TaskStatus
 
 
 @pytest.fixture

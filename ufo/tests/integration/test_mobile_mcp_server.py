@@ -19,7 +19,7 @@ import subprocess
 import time
 from typing import Any, Dict, List, Optional
 import pytest
-from aip.messages import Command, ResultStatus
+from ufo.aip.messages import Command, ResultStatus
 from ufo.client.computer import CommandRouter, ComputerManager
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

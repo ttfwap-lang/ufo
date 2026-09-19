@@ -28,9 +28,9 @@ from ufo.galaxy.session.galaxy_session import GalaxySession
 @pytest_asyncio.fixture
 async def mock_client():
     """Create a mock GalaxyClient for testing."""
-    with patch("galaxy.galaxy_client.get_galaxy_config"), patch(
-        "galaxy.galaxy_client.ConstellationConfig"
-    ), patch("galaxy.galaxy_client.setup_logger"):
+    with patch("ufo.galaxy.galaxy_client.get_galaxy_config"), patch(
+        "ufo.galaxy.galaxy_client.ConstellationConfig"
+    ), patch("ufo.galaxy.galaxy_client.setup_logger"):
 
         client = GalaxyClient(
             session_name="test_session", task_name="test_task", log_level="ERROR"
@@ -45,6 +45,7 @@ async def mock_client():
         # Mock session
         client._session = MagicMock(spec=GalaxySession)
         client._session.force_finish = AsyncMock()
+        client._session.request_cancellation = AsyncMock()
 
         yield client
 
@@ -54,12 +55,13 @@ async def test_shutdown_without_force_no_running_task(mock_client):
     """Test shutdown(force=False) when no task is running."""
     # Arrange
     mock_client._current_request_task = None
+    session = mock_client._session  # shutdown() clears the reference
 
     # Act
     await mock_client.shutdown(force=False)
 
     # Assert
-    mock_client._session.force_finish.assert_called_once_with("Client shutdown")
+    session.force_finish.assert_called_once_with("Client shutdown")
     mock_client._client.shutdown.assert_called_once()
     assert mock_client._session is None
 
@@ -68,41 +70,36 @@ async def test_shutdown_without_force_no_running_task(mock_client):
 async def test_shutdown_without_force_with_completed_task(mock_client):
     """Test shutdown(force=False) when task has completed."""
     # Arrange
-    mock_task = AsyncMock()
-    mock_task.done.return_value = True  # Task已完成
+    mock_task = MagicMock()
+    mock_task.done.return_value = True  # task already finished
     mock_client._current_request_task = mock_task
+    session = mock_client._session
 
     # Act
     await mock_client.shutdown(force=False)
 
-    # Assert
-    # 不应该尝试取消已完成的任务
+    # Assert: a finished task is not cancelled
     mock_task.cancel.assert_not_called()
-    mock_client._session.force_finish.assert_called_once()
+    session.force_finish.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_shutdown_with_force_cancels_running_task(mock_client):
     """Test shutdown(force=True) cancels a running task."""
     # Arrange
-    mock_task = AsyncMock()
-    mock_task.done.return_value = False  # Task还在运行
-    mock_task.cancel = MagicMock()
-
-    # Mock the task to raise CancelledError when awaited
-    async def mock_wait():
-        raise asyncio.CancelledError()
-
-    mock_task.__await__ = lambda: mock_wait().__await__()
-
+    mock_task = MagicMock()
+    mock_task.done.return_value = False  # task still running
     mock_client._current_request_task = mock_task
+    session = mock_client._session
 
-    # Act
-    await mock_client.shutdown(force=True)
+    # Act: awaiting the cancelled task raises CancelledError
+    with patch("asyncio.wait_for", side_effect=asyncio.CancelledError):
+        await mock_client.shutdown(force=True)
 
-    # Assert
-    mock_task.cancel.assert_called_once()  # 应该取消任务
-    mock_client._session.force_finish.assert_called_once()
+    # Assert: running task cancelled, session cancelled (not force-finished)
+    mock_task.cancel.assert_called_once()
+    session.request_cancellation.assert_called_once()
+    session.force_finish.assert_not_called()
     mock_client._client.shutdown.assert_called_once()
 
 
@@ -110,16 +107,8 @@ async def test_shutdown_with_force_cancels_running_task(mock_client):
 async def test_shutdown_with_force_handles_timeout(mock_client):
     """Test shutdown(force=True) handles task cancellation timeout."""
     # Arrange
-    mock_task = AsyncMock()
+    mock_task = MagicMock()
     mock_task.done.return_value = False
-    mock_task.cancel = MagicMock()
-
-    # Mock the task to timeout
-    async def mock_timeout():
-        await asyncio.sleep(10)  # Simulate long-running task
-
-    mock_task.__await__ = lambda: mock_timeout().__await__()
-
     mock_client._current_request_task = mock_task
 
     # Act
@@ -161,7 +150,12 @@ async def test_process_request_saves_task_reference(mock_client):
     ), patch.object(GalaxySession, "_cleanup_observers", return_value=None):
 
         mock_session = MagicMock()
-        mock_session.run = AsyncMock()
+        release = asyncio.Event()
+
+        async def slow_run():  # keep the request in flight until released
+            await release.wait()
+
+        mock_session.run = slow_run
         mock_session._rounds = []
         mock_session.log_path = "/tmp/test"
 
@@ -173,14 +167,16 @@ async def test_process_request_saves_task_reference(mock_client):
 
         # Act
         with patch.object(mock_client, "_session", mock_session):
-            with patch("galaxy.galaxy_client.GalaxySession", return_value=mock_session):
+            with patch("ufo.galaxy.galaxy_client.GalaxySession", return_value=mock_session):
                 task = asyncio.create_task(mock_client.process_request("test request"))
                 await asyncio.sleep(0.1)  # Let task start
 
-                # Assert - task reference should be saved
+                # Assert - task reference should be saved while running
                 assert mock_client._current_request_task is not None
 
+                release.set()
                 await task
+                assert mock_client._current_request_task is None
 
 
 @pytest.mark.asyncio
@@ -203,7 +199,7 @@ async def test_process_request_clears_task_reference_on_completion(mock_client):
         mock_session.session_results = {}
 
         with patch.object(mock_client, "_session", mock_session):
-            with patch("galaxy.galaxy_client.GalaxySession", return_value=mock_session):
+            with patch("ufo.galaxy.galaxy_client.GalaxySession", return_value=mock_session):
                 # Act
                 result = await mock_client.process_request("test request")
 
@@ -227,7 +223,7 @@ async def test_process_request_clears_task_reference_on_error(mock_client):
         mock_session = MagicMock()
         mock_session.run = AsyncMock(side_effect=RuntimeError("Test error"))
 
-        with patch("galaxy.galaxy_client.GalaxySession", return_value=mock_session):
+        with patch("ufo.galaxy.galaxy_client.GalaxySession", return_value=mock_session):
             # Act
             result = await mock_client.process_request("test request")
 

@@ -34,8 +34,25 @@ import websockets
 
 from ufo.galaxy.client.device_manager import ConstellationDeviceManager
 from ufo.galaxy.client.components import DeviceStatus, AgentProfile
-from aip.messages import ServerMessage, ServerMessageType, TaskStatus
+from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
 
+
+# Restrict mocks to the websockets client API so the AIP transport picks the
+# websockets adapter (a bare AsyncMock also looks like a FastAPI WebSocket).
+WS_CLIENT_API = ["send", "recv", "close", "closed", "ping", "wait_closed"]
+
+
+def _recv_once(message):
+    """recv() that delivers one message and then stays quiet like a real idle socket."""
+    delivered = []
+
+    async def recv():
+        if not delivered:
+            delivered.append(True)
+            return message
+        await asyncio.Event().wait()
+
+    return recv
 
 class TestTargetDeviceNotRegistered:
     """Test suite for target device not registered scenario"""
@@ -84,7 +101,7 @@ class TestTargetDeviceNotRegistered:
         )
 
         # Mock WebSocket connection
-        mock_websocket = AsyncMock()
+        mock_websocket = AsyncMock(spec=WS_CLIENT_API)
         mock_websocket.closed = False
 
         # Mock server response: ERROR because target device not connected
@@ -97,7 +114,7 @@ class TestTargetDeviceNotRegistered:
         )
 
         # Setup mock to return error response
-        mock_websocket.recv = AsyncMock(return_value=error_response.model_dump_json())
+        mock_websocket.recv = _recv_once(error_response.model_dump_json())
         mock_websocket.send = AsyncMock()
         mock_websocket.close = AsyncMock()
 
@@ -146,7 +163,7 @@ class TestTargetDeviceNotRegistered:
         )
 
         # Mock WebSocket
-        mock_websocket = AsyncMock()
+        mock_websocket = AsyncMock(spec=WS_CLIENT_API)
         mock_websocket.closed = False
         mock_websocket.send = AsyncMock()
         mock_websocket.close = AsyncMock()
@@ -169,18 +186,17 @@ class TestTargetDeviceNotRegistered:
         )
 
         # Create two separate mock websockets for each connection attempt
-        mock_websocket1 = AsyncMock()
+        mock_websocket1 = AsyncMock(spec=WS_CLIENT_API)
         mock_websocket1.closed = False
         mock_websocket1.send = AsyncMock()
         mock_websocket1.close = AsyncMock()
-        mock_websocket1.recv = AsyncMock(return_value=error_response.model_dump_json())
+        mock_websocket1.recv = _recv_once(error_response.model_dump_json())
 
-        mock_websocket2 = AsyncMock()
+        mock_websocket2 = AsyncMock(spec=WS_CLIENT_API)
         mock_websocket2.closed = False
         mock_websocket2.send = AsyncMock()
         mock_websocket2.close = AsyncMock()
-        mock_websocket2.recv = AsyncMock(
-            return_value=success_response.model_dump_json()
+        mock_websocket2.recv = _recv_once(success_response.model_dump_json()
         )
 
         # Mock websockets.connect to return different websockets for each call
@@ -237,7 +253,7 @@ class TestTargetDeviceNotRegistered:
         )
 
         # Mock WebSocket that never responds
-        mock_websocket = AsyncMock()
+        mock_websocket = AsyncMock(spec=WS_CLIENT_API)
         mock_websocket.closed = False
         mock_websocket.send = AsyncMock()
         mock_websocket.close = AsyncMock()
@@ -288,7 +304,7 @@ class TestTargetDeviceNotRegistered:
         )
 
         # Mock WebSocket with error response
-        mock_websocket = AsyncMock()
+        mock_websocket = AsyncMock(spec=WS_CLIENT_API)
         mock_websocket.closed = False
         mock_websocket.send = AsyncMock()
         mock_websocket.close = AsyncMock()
@@ -301,7 +317,7 @@ class TestTargetDeviceNotRegistered:
             response_id="error_response",
         )
 
-        mock_websocket.recv = AsyncMock(return_value=error_response.model_dump_json())
+        mock_websocket.recv = _recv_once(error_response.model_dump_json())
 
         # Mock websockets.connect as an async function
         async def mock_connect(*args, **kwargs):
@@ -347,7 +363,7 @@ class TestTargetDeviceNotRegistered:
         assert initial_attempts == 0
 
         # Mock WebSocket with error response
-        mock_websocket = AsyncMock()
+        mock_websocket = AsyncMock(spec=WS_CLIENT_API)
         mock_websocket.closed = False
         mock_websocket.send = AsyncMock()
         mock_websocket.close = AsyncMock()
@@ -360,7 +376,7 @@ class TestTargetDeviceNotRegistered:
             response_id="error_response",
         )
 
-        mock_websocket.recv = AsyncMock(return_value=error_response.model_dump_json())
+        mock_websocket.recv = _recv_once(error_response.model_dump_json())
 
         # Mock websockets.connect as an async function
         async def mock_connect(*args, **kwargs):

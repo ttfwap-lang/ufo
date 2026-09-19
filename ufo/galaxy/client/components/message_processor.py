@@ -181,6 +181,10 @@ class MessageProcessor:
             elif server_msg.type == ServerMessageType.HEARTBEAT:
                 if server_msg.status == TaskStatus.OK:
                     self.connection_manager.complete_registration_response(device_id, success=True)
+                elif server_msg.status in (TaskStatus.ERROR, TaskStatus.FAILED):
+                    # A rejecting reply must resolve a pending registration instead
+                    # of leaving it to the 30 s timeout with no reason logged.
+                    self.connection_manager.complete_registration_response(device_id, success=False, error_message=server_msg.error)
                 self.heartbeat_manager.handle_heartbeat_response(device_id)
             elif server_msg.type == ServerMessageType.COMMAND:
                 await self._handle_command_message(device_id, server_msg)

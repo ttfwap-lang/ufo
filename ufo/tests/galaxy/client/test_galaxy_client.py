@@ -40,7 +40,8 @@ class TestGalaxyClient:
         mock_session._rounds = {}
         mock_session.run = AsyncMock()
         mock_session.force_finish = AsyncMock()
-        mock_session._current_constellation = None
+        mock_session.current_constellation = None
+        mock_session.session_results = {}
         mock_session.log_path = "test/path"
         return mock_session
 
@@ -50,7 +51,7 @@ class TestGalaxyClient:
         client = GalaxyClient()
         assert client.session_name.startswith("galaxy_session_")
         assert client.max_rounds == 10
-        assert client.output_dir == Path("./logs")
+        assert client.output_dir is None  # defaults to the session's log path
 
         # Test custom initialization
         custom_client = GalaxyClient(
@@ -78,9 +79,10 @@ class TestGalaxyClient:
         ):
             await client.initialize()
 
-            # Verify initialization
+            # initialize() sets up the constellation client; a GalaxySession is
+            # created per request in process_request().
             assert client._client == mock_constellation_client
-            assert client._session == mock_galaxy_session
+            assert client._session is None
             mock_constellation_client.initialize.assert_called_once()
 
     @pytest.mark.asyncio
@@ -88,9 +90,9 @@ class TestGalaxyClient:
         self, mock_constellation_client, mock_galaxy_session
     ):
         """Test processing a single request."""
-        client = GalaxyClient(session_name="test_session")
+        client = GalaxyClient(session_name="test_session", task_name="test_task")
         client._client = mock_constellation_client
-        client._session = mock_galaxy_session
+        mock_constellation_client.device_manager.device_registry.get_all_devices.return_value = {}
 
         # Mock constellation for result testing
         mock_constellation = MagicMock()
@@ -100,9 +102,10 @@ class TestGalaxyClient:
         mock_constellation.dependencies = []
         mock_constellation.state = MagicMock()
         mock_constellation.state.value = "completed"
-        mock_galaxy_session._current_constellation = mock_constellation
+        mock_galaxy_session.current_constellation = mock_constellation
 
-        result = await client.process_request("Create a test workflow", "test_task")
+        with patch("ufo.galaxy.galaxy_client.GalaxySession", return_value=mock_galaxy_session):
+            result = await client.process_request("Create a test workflow")
 
         # Verify request processing
         assert result["status"] == "completed"
@@ -119,12 +122,13 @@ class TestGalaxyClient:
         """Test processing request with failure."""
         client = GalaxyClient(session_name="test_session")
         client._client = mock_constellation_client
-        client._session = mock_galaxy_session
+        mock_constellation_client.device_manager.device_registry.get_all_devices.return_value = {}
 
         # Mock session run to raise an exception
         mock_galaxy_session.run.side_effect = Exception("Test error")
 
-        result = await client.process_request("Failing request")
+        with patch("ufo.galaxy.galaxy_client.GalaxySession", return_value=mock_galaxy_session):
+            result = await client.process_request("Failing request")
 
         # Verify error handling
         assert result["status"] == "failed"
@@ -177,7 +181,8 @@ class TestGalaxyClient:
         self, mock_constellation_client
     ):
         """Test that GalaxyClient uses the correct GalaxySession interface."""
-        client = GalaxyClient(session_name="test_session")
+        client = GalaxyClient(session_name="test_session", task_name="test_task")
+        mock_constellation_client.device_manager.device_registry.get_all_devices.return_value = {}
 
         with patch(
             "ufo.galaxy.galaxy_client.ConstellationClient",
@@ -186,17 +191,24 @@ class TestGalaxyClient:
             # Mock GalaxySession constructor to verify correct parameters
             with patch("ufo.galaxy.galaxy_client.GalaxySession") as mock_session_class:
                 mock_session = MagicMock()
+                mock_session.run = AsyncMock()
+                mock_session.current_constellation = None
+                mock_session.session_results = {}
+                mock_session._rounds = {}
                 mock_session_class.return_value = mock_session
 
                 await client.initialize()
+                mock_session_class.assert_not_called()  # created per request
+
+                await client.process_request("hello")
 
                 # Verify GalaxySession is called with correct parameters
                 mock_session_class.assert_called_once_with(
-                    task="test_session",
+                    task="test_task",
                     should_evaluate=False,
-                    id="test_session",
+                    id="test_session_test_task",
                     client=mock_constellation_client,
-                    initial_request="",
+                    initial_request="hello",
                 )
 
     def test_status_display_integration(self):
@@ -242,8 +254,10 @@ class TestGalaxyClientIntegration:
             mock_session.force_finish = AsyncMock()
             mock_session._rounds = {}
             mock_session.log_path = "test/path"
-            mock_session._current_constellation = None
+            mock_session.current_constellation = None
+            mock_session.session_results = {}
             mock_session_class.return_value = mock_session
+            mock_client.device_manager.device_registry.get_all_devices.return_value = {}
 
             # Initialize client
             await client.initialize()

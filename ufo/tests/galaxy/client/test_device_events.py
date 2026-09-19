@@ -141,7 +141,7 @@ async def test_device_status_changed_event():
                 new_callable=AsyncMock,
             ) as mock_send_task:
                 from ufo.galaxy.core.types import ExecutionResult
-                from aip.messages import TaskStatus
+                from ufo.aip.messages import TaskStatus
 
                 # Mock successful task execution
                 mock_send_task.return_value = ExecutionResult(

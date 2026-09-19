@@ -9,7 +9,7 @@ Tests message validation, serialization, and deserialization.
 
 import pytest
 
-from aip.messages import (
+from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
     ClientType,

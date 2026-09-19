@@ -9,7 +9,7 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from aip.messages import (
+from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
     Command,
@@ -97,7 +97,7 @@ async def test_websocket_command_dispatcher_with_aip():
     assert dispatcher.protocol is not None
 
     # Manually set transport to connected state (mock doesn't auto-connect)
-    from aip.transport.base import TransportState
+    from ufo.aip.transport.base import TransportState
 
     dispatcher.transport._state = TransportState.CONNECTED
 

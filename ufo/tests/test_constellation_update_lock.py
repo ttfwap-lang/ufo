@@ -14,6 +14,14 @@ import pytest
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+pytest.skip(
+    "Superseded design: TaskConstellation no longer carries an _update_lock. The "
+    "orchestrator/agent editing race is handled by ConstellationModificationSynchronizer, "
+    "covered by test_constellation_sync_integration.py, test_constellation_sync_observer.py "
+    "and test_race_condition_real.py.",
+    allow_module_level=True,
+)
+
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
 from ufo.galaxy.constellation.enums import TaskStatus, TaskPriority, DeviceType

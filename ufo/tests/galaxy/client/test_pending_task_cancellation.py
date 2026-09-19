@@ -13,7 +13,7 @@ import websockets
 from ufo.galaxy.client.device_manager import ConstellationDeviceManager
 from ufo.galaxy.client.components import DeviceStatus
 from ufo.galaxy.core.types import ExecutionResult
-from aip.messages import TaskStatus
+from ufo.aip.messages import TaskStatus
 
 
 @pytest.fixture
@@ -104,7 +104,7 @@ async def test_disconnect_device_cancels_pending_tasks(device_manager):
 
     # Create mock websocket
     mock_websocket = AsyncMock()
-    device_manager.connection_manager._connections[device_id] = mock_websocket
+    device_manager.connection_manager._transports[device_id] = mock_websocket  # AIP transport
 
     # Create pending tasks
     task_1_future = asyncio.Future()
@@ -223,7 +223,7 @@ async def test_multiple_pending_tasks_all_cancelled_on_disconnection(device_mana
 
     # Create mock websocket
     mock_websocket = AsyncMock()
-    device_manager.connection_manager._connections[device_id] = mock_websocket
+    device_manager.connection_manager._transports[device_id] = mock_websocket  # AIP transport
 
     # Trigger disconnection
     await device_manager.connection_manager.disconnect_device(device_id)

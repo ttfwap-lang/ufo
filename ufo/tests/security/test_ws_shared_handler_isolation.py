@@ -93,7 +93,7 @@ if "ufo.utils" not in sys.modules:
 
 from starlette.websockets import WebSocketState  # noqa: E402
 
-from aip.messages import (  # noqa: E402
+from ufo.aip.messages import (  # noqa: E402
     ClientMessage,
     ClientMessageType,
     ClientType,

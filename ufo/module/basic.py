@@ -69,6 +69,8 @@ class FileWriter:
         Write message to file.
         :param message: Message to write
         """
+        from ufo.utils.redact import redact
+        message = redact(message)  # device URLs carry ?token= secrets
         try:
             with open(self.file_path, self.mode, encoding='utf-8') as f:
                 f.write(message)

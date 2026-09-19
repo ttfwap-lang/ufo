@@ -11,7 +11,7 @@ import asyncio
 
 import pytest
 
-from aip import (
+from ufo.aip import (
     AIPProtocol,
     ClientMessage,
     ClientMessageType,
@@ -22,7 +22,7 @@ from aip import (
     TaskStatus,
     WebSocketTransport,
 )
-from aip.transport import TransportState
+from ufo.aip.transport import TransportState
 
 
 class MockWebSocketTransport(WebSocketTransport):
@@ -90,7 +90,7 @@ class TestProtocolIntegration:
     @pytest.mark.asyncio
     async def test_heartbeat_exchange(self):
         """Test heartbeat message exchange."""
-        from aip.protocol.heartbeat import HeartbeatProtocol
+        from ufo.aip.protocol.heartbeat import HeartbeatProtocol
 
         # Client protocol
         client_transport = MockWebSocketTransport()
@@ -112,7 +112,7 @@ class TestMessageFlow:
     @pytest.mark.asyncio
     async def test_task_request_flow(self):
         """Test task request and response flow."""
-        from aip.protocol.task_execution import TaskExecutionProtocol
+        from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 
         transport = MockWebSocketTransport()
         protocol = TaskExecutionProtocol(transport)
