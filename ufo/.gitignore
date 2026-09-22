@@ -138,3 +138,6 @@ uac_trigger.json
 uac_verify*.json
 uac_worker_alive.json
 uac_setup_done.json
+
+# gx10 runner secrets
+/gx10_runner/.env

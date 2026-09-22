@@ -1,0 +1,21 @@
+services:
+  tg-runner:
+    build: .
+    container_name: ufo-tg-runner
+    restart: always
+    env_file:
+      - .env
+    # The runner only talks to the Telegram API and local tooling.
+    # For host tools (nvidia-smi, docker ps) we mount the needed paths
+    # read-only when they are available on the host.
+    volumes:
+      - runner-data:/data
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  runner-data:
