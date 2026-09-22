@@ -102,8 +102,8 @@ class ScreenLockout:
             self._state = "released"
             return False
 
-        # Global hotkey polling (ESC/P) - the ONLY key handler (no double toggles)
-        self._start_hotkey_polling()
+        # Global hotkeys (RegisterHotKey) - the ONLY key handler (no double toggles)
+        self._start_hotkeys()
         # Focus keeper: overlay stays topmost-dim and owns foreground normally
         self._focus_keeper = threading.Thread(target=self._keep_focus, daemon=True)
         self._focus_keeper.start()
@@ -116,6 +116,11 @@ class ScreenLockout:
             time.sleep(1)
 
         if self._state == "stopping":
+            # User opted out during countdown - fully tear down the overlay
+            # so the machine is not left locked.
+            await self.release()
+            return False
+        if self._state == "released":
             return False
 
         self._state = "locked"
@@ -413,15 +418,9 @@ class ScreenLockout:
         import win32gui
         import win32con
 
-        def _get_overlay_hwnd() -> Optional[int]:
-            try:
-                return int(self._root.winfo_id()) if self._root is not None else None
-            except Exception:
-                return None
-
         while self._keep_running and self._state != "released":
             try:
-                hwnd = _get_overlay_hwnd()
+                hwnd = self._get_toplevel_hwnd(self._root) if self._root is not None else 0
                 if hwnd:
                     # Always on top - the screen stays dimmed/covered
                     win32gui.SetWindowPos(
@@ -456,38 +455,160 @@ class ScreenLockout:
                 pass
             time.sleep(0.35)
 
-    # ==================== Global hotkey polling (reliable) ====================
+    # ==================== Global hotkeys (RegisterHotKey - reliable) ====================
 
-    def _start_hotkey_polling(self) -> None:
+    def _start_hotkeys(self) -> None:
+        """Start the RegisterHotKey message loop (reliable global hotkeys).
+
+        RegisterHotKey is the OS-native mechanism: it delivers WM_HOTKEY
+        messages for real AND synthesized key presses, unlike
+        GetAsyncKeyState polling which can miss fast taps and did not detect
+        synthesized input in verification tests.
+        """
         self._hotkey_thread = threading.Thread(
-            target=self._poll_hotkeys, daemon=True
+            target=self._hotkey_message_loop, daemon=True
         )
         self._hotkey_thread.start()
         logger.info(
-            f"Global hotkey monitor started (stop={self._stop_label}, "
+            f"Global hotkeys registered (stop={self._stop_label}, "
             f"pause={self._pause_label})"
         )
 
-    def _poll_hotkeys(self) -> None:
-        """Poll the stop/pause hotkeys globally with edge detection.
+    def _hotkey_message_loop(self) -> None:
+        """Message loop with a message-only window that receives WM_HOTKEY."""
+        import ctypes
+        from ctypes import wintypes
 
-        Works regardless of which window has focus - even if the overlay
-        loses foreground, the hotkeys still respond.
-        """
         user32 = ctypes.windll.user32
-        while self._keep_running and self._state not in ("released", "stopping"):
+        kernel32 = ctypes.windll.kernel32
+
+        WM_HOTKEY = 0x0312
+        PM_REMOVE = 0x0001
+        HWND_MESSAGE = -3
+
+        # LRESULT CALLBACK(HWND, UINT, WPARAM, LPARAM) - LRESULT is pointer-sized
+        WNDPROC = ctypes.WINFUNCTYPE(
+            ctypes.c_ssize_t, wintypes.HWND, ctypes.c_uint,
+            wintypes.WPARAM, wintypes.LPARAM,
+        )
+
+        class WNDCLASS(ctypes.Structure):
+            _fields_ = [
+                ("style", ctypes.c_uint),
+                ("lpfnWndProc", WNDPROC),
+                ("cbClsExtra", ctypes.c_int),
+                ("cbWndExtra", ctypes.c_int),
+                ("hInstance", wintypes.HINSTANCE),
+                ("hIcon", wintypes.HICON),
+                ("hCursor", wintypes.HANDLE),
+                ("hbrBackground", wintypes.HBRUSH),
+                ("lpszMenuName", wintypes.LPCWSTR),
+                ("lpszClassName", wintypes.LPCWSTR),
+            ]
+
+        def wnd_proc(hwnd, msg, wparam, lparam):
             try:
-                stop = bool(user32.GetAsyncKeyState(self._stop_vk) & 0x8000)
-                pause = bool(user32.GetAsyncKeyState(self._pause_vk) & 0x8000)
-                if stop and not self._prev_stop:
-                    self._set_stopped()
-                if pause and not self._prev_pause:
-                    self._toggle_pause()
-                self._prev_stop = stop
-                self._prev_pause = pause
+                if msg == WM_HOTKEY:
+                    hotkey_id = wparam & 0xFFFF
+                    # Ignore hotkeys while the AI is injecting input (a burst
+                    # sends ESC/other keys itself; they must not self-cancel).
+                    if not self._in_input_burst:
+                        if hotkey_id == 1:
+                            self._set_stopped()
+                        elif hotkey_id == 2:
+                            self._toggle_pause()
+                    return 0
+                return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
             except Exception:
-                pass
-            time.sleep(0.04)
+                return 0
+
+        # Keep the callback object alive for the lifetime of the loop
+        self._wnd_proc_ref = WNDPROC(wnd_proc)
+
+        cls_name = f"UFO_HotkeyWnd_{id(self)}"
+        wc = WNDCLASS()
+        wc.lpfnWndProc = self._wnd_proc_ref
+        wc.hInstance = kernel32.GetModuleHandleW(None)
+        wc.lpszClassName = cls_name
+        registered = user32.RegisterClassW(ctypes.byref(wc))
+        if not registered:
+            # Class may already exist from a previous instance - skip
+            pass
+
+        hwnd = user32.CreateWindowExW(
+            0, cls_name, "ufo_hotkeys", 0, 0, 0, 0, 0,
+            HWND_MESSAGE, None, wc.hInstance, None,
+        )
+        if not hwnd:
+            logger.warning("Hotkey message window creation failed")
+            return
+
+        ok_stop = user32.RegisterHotKey(hwnd, 1, 0, self._stop_vk)
+        ok_pause = user32.RegisterHotKey(hwnd, 2, 0, self._pause_vk)
+        logger.info(f"RegisterHotKey result: stop={bool(ok_stop)}, pause={bool(ok_pause)}")
+
+        msg = wintypes.MSG()
+        while self._keep_running and self._state != "released":
+            r = user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, PM_REMOVE)
+            if r != 0:
+                try:
+                    user32.TranslateMessage(ctypes.byref(msg))
+                    user32.DispatchMessageW(ctypes.byref(msg))
+                except Exception:
+                    pass
+            else:
+                time.sleep(0.01)
+
+        user32.UnregisterHotKey(hwnd, 1)
+        user32.UnregisterHotKey(hwnd, 2)
+        user32.DestroyWindow(hwnd)
+
+    # ==================== Input/click bursts ====================
+
+    def begin_input_burst(self) -> None:
+        """Mark AI input injection: focus keeper yields foreground + hotkeys ignored."""
+        self._in_input_burst = True
+
+    def end_input_burst(self) -> None:
+        """Mark input injection finished: overlay re-owns foreground."""
+        self._in_input_burst = False
+
+    def begin_click_burst(self) -> None:
+        """Prepare for a real mouse click during lockout.
+
+        Makes the backdrop click-through (WS_EX_TRANSPARENT) and suppresses
+        hotkeys while the click is delivered to Telegram - otherwise the
+        topmost backdrop intercepts the mouse events.
+        """
+        self._in_input_burst = True
+        self._set_backdrop_click_through(True)
+
+    def end_click_burst(self) -> None:
+        """Restore the backdrop after a click burst."""
+        self._in_input_burst = False
+        self._set_backdrop_click_through(False)
+
+    def _set_backdrop_click_through(self, enabled: bool) -> None:
+        """Toggle WS_EX_TRANSPARENT on the backdrop so clicks pass through."""
+        if self._root is None:
+            return
+        try:
+            import ctypes
+            GWL_EXSTYLE = -20
+            WS_EX_TRANSPARENT = 0x00000020
+            WS_EX_LAYERED = 0x00080000
+            user32 = ctypes.windll.user32
+            hwnd = self._get_toplevel_hwnd(self._root)
+            if not hwnd:
+                return
+            style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+            if enabled:
+                style |= WS_EX_TRANSPARENT | WS_EX_LAYERED
+            else:
+                style &= ~WS_EX_TRANSPARENT
+            user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
+        except Exception:
+            pass
 
     # ==================== State transitions ====================
 
