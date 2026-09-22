@@ -2,16 +2,18 @@
 # Licensed under the MIT License.
 
 import logging
-from typing import Type
+from typing import Type, Optional
 
-from ufo.automator.app_apis.basic import WinCOMReceiverBasic
+from ufo.automator.app_apis.basic import WinCOMReceiverBasic, ReceiverBasic
 from ufo.automator.app_apis.excel.excelclient import ExcelWinCOMReceiver
 from ufo.automator.app_apis.powerpoint.powerpointclient import PowerPointWinCOMReceiver
 from ufo.automator.app_apis.shell.shell_client import ShellReceiver
+from ufo.automator.app_apis.telegram.telegram_receiver import TelegramReceiver
 from ufo.automator.app_apis.web.webclient import WebReceiver
 from ufo.automator.app_apis.word.wordclient import WordWinCOMReceiver
-from ufo.automator.basic import ReceiverBasic, ReceiverFactory
+from ufo.automator.basic import ReceiverFactory
 from ufo.automator.puppeteer import ReceiverManager
+from ufo.automation.factory import get_desktop_automation
 
 logger = logging.getLogger(__name__)
 
@@ -158,3 +160,46 @@ class ShellReceiverFactory(APIReceiverFactory):
         The name of the factory.
         """
         return "Shell"
+
+
+@ReceiverManager.register
+class TelegramReceiverFactory(APIReceiverFactory):
+    """
+    The factory class for the Telegram Desktop GUI receiver.
+    Uses hybrid UIA + Keyboard + Visual automation.
+    """
+
+    def create_receiver(
+        self, app_root_name: str, process_name: str, *args, **kwargs
+    ) -> Optional[ReceiverBasic]:
+        """
+        Create the Telegram GUI receiver.
+        :param app_root_name: The app root name (e.g., "Telegram.exe").
+        :param process_name: The process name.
+        :return: The receiver or None if not supported.
+        """
+
+        if app_root_name not in self.supported_app_roots:
+            return None
+
+        # Get the appropriate desktop automation backend
+        desktop = get_desktop_automation(process_name)
+        
+        telegram_receiver = TelegramReceiver(app_root_name, process_name, desktop)
+        logger.info(f"Telegram GUI receiver created for {app_root_name}.")
+
+        return telegram_receiver
+
+    @property
+    def supported_app_roots(self):
+        """
+        Get the supported app roots.
+        """
+        return ["Telegram.exe", "telegram.exe"]
+
+    @classmethod
+    def name(cls) -> str:
+        """
+        The name of the factory.
+        """
+        return "TelegramGUI"

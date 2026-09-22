@@ -60,8 +60,20 @@ class DesktopAutomation(Protocol):
         """Launch an application, returning its process id."""
         ...
 
+    async def connect(self, process_id: int) -> None:
+        """Connect to an existing application by process id."""
+        ...
+
+    async def connect_handle(self, hwnd: int) -> None:
+        """Connect to an existing application by window handle."""
+        ...
+
+    async def window_from_handle(self, hwnd: int) -> Element:
+        """Build an Element for a window handle (title-independent)."""
+        ...
+
     async def find_window(
-        self, title_re: str, class_name: Optional[str] = None
+        self, title_re: str = ".*", class_name: Optional[str] = None
     ) -> Element:
         """Find a top-level window by title regex (and optional class name)."""
         ...
@@ -82,8 +94,8 @@ class DesktopAutomation(Protocol):
         """Return the text content of the given element."""
         ...
 
-    async def screenshot(self, region: Optional[Rect] = None) -> bytes:
-        """Capture a screenshot, optionally limited to ``region``. Returns PNG bytes."""
+    async def screenshot(self, window: Optional[Element] = None, region: Optional[Rect] = None) -> bytes:
+        """Capture a screenshot of a window, optionally limited to ``region``. Returns PNG bytes."""
         ...
 
     async def close(self) -> None:

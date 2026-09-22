@@ -70,20 +70,85 @@ class UIADesktop:
         ) else None
         return self._pid or 0
 
-    async def find_window(
-        self, title_re: str, class_name: Optional[str] = None
-    ) -> Element:
-        """Find a top-level window by title regex (and optional class name)."""
+    async def connect(self, process_id: int) -> None:
+        """Connect to an existing application by process id."""
         self._ensure_imported()
-        if self._app is None:
-            raise RuntimeError("UIADesktop.launch() must be called first")
+
+        def _do_connect():
+            application = self._application_cls(backend="uia").connect(process=process_id)
+            return application
+
+        self._app = await asyncio.to_thread(_do_connect)
+        self._pid = process_id
+
+    async def connect_handle(self, hwnd: int) -> None:
+        """Connect to an application by window handle (title-independent)."""
+        self._ensure_imported()
+
+        def _do_connect():
+            application = self._application_cls(backend="uia").connect(handle=hwnd)
+            return application
+
+        self._app = await asyncio.to_thread(_do_connect)
+        self._pid = None
+
+    async def window_from_handle(self, hwnd: int) -> Element:
+        """Build an Element for a window handle (title-independent)."""
+        self._ensure_imported()
+
+        def _do_build():
+            from pywinauto import Desktop
+            desktop = Desktop(backend="uia")
+            window = desktop.window(handle=hwnd)
+            window.wait("exists", timeout=10)
+            info = window.element_info
+            rect_obj = getattr(info, "rectangle", None)
+            rect = None
+            if rect_obj is not None:
+                rect = Rect(
+                    left=rect_obj.left,
+                    top=rect_obj.top,
+                    right=rect_obj.right,
+                    bottom=rect_obj.bottom,
+                )
+            return window, info, rect
+
+        window, info, rect = await asyncio.to_thread(_do_build)
+        return Element(
+            handle=window,
+            name=getattr(info, "name", None),
+            class_name=getattr(info, "class_name", None),
+            rect=rect,
+            automation_id=getattr(info, "automation_id", None),
+        )
+
+    async def find_window(
+        self, title_re: str = ".*", class_name: Optional[str] = None
+    ) -> Element:
+        """Find a top-level window by title regex (and optional class name).
+
+        ``title_re`` defaults to ``.*`` so class-only searches work - many
+        apps (e.g. Telegram) change their window title to reflect the active
+        document/chat.
+        
+        If connected to an application (via launch() or connect()), searches within that app.
+        Otherwise, searches all top-level windows using pywinauto's Desktop class.
+        """
+        self._ensure_imported()
 
         kwargs = {"title_re": title_re}
         if class_name:
             kwargs["class_name"] = class_name
 
         def _do_find():
-            window = self._app.window(**kwargs)
+            if self._app is not None:
+                # Search within connected application
+                window = self._app.window(**kwargs)
+            else:
+                # Search all top-level windows using Desktop
+                from pywinauto import Desktop
+                desktop = Desktop(backend="uia")
+                window = desktop.window(**kwargs)
             window.wait("exists", timeout=10)
             info = window.element_info
             rect_obj = getattr(info, "rectangle", None)
@@ -154,15 +219,103 @@ class UIADesktop:
 
         return await asyncio.to_thread(_do_get)
 
-    async def screenshot(self, region: Optional[Rect] = None) -> bytes:
-        if self._app is None:
-            raise RuntimeError("UIADesktop.launch() must be called first")
+    async def screenshot(self, window: Optional[Element] = None, region: Optional[Rect] = None) -> bytes:
+        """Capture a screenshot of a specific window (or the app's top window).
+
+        Uses the window's own HWND with PrintWindow for reliability - works even
+        when the target window is behind other windows. Falls back to
+        capture_as_image() only for the exact window, never a full desktop grab.
+
+        :param window: Optional specific window Element to capture.
+        :param region: Optional region to crop.
+        :return: PNG bytes.
+        """
+        if self._app is None and window is None:
+            raise RuntimeError("UIADesktop.launch() or connect() must be called first")
 
         def _do_screenshot():
             import io
+            from PIL import Image
 
-            top_window = self._app.top_window()
-            image = top_window.capture_as_image()
+            target = window.handle if window is not None else self._app.top_window()
+            # Resolve concrete HWND first
+            hwnd = None
+            try:
+                hwnd = target.handle if hasattr(target, "handle") else None
+                if isinstance(hwnd, bool) or not isinstance(hwnd, int):
+                    hwnd = None
+            except Exception:
+                hwnd = None
+
+            image = None
+            # 1) Preferred: raw win32 PrintWindow on the specific HWND (captures the
+            #    exact window - works even when behind other windows).
+            if hwnd:
+                try:
+                    import win32gui
+                    import win32ui
+                    import ctypes
+
+                    if win32gui.IsWindow(hwnd):
+                        rect = win32gui.GetWindowRect(hwnd)
+                        width = rect[2] - rect[0]
+                        height = rect[3] - rect[1]
+                        if width > 0 and height > 0:
+                            hwnd_dc = win32gui.GetWindowDC(hwnd)
+                            mfc_dc = win32ui.CreateDCFromHandle(hwnd_dc)
+                            save_dc = mfc_dc.CreateCompatibleDC()
+                            bmp = win32ui.CreateBitmap()
+                            bmp.CreateCompatibleBitmap(mfc_dc, width, height)
+                            save_dc.SelectObject(bmp)
+                            try:
+                                PW_RENDERFULLCONTENT = 2
+                                result = ctypes.windll.user32.PrintWindow(
+                                    hwnd, save_dc.GetSafeHdc(), PW_RENDERFULLCONTENT
+                                )
+                                if not result:
+                                    result = ctypes.windll.user32.PrintWindow(
+                                        hwnd, save_dc.GetSafeHdc(), 1
+                                    )
+                                if result:
+                                    bmpinfo = bmp.GetInfo()
+                                    bmpstr = bmp.GetBitmapBits(True)
+                                    image = Image.frombuffer(
+                                        "RGB",
+                                        (bmpinfo["bmWidth"], bmpinfo["bmHeight"]),
+                                        bmpstr,
+                                        "raw",
+                                        "BGRX",
+                                        0,
+                                        1,
+                                    )
+                            finally:
+                                save_dc.DeleteDC()
+                                mfc_dc.DeleteDC()
+                                win32gui.ReleaseDC(hwnd, hwnd_dc)
+                                win32gui.DeleteObject(bmp.GetHandle())
+                except Exception:
+                    image = None
+
+            # 2) Fallback: pywinauto control capture (may fail for custom Qt UIA)
+            if image is None:
+                try:
+                    image = target.capture_as_image()
+                    if image is None or image.size == (0, 0):
+                        image = None
+                except Exception:
+                    image = None
+
+            # 3) Last resort: PrintWindow via ui_control helper on the HWND
+            if image is None and hwnd:
+                try:
+                    from ufo.automator.ui_control.screenshot import _win32_print_window
+                    image = _win32_print_window(hwnd)
+                except Exception:
+                    image = None
+
+            if image is None:
+                raise RuntimeError("Unable to capture the target window")
+
             if region is not None:
                 image = image.crop(
                     (region.left, region.top, region.right, region.bottom)
