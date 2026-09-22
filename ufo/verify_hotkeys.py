@@ -1,11 +1,8 @@
-"""Verify the CHOSEN hotkeys REALLY work (deterministic).
+"""Verify the SIMPLER hotkeys (Scroll Lock / F12 / ESC / P) really work.
 
-Chosen cancel hotkey: Ctrl+Shift+Q (never emitted by the automation), with
-ESC silent backup, P for pause. Verification layers:
-1. Registration success for every hotkey (OS accepted them).
-2. WM_HOTKEY delivered to the message window -> correct callback fires.
-3. Burst suppression: AI-injected keys during an input burst do NOT trigger.
-4. A "foreign" hotkey ID must NOT trigger cancel (no cross-wiring).
+Chosen cancel keys: Scroll Lock (0x91, dead key, single press), F12 (0x7B)
+backup, ESC silent backup. Pause: P. Verification: registration + WM_HOTKEY
+pipeline + burst suppression + foreign-id immunity.
 """
 import sys, time, ctypes
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -38,58 +35,52 @@ while lock._hotkey_hwnd is None and time.time() < deadline:
     time.sleep(0.05)
 
 print("=" * 70)
-print('HOTKEY VERIFICATION - chosen cancel: Ctrl+Shift+Q (id 1), ESC (id 2), P (id 100)')
+print("SIMPLER HOTKEYS - Scroll Lock(id1) F12(id2) ESC(id3) P(id100)")
 print("=" * 70)
-print("\n[1] Registration list:",
-      [(r[2] if len(r) > 2 else r) for r in lock._cancel_hotkeys])
+print("cancel_hotkeys:", lock._cancel_hotkeys)
 
-print("\n[2] WM_HOTKEY id=1 (Ctrl+Shift+Q) -> CANCEL...")
+print("\n[1] id1 Scroll Lock -> CANCEL...")
 post_wm_hotkey(lock._hotkey_hwnd, 1)
-ok = wait_for(lambda: bool(stop_called))
-print("    cancel fired:", ok, "| state:", lock._state)
+ok1 = wait_for(lambda: bool(stop_called))
+print("    cancel fired:", ok1, "| state:", lock._state)
 
-print("\n[3] WM_HOTKEY id=2 (ESC backup) -> CANCEL...")
-stop_called.clear()
-lock._state = "locked"
+print("\n[2] id2 F12 -> CANCEL...")
+stop_called.clear(); lock._state = "locked"
 post_wm_hotkey(lock._hotkey_hwnd, 2)
-ok = wait_for(lambda: bool(stop_called))
-print("    cancel fired:", ok, "| state:", lock._state)
+ok2 = wait_for(lambda: bool(stop_called))
+print("    cancel fired:", ok2, "| state:", lock._state)
 
-print("\n[4] WM_HOTKEY id=100 (P) -> PAUSE...")
-pause_called.clear()
-lock._state = "locked"
+print("\n[3] id3 ESC backup -> CANCEL...")
+stop_called.clear(); lock._state = "locked"
+post_wm_hotkey(lock._hotkey_hwnd, 3)
+ok3 = wait_for(lambda: bool(stop_called))
+print("    cancel fired:", ok3, "| state:", lock._state)
+
+print("\n[4] id100 P -> PAUSE...")
+pause_called.clear(); lock._state = "locked"
 post_wm_hotkey(lock._hotkey_hwnd, 100)
-ok = wait_for(lambda: bool(pause_called))
+ok4 = wait_for(lambda: bool(pause_called))
 print("    pause fired:", pause_called, "| state:", lock._state)
 
-print("\n[5] Burst suppression (AI typing 'p' must NOT pause)...")
-pause_called.clear()
-lock._state = "locked"
+print("\n[5] burst suppression...")
+pause_called.clear(); lock._state = "locked"
 lock.begin_input_burst()
 post_wm_hotkey(lock._hotkey_hwnd, 100)
-ok_ignored = not wait_for(lambda: bool(pause_called), timeout=0.7)
+ok5a = not wait_for(lambda: bool(pause_called), timeout=0.7)
 lock.end_input_burst()
 post_wm_hotkey(lock._hotkey_hwnd, 100)
-ok_fired = wait_for(lambda: bool(pause_called))
-print("    during burst ignored:", ok_ignored, "| after burst fired:", ok_fired)
+ok5b = wait_for(lambda: bool(pause_called))
+print("    during burst ignored:", ok5a, "| after burst fired:", ok5b)
 
-print("\n[6] Foreign ID (id=7) must NOT cancel...")
-stop_called.clear()
-lock._state = "locked"
+print("\n[6] foreign id ignored...")
+stop_called.clear(); lock._state = "locked"
 post_wm_hotkey(lock._hotkey_hwnd, 7)
-ok_foreign = not wait_for(lambda: bool(stop_called), timeout=0.7)
-print("    foreign id ignored:", ok_foreign, "| state:", lock._state)
+ok6 = not wait_for(lambda: bool(stop_called), timeout=0.7)
+print("    foreign id ignored:", ok6)
 
 lock._keep_running = False
-# Quality gate: every individual check passed (accumulate as we go)
-checks = {
-    "cancel_ctrl_shift_q": True,   # [2]
-    "cancel_esc_backup": True,     # [3]
-    "pause_P": bool(pause_called), # [4]
-    "burst_suppression": ok_ignored and ok_fired,  # [5]
-    "foreign_id_ignored": ok_foreign,              # [6]
-}
-ok_final = all(checks.values())
+checks = {"scrolllock": ok1, "f12": ok2, "esc": ok3, "pause": ok4,
+          "burst": ok5a and ok5b, "foreign": ok6}
 print("\n" + "=" * 70)
-print("RESULT:", "CHOSEN HOTKEYS VERIFIED ✅" if ok_final else "STILL BROKEN ❌ " + str(checks))
+print("RESULT:", "SIMPLE HOTKEYS VERIFIED" if all(checks.values()) else "FAIL " + str(checks))
 print("=" * 70)

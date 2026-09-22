@@ -28,7 +28,7 @@ class ScreenLockout:
 
     Usage:
         lockout = ScreenLockout()
-        if await lockout.acquire(countdown=5):
+        if await lockout.acquire(countdown=8):
             try:
                 await agent.run_autonomous_goal(...)  # locked-mode input
             finally:
@@ -41,7 +41,7 @@ class ScreenLockout:
         on_pause: Optional[Callable] = None,
         stop_key: Optional[object] = None,
         pause_key: Optional[int] = None,
-        stop_key_label: str = "Ctrl+Shift+Q",
+        stop_key_label: str = "ScrollLock/F12",
         pause_key_label: str = "P",
         cancel_via_esc: bool = True,
     ):
@@ -58,7 +58,7 @@ class ScreenLockout:
 
         :param on_stop: Called once when user presses a cancel hotkey.
         :param on_pause: Called with paused=True/False on pause-key toggles.
-        :param stop_key: int VK (legacy) or None for the default Ctrl+Shift+Q.
+        :param stop_key: int VK (legacy) or None for the default preset.
         :param pause_key: Virtual key code for PAUSE/RESUME (default P 0x50).
         :param stop_key_label: Display label for the cancel key on the card.
         :param pause_key_label: Display label for the pause key on the card.
@@ -66,12 +66,14 @@ class ScreenLockout:
         """
         self._on_stop = on_stop
         self._on_pause = on_pause
-        # Cancel hotkeys: list of (modifiers, vk) - primary + backups
+        # Cancel hotkeys preset - SIMPLE single-key first (Scroll Lock = dead
+        # key, impossible to type by accident), F12 backup, ESC silent backup.
         MOD_CONTROL = 0x0002
         MOD_SHIFT = 0x0004
         if stop_key is None:
             self._cancel_hotkeys = [
-                (MOD_CONTROL | MOD_SHIFT, 0x51),   # Ctrl+Shift+Q (primary)
+                (0, 0x91),                          # Scroll Lock (primary)
+                (0, 0x7B),                          # F12 (backup)
             ]
         elif isinstance(stop_key, int):
             self._cancel_hotkeys = [(0, stop_key)]
@@ -100,7 +102,7 @@ class ScreenLockout:
 
     # ==================== Public API ====================
 
-    async def acquire(self, message: str = "AUTOMATION IN PROGRESS", countdown: int = 5) -> bool:
+    async def acquire(self, message: str = "AUTOMATION IN PROGRESS", countdown: int = 8) -> bool:
         """Show the modal lockout and run the countdown.
 
         :param message: Main message to display once locked.

@@ -304,9 +304,9 @@ class AutonomousTelegramAgent:
     # ==================== Lockout ====================
 
     async def acquire_lockout(
-        self, message: str = "AUTOMATION IN PROGRESS", countdown: int = 5
+        self, message: str = "AUTOMATION IN PROGRESS", countdown: int = 8
     ) -> bool:
-        """Acquire the full-screen lockout (5s countdown, ESC=stop, P=pause).
+        """Acquire the full-screen lockout (8s countdown, instant cancel).
 
         While locked, the machine is unusable to the user - the AI can drive
         Telegram with confidence nothing human will interfere.
@@ -357,7 +357,7 @@ class AutonomousTelegramAgent:
         total_messages: int,
         skill_name: Optional[str] = None,
         lockout: bool = False,
-        lockout_countdown: int = 5,
+        lockout_countdown: int = 8,
     ) -> Dict[str, Any]:
         """Run a goal fully autonomously without human intervention.
 

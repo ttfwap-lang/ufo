@@ -379,7 +379,7 @@ class TelegramGUIController:
             loop.close()
 
     async def _ensure_automation_warning(
-        self, countdown: int = 5, message: str = "AUTOMATION STARTING"
+        self, countdown: int = 8, message: str = "AUTOMATION STARTING"
     ) -> bool:
         """MANDATORY near-opaque on-top 5s countdown before automation.
 
