@@ -1,0 +1,124 @@
+# Live multi-app showcase for UFO on this PC.
+#
+# Each task runs as one `python -m ufo -r "<request>"` (retry-until-verified,
+# UFO_MAX_ATTEMPTS=2), then a deterministic verifier checks the result.
+# {sandbox} is replaced by the absolute path of Desktop\ufo_e2e.
+# `apps` lists the processes the task may open; only instances started during
+# the task are closed afterwards (never ones that were already running).
+
+tasks:
+  - id: N1
+    title: Notepad - type and save
+    apps: [notepad.exe]
+    request: >-
+      Open Notepad, type these three lines: 'UFO live showcase', 'line two', 'line three',
+      and save the file as {sandbox}\notes.txt
+    verify: {type: file_text, path: notes.txt, contains: ["UFO live showcase", "line two", "line three"]}
+
+  - id: W1
+    title: Word - formatted report
+    apps: [WINWORD.EXE]
+    request: >-
+      Open Microsoft Word and create a new blank document. Add the heading 'UFO Showcase'
+      in the Heading 1 style, then a paragraph saying 'This report was written by UFO.'
+      with the word 'UFO' in bold. Save it as {sandbox}\report.docx
+    verify: {type: docx, path: report.docx, heading: "UFO Showcase", heading_style: "Heading 1",
+             paragraph: "This report was written by", bold: "UFO"}
+
+  - id: X1
+    title: Excel - table, formula and chart
+    apps: [EXCEL.EXE]
+    request: >-
+      Open Microsoft Excel with a new blank workbook. In A1:B1 enter the headers 'Region' and 'Sales'.
+      In A2:B6 enter North 120, South 95, East 143, West 88, Central 104. In B7 put a formula that sums
+      B2:B6. Insert a bar chart of A1:B6. Save the workbook as {sandbox}\sales.xlsx
+    verify: {type: xlsx, path: sales.xlsx, cells: {A1: Region, B1: Sales, A2: North, B2: 120, B6: 104},
+             formula_cell: B7, formula_prefix: "=SUM(B2:B6", min_charts: 1}
+
+  - id: P1
+    title: PowerPoint - three-slide deck
+    apps: [POWERPNT.EXE]
+    request: >-
+      Open Microsoft PowerPoint and create a new presentation with three slides titled
+      'UFO Showcase', 'What UFO Did' and 'Next Steps'. Give the second slide the bullet points
+      'Opened apps', 'Edited documents' and 'Verified results'. Save it as {sandbox}\deck.pptx
+    verify: {type: pptx, path: deck.pptx, titles: ["UFO Showcase", "What UFO Did", "Next Steps"],
+             text: ["Opened apps", "Edited documents", "Verified results"]}
+
+  - id: XW1
+    title: Excel to Word - cross-app transfer
+    apps: [EXCEL.EXE, WINWORD.EXE]
+    depends_on: [X1]
+    request: >-
+      Open {sandbox}\sales.xlsx in Excel and read the total sales in cell B7. Then create a new Word
+      document containing the sentence 'Total sales: <the total>.' and save it as {sandbox}\summary.docx
+    verify: {type: docx, path: summary.docx, paragraph: "Total sales: 550"}
+
+  - id: B1
+    title: Edge - read a web page
+    apps: [msedge.exe, notepad.exe]
+    request: >-
+      Open Microsoft Edge, go to https://example.com, read the main heading of the page, then
+      write that heading into a new Notepad file and save it as {sandbox}\heading.txt
+    verify: {type: file_text, path: heading.txt, contains: ["Example Domain"]}
+
+  - id: B2
+    title: Chrome - web information extraction
+    apps: [chrome.exe, notepad.exe]
+    request: >-
+      Open Google Chrome, go to https://www.python.org/downloads/ and find the version number of the
+      latest Python 3 release. Write just that version number into a new Notepad file and save it as
+      {sandbox}\python.txt
+    verify: {type: file_regex, path: python.txt, pattern: "\\b3\\.\\d+(\\.\\d+)?\\b"}
+
+  - id: F1
+    title: File Explorer - organise files
+    apps: [explorer.exe]
+    depends_on: [N1]
+    request: >-
+      Using File Explorer, open the folder {sandbox}, create a new folder named 'archive' inside it,
+      move notes.txt into 'archive', and rename it to notes_old.txt
+    verify: {type: fs, exists: ["archive/notes_old.txt"], missing: ["notes.txt"]}
+
+  - id: C1
+    title: Calculator - compute and record
+    apps: [CalculatorApp.exe, notepad.exe]
+    request: >-
+      Open the Windows Calculator and compute 1234 multiplied by 56 by clicking its buttons.
+      Then write the result into a new Notepad file and save it as {sandbox}\calc.txt
+    verify: {type: file_text, path: calc.txt, contains: ["69104"], normalize_digits: true}
+
+  - id: S1
+    title: Settings - read system information (read-only)
+    apps: [SystemSettings.exe, notepad.exe]
+    request: >-
+      Open Windows Settings, go to System > About and read the Windows version (for example 24H2 or 25H2).
+      Do not change any setting. Write the version into a new Notepad file and save it as {sandbox}\winver.txt
+    verify: {type: winver, path: winver.txt}
+
+  - id: PA1
+    title: Paint - draw on a canvas (vision grounding)
+    apps: [mspaint.exe]
+    request: >-
+      Open Microsoft Paint, select the rectangle shape, draw a large rectangle in the middle of the
+      canvas, fill it with a solid colour, and save the picture as {sandbox}\drawing.png
+    verify: {type: png_not_blank, path: drawing.png}
+
+  - id: T1
+    title: Terminal - list files
+    apps: [WindowsTerminal.exe, OpenConsole.exe, powershell.exe, notepad.exe]
+    depends_on: [F1]
+    request: >-
+      List the files and folders inside {sandbox} (including the archive folder's contents) and
+      save that listing as the text file {sandbox}\listing.txt
+    verify: {type: file_text, path: listing.txt, contains: ["archive", "notes_old.txt"]}
+
+  - id: G1
+    title: Galaxy - DGX report written on this PC
+    galaxy: true
+    apps: [notepad.exe]
+    request: >-
+      On the DGX device (dgx_gx10), report the free disk space of the root filesystem and the number of
+      running docker containers. Then, on the Windows device (windowsagent), write both values into a
+      text file saved as {sandbox}\dgx_report.txt
+    verify: {type: dgx_report, path: dgx_report.txt}
