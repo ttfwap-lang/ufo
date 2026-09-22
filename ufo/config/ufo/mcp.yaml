@@ -152,13 +152,31 @@ mcp_servers:
     - ufo.client.mcp.local_servers.system_toolkit_mcp_server
     command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Clipboard, window management, hotkeys, open path/URL, wait for window, system info and OS settings.
+  # BankFidelity (dual-core-pdf-pipeline) speaks MCP over stdio: "<binary> mcp".
+  # Local build on this PC; switch to target\release once that is built.
   bankfidelity:
     type: stdio
-    command: C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity\target\debug\dual-core-pdf-pipeline.exe
+    command: C:\Users\lnxzf\Desktop\projects\bankfidelity\target\debug\dual-core-pdf-pipeline.exe
     args:
     - mcp
-    cwd: C:\Users\lnxzf\Desktop\projects\bankfidelity\bankfidelity
+    cwd: C:\Users\lnxzf\Desktop\projects\bankfidelity
     description: BankFidelity Native Statement Editor, Precision Balancer & Visual Auditor MCP Server.
+  # The same server running on the gx10 (Linux). MCP is stdio-only, so it is reached
+  # over SSH. Once deployed there, add to the HOST_AGENT / APP_AGENT action lists:
+  #   - {name: bankfidelity_gx10, namespace: bankfidelity_gx10, type: stdio}
+  bankfidelity_gx10:
+    type: stdio
+    command: ssh
+    args:
+    - -o
+    - BatchMode=yes
+    - -o
+    - ConnectTimeout=10
+    - -i
+    - C:\Users\lnxzf\.ssh\id_ed25519_ufo_agent
+    - flak3dd@gx10.local
+    - ~/bankfidelity/target/release/dual-core-pdf-pipeline mcp
+    description: BankFidelity MCP server running on the DGX Spark (gx10), over SSH stdio.
 HOST_AGENT:
   default:
     data_collection:

@@ -71,6 +71,29 @@ def _probe_health_sync(health_url: str, timeout: float) -> bool:
     except Exception:
         return False
 
+def _profile_unresolved_vars(selection: str) -> set:
+    """Environment variables a backend profile still needs (empty = usable)."""
+    try:
+        from ufo.config.config_loader import ConfigLoader
+        from ufo.llm.config_helper import resolve_backend_profile
+
+        profile = resolve_backend_profile(selection) or {}
+    except Exception as e:
+        return {f'<unresolvable profile: {e}>'}
+    missing = set()
+    for block in profile.values():
+        if not isinstance(block, dict):
+            continue
+        for value in block.values():
+            if not isinstance(value, str) or '${' not in value:
+                continue
+            for match in ConfigLoader.ENV_PLACEHOLDER_PATTERN.finditer(value):
+                name = match.group(1) or match.group(2)
+                if name:
+                    missing.add(name)
+    return missing
+
+
 async def _ensure_llm_reachable(logger: logging.Logger) -> None:
     """
     Probe the configured LLM endpoint. If unreachable (local stack down),
@@ -104,15 +127,34 @@ async def _ensure_llm_reachable(logger: logging.Logger) -> None:
             logger.error(f'AUTO-FALLBACK: API_BASE {api_base!r} has an unresolved environment variable (e.g. set UFO_DGX_HOST). Not failing over to a cloud API, since that would send screenshots off this network unasked.')
             return
         health_path = '/api/tags' if api_type == 'ollama' else '/health'
-        health_url = f"{api_base.rstrip('/')}{health_path}"
+        health_root = api_base.rstrip('/')
+        if health_root.endswith('/v1'):
+            health_root = health_root[:-3]  # /health lives at the server root, not under /v1
+        health_url = f"{health_root}{health_path}"
         # Run the blocking urllib call in a worker thread: this coroutine runs
         # inside async main() before any other work has started, and a slow/
         # unreachable host would otherwise stall the event loop itself for up
         # to the full timeout rather than just delaying this one startup step.
-        if await asyncio.to_thread(_probe_health_sync, health_url, 5.0):
-            logger.info(f'AUTO-FALLBACK: Local LLM at {api_base} is healthy')
-            return
+        # One short probe is not evidence that the backend is down: Ollama takes
+        # tens of seconds to reload a model it unloaded while idle, and the SSH
+        # tunnel can be briefly busy. Retry before declaring it unreachable.
+        for attempt in range(3):
+            if await asyncio.to_thread(_probe_health_sync, health_url, 10.0):
+                logger.info(f'AUTO-FALLBACK: Local LLM at {api_base} is healthy')
+                return
+            if attempt < 2:
+                logger.info(f'AUTO-FALLBACK: {api_base} did not answer (attempt {attempt + 1}/3); retrying...')
+                await asyncio.sleep(5)
         logger.warning(f'AUTO-FALLBACK: Local LLM at {api_base} is unreachable')
+        # Only fail over to a profile that is actually usable: switching to one
+        # whose API key is unresolved makes every request fail instead.
+        unusable = _profile_unresolved_vars('cloud')
+        if unusable:
+            logger.error(
+                f'AUTO-FALLBACK: Not switching to the cloud route: agents_cloud.yaml still needs {sorted(unusable)}. '
+                'Keeping the configured backend; fix the local endpoint or set those variables.'
+            )
+            return
         if set_process_override('cloud'):
             logger.warning('AUTO-FALLBACK: Switched active LLM route to Claude/OpenAI cloud API in memory (zero disk writes).')
         else:

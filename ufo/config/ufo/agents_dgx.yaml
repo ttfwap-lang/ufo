@@ -1,57 +1,61 @@
 # =============================================================================
 # UFO DGX Network LLM Configuration
 # =============================================================================
-# Connects to the models actually running on the NVIDIA DGX Spark (gx10):
-#   - gemma4:26b  (vision-capable, served via Ollama's OpenAI-compat API on :11434)
-#       -> baked into a derived tag "gemma4-ufo" with num_ctx=8192 set server-side,
-#          because Ollama's /v1/chat/completions endpoint errors on this model
-#          ("Gemma4Assistant requires ctx_other to be set") unless a model-level
-#          default context is present. Recreate with:
-#            ollama create gemma4-ufo -f Modelfile   # FROM gemma4:26b / PARAMETER num_ctx 8192
-#   - qwen-abliterated (text-only, served via vLLM's OpenAI-compat API on :8000)
-#       -> huihui-ai/Huihui-Qwen3.8-27B-abliterated, no vision support, used only
-#          for the non-visual EVALUATION_AGENT role.
+# Connects to the models running on the NVIDIA DGX Spark (gx10), all reached
+# through the SSH tunnel on 127.0.0.1 (see scripts/gx10_tunnel_*.ps1):
+#   - qwen-abliterated (vLLM OpenAI-compat API on :8000)
+#       -> Qwen3.6-35B-A3B-abliterated, NVFP4 (~23 GB of weights). The checkpoint is
+#          multimodal (Qwen3_5MoeForConditionalGeneration, has a vision tower), so it
+#          serves every role: HOST_AGENT, APP_AGENT, BACKUP_AGENT and EVALUATION_AGENT.
+#          Thinking is switched off for the planner roles (EXTRA_BODY) to keep steps fast.
+#          Launch with scripts/dgx/qwen_run.sh (GPU memory share 0.35).
+#   - ui-venus (vLLM on :8002) is the pixel grounder behind click_on_description; it is
+#     configured in system.yaml (GROUNDING_MODEL), not here. scripts/dgx/venus_run.sh.
+#   - gemma4-ufo (Ollama :11434) is no longer used by this profile. It is kept on the
+#     box only as an alternative planner (Q4_K_M, ~17 GB): to switch a role back, set
+#     API_TYPE: ollama, API_BASE ...:11434, API_MODEL: gemma4-ufo and drop EXTRA_BODY.
 #
-# Qwen3-VL-8B / Gemma-4-12B via a dedicated llama-server (ports 8080/8081) were
-# NOT stood up: the DGX's 121GB unified memory is already committed to the
-# qwen-abliterated workload (~85GB) plus gemma4-ufo (~20GB) at ~36GB headroom.
-# Adding two more models is not safe on this box without freeing memory first.
-#
-# Set the DGX host via environment variable (LAN IP, or the Tailscale IP
-# 100.111.170.95 which is stable across network changes):
-#   set UFO_DGX_HOST=100.111.170.95
+# Set the DGX host via environment variable (127.0.0.1 through the tunnel, or the
+# Tailscale IP 100.111.170.95):
+#   set UFO_DGX_HOST=127.0.0.1
 #
 # To switch to this config from the widget:
-#   Terminal → AI Backend → Switch to DGX (widget will prompt for host IP)
+#   Terminal -> AI Backend -> Switch to DGX (widget will prompt for host IP)
 # =============================================================================
 
 HOST_AGENT:
   VISUAL_MODE: true
   REASONING_MODEL: false
-  API_TYPE: ollama
-  API_BASE: "http://${UFO_DGX_HOST}:11434"
-  API_KEY: "ollama"
-  API_MODEL: "gemma4-ufo"
+  API_TYPE: openai
+  API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
+  API_KEY: "sk-local"
+  API_MODEL: "qwen-abliterated"
+  EXTRA_BODY: {chat_template_kwargs: {enable_thinking: false}}
+  MAX_IMAGE_PIXELS: 1800000  # bounds screenshot prefill cost (~1.8k image tokens each). Not a correctness limit: the model's tokenizer.json once truncated at 2048 tokens (fixed on the DGX, backup tokenizer.json.bak-20260922)
   PROMPT: ufo/prompts/share/base/host_agent.yaml
   EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/host_agent_example.yaml
 
 APP_AGENT:
   VISUAL_MODE: true
   REASONING_MODEL: false
-  API_TYPE: ollama
-  API_BASE: "http://${UFO_DGX_HOST}:11434"
-  API_KEY: "ollama"
-  API_MODEL: "gemma4-ufo"
+  API_TYPE: openai
+  API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
+  API_KEY: "sk-local"
+  API_MODEL: "qwen-abliterated"
+  EXTRA_BODY: {chat_template_kwargs: {enable_thinking: false}}
+  MAX_IMAGE_PIXELS: 1800000  # bounds screenshot prefill cost (~1.8k image tokens each). Not a correctness limit: the model's tokenizer.json once truncated at 2048 tokens (fixed on the DGX, backup tokenizer.json.bak-20260922)
   PROMPT: ufo/prompts/share/base/app_agent.yaml
   EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/app_agent_example.yaml
   EXAMPLE_PROMPT_AS: ufo/prompts/examples/{mode}/app_agent_example_as.yaml
 
 BACKUP_AGENT:
   VISUAL_MODE: true
-  API_TYPE: ollama
-  API_BASE: "http://${UFO_DGX_HOST}:11434"
-  API_KEY: "ollama"
-  API_MODEL: "gemma4-ufo"
+  API_TYPE: openai
+  API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
+  API_KEY: "sk-local"
+  API_MODEL: "qwen-abliterated"
+  EXTRA_BODY: {chat_template_kwargs: {enable_thinking: false}}
+  MAX_IMAGE_PIXELS: 1800000  # bounds screenshot prefill cost (~1.8k image tokens each). Not a correctness limit: the model's tokenizer.json once truncated at 2048 tokens (fixed on the DGX, backup tokenizer.json.bak-20260922)
 
 EVALUATION_AGENT:
   VISUAL_MODE: false
@@ -78,3 +82,6 @@ APP_API_PROMPT_ADDRESS:
   EXCEL.EXE: ufo/prompts/apps/excel/api.yaml
   msedge.exe: ufo/prompts/apps/web/api.yaml
   chrome.exe: ufo/prompts/apps/web/api.yaml
+  dual-core-pdf-pipeline.exe: ufo/prompts/apps/bankfidelity/api.yaml
+  dual-core-pdf-pipeline: ufo/prompts/apps/bankfidelity/api.yaml
+  BankFidelity_Stable.exe: ufo/prompts/apps/bankfidelity/api.yaml

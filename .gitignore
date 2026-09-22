@@ -11,3 +11,7 @@ __pycache__/
 .vinv/
 logs/
 .pytest_cache/
+
+# UFO runtime memory artifacts
+memory/*.json
+test_output/

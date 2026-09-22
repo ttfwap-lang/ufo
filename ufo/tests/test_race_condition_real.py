@@ -217,8 +217,16 @@ class MockAgent:
 
 @pytest.fixture
 def event_bus():
-    """Get event bus."""
-    return get_event_bus()
+    """Global event bus with no observers left over from earlier tests (restored afterwards)."""
+    bus = get_event_bus()
+    all_observers, observers = set(bus._all_observers), {k: set(v) for k, v in bus._observers.items()}
+    bus._all_observers.clear()
+    bus._observers.clear()
+    yield bus
+    bus._all_observers.clear()
+    bus._all_observers.update(all_observers)
+    bus._observers.clear()
+    bus._observers.update(observers)
 
 
 @pytest.fixture

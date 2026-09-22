@@ -1,24 +1,24 @@
 {
-    "namespace":  "bankfidelity",
-    "type":  "stdio",
-    "command":  "C:\\Users\\lnxzf\\Desktop\\projects\\bankfidelity\\bankfidelity\\target\\debug\\dual-core-pdf-pipeline.exe",
-    "start_args":  [
-                       "mcp"
-                   ],
-    "cwd":  "C:\\Users\\lnxzf\\Desktop\\projects\\bankfidelity\\bankfidelity",
-    "env":  {
-                "PYMUPDF_PRO_KEY":  "${PYMUPDF_PRO_KEY}",
-                "GEMINI_API_KEY":  "${GEMINI_API_KEY}",
-                "GEMINI_AUTH_MODE":  "api_key",
-                "LLAMAPARSE_API_KEY":  "${LLAMAPARSE_API_KEY}",
-                "PDFREST_API_KEY":  "${PDFREST_API_KEY}",
-                "APPLITOOLS_API_KEY":  "${APPLITOOLS_API_KEY}",
-                "DUAL_CORE_PASSPHRASE":  "${DUAL_CORE_PASSPHRASE}",
-                "AI_PROVIDER":  "gemini",
-                "OPENROUTER_API_KEY":  "${OPENROUTER_API_KEY}",
-                "OPENROUTER_MODEL":  "openrouter/free",
-                "MISTRAL_API_KEY":  "${MISTRAL_API_KEY}",
-                "MISTRAL_MODEL":  "mistral-ocr",
-                "DOCUMENT_PARSER_MODE":  "offline_heuristic"
-            }
+    "namespace": "bankfidelity",
+    "type": "stdio",
+    "command": "C:\\Users\\lnxzf\\Desktop\\projects\\bankfidelity\\target\\debug\\dual-core-pdf-pipeline.exe",
+    "start_args": [
+        "mcp"
+    ],
+    "cwd": "C:\\Users\\lnxzf\\Desktop\\projects\\bankfidelity",
+    "env": {
+        "PYMUPDF_PRO_KEY": "${PYMUPDF_PRO_KEY}",
+        "GEMINI_API_KEY": "${GEMINI_API_KEY}",
+        "GEMINI_AUTH_MODE": "api_key",
+        "LLAMAPARSE_API_KEY": "${LLAMAPARSE_API_KEY}",
+        "PDFREST_API_KEY": "${PDFREST_API_KEY}",
+        "APPLITOOLS_API_KEY": "${APPLITOOLS_API_KEY}",
+        "DUAL_CORE_PASSPHRASE": "${DUAL_CORE_PASSPHRASE}",
+        "AI_PROVIDER": "gemini",
+        "OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}",
+        "OPENROUTER_MODEL": "openrouter/free",
+        "MISTRAL_API_KEY": "${MISTRAL_API_KEY}",
+        "MISTRAL_MODEL": "mistral-ocr",
+        "DOCUMENT_PARSER_MODE": "offline_heuristic"
+    }
 }

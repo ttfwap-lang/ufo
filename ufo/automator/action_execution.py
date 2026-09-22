@@ -61,7 +61,7 @@ class ActionExecutor:
         control_id = action.target.id if action.target else None
         control_selected = control_dict.get(control_id, None)
         if control_selected is not None and (not ActionExecutor._control_validation(control_selected)):
-            raise ValueError(f'Control {control_id}: {action.target.name} is not available or not interactable for the action {action.action_representation()}, please refresh the application state to get the latest interactable control information.')
+            raise ValueError(f'Control {control_id}: {action.target.name} is not available or not interactable for the action {action.to_representation()}, please refresh the application state to get the latest interactable control information.')
         if application_window:
             puppeteer.receiver_manager.create_ui_control_receiver(control_selected, application_window)
             self.logger.info(f'Create AppPuppeteer for window: {application_window.window_text()}')

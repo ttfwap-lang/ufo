@@ -128,6 +128,28 @@ flowchart LR
     EVAL["EVALUATION_AGENT"] --> VLLM
 ```
 
+## Perception, Verification and Retries (2026-09)
+
+```mermaid
+flowchart TB
+    Req["User request"] --> Att["module/attempts.py\nrun_until_verified (sequential)"]
+    Att --> Sess["Session: HostAgent → AppAgent"]
+    Sess --> Perc["Control detection\nUIA + OmniParser V2 (:7861, cached)"]
+    Sess --> Ground["click_on_description\nUI-Venus-2 (:8002) + confirm crop"]
+    Sess --> Office["Word/Excel/PowerPoint COM tools\n(STA thread, per-app MCP block)"]
+    Sess --> Multi["Up to 4 actions per step\ncheck_ui_stable between actions"]
+    Sess --> Fin["FINISH"]
+    Fin --> Det["verification/registry.py\nfile / process / editor / Office checks"]
+    Det -->|"definitive"| Verdict
+    Det -->|"inconclusive → evidence"| LLMv["goal_verifier (LLM + screenshot)"] --> Verdict
+    Verdict -->|"not achieved"| Att
+```
+
+- Deterministic checks are read-only: they never start Office (GetActiveObject only) and treat an
+  unreadable state as inconclusive, never as failure.
+- A retry gets the original request plus what the previous attempt did (from its `response.log`)
+  and why it failed, and is told not to redo completed steps.
+
 ## Windows Automation Hybrid (Phase 2)
 
 ```mermaid

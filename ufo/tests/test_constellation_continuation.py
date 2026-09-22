@@ -3,6 +3,13 @@
 """
 import asyncio
 import pytest
+
+pytest.skip(
+    "Superseded design: the Monitoring/GalaxyWeaver state (queue_task_update, should_continue) "
+    "was replaced by ContinueConstellationAgentState + the task completion queue, covered by "
+    "tests/unit/galaxy/agents/test_galaxy_agent_states.py and tests/unit/test_galaxy_state_machine.py.",
+    allow_module_level=True,
+)
 from unittest.mock import MagicMock, AsyncMock
 from ufo.galaxy.agents.galaxy_agent_state import MonitoringGalaxyAgentState, GalaxyAgentStatus
 from ufo.galaxy.core.events import EventType

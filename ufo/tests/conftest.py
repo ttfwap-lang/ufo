@@ -28,4 +28,8 @@ def _isolate_global_event_bus():
         return
     bus = get_event_bus()
     bus._observers.clear()
+    # Tests such as `manager.event_bus.publish_event = AsyncMock()` patch the singleton itself; left
+    # in place, every later test's events vanish (a synchronizer then waits forever for them).
+    for name in [n for n in vars(bus) if hasattr(type(bus), n)]:
+        delattr(bus, name)
     bus._all_observers.clear()

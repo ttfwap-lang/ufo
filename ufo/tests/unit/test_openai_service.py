@@ -407,3 +407,115 @@ class TestPricesConfig:
         assert "openai/gpt-4o" in prices
         assert "openai/o4-mini" in prices
         assert "gemini/gemini-3.7-flash" in prices
+
+
+class TestExtraBody:
+    """EXTRA_BODY in an agent's config is forwarded to the chat completion call."""
+
+    @staticmethod
+    def _service(config_llm):
+        import logging
+        from types import SimpleNamespace
+
+        from ufo.llm.openai import BaseOpenAIService
+
+        captured = {}
+
+        def create(**params):
+            captured.update(params)
+            msg = SimpleNamespace(content="ok", reasoning_content=None, tool_calls=None)
+            usage = SimpleNamespace(prompt_tokens=1, completion_tokens=1)
+            return SimpleNamespace(choices=[SimpleNamespace(message=msg)], usage=usage)
+
+        class _Svc(BaseOpenAIService):
+            async def chat_completion(self, *a, **k):
+                raise NotImplementedError
+
+        svc = object.__new__(_Svc)
+        svc.config_llm = {"API_TYPE": "openai", "JSON_SCHEMA": False, **config_llm}
+        svc.config = {"TEMPERATURE": 0.0, "MAX_TOKENS": 16, "TOP_P": 0.0, "PRICES": {}}
+        svc.agent_type = "host"
+        svc.model = "m"
+        svc.use_responses = False
+        svc.json_schema_enabled = False
+        svc.probe_key = "k"
+        svc.api_type = "openai"
+        svc.prices = {}
+        svc.logger = logging.getLogger(__name__)
+        svc.client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+        return svc, captured
+
+    @pytest.mark.asyncio
+    async def test_extra_body_forwarded(self):
+        from ufo.llm import openai as mod
+
+        mod._PROBED_JSON_SCHEMA_MODELS["k"] = False
+        svc, captured = self._service({"EXTRA_BODY": {"chat_template_kwargs": {"enable_thinking": False}}})
+        try:
+            await svc._chat_completion([{"role": "user", "content": "hi"}])
+        except Exception:
+            pass  # response parsing is out of scope; only the request matters here
+        assert captured["extra_body"] == {"chat_template_kwargs": {"enable_thinking": False}}
+
+    @pytest.mark.asyncio
+    async def test_no_extra_body_by_default(self):
+        from ufo.llm import openai as mod
+
+        mod._PROBED_JSON_SCHEMA_MODELS["k"] = False
+        svc, captured = self._service({})
+        try:
+            await svc._chat_completion([{"role": "user", "content": "hi"}])
+        except Exception:
+            pass
+        assert "extra_body" not in captured
+
+
+class TestShrinkImages:
+    """MAX_IMAGE_PIXELS keeps screenshots under what the vision server accepts."""
+
+    @staticmethod
+    def _msg(w, h):
+        import base64
+        import io
+
+        from PIL import Image
+
+        buf = io.BytesIO()
+        Image.new("RGB", (w, h), (10, 20, 30)).save(buf, format="PNG")
+        url = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+        return [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": url}}, {"type": "text", "text": "hi"}]}], url
+
+    @staticmethod
+    def _size(messages):
+        import base64
+        import io
+
+        from PIL import Image
+
+        url = messages[0]["content"][0]["image_url"]["url"]
+        return Image.open(io.BytesIO(base64.b64decode(url.split(",", 1)[1]))).size
+
+    def test_large_image_scaled_under_limit_keeping_aspect(self):
+        from ufo.llm.openai import _shrink_images
+
+        messages, _ = self._msg(1920, 1200)
+        w, h = self._size(_shrink_images(messages, 1_800_000))
+        assert w * h <= 1_800_000
+        assert abs(w / h - 1920 / 1200) < 0.01
+
+    def test_small_image_and_text_untouched_and_input_not_mutated(self):
+        from ufo.llm.openai import _shrink_images
+
+        messages, url = self._msg(800, 600)
+        out = _shrink_images(messages, 1_800_000)
+        assert out[0]["content"][0]["image_url"]["url"] == url
+        assert out[0]["content"][1] == {"type": "text", "text": "hi"}
+        big, big_url = self._msg(1920, 1200)
+        _shrink_images(big, 1_800_000)
+        assert big[0]["content"][0]["image_url"]["url"] == big_url
+
+    def test_plain_string_content_passes_through(self):
+        from ufo.llm.openai import _shrink_images
+
+        msgs = [{"role": "system", "content": "be brief"}]
+        assert _shrink_images(msgs, 1000) == msgs

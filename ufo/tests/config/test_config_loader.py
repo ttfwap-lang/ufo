@@ -559,13 +559,17 @@ class TestCloudFailoverRouting(unittest.TestCase):
         )
         from ufo.llm import AgentType
 
-        success = set_active_agent_route("cloud")
-        self.assertTrue(success)
-        self.assertEqual(get_active_agent_route(), "cloud")
+        from unittest.mock import patch
 
-        host_cfg = get_agent_config(AgentType.HOST)
-        self.assertIn("API_TYPE", host_cfg)
-        self.assertEqual(host_cfg.get("API_TYPE"), "openai")
+        # The cloud profile reads its key from the environment; a placeholder is enough here.
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
+            success = set_active_agent_route("cloud")
+            self.assertTrue(success)
+            self.assertEqual(get_active_agent_route(), "cloud")
+
+            host_cfg = get_agent_config(AgentType.HOST)
+            self.assertIn("API_TYPE", host_cfg)
+            self.assertEqual(host_cfg.get("API_TYPE"), "claude")  # agents_cloud.yaml: Claude primary
 
     def test_reset_route_to_default(self):
         """Test resetting route to None."""

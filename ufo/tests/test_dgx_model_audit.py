@@ -222,11 +222,12 @@ def test_dgx_model_names_match_expected():
         pytest.skip("agents_dgx.yaml not found in real config")
     with open(dgx_yaml_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    assert data["HOST_AGENT"]["API_MODEL"] == "gemma4-ufo"
-    assert ":11434" in data["HOST_AGENT"]["API_BASE"]
-    assert data["APP_AGENT"]["API_MODEL"] == "gemma4-ufo"
-    assert data["EVALUATION_AGENT"]["API_MODEL"] == "qwen-abliterated"
-    assert ":11434" in data["APP_AGENT"]["API_BASE"]
-    assert data["BACKUP_AGENT"]["API_MODEL"] == "gemma4-ufo"
-    assert ":11434" in data["BACKUP_AGENT"]["API_BASE"]
-    assert ":8000" in data["EVALUATION_AGENT"]["API_BASE"]
+    # Stack B (2026-09-22): the multimodal Qwen on :8000 plans for every role; screenshots are
+    # capped (MAX_IMAGE_PIXELS) because its processor rejects images above ~2047 tokens.
+    for role in ("HOST_AGENT", "APP_AGENT", "BACKUP_AGENT", "EVALUATION_AGENT"):
+        assert data[role]["API_MODEL"] == "qwen-abliterated"
+        assert data[role]["API_TYPE"] == "openai"
+        assert ":8000" in data[role]["API_BASE"]
+    for role in ("HOST_AGENT", "APP_AGENT", "BACKUP_AGENT"):
+        assert data[role]["MAX_IMAGE_PIXELS"] <= 1_900_000
+        assert data[role]["EXTRA_BODY"]["chat_template_kwargs"]["enable_thinking"] is False

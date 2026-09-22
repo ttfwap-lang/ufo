@@ -1,5 +1,7 @@
 import asyncio
+import base64
 import functools
+import io
 import json
 import logging
 import os
@@ -29,6 +31,40 @@ def _pydantic_to_response_format(schema_class):
     return {'type': 'json_schema', 'json_schema': {'name': schema_class.__name__, 'schema': schema_class.model_json_schema(), 'strict': True}}
 logger = logging.getLogger(__name__)
 _PROBED_JSON_SCHEMA_MODELS: Dict[str, bool] = {}
+
+def _shrink_images(messages: List[Dict[str, Any]], max_pixels: int) -> List[Dict[str, Any]]:
+    """
+    Return `messages` with every inline base64 image scaled down to at most `max_pixels` pixels.
+    Bounds prefill cost, and protects servers that reject large screenshots (a Qwen3-VL checkpoint whose
+    tokenizer.json truncates at 2048 tokens fails above about 1.9 MP). Set per agent with MAX_IMAGE_PIXELS. Aspect ratio
+    is kept; the input messages are not modified. Anything that isn't a data-URL image is left as is.
+    """
+    from PIL import Image
+    out: List[Dict[str, Any]] = []
+    for message in messages:
+        content = message.get('content')
+        if not isinstance(content, list):
+            out.append(message)
+            continue
+        new_content = []
+        for part in content:
+            url = part.get('image_url', {}).get('url', '') if isinstance(part, dict) and part.get('type') == 'image_url' else ''
+            if url.startswith('data:image/') and ';base64,' in url:
+                try:
+                    header, data = url.split(',', 1)
+                    img = Image.open(io.BytesIO(base64.b64decode(data)))
+                    if img.width * img.height > max_pixels:
+                        scale = (max_pixels / (img.width * img.height)) ** 0.5
+                        img = img.convert('RGB').resize((max(1, int(img.width * scale)), max(1, int(img.height * scale))), Image.LANCZOS)
+                        buf = io.BytesIO()
+                        img.save(buf, format='PNG')
+                        part = {**part, 'image_url': {**part['image_url'], 'url': 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()}}
+                except Exception as e:
+                    logger.warning(f'Could not downscale an image for the request: {e}')
+            new_content.append(part)
+        out.append({**message, 'content': new_content})
+    return out
+
 
 class BaseOpenAIService(BaseService):
 
@@ -124,6 +160,12 @@ class BaseOpenAIService(BaseService):
             # in (0, 1]); at temperature 0 it has no effect anyway, so omit it.
             if top_p is not None and top_p > 0:
                 base_params['top_p'] = top_p
+        max_pixels = self.config_llm.get('MAX_IMAGE_PIXELS')
+        if max_pixels:
+            base_params['messages'] = _shrink_images(messages, int(max_pixels))
+        extra_body = self.config_llm.get('EXTRA_BODY')
+        if extra_body:
+            base_params['extra_body'] = dict(extra_body)
         if stream:
             base_params.update({'stream': True, 'stream_options': {'include_usage': True}})
         response = await asyncio.to_thread(self.client.chat.completions.create, **base_params)

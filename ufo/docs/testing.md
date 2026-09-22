@@ -12,6 +12,39 @@
 | Lint (ruff) | `uv run ruff check .` | ⏳ Configured, never run | — |
 | Type Check (mypy) | `uv run mypy .` | ⏳ Configured, never run | — |
 
+## How to Run (2026-09-20)
+
+From the repository root (the folder that contains the `ufo` package):
+
+```bash
+ufo/.venv/Scripts/python -m pytest ufo/tests -q --timeout=120     # whole suite
+ufo/.venv/Scripts/python -m pytest ufo/tests/unit -q              # fast unit tests
+```
+
+Opt-in suites (skipped by default because they use real apps, services or the desktop):
+
+| Suite | How to enable | What it touches |
+|-------|---------------|-----------------|
+| Live Office COM (`tests/integration/test_office_com_live.py`) | `UFO_LIVE_OFFICE_TESTS=1` | Starts invisible Word/Excel/PowerPoint instances on temp files |
+| Live LLM Galaxy (`tests/test_real_galaxy_session_integration.py`) | `UFO_LIVE_LLM_TESTS=1` | Calls the DGX models |
+| Live grounding/OmniParser (`tests/integration/test_venus_grounding_live.py`, `test_omniparser_hybrid_live.py`) | none (auto-skips if :8002 / :7861 are unreachable) | DGX vision services through the tunnel |
+| Live desktop showcase (`tests/eval_suite/live/`) | run explicitly, see below | Drives the real desktop |
+
+### Live multi-app showcase
+
+```bash
+ufo/.venv/Scripts/python -m ufo.tests.eval_suite.live.run_live --list      # the 13 tasks
+ufo/.venv/Scripts/python -m ufo.tests.eval_suite.live.run_live --dry-run   # validate, run nothing
+ufo/.venv/Scripts/python -m ufo.tests.eval_suite.live.run_live             # drives this desktop
+ufo/.venv/Scripts/python -m ufo.tests.eval_suite.live.run_live --tasks N1,W1 --keep
+```
+
+Each task runs as a real `python -m ufo` request (retry-until-verified) and is checked
+deterministically (file contents, python-docx/openpyxl/python-pptx, PIL, registry, DGX readings).
+Output goes to `Desktop\ufo_e2e` (created fresh, deleted unless `--keep`); the report lands in
+`logs/live_e2e_<timestamp>/report.md`. Cleanup only closes processes the task itself started —
+never a pre-existing Notepad/Office window, and never `explorer.exe`.
+
 ## Test Coverage Targets (Track A)
 
 | Phase | Test Requirement | Status |

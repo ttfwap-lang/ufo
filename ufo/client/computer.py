@@ -68,6 +68,20 @@ class Computer:
             return func
         return decorator
 
+    def _safe_create_server(self, server_config: Dict[str, Any], reset: bool, namespace: str) -> Optional[BaseMCPServer]:
+        """Create one MCP server; an unavailable one is skipped with a warning.
+
+        A server that cannot start (e.g. a configured stdio command that is not
+        installed on this machine) must not take the agent's other tools with it.
+        """
+        try:
+            return self.mcp_server_manager.create_or_get_server(
+                mcp_config=server_config, reset=reset, process_name=self._process_name
+            )
+        except Exception as e:
+            self.logger.warning(f"Skipping MCP server '{namespace}': {e}")
+            return None
+
     def _init_data_collection_servers(self) -> Dict[str, BaseMCPServer]:
         """
         Initialize data collection servers for the computer of the
@@ -77,8 +91,9 @@ class Computer:
             reset = data_collection_server.get('reset', False)
             if not namespace:
                 namespace = 'default_data_collection'
-            mcp_server = self.mcp_server_manager.create_or_get_server(mcp_config=data_collection_server, reset=reset, process_name=self._process_name)
-            self._data_collection_servers[namespace] = mcp_server
+            mcp_server = self._safe_create_server(data_collection_server, reset, namespace)
+            if mcp_server is not None:
+                self._data_collection_servers[namespace] = mcp_server
         return self._data_collection_servers
 
     def _init_action_servers(self) -> Dict[str, BaseMCPServer]:
@@ -90,8 +105,9 @@ class Computer:
             reset = action_server.get('reset', False)
             if not namespace:
                 namespace = 'default_action'
-            mcp_server = self.mcp_server_manager.create_or_get_server(mcp_config=action_server, reset=reset, process_name=self._process_name)
-            self._action_servers[namespace] = mcp_server
+            mcp_server = self._safe_create_server(action_server, reset, namespace)
+            if mcp_server is not None:
+                self._action_servers[namespace] = mcp_server
         return self._action_servers
 
     async def _run_action(self, tool_call: MCPToolCall) -> CallToolResult:
@@ -169,8 +185,28 @@ class Computer:
         :param tool_type: The type of the tool (e.g., "action", "data_collection").
         :return: None
         """
-        tasks = [self.register_one_mcp_server(namespace, tool_type, server) for namespace, server in server_dict.items()]
+        namespaces = list(server_dict)
+        tasks = [self._register_one_mcp_server_safe(namespace, tool_type, server_dict[namespace]) for namespace in namespaces]
         await asyncio.gather(*tasks)
+
+    async def _register_one_mcp_server_safe(self, namespace: str, tool_type: str, mcp_server: BaseMCPServer) -> None:
+        """Register one server's tools; a server that fails or stalls is skipped.
+
+        Without this, a single unreachable server (e.g. a remote stdio command that
+        is not deployed yet) makes the whole registration fail and the agent ends up
+        with no tools at all.
+        """
+        try:
+            from ufo.config.config_loader import get_ufo_config
+            timeout = float(get_ufo_config().system.MCP_TOOL_TIMEOUT or 30)
+        except Exception:
+            timeout = 30.0
+        try:
+            await asyncio.wait_for(self.register_one_mcp_server(namespace, tool_type, mcp_server), timeout=timeout)
+        except asyncio.TimeoutError:
+            self.logger.warning(f"MCP server '{namespace}' did not list its tools within {timeout:.0f}s; skipping it.")
+        except Exception as e:
+            self.logger.warning(f"MCP server '{namespace}' could not be registered: {e}")
 
     async def register_one_mcp_server(self, namespace: str, tool_type: str, mcp_server: BaseMCPServer) -> None:
         """
@@ -375,8 +411,18 @@ class ComputerManager:
             agent_instance_config = agent_config.get(root, None)
             if agent_instance_config is None:
                 raise ValueError(f'Agent configuration for root_name={root} not found for agent_name={agent_name}.')
-            data_collection_servers_config = agent_instance_config.get(Computer._data_collection_namespaces, [])
-            action_servers_config = agent_instance_config.get(Computer._action_namespaces, [])
+            # A per-agent entry only names the server; its definition (command/args/cwd
+            # for stdio, host/port for http) lives in the mcp_servers section.
+            server_definitions = mcp_config.get('mcp_servers', {}) or {}
+
+            def _with_definition(entry: Dict[str, Any]) -> Dict[str, Any]:
+                name = entry.get('name') or entry.get('namespace')
+                merged = {**(server_definitions.get(name) or {}), **entry}
+                merged.setdefault('namespace', name)
+                return merged
+
+            data_collection_servers_config = [_with_definition(e) for e in agent_instance_config.get(Computer._data_collection_namespaces, [])]
+            action_servers_config = [_with_definition(e) for e in agent_instance_config.get(Computer._action_namespaces, [])]
             computer = Computer(name=key, process_name=process_name, data_collection_servers_config=data_collection_servers_config, action_servers_config=action_servers_config, mcp_server_manager=self.mcp_server_manager)
             await computer.async_init()
             self.logger.info(f'Initialized computer: {key}')

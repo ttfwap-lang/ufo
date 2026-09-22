@@ -1,3 +1,5 @@
+import os
+import shutil
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Optional, Union
@@ -153,6 +155,10 @@ class StdioMCPServer(BaseMCPServer):
         start_args = self._config.get("start_args") or self._config.get("args") or []
         env = self._config.get("env", {})
         cwd = self._config.get("cwd", ".")
+        # A configured-but-missing executable would otherwise hang every
+        # list_tools/call for minutes and leave the agent with no tools at all.
+        if not shutil.which(command) and not os.path.isfile(command):
+            raise FileNotFoundError(f"MCP server command not found: {command}")
         self._server = StdioTransport(
             command=command, args=start_args, env=env, cwd=cwd
         )

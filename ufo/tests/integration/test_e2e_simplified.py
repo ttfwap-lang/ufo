@@ -19,7 +19,17 @@ from ufo.galaxy.constellation.task_star import TaskStar
 from ufo.galaxy.constellation.task_star_line import TaskStarLine
 from ufo.galaxy.constellation.enums import ConstellationState, TaskPriority, TaskStatus
 import logging
-logging.getLogger('ufo').setLevel(logging.WARNING)
+import pytest
+
+
+@pytest.fixture(autouse=True, scope='module')
+def _quiet_ufo_logging():
+    # Was a module-level setLevel(WARNING), which silenced INFO records for every test collected after this file.
+    ufo_logger = logging.getLogger('ufo')
+    previous = ufo_logger.level
+    ufo_logger.setLevel(logging.WARNING)
+    yield
+    ufo_logger.setLevel(previous)
 
 def print_with_color(message: str, color: str='white'):
     """Simple color print function."""

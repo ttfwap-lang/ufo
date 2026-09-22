@@ -25,30 +25,22 @@ from ufo.learner.continuous_learner import ContinuousLearner
 class TestCloudFirstTransition:
     """Validate that agent routing is cloud-first non-Gemini."""
 
-    def test_agents_yaml_has_claude_primary(self):
-        config_path = UFO_ROOT / "config" / "ufo" / "agents.yaml"
-        assert config_path.exists(), "agents.yaml must exist"
-        
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-        host_agent = config.get("HOST_AGENT", {})
-        app_agent = config.get("APP_AGENT", {})
-        backup_agent = config.get("BACKUP_AGENT", {})
-        eval_agent = config.get("EVALUATION_AGENT", {})
+    def test_agent_profiles_are_complete(self):
+        """Every backend profile (agents*.yaml) defines each agent with a type and model.
 
-        # Primary agents must be Claude 3.7 Sonnet (Anthropic API / LiteLLM)
-        assert "claude-3-7-sonnet" in host_agent.get("API_MODEL", "").lower(), "HOST_AGENT must use claude-3-7-sonnet"
-        assert "claude-3-7-sonnet" in app_agent.get("API_MODEL", "").lower(), "APP_AGENT must use claude-3-7-sonnet"
-        
-        # Verify no Gemini models in primary host/app
-        assert "gemini" not in host_agent.get("API_MODEL", "").lower()
-        assert "gemini" not in app_agent.get("API_MODEL", "").lower()
-
-        # Backup is OpenAI GPT-4o
-        assert "gpt-4o" in backup_agent.get("API_MODEL", "").lower()
-
-        # Evaluation is DeepSeek Reasoner
-        assert "deepseek" in eval_agent.get("API_MODEL", "").lower()
+        Which provider is primary is a deployment choice (selected through
+        backend_state.json), so the test checks structure, not a vendor.
+        """
+        profiles = sorted((UFO_ROOT / "config" / "ufo").glob("agents*.yaml"))
+        assert profiles, "no agent profiles found"
+        for path in profiles:
+            with open(path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f) or {}
+            for agent in ("HOST_AGENT", "APP_AGENT"):
+                block = config.get(agent)
+                assert isinstance(block, dict), f"{path.name}: {agent} missing"
+                assert block.get("API_TYPE"), f"{path.name}: {agent}.API_TYPE missing"
+                assert block.get("API_MODEL"), f"{path.name}: {agent}.API_MODEL missing"
 
     def test_litellm_config_models(self):
         litellm_path = UFO_ROOT / "litellm_config.yaml"

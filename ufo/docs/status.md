@@ -44,14 +44,58 @@
 
 13 correctness/efficiency/portability bugs found by `/code-review` against the DGX diff, all fixed and test-verified: uncaught `BackendProfileError` in the EVALUATION-agent fallback (`llm/llm_call.py`), self-referencing LiteLLM DGX fallback chains, a no-op `PYTHON_EXE` fallback in the code-interpreter MCP server, a stale profile cache that ignored `UFO_DGX_HOST` changes, a spurious `DGX_HOST` key leaking into resolved configs, a wrong `sys.path` bootstrap depth in `client/mcp/local_servers/__init__.py`, two tests that crashed instead of skipping on a fresh checkout, duplicated/drifted DGX host normalization, an unnecessary per-call re-scan in the hot config path, an auto-probe cache bypass, 15 desktop launcher scripts with hardcoded personal paths, and a blocking network call inside `async main()`'s startup path. Full list: `docs/plans/E2E_REMEDIATION_PLAN.md`, "Status Update" section at top.
 
-## DGX Backend (Verified Live)
+## DGX Backend (Verified Live, 2026-09-20)
 
-| Service | Port | Model | Role |
-|---------|------|-------|------|
-| Ollama | 11434 | `gemma4-ufo` (vision) | HOST_AGENT, APP_AGENT, BACKUP_AGENT |
-| vLLM | 8000 | `qwen-abliterated` (text) | EVALUATION_AGENT |
+All services are reached through the private SSH tunnel on this PC (`UFO_DGX_HOST=127.0.0.1`),
+kept up by the "UFO gx10 tunnel" logon task (`scripts/gx10_tunnel_install.ps1`).
 
-**Host**: Tailscale `100.111.170.95` (not `192.168.1.10`; llama-server not running)
+| Service | Port | Model / role |
+|---------|------|--------------|
+| vLLM | 8000 | `qwen-abliterated` (Qwen3.6-35B-A3B NVFP4, multimodal, GPU share 0.35): HOST_AGENT, APP_AGENT, BACKUP_AGENT, EVALUATION_AGENT and the Galaxy ConstellationAgent. Thinking is off for the planner roles (`EXTRA_BODY`). |
+| Ollama | 11434 | `gemma4-ufo` no longer used by the DGX profile (stack B, 2026-09-22); Ollama is stopped and the model stays on disk as a fallback planner. |
+| UFO server | 5001 | Galaxy Linux device `dgx_gx10` (systemd user units, `ufo-galaxy.target`) |
+| OmniParser V2 | 7861 | vision control detection (systemd user unit `omniparser`) |
+| UI-Venus-2-9B | 8002 | description → coordinates grounding (`click_on_description`), bf16, GPU share 0.20 |
+
+Which agent profile is used comes from `config/ufo/backend_state.json` (`{"selected": "dgx"}` →
+`agents_dgx.yaml`). DGX service files live in `scripts/dgx/`.
+
+**Caveat:** on the DGX a SparkDeck agent (user `nick`) manages Docker containers and resets Qwen to
+its own settings (0.0.0.0:8000, 0.70 GPU memory) and removes the `ui-venus` container. The intended
+settings are in `scripts/dgx/qwen_run.sh` / `venus_run.sh`; SparkDeck's desired state must carry them.
+
+## 2026-09-22: Stack B (Qwen plans, Venus grounds)
+
+- Gemma was dropped as planner: the Qwen checkpoint is multimodal, so one vLLM model now serves every
+  agent role and UI-Venus-2 stays the pixel grounder. Qwen's GPU share went from 0.68 (about 82 GB reserved
+  for 23 GB of weights) to 0.35; with Venus loaded the box uses about 76 of 121 GB.
+- New per-agent `EXTRA_BODY` option in the agent config is forwarded to the chat call (`llm/openai.py`).
+- Results of the first live-suite run on this stack: see `logs/live_e2e_*/report.md`. Not yet compared
+  against Gemma+Venus; the comparison is still open.
+- Old Qwen container kept stopped as `qwen-abliterated-prev4` (rollback).
+
+## 2026-09-19/20: Perception, Verification, Retries, Persistence
+
+- **Vision grounding:** UI-Venus-2 (`automator/ui_control/grounding/venus.py`) with a crop-and-confirm
+  step; new AppAgent tool `click_on_description`; `click_input` fallback never clicks a guess.
+- **OmniParser:** shared client + 64-entry result cache; parsing runs off the event loop.
+- **Office:** Word/Excel/PowerPoint COM tools run on one STA thread per app, attach to the running
+  instance, never kill Office on timeout, and are only offered inside their own app (per-app MCP blocks).
+- **Multi-action steps:** up to 4 actions per step, each later one only if the UI is unchanged (`check_ui_stable`).
+- **Retrieval:** experience/demonstration indexes read FAISS (what the writers save); keyless DuckDuckGo online search.
+- **Verification & retries:** deterministic checks (`verification/`) settle FINISH before the LLM verifier;
+  `module/attempts.py` retries unverified requests sequentially with a narrative of the previous attempt
+  (`UFO_MAX_ATTEMPTS`, default 2); `result.json` records every attempt.
+- **Persistence:** DGX services are systemd user units (linger on); tokens come from `~/ufo-galaxy/.secrets`
+  via the environment, never argv. Windows tunnel is a hidden logon task with automatic reconnect.
+- **Secrets in logs:** `?token=`/API-key values are masked in all log handlers, session log files,
+  transport errors and web UI device events (`utils/redact.py`).
+- **Bugs fixed while repairing the test suite:** busy devices ran tasks concurrently (queue restored);
+  queued failures raised instead of returning FAILED; cancelling crashed on a read-only `state`;
+  reconnecting after a rejected registration never listened on the new socket; stale handlers could tear
+  down a newer connection; task-started events woke the agent as completions; `GalaxyRound` ignored Stop;
+  `is_safe_task_name` accepted anything (HTTP dispatch path traversal); a logger call raised
+  "not all arguments converted"; device config paths depended on the working directory.
 
 ## CI Status (Last Run)
 

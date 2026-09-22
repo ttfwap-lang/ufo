@@ -98,3 +98,7 @@ pr_diff_review.txt
 
 # Local credentials - never commit
 config/secrets.py
+
+# Runtime artifacts
+memory/*.json
+test_output/

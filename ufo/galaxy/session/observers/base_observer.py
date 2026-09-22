@@ -52,19 +52,10 @@ class ConstellationProgressObserver(IEventObserver):
             error = getattr(event, 'error', None)
             timestamp = getattr(event, 'timestamp', None)
             self.logger.info(f'Task progress: {task_id} -> {status}. Event Type: {event_type}')
-            if not hasattr(self.agent, 'task_completion_queue') or self.agent.task_completion_queue is None:
-                self.agent.task_completion_queue = asyncio.Queue()
             self.task_results[task_id] = {'task_id': task_id, 'status': status, 'result': result, 'error': error, 'timestamp': timestamp}
-            if hasattr(self.agent, '_state') and hasattr(self.agent._state, 'queue_task_update'):
-                event_type_str = event_type.value if hasattr(event_type, 'value') else str(event_type)
-                res = self.agent._state.queue_task_update({'task_id': task_id, 'event_type': event_type_str, 'status': status})
-                if asyncio.iscoroutine(res) or hasattr(res, '__await__'):
-                    await res
-            if hasattr(self.agent, 'task_completion_queue') and self.agent.task_completion_queue is not None:
-                res = self.agent.task_completion_queue.put(event)
-                if asyncio.iscoroutine(res) or hasattr(res, '__await__'):
-                    await res
-            elif hasattr(self.agent, 'add_task_completion_event') and callable(self.agent.add_task_completion_event):
+            # Only finished tasks wake the agent's Continue state; TASK_STARTED etc.
+            # must not be mistaken for completions.
+            if event_type in (EventType.TASK_COMPLETED, EventType.TASK_FAILED):
                 res = self.agent.add_task_completion_event(event)
                 if asyncio.iscoroutine(res) or hasattr(res, '__await__'):
                     await res
