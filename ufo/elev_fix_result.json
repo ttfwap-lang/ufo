@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "steps": [
+    [
+      "found_windows",
+      "[(14158794, 'Telegram (3639)', 'Qt51519QWindowIcon')]"
+    ],
+    [
+      "moved",
+      true
+    ],
+    [
+      "foreground",
+      true
+    ]
+  ],
+  "hwnd": 14158794,
+  "before": [
+    1297,
+    846,
+    1691,
+    1358
+  ],
+  "after": [
+    200,
+    100,
+    1250,
+    900
+  ],
+  "foreground_ok": true
+}

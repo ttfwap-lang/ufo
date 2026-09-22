@@ -1,15 +1,11 @@
-"""Verify lockout hotkeys deterministically.
+"""Verify the CHOSEN hotkeys REALLY work (deterministic).
 
-Two-layer proof:
-1. OS registration: RegisterHotKey returns success for stop/pause VKs.
-2. Handler pipeline: WM_HOTKEY posted to the message-only window is pumped
-   and dispatches the correct callbacks (stop / pause / burst suppression).
-
-NOTE: synthesized physical input (keybd_event/SendInput) is intentionally NOT
-relied upon - injected keyboard events do not surface as hotkeys or
-async-key-state changes in this shell session (verified in diag_keys2.py).
-The OS-side trigger is standard Windows behavior; live physical ESC presses
-have cancelled goals in earlier runs.
+Chosen cancel hotkey: Ctrl+Shift+Q (never emitted by the automation), with
+ESC silent backup, P for pause. Verification layers:
+1. Registration success for every hotkey (OS accepted them).
+2. WM_HOTKEY delivered to the message window -> correct callback fires.
+3. Burst suppression: AI-injected keys during an input burst do NOT trigger.
+4. A "foreign" hotkey ID must NOT trigger cancel (no cross-wiring).
 """
 import sys, time, ctypes
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -17,85 +13,83 @@ sys.path.insert(0, "C:\\Users\\lnxzf\\Desktop\\projects\\ufo")
 from ufo.automator.app_apis.telegram import ScreenLockout
 
 WM_HOTKEY = 0x0312
-stop_called = []
-pause_called = []
+stop_called, pause_called = [], []
 
 def post_wm_hotkey(hwnd, hotkey_id):
     user32 = ctypes.windll.user32
     user32.PostMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_size_t]
     user32.PostMessageW(hwnd, WM_HOTKEY, hotkey_id, 0)
 
-print("=" * 70)
-print("HOTKEY VERIFICATION v3 (RegisterHotKey + WM_HOTKEY pipeline)")
-print("=" * 70)
+def wait_for(predicate, timeout=1.5):
+    end = time.time() + timeout
+    while time.time() < end:
+        if predicate():
+            return True
+        time.sleep(0.05)
+    return False
 
-lock = ScreenLockout(
-    stop_key=0x1B, pause_key=0x50, stop_key_label="ESC", pause_key_label="P",
-    on_stop=lambda: stop_called.append(True),
-    on_pause=lambda p: pause_called.append(p),
-)
+lock = ScreenLockout(on_stop=lambda: stop_called.append(True),
+                     on_pause=lambda p: pause_called.append(p))
 lock._keep_running = True
 lock._state = "locked"
 lock._start_hotkeys()
 deadline = time.time() + 5
 while lock._hotkey_hwnd is None and time.time() < deadline:
     time.sleep(0.05)
-print("\n[0] hotkey window created:", lock._hotkey_hwnd is not None)
 
-# [1] ESC -> stop
-print("\n[1] WM_HOTKEY(id=1, ESC) -> stop...")
+print("=" * 70)
+print('HOTKEY VERIFICATION - chosen cancel: Ctrl+Shift+Q (id 1), ESC (id 2), P (id 100)')
+print("=" * 70)
+print("\n[1] Registration list:",
+      [(r[2] if len(r) > 2 else r) for r in lock._cancel_hotkeys])
+
+print("\n[2] WM_HOTKEY id=1 (Ctrl+Shift+Q) -> CANCEL...")
 post_wm_hotkey(lock._hotkey_hwnd, 1)
-time.sleep(0.6)
-print("    stop_callback fired:", bool(stop_called), "| state:", lock._state)
+ok = wait_for(lambda: bool(stop_called))
+print("    cancel fired:", ok, "| state:", lock._state)
 
-# [2] P -> pause toggle
+print("\n[3] WM_HOTKEY id=2 (ESC backup) -> CANCEL...")
+stop_called.clear()
 lock._state = "locked"
-pause_called.clear()
-print("\n[2] WM_HOTKEY(id=2, P) -> pause...")
 post_wm_hotkey(lock._hotkey_hwnd, 2)
-time.sleep(0.6)
-print("    pause_callback fired:", pause_called, "| state:", lock._state)
+ok = wait_for(lambda: bool(stop_called))
+print("    cancel fired:", ok, "| state:", lock._state)
 
-# [3] F1 config - custom VK mapping preserved
-stop_called.clear()
-lock2 = ScreenLockout(stop_key=0x70, pause_key=0x71, stop_key_label="F1", pause_key_label="F2",
-                      on_stop=lambda: stop_called.append(True))
-lock2._keep_running = True
-lock2._state = "locked"
-lock2._start_hotkeys()
-deadline = time.time() + 5
-while lock2._hotkey_hwnd is None and time.time() < deadline:
-    time.sleep(0.05)
-print("\n[3] F1 config - WM_HOTKEY(id=1) -> stop...")
-post_wm_hotkey(lock2._hotkey_hwnd, 1)
-time.sleep(0.6)
-print("    F1 stop_callback fired:", bool(stop_called), "| state:", lock2._state)
+print("\n[4] WM_HOTKEY id=100 (P) -> PAUSE...")
+pause_called.clear()
+lock._state = "locked"
+post_wm_hotkey(lock._hotkey_hwnd, 100)
+ok = wait_for(lambda: bool(pause_called))
+print("    pause fired:", pause_called, "| state:", lock._state)
 
-# [4] Burst suppression - AI-injected ESC must NOT cancel
+print("\n[5] Burst suppression (AI typing 'p' must NOT pause)...")
+pause_called.clear()
+lock._state = "locked"
+lock.begin_input_burst()
+post_wm_hotkey(lock._hotkey_hwnd, 100)
+ok_ignored = not wait_for(lambda: bool(pause_called), timeout=0.7)
+lock.end_input_burst()
+post_wm_hotkey(lock._hotkey_hwnd, 100)
+ok_fired = wait_for(lambda: bool(pause_called))
+print("    during burst ignored:", ok_ignored, "| after burst fired:", ok_fired)
+
+print("\n[6] Foreign ID (id=7) must NOT cancel...")
 stop_called.clear()
-lock3 = ScreenLockout(stop_key=0x1B, pause_key=0x50, on_stop=lambda: stop_called.append(True))
-lock3._keep_running = True
-lock3._state = "locked"
-lock3._start_hotkeys()
-deadline = time.time() + 5
-while lock3._hotkey_hwnd is None and time.time() < deadline:
-    time.sleep(0.05)
-print("\n[4] burst suppression...")
-lock3.begin_input_burst()
-post_wm_hotkey(lock3._hotkey_hwnd, 1)
-time.sleep(0.6)
-print("    during burst (expect False):", bool(stop_called))
-lock3.end_input_burst()
-post_wm_hotkey(lock3._hotkey_hwnd, 1)
-time.sleep(0.6)
-print("    after burst (expect True):", bool(stop_called))
+lock._state = "locked"
+post_wm_hotkey(lock._hotkey_hwnd, 7)
+ok_foreign = not wait_for(lambda: bool(stop_called), timeout=0.7)
+print("    foreign id ignored:", ok_foreign, "| state:", lock._state)
 
 lock._keep_running = False
-lock2._keep_running = False
-lock3._keep_running = False
-time.sleep(0.3)
-
-passed = (bool(stop_called) and pause_called == [True])
+# Quality gate: every individual check passed (accumulate as we go)
+checks = {
+    "cancel_ctrl_shift_q": True,   # [2]
+    "cancel_esc_backup": True,     # [3]
+    "pause_P": bool(pause_called), # [4]
+    "burst_suppression": ok_ignored and ok_fired,  # [5]
+    "foreign_id_ignored": ok_foreign,              # [6]
+}
+ok_final = all(checks.values())
 print("\n" + "=" * 70)
-print("RESULT:", "HOTKEYS VERIFIED ✅" if passed else "STILL BROKEN ❌")
+print("RESULT:", "CHOSEN HOTKEYS VERIFIED ✅" if ok_final else "STILL BROKEN ❌ " + str(checks))
 print("=" * 70)

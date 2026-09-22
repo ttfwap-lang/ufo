@@ -74,6 +74,10 @@ class TelegramGUIController:
         self._lockout = None  # Optional ScreenLockout reference for locked input
         self._privacy_redactor: Optional[PrivacyRedactor] = None
         self._human_mouse = None  # cached HumanMouse engine
+        # MANDATORY warning gate: near-opaque on-top 5s countdown with "*" to
+        # cancel - shown before ANY automation input, even tests.
+        self._warning_lockout = None
+        self._automation_warning_armed = False
     
     async def connect(self) -> bool:
         """Connect to Telegram Desktop window.
@@ -344,6 +348,145 @@ class TelegramGUIController:
         """True if a lockout is attached and currently locked."""
         return self._lockout is not None and self._lockout.is_locked
 
+    # ==================== MANDATORY WARNING GATE ====================
+
+    def _build_human_mouse(self):
+        """Create/cache the HumanMouse engine with the mandatory warning hook."""
+        if self._human_mouse is None:
+            from ufo.automator.app_apis.telegram.telegram_human_mouse import (
+                HumanMouse,
+            )
+            self._human_mouse = HumanMouse(
+                first_move_hook=self._sync_warning_hook
+            )
+        return self._human_mouse
+
+    def _sync_warning_hook(self) -> None:
+        """Synchronous wrapper: show the 5s countdown before the first move.
+
+        Called from a worker thread (HumanMouse moves are thread-offloaded),
+        so it runs its own event loop here.
+        """
+        import asyncio as _asyncio
+        loop = _asyncio.new_event_loop()
+        try:
+            ok = loop.run_until_complete(self._ensure_automation_warning())
+            if not ok:
+                raise RuntimeError(
+                    "AUTOMATION CANCELLED BY USER (countdown aborted) - refusing to move cursor"
+                )
+        finally:
+            loop.close()
+
+    async def _ensure_automation_warning(
+        self, countdown: int = 5, message: str = "AUTOMATION STARTING"
+    ) -> bool:
+        """MANDATORY near-opaque on-top 5s countdown before automation.
+
+        No input (mouse or keyboard) may ever be injected without first
+        showing this message. Cancel keys are verified (Ctrl+Shift+Q primary,
+        ESC backup); P = pause. Returns True when the countdown completed.
+        """
+        if self._automation_warning_armed:
+            return True
+        from ufo.automator.app_apis.telegram.telegram_lockout import ScreenLockout
+
+        if self._warning_lockout is None:
+            self._warning_lockout = ScreenLockout()
+            self._warning_lockout._on_stop = self._on_warning_cancel
+
+        armed = await self._warning_lockout.acquire(
+            message=message, countdown=countdown
+        )
+        if not armed:
+            # Cancelled during countdown - keep it unarmed; callers must abort
+            return False
+        self._automation_warning_armed = True
+        return True
+
+    def _on_warning_cancel(self) -> None:
+        """Cancel pressed on the mandatory warning gate."""
+        print("WARNING-GATE: cancel pressed - automation will not take control")
+        self._automation_warning_armed = False
+
+    @property
+    def warning_armed(self) -> bool:
+        return self._automation_warning_armed
+
+    # ==================== RULE 2: FORCE TELEGRAM ON TOP ====================
+
+    async def force_telegram_top(self) -> bool:
+        """GLOBAL RULE 2: Telegram must be foreground, visible, sane size.
+
+        1) best-effort in-process (restore/bring/focus)
+        2) if UIPI-blocked (elevated Telegram), run the elevated fixer
+           (elev_fix_window.py via Start-Process -Verb RunAs) and re-verify
+        3) only then return True
+        """
+        found = await self._find_telegram_window()
+        if not found:
+            print("force_telegram_top: no Telegram window found")
+            return False
+        hwnd, title, cls, pid = found
+
+        import win32gui
+        if win32gui.IsIconic(hwnd) or not win32gui.IsWindowVisible(hwnd):
+            try:
+                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+            except Exception:
+                pass
+
+        # In-process attempt
+        ok = await asyncio.to_thread(self._ensure_foreground)
+        if ok:
+            return True
+
+        # UIPI path: elevated fixer (operator approves UAC once)
+        print("force_telegram_top: UIPI-blocked - requesting elevated fix (approve UAC)")
+        try:
+            import subprocess
+            proc = subprocess.run(
+                [
+                    "powershell", "-NoProfile", "-Command",
+                    "Start-Process -FilePath "
+                    "'C:\\Users\\lnxzf\\Desktop\\projects\\ufo\\ufo\\.venv\\Scripts\\python.exe' "
+                    "-ArgumentList 'C:\\Users\\lnxzf\\Desktop\\projects\\ufo\\ufo\\elev_fix_window.py' "
+                    "-Verb RunAs -Wait",
+                ],
+                capture_output=True, text=True, timeout=120,
+            )
+        except Exception as e:
+            print(f"force_telegram_top: elevated fix launch failed: {e}")
+        await asyncio.sleep(1.0)
+        ok = await asyncio.to_thread(self._ensure_foreground)
+        return ok
+
+    # ==================== RULE 3: VISUAL TROUBLESHOOTING ====================
+
+    async def troubleshoot_screenshot(self, label: str = "troubleshoot") -> Optional[str]:
+        """GLOBAL RULE 3: capture a screenshot to diagnose any stuck state.
+
+        Saves to ufo_skill_state/evidence/debug/<label>_<ts>.png and returns
+        the path. Always called before blind retries.
+        """
+        try:
+            from datetime import datetime
+            from pathlib import Path
+            shot = await self.take_screenshot()
+            if not shot:
+                return None
+            d = Path("ufo_skill_state/evidence/debug")
+            d.mkdir(parents=True, exist_ok=True)
+            ts = datetime.now().isoformat().replace(":", "-")
+            path = d / f"{label}_{ts}.png"
+            with open(path, "wb") as f:
+                f.write(shot)
+            print(f"[troubleshoot] screenshot -> {path}")
+            return str(path)
+        except Exception as e:
+            print(f"[troubleshoot] failed: {e}")
+            return None
+
     def _type_keys_locked(self, keys: str) -> bool:
         """Type keys while the lockout overlay is active.
 
@@ -382,38 +525,52 @@ class TelegramGUIController:
     async def _type_keys_safe(self, keys: str) -> bool:
         """Type keys ONLY into the Telegram window, respecting lockout mode.
 
-        Safety guard: when a ScreenLockout is active, the overlay owns focus,
-        so input is injected via window messages (never global keystrokes).
-        When no lockout is active, Telegram must own the foreground before any
-        keystroke - if it does not (e.g. the user is typing in another app),
-        this NEVER sends the keys, preventing keystroke leakage.
+        MANDATORY WARNING: the 5s on-top countdown must be shown before any
+        input (even typing). While typing, the warning gate's input burst is
+        active so the AI's own keys never trigger the cancel/pause hotkeys.
         """
         import asyncio as _asyncio
 
-        # Locked mode: overlay owns foreground -> window-message injection
-        if self.lockout_active:
+        # Locked mode: overlay owns foreground -> burst injection
+        if self.lockout_active and self._lockout is not None:
             return await _asyncio.to_thread(self._type_keys_locked, keys)
 
-        # Unlocked mode: enforce foreground ownership first - never type blind
-        if not await _asyncio.to_thread(self._ensure_foreground):
-            print("SAFETY: Telegram is not the foreground window - refusing to type")
-            return False
+        # Unlocked mode: MANDATORY warning gate first
+        if not self._automation_warning_armed:
+            ok = await self._ensure_automation_warning()
+            if not ok:
+                print("SAFETY: cancelled at countdown - refusing to type")
+                return False
 
+        # Burst-suppress while we inject our own keys (never self-cancel/pause)
+        burst = None
+        if self._warning_lockout is not None:
+            self._warning_lockout.begin_input_burst()
+            burst = self._warning_lockout
         try:
-            import pywinauto.keyboard as keyboard
-            await _asyncio.to_thread(keyboard.send_keys, keys)
-            return True
-        except Exception as e:
-            print(f"Global type keys failed: {e}")
-            # Fallback to window-specific typing (window is already foreground)
-            if not await self._ensure_window_fresh():
+            if not await _asyncio.to_thread(self._ensure_foreground):
+                print("SAFETY: Telegram is not the foreground window - refusing to type")
                 return False
             try:
-                await self._desktop.type_text(self._window, keys)
+                import pywinauto.keyboard as keyboard
+                await _asyncio.to_thread(keyboard.send_keys, keys)
                 return True
-            except Exception as e2:
-                print(f"Window type keys failed: {e2}")
-                return False
+            except Exception as e:
+                print(f"Global type keys failed: {e}")
+                if not await self._ensure_window_fresh():
+                    return False
+                try:
+                    await self._desktop.type_text(self._window, keys)
+                    return True
+                except Exception as e2:
+                    print(f"Window type keys failed: {e2}")
+                    return False
+        finally:
+            if burst is not None:
+                try:
+                    burst.end_input_burst()
+                except Exception:
+                    pass
     
     async def _dismiss_overlays(self) -> bool:
         """Close stray overlays (search panel, context menus) before work.
@@ -592,11 +749,7 @@ class TelegramGUIController:
 
         def _do_scroll():
             try:
-                from ufo.automator.app_apis.telegram.telegram_human_mouse import (
-                    HumanMouse,
-                )
-                mouse = self._human_mouse or HumanMouse()
-                self._human_mouse = mouse
+                mouse = self._build_human_mouse()
                 # Move cursor onto the list with human motion, then wheel with
                 # human timing - NO click (a click could open a random chat).
                 mouse.scroll(-1 if direction < 0 else 1, x=cx, y=cy)
@@ -826,11 +979,7 @@ class TelegramGUIController:
             cy = (rect.top + rect.bottom) // 2
 
             def _do_click():
-                from ufo.automator.app_apis.telegram.telegram_human_mouse import (
-                    HumanMouse,
-                )
-                mouse = self._human_mouse or HumanMouse()
-                self._human_mouse = mouse
+                mouse = self._build_human_mouse()
                 mouse.click(cx, cy)
                 return True
 

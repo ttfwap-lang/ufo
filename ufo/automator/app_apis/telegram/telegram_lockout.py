@@ -39,27 +39,50 @@ class ScreenLockout:
         self,
         on_stop: Optional[Callable] = None,
         on_pause: Optional[Callable] = None,
-        stop_key: int = None,
-        pause_key: int = None,
-        stop_key_label: str = "ESC",
+        stop_key: Optional[object] = None,
+        pause_key: Optional[int] = None,
+        stop_key_label: str = "Ctrl+Shift+Q",
         pause_key_label: str = "P",
+        cancel_via_esc: bool = True,
     ):
         """Initialize.
 
-        :param on_stop: Called once when user presses the stop hotkey.
+        CANCEL hotkey policy (user-selected, verified via WM_HOTKEY test):
+            Primary : Ctrl+Shift+Q  - the automation NEVER emits this combo
+                       (we only type text/Enter/Tab/Ctrl+F/Esc/Shift+Enter),
+                       so it can never self-cancel, and it is trivial to
+                       smash on any keyboard.
+            Backup  : ESC (silent emergency; safe because the automation's
+                       own keys are burst-suppressed).
+        PAUSE: P (also burst-suppressed so typed 'p' never toggles).
+
+        :param on_stop: Called once when user presses a cancel hotkey.
         :param on_pause: Called with paused=True/False on pause-key toggles.
-        :param stop_key: Virtual key code for STOP (default ESC 0x1B).
-            Any key may be used, e.g. F1=0x70, F2=0x71.
+        :param stop_key: int VK (legacy) or None for the default Ctrl+Shift+Q.
         :param pause_key: Virtual key code for PAUSE/RESUME (default P 0x50).
-        :param stop_key_label: Display label for the stop key on the card.
+        :param stop_key_label: Display label for the cancel key on the card.
         :param pause_key_label: Display label for the pause key on the card.
+        :param cancel_via_esc: Also treat ESC as a silent emergency cancel.
         """
         self._on_stop = on_stop
         self._on_pause = on_pause
-        self._stop_vk = stop_key if stop_key is not None else 0x1B  # ESC
+        # Cancel hotkeys: list of (modifiers, vk) - primary + backups
+        MOD_CONTROL = 0x0002
+        MOD_SHIFT = 0x0004
+        if stop_key is None:
+            self._cancel_hotkeys = [
+                (MOD_CONTROL | MOD_SHIFT, 0x51),   # Ctrl+Shift+Q (primary)
+            ]
+        elif isinstance(stop_key, int):
+            self._cancel_hotkeys = [(0, stop_key)]
+        else:
+            self._cancel_hotkeys = list(stop_key)
+        if cancel_via_esc and (0, 0x1B) not in self._cancel_hotkeys:
+            self._cancel_hotkeys.append((0, 0x1B))  # silent emergency
         self._pause_vk = pause_key if pause_key is not None else 0x50  # P
         self._stop_label = stop_key_label
         self._pause_label = pause_key_label
+        self._cancel_via_esc = cancel_via_esc
         self._state = "idle"  # idle | countdown | locked | paused | stopping | released
         self._tk_thread: Optional[threading.Thread] = None
         self._root = None
@@ -255,7 +278,7 @@ class ScreenLockout:
 
             footer = tk.Label(
                 card,
-                text=f"{self._stop_label} = STOP    |    {self._pause_label} = PAUSE / RESUME",
+                text=f"{self._stop_label} = CANCEL    |    {self._pause_label} = PAUSE / RESUME",
                 font=("Segoe UI", 12, "bold"),
                 fg="#ff6b6b",
                 bg="#1e1e2e",
@@ -320,8 +343,8 @@ class ScreenLockout:
     def _update_countdown(self, seconds: int) -> None:
         """Update countdown text (thread-safe).
 
-        Strict 5-second warning: shows the remaining time and the OPT OUT
-        hotkey (STOP key) - pressing it during the countdown aborts the
+        Strict 5-second warning: shows the remaining time and the CANCEL
+        hotkey (`*`) - pressing it during the countdown aborts the
         automation cleanly and returns control.
         """
         if self._root is None:
@@ -335,7 +358,7 @@ class ScreenLockout:
                 )
                 self._subtitle.config(
                     text="Keep your hands off the keyboard and mouse.\n"
-                    f"Press {self._stop_label} NOW to OPT OUT and cancel this run.",
+                    f"Press {self._stop_label} NOW to CANCEL this run.",
                     fg="#e0e0e8",
                 )
             except Exception:
@@ -470,7 +493,7 @@ class ScreenLockout:
         )
         self._hotkey_thread.start()
         logger.info(
-            f"Global hotkeys registered (stop={self._stop_label}, "
+            f"Global hotkeys registered (cancel={self._stop_label}, "
             f"pause={self._pause_label})"
         )
 
@@ -550,11 +573,11 @@ class ScreenLockout:
                 if msg == WM_HOTKEY:
                     hotkey_id = wparam & 0xFFFF
                     # Ignore hotkeys while the AI is injecting input (a burst
-                    # sends ESC/other keys itself; they must not self-cancel).
+                    # sends keys itself; they must not self-cancel).
                     if not self._in_input_burst:
-                        if hotkey_id == 1:
+                        if 1 <= hotkey_id <= len(self._cancel_hotkeys):
                             self._set_stopped()
-                        elif hotkey_id == 2:
+                        elif hotkey_id == 100:
                             self._toggle_pause()
                     return 0
                 return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
@@ -581,9 +604,17 @@ class ScreenLockout:
 
         self._hotkey_hwnd = int(hwnd)
 
-        ok_stop = user32.RegisterHotKey(hwnd, 1, 0, self._stop_vk)
-        ok_pause = user32.RegisterHotKey(hwnd, 2, 0, self._pause_vk)
-        logger.info(f"RegisterHotKey result: stop={bool(ok_stop)}, pause={bool(ok_pause)}")
+        # --- Register hotkeys ---
+        # ids: 1..N = cancel hotkeys (Ctrl+Shift+Q first, then backups)
+        # 100 = pause (P)
+        registered = []
+        for i, (mods, vk) in enumerate(self._cancel_hotkeys, start=1):
+            ok = user32.RegisterHotKey(hwnd, i, mods, vk)
+            registered.append((i, mods, vk, bool(ok)))
+        ok_pause = user32.RegisterHotKey(hwnd, 100, 0, self._pause_vk)
+        logger.info(
+            f"RegisterHotKey: cancels={registered}, pause={bool(ok_pause)}"
+        )
 
         msg = wintypes.MSG()
         while self._keep_running and self._state != "released":
@@ -597,8 +628,9 @@ class ScreenLockout:
             else:
                 time.sleep(0.01)
 
-        user32.UnregisterHotKey(hwnd, 1)
-        user32.UnregisterHotKey(hwnd, 2)
+        user32.UnregisterHotKey(hwnd, 100)   # pause
+        for i in range(1, len(self._cancel_hotkeys) + 1):
+            user32.UnregisterHotKey(hwnd, i)
         user32.DestroyWindow(hwnd)
 
     # ==================== Input/click bursts ====================
