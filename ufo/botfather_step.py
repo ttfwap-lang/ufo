@@ -23,7 +23,6 @@ import ctypes
 
 
 def get_scale() -> float:
-    """System DPI scale (GetDpiForSystem/96). Physical = logical * scale."""
     try:
         dpi = ctypes.windll.user32.GetDpiForSystem()
         return dpi / 96.0
@@ -32,19 +31,52 @@ def get_scale() -> float:
 
 
 def phys_rect(w) -> "Rect":
-    """Convert the window's LOGICAL rect to PHYSICAL pixel rect for clicks."""
     s = get_scale()
-    return Rect(
-        left=int(w.left * s), top=int(w.top * s),
-        right=int(w.right * s), bottom=int(w.bottom * s),
-    )
+    return Rect(left=int(w.left * s), top=int(w.top * s),
+                right=int(w.right * s), bottom=int(w.bottom * s))
 
 
 def phys_offset(w, ox, oy, ow=50, oh=50) -> "Rect":
-    """A Rect around a PHYSICAL px offset (offsets match the captured PNG)."""
     r = phys_rect(w)
     return Rect(left=r.left + ox, top=r.top + oy,
                 right=r.left + ox + ow, bottom=r.top + oy + oh)
+
+
+def set_clipboard(text: str) -> None:
+    """Set the Windows clipboard exactly (UTF-16)."""
+    CF_UNICODETEXT = 13
+    GMEM_MOVEABLE = 0x0002
+    user32 = ctypes.windll.user32
+    kernel32 = ctypes.windll.kernel32
+    data = (text + "\0").encode("utf-16-le")
+    user32.OpenClipboard(None)
+    try:
+        user32.EmptyClipboard()
+        h = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+        p = kernel32.GlobalLock(h)
+        ctypes.memmove(p, data, len(data))
+        kernel32.GlobalUnlock(h)
+        user32.SetClipboardData(CF_UNICODETEXT, h)
+    finally:
+        user32.CloseClipboard()
+
+
+def get_clipboard() -> str:
+    """Read the Windows clipboard exactly."""
+    CF_UNICODETEXT = 13
+    user32 = ctypes.windll.user32
+    kernel32 = ctypes.windll.kernel32
+    user32.OpenClipboard(None)
+    try:
+        h = user32.GetClipboardData(CF_UNICODETEXT)
+        if not h:
+            return ""
+        p = kernel32.GlobalLock(h)
+        data = ctypes.string_at(p).decode("utf-16-le", errors="replace")
+        kernel32.GlobalUnlock(h)
+        return data.split("\0", 1)[0]
+    finally:
+        user32.CloseClipboard()
 
 
 async def snap(c, name="botfather_state.png"):
@@ -135,6 +167,72 @@ async def main():
             await c._click_at_rect(phys_offset(w, 550, 740, 400, 50))   # message input
             await asyncio.sleep(0.5)
         await snap(c)
+
+    elif cmd == "paste":
+        # Ctrl+V + Enter (clipboard PRE-SET locally - daemon can't own it)
+        await c._type_keys_safe(c.SHORTCUTS["paste"])     # Ctrl+V
+        await asyncio.sleep(0.5)
+        await c._type_keys_safe(c.SHORTCUTS["send"])      # Enter
+        print("pasted (clipboard pre-set locally)")
+        await asyncio.sleep(2.4)
+        await snap(c)
+
+    elif cmd == "patched":
+        # paste WITHOUT enter (for content that needs follow-up)
+        await c._type_keys_safe(c.SHORTCUTS["paste"])
+        await asyncio.sleep(0.5)
+        await snap(c)
+
+    elif cmd == "reply":
+        text = sys.argv[2]
+        set_clipboard_guard = True  # clipboard must be pre-set locally
+        # 1) close the global search overlay if open
+        await uia_click_by_text(c, "Button", "Cancel search")
+        await asyncio.sleep(0.6)
+        # 2) focus the message input via UIA click + human click at its center
+        rect = await uia_find_rect(c, "Edit", "Write a message...")
+        print("input rect:", rect)
+        if rect:
+            cx, cy = (rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2
+            await c._click_at_rect(Rect(left=cx - 15, top=cy - 15, right=cx + 15, bottom=cy + 15))
+            await asyncio.sleep(0.6)
+        # 3) paste + enter
+        await c._type_keys_safe(c.SHORTCUTS["paste"])
+        await asyncio.sleep(0.5)
+        await c._type_keys_safe(c.SHORTCUTS["send"])
+        await asyncio.sleep(2.2)
+        await snap(c)
+
+    elif cmd == "copyclip":
+        # Read current clipboard exactly (after a Ctrl+C elsewhere).
+        print("CLIPBOARD:", repr(get_clipboard())[:300])
+
+    elif cmd == "keys":
+        # Send a raw key sequence (e.g. "{TAB}{ENTER}") via gated typing:
+        # Tab focuses the FIRST inline button, Enter activates it.
+        seq = sys.argv[2]
+        ok = await c._type_keys_safe(seq)
+        print("keys sent:", ok, repr(seq)[:40])
+        await asyncio.sleep(1.5)
+        await snap(c)
+
+    elif cmd == "clickpx":
+        # Click EXACTLY at a PNG-physical offset: clickpx <px_x> <px_y>
+        ox, oy = int(sys.argv[2]), int(sys.argv[3])
+        if w:
+            await c._click_at_rect(phys_offset(w, ox - 20, oy - 20, 40, 40))
+            await asyncio.sleep(1.0)
+        await snap(c)
+
+    elif cmd == "copymsg":
+        # Click a message at PNG offset (ox,oy), Ctrl+C, print exact clipboard.
+        ox, oy = int(sys.argv[2]), int(sys.argv[3])
+        if w:
+            await c._click_at_rect(phys_offset(w, ox, oy, 60, 30))
+            await asyncio.sleep(0.6)
+            await c._type_keys_safe(c.SHORTCUTS["copy"])
+            await asyncio.sleep(0.5)
+        print("CLIPBOARD:", repr(get_clipboard())[:400])
 
     elif cmd == "type":
         text = sys.argv[2]
