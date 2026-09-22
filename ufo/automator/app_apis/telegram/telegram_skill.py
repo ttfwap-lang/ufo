@@ -342,15 +342,26 @@ class ConversationLearner:
             if data.get("name"):
                 skill.bot_name = str(data["name"])
             skill.learned_facts["_chat_label"] = str(data.get("name", ""))[:60]
+            chat_id = str(data.get("id", ""))
         elif isinstance(data, list):
             messages = data
+            chat_id = ""
         else:
             return {"error": "Unrecognized conversation format"}
 
-        return self.learn_from_messages(messages, skill)
+        return self.learn_from_messages(messages, skill, chat_id=chat_id)
 
-    def learn_from_messages(self, messages: List[Dict], skill: BotSkill) -> Dict[str, Any]:
-        """Learn abstract patterns from a list of message dicts."""
+    def learn_from_messages(
+        self, messages: List[Dict], skill: BotSkill, chat_id: str = ""
+    ) -> Dict[str, Any]:
+        """Learn abstract patterns from a list of message dicts.
+
+        Speaker classification: in Telegram Desktop exports BOTH sides use a
+        ``user`` prefix in ``from_id`` (e.g. ``user8575556020``), so
+        ``startswith("user")`` cannot distinguish bot from user. The reliable
+        discriminator is the conversation id: the bot's ``from_id`` equals
+        ``user<chat_id>`` (or ``<chat_id>``). Falls back to name matching.
+        """
         stats = {
             "messages_scanned": len(messages),
             "command_patterns": {},
@@ -370,10 +381,21 @@ class ConversationLearner:
         prev_user_pattern = None
         prev_bot_pattern = None
 
+        bot_from_ids = {chat_id, f"user{chat_id}"} if chat_id else set()
+        bot_name = skill.bot_name or ""
+
         for m in messages:
             from_id = str(m.get("from_id", ""))
+            sender = str(m.get("from", ""))
             text = _flatten_text(m.get("text", "")).strip()
-            is_bot = bool(from_id and not from_id.startswith("user"))
+
+            # Classify speaker
+            if bot_from_ids and from_id in bot_from_ids:
+                is_bot = True
+            elif bot_name and sender == bot_name:
+                is_bot = True
+            else:
+                is_bot = bool(from_id and not from_id.startswith("user"))
 
             if not text:
                 continue

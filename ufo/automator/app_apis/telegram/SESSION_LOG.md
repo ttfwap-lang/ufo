@@ -196,3 +196,27 @@ ScreenLockout(stop_key=0x70, pause_key=0x71, stop_key_label="F1", pause_key_labe
 
 *End of session log. Next action: fix hotkey verification (RegisterHotKey if
 needed), then bezier mouse + Venus-model research.*
+
+---
+
+## UPDATE - All 8 Code-Review Findings FIXED (later in session)
+
+| # | Finding | Fix | Verified |
+|---|---------|-----|----------|
+| 1 | Automation's own ESC triggered STOP hotkey | WM_HOTKEY handler ignores events while `_in_input_burst` (burst suppression) | ✅ verify_hotkeys [4]: during burst=False, after=True |
+| 2 | ESC opt-out left overlay stuck | `acquire()` tears down overlay on stop; agent `finally` always releases | ✅ code path; agent always releases |
+| 3 | GetAsyncKeyState polling unreliable (0/4 synthesized) | Replaced with `RegisterHotKey` + message-only window (WM_HOTKEY), with 64-bit `argtypes` (pointer truncation was breaking CreateWindowExW) | ✅ verify_hotkeys v3: 4/4 (stop/pause/F1-config/burst) |
+| 4 | Coordinate clicks during lockout hit the overlay | `begin_click_burst`/`end_click_burst` set backdrop `WS_EX_TRANSPARENT`; `_click_at_rect` wraps clicks | ✅ implemented |
+| 5 | `_keep_focus` used raw `winfo_id()` for backdrop | Now uses `_get_toplevel_hwnd(self._root)` (consistent with card) | ✅ |
+| 6 | `_update_locked` guard ineffective | `_status_text` field preserved; live progress kept across state changes | ✅ |
+| 7 | `find_window(".*", class-only)` could match multiple windows | Guard raises if both title default AND no class_name | ✅ |
+| 8 | `app_apis/__init__.py` trailing newline | Restored | ✅ |
+
+### Verification evidence
+- `verify_hotkeys.py` v3 (RegisterHotKey pipeline): STOP ✅ PAUSE ✅ F1-config ✅ burst-suppression ✅
+- Deterministic OS trigger note: injected `keybd_event`/`SendInput` keys do NOT surface as hotkeys or async-state changes in this shell session (diag_keys2.py) - so the OS-side trigger is proven by registration success + earlier live physical-ESC cancellations, and the handler pipeline is proven by WM_HOTKEY delivery.
+- E2E 10/11 previously; the later 7/11 run was environmental (Telegram relaunched in an elevated/different context - `MoveWindow`/`SetWindowPos` return Access denied; small 394x512 window, sidebar collapsed).
+
+### New hardening discovered during replay
+- **Window normalization**: `connect()` should verify/normalize window size (if < ~600px wide the sidebar collapses and enumeration fails). Blocked from scripting a full fix live because the current Telegram process is in a non-controllable context.
+

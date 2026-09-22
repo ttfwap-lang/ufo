@@ -450,8 +450,10 @@ class AutonomousTelegramAgent:
             self.save_current_skill()
             return result
         finally:
-            # Always release the lockout when done/aborted
-            if locked:
+            # ALWAYS release the lockout when done/aborted - even if it was
+            # acquired but acquisition returned False (user opted out of the
+            # countdown), so the machine is never left locked.
+            if self._lockout is not None:
                 await self.release_lockout()
 
     def pause(self) -> None:

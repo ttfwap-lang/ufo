@@ -47,6 +47,12 @@ from ufo.automator.app_apis.telegram.telegram_privacy import (
     RedactionResult,
     ERROR_KEYWORDS,
 )
+from ufo.automator.app_apis.telegram.telegram_human_mouse import (
+    HumanMouse,
+    MoveReport,
+    FASTEST_PEAK_PX_PER_S,
+    TARGET_PEAK_PX_PER_S,
+)
 
 __all__ = [
     # GUI
@@ -76,6 +82,11 @@ __all__ = [
     "PrivacyRedactor",
     "RedactionResult",
     "ERROR_KEYWORDS",
+    # Human mouse
+    "HumanMouse",
+    "MoveReport",
+    "FASTEST_PEAK_PX_PER_S",
+    "TARGET_PEAK_PX_PER_S",
     # Conversation learning (privacy-first)
     "ConversationLearner",
     "load_bot_skill_with_conversation",

@@ -139,6 +139,13 @@ class UIADesktop:
         kwargs = {"title_re": title_re}
         if class_name:
             kwargs["class_name"] = class_name
+        elif title_re == ".*":
+            # A bare default search could match the first arbitrary window on
+            # the desktop - require an explicit discriminator.
+            raise ValueError(
+                "find_window requires a class_name (or a specific title_re) "
+                "when title_re is left as the default '.*'"
+            )
 
         def _do_find():
             if self._app is not None:

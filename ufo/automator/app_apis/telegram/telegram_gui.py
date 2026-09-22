@@ -73,6 +73,7 @@ class TelegramGUIController:
         self._connected = False
         self._lockout = None  # Optional ScreenLockout reference for locked input
         self._privacy_redactor: Optional[PrivacyRedactor] = None
+        self._human_mouse = None  # cached HumanMouse engine
     
     async def connect(self) -> bool:
         """Connect to Telegram Desktop window.
@@ -591,12 +592,16 @@ class TelegramGUIController:
 
         def _do_scroll():
             try:
-                from pywinauto import mouse
-                # Move the cursor onto the chat list so the wheel lands on the
-                # list widget - NO click (a click could open a random chat).
-                mouse.move((cx, cy), duration=0.1)
-                for _ in range(steps):
-                    mouse.wheel(direction, coords=(cx, cy))
+                from ufo.automator.app_apis.telegram.telegram_human_mouse import (
+                    HumanMouse,
+                )
+                mouse = self._human_mouse or HumanMouse()
+                self._human_mouse = mouse
+                # Move cursor onto the list with human motion, then wheel with
+                # human timing - NO click (a click could open a random chat).
+                mouse.scroll(-1 if direction < 0 else 1, x=cx, y=cy)
+                for _ in range(max(0, steps - 1)):
+                    mouse.scroll(-1 if direction < 0 else 1, x=cx, y=cy)
                 return True
             except Exception:
                 return False
@@ -796,32 +801,46 @@ class TelegramGUIController:
         return n in t or n.split("(")[0].strip() in t
 
     async def _click_at_rect(self, rect: Rect) -> bool:
-        """Click at exact screen coordinates (SetCursorPos + mouse_event).
+        """Click at exact screen coordinates with HUMAN-like movement.
 
-        More reliable than UIA click_input for Qt custom-painted lists.
-        Ensures the Telegram window is foreground first (human-equivalent).
+        Uses the HumanMouse engine (fastest human mover minus 20%): bezier
+        path, submovements, overshoot-then-correct, tremor - then a human
+        click. Falls back to precise fixed-point click if unavailable.
+
+        During a lockout, the backdrop is click-through for the duration of
+        the click (click burst) so the click reaches Telegram, not the overlay.
         """
         if rect is None:
             return False
-        # Ensure the window is foreground so the click targets the real window
-        await asyncio.to_thread(self._ensure_foreground)
 
-        def _do_click():
-            import ctypes
-            import time
+        click_burst = False
+        if self.lockout_active and self._lockout is not None:
+            self._lockout.begin_click_burst()
+            click_burst = True
+
+        try:
+            # Ensure the window is foreground so the click targets the real window
+            await asyncio.to_thread(self._ensure_foreground)
+
             cx = (rect.left + rect.right) // 2
             cy = (rect.top + rect.bottom) // 2
-            user32 = ctypes.windll.user32
-            user32.SetCursorPos(cx, cy)
-            time.sleep(0.05)
-            # mouse_event LEFTDOWN / LEFTUP
-            MOUSEEVENTF_LEFTDOWN = 0x0002
-            MOUSEEVENTF_LEFTUP = 0x0004
-            user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-            user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-            return True
 
-        return await asyncio.to_thread(_do_click)
+            def _do_click():
+                from ufo.automator.app_apis.telegram.telegram_human_mouse import (
+                    HumanMouse,
+                )
+                mouse = self._human_mouse or HumanMouse()
+                self._human_mouse = mouse
+                mouse.click(cx, cy)
+                return True
+
+            return await asyncio.to_thread(_do_click)
+        finally:
+            if click_burst:
+                try:
+                    self._lockout.end_click_burst()
+                except Exception:
+                    pass
 
     async def _capture_window_state_hash(self) -> Optional[str]:
         """Capture a stable window-state signature (post-click verification)."""

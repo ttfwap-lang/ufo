@@ -71,9 +71,9 @@ class ScreenLockout:
         self._hotkey_thread: Optional[threading.Thread] = None
         self._keep_running = False
         self._in_input_burst = False
-        # Edge-detection state for keys
-        self._prev_stop = False
-        self._prev_pause = False
+        self._status_text = ""            # live progress line (preserved across state changes)
+        self._wnd_proc_ref = None         # keep the WNDPROC callback alive
+        self._hotkey_hwnd = None          # message-only window HWND (for tests)
 
     # ==================== Public API ====================
 
@@ -317,25 +317,6 @@ class ScreenLockout:
         except Exception:
             return 0
 
-    def update_status(self, status_line: str) -> None:
-        """Update the card subtitle with live progress (thread-safe).
-
-        Lets the user watch automation progress live on screen.
-        """
-        if self._root is None:
-            return
-
-        def _set():
-            try:
-                self._subtitle.config(text=status_line)
-            except Exception:
-                pass
-
-        try:
-            self._root.after(0, _set)
-        except Exception:
-            pass
-
     def _update_countdown(self, seconds: int) -> None:
         """Update countdown text (thread-safe).
 
@@ -373,17 +354,36 @@ class ScreenLockout:
         def _set():
             try:
                 self._title.config(text=f"🔒  {message}  🔒", fg="#ff6b6b")
-                # Keep showing potential live status (progress callback updates it)
-                current = ""
-                try:
-                    current = self._subtitle.cget("text")
-                except Exception:
-                    current = ""
-                if not current or "AI control" in current:
+                # Preserve live status text if it was set by update_status();
+                # otherwise show the generic lock message.
+                if self._status_text:
+                    self._subtitle.config(text=self._status_text, fg="#e0e0e8")
+                else:
                     self._subtitle.config(
                         text="Automation in progress - watch it run on screen.",
                         fg="#e0e0e8",
                     )
+            except Exception:
+                pass
+
+        try:
+            self._root.after(0, _set)
+        except Exception:
+            pass
+
+    def update_status(self, status_line: str) -> None:
+        """Update the card subtitle with live progress (thread-safe).
+
+        Lets the user watch automation progress live on screen.
+        The text is remembered so pause/resume state changes keep it.
+        """
+        self._status_text = status_line
+        if self._root is None:
+            return
+
+        def _set():
+            try:
+                self._subtitle.config(text=status_line)
             except Exception:
                 pass
 
@@ -475,7 +475,11 @@ class ScreenLockout:
         )
 
     def _hotkey_message_loop(self) -> None:
-        """Message loop with a message-only window that receives WM_HOTKEY."""
+        """Message loop with a message-only window that receives WM_HOTKEY.
+
+        64-bit ctypes requires explicit argtypes/restype for win32 calls -
+        otherwise pointer args/returns silently truncate to 32 bits.
+        """
         import ctypes
         from ctypes import wintypes
 
@@ -486,7 +490,6 @@ class ScreenLockout:
         PM_REMOVE = 0x0001
         HWND_MESSAGE = -3
 
-        # LRESULT CALLBACK(HWND, UINT, WPARAM, LPARAM) - LRESULT is pointer-sized
         WNDPROC = ctypes.WINFUNCTYPE(
             ctypes.c_ssize_t, wintypes.HWND, ctypes.c_uint,
             wintypes.WPARAM, wintypes.LPARAM,
@@ -505,6 +508,42 @@ class ScreenLockout:
                 ("lpszMenuName", wintypes.LPCWSTR),
                 ("lpszClassName", wintypes.LPCWSTR),
             ]
+
+        # ---- argtypes/restype for 64-bit correctness ----
+        kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+        kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+
+        user32.RegisterClassW.argtypes = [ctypes.POINTER(WNDCLASS)]
+        user32.RegisterClassW.restype = wintypes.ATOM
+
+        user32.CreateWindowExW.argtypes = [
+            wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR,
+            wintypes.DWORD, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+            wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID,
+        ]
+        user32.CreateWindowExW.restype = wintypes.HWND
+
+        user32.RegisterHotKey.argtypes = [
+            wintypes.HWND, ctypes.c_int, wintypes.UINT, wintypes.UINT,
+        ]
+        user32.RegisterHotKey.restype = wintypes.BOOL
+        user32.UnregisterHotKey.argtypes = [wintypes.HWND, ctypes.c_int]
+        user32.UnregisterHotKey.restype = wintypes.BOOL
+
+        user32.DefWindowProcW.argtypes = [
+            wintypes.HWND, ctypes.c_uint, wintypes.WPARAM, wintypes.LPARAM,
+        ]
+        user32.DefWindowProcW.restype = ctypes.c_ssize_t
+
+        user32.PeekMessageW.argtypes = [
+            ctypes.POINTER(wintypes.MSG), wintypes.HWND, ctypes.c_uint,
+            ctypes.c_uint, ctypes.c_uint,
+        ]
+        user32.PeekMessageW.restype = wintypes.BOOL
+        user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
+        user32.DispatchMessageW.argtypes = [ctypes.POINTER(wintypes.MSG)]
+        user32.DispatchMessageW.restype = ctypes.c_ssize_t
+        user32.DestroyWindow.argtypes = [wintypes.HWND]
 
         def wnd_proc(hwnd, msg, wparam, lparam):
             try:
@@ -530,10 +569,7 @@ class ScreenLockout:
         wc.lpfnWndProc = self._wnd_proc_ref
         wc.hInstance = kernel32.GetModuleHandleW(None)
         wc.lpszClassName = cls_name
-        registered = user32.RegisterClassW(ctypes.byref(wc))
-        if not registered:
-            # Class may already exist from a previous instance - skip
-            pass
+        user32.RegisterClassW(ctypes.byref(wc))  # ERROR_CLASS_ALREADY_EXISTS is fine
 
         hwnd = user32.CreateWindowExW(
             0, cls_name, "ufo_hotkeys", 0, 0, 0, 0, 0,
@@ -542,6 +578,8 @@ class ScreenLockout:
         if not hwnd:
             logger.warning("Hotkey message window creation failed")
             return
+
+        self._hotkey_hwnd = int(hwnd)
 
         ok_stop = user32.RegisterHotKey(hwnd, 1, 0, self._stop_vk)
         ok_pause = user32.RegisterHotKey(hwnd, 2, 0, self._pause_vk)
