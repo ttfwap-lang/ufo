@@ -27,17 +27,32 @@ $stream = [System.IO.WindowsRuntimeStreamExtensions]::AsRandomAccessStream($fs)
 $dec = Await ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
 $bmp = Await ($dec.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
 
+Write-Host "=== Bitmap ==="
+Write-Host "Size: $($bmp.PixelWidth)x$($bmp.PixelHeight)"
+Write-Host "Format: $($bmp.BitmapPixelFormat)"
+Write-Host "Alpha: $($bmp.BitmapAlphaMode)"
+Write-Host "DPI: $($bmp.DpiX)x$($bmp.DpiY)"
+
+# Check supported formats
+Write-Host "`n=== Supported formats ==="
+[Enum]::GetNames([Windows.Graphics.Imaging.BitmapPixelFormat]) | Where-Object { $_ -like '*Bgra*' -or $_ -like '*Rgba*' } | ForEach-Object { Write-Host $_ }
+
+# Try converting to BGRA8
+$conv = [Windows.Graphics.Imaging.SoftwareBitmap]::Convert($bmp, [Windows.Graphics.Imaging.BitmapPixelFormat]::Bgra8, [Windows.Graphics.Imaging.BitmapAlphaMode]::Premultiplied)
+Write-Host "`n=== Converted BGRA8 ==="
+Write-Host "Size: $($conv.PixelWidth)x$($conv.PixelHeight)"
+Write-Host "Format: $($conv.BitmapPixelFormat)"
+
+# Try with converted bitmap
+Write-Host "`n=== OCR on converted ==="
 $eng = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage([Windows.Globalization.Language]::new("en-US"))
 if (-not $eng) { $eng = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages() }
-$ocr = Await ($eng.RecognizeAsync($bmp)) ([Windows.Media.Ocr.OcrResult])
-
-# Output WORD-level rects (lines have null rects in this engine)
+Write-Host "Engine: $($eng.GetType().Name)"
+$ocr = Await ($eng.RecognizeAsync($conv)) ([Windows.Media.Ocr.OcrResult])
+Write-Host "Lines: $($ocr.Lines.Count)"
 foreach ($l in $ocr.Lines) {
-    foreach ($w in $l.Words) {
-        $r = $w.BoundingRect
-        if ($r -and $r.Width -gt 0 -and $r.Height -gt 0) {
-            Write-Host ("WORD [{0,4},{1,4} {2,4}x{3,4}] {4}" -f [int]$r.X, [int]$r.Y, [int]$r.Width, [int]$r.Height, $w.Text)
-        }
-    }
+    $r = $l.BoundingRect
+    Write-Host ("[{0,4},{1,4} {2,4}x{3,4}] {4}" -f [int]$r.X, [int]$r.Y, [int]$r.Width, [int]$r.Height, $l.Text)
 }
+
 $fs.Close()

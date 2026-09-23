@@ -63,7 +63,67 @@ Two endpoints: `POST /jobs {job_id, goal, app, params}` and `GET /result/{id}`.
 - `ui-venus` container serves UI-Venus-2-9B (vision/UI model - user may pair for visual steps).
 - `abliterated-proxy` = caddy.
 
-## RECON: @AstrologyScienceBot - LIVE (2026-09-24 ~02:10)
+## RECON: @AstrologyScienceBot - SOLVED FLOW (2026-09-24 ~05:00)
+### The working recipe (no visual model, no web API)
+1. Open the bot chat (`tg://resolve?domain=AstrologyScienceBot`) and verify the
+   ACTIVE CHAT via the window title (`topwin`).
+2. Click the **info-panel command link "General Horoscopes"** (bitmap 1085,955).
+   This opens the **Mini App webview in-pane** (NOT a separate window, NOT a
+   WebView2 child - no CDP/debug port exists for it).
+3. Main menu: "Your zodiac sign: X" + **"Change Sign"** (bitmap 940,607).
+4. Sign grid (4 rows x 3 cols, bitmap centres):
+   Aries(803,464) Taurus(948,464) Gemini(1092,464) / Cancer(806,512) Leo(949,512)
+   Virgo(1092,513) / Libra(805,558) Scorpio(949,560) Sagittarius(1091,560) /
+   Capricorn(805,607) Aquarius(948,607) Pisces(1092,605)
+5. **"For Tomorrow"** (bitmap 954,371) -> the bot **posts that sign's horoscope
+   card into the chat** ("Daily Horoscope <Sign> 24.09.2026" + prose + Love/
+   Health/Career/Lunar (x/5) + "Click for details:"). App view closes after.
+6. OCR the card. Repeat for all 12 signs.
+   -> `astro_collect.py [signs...]` automates this; evidence in
+   `astro_horoscope_<sign>.png`.
+### Caveats
+- The card header shows the GENERATION date (24.09.2026) even for the
+  "For Tomorrow" option - bot-side labelling quirk, not a wrong pick.
+- "For the Week / Month / Year / Today (Channel)" are also in the menu.
+
+### Coordinate model (what made clicks work)
+- **OCR word rects are real** (`OcrWord.BoundingRect`); only LINE rects are
+  (0,0,0,0) - ocr_shot.ps1 now emits WORD-level rects. This is our "vision".
+- Screen is **125% DPI**: the capture bitmap = logical window * 1.25.
+  `physical = bitmap + physical_window_origin` (e.g. (63,50) for a window at
+  logical (50,40)). `clickphys` takes PHYSICAL coords; `clickocr <text>`
+  converts automatically.
+
+### Windows/elevation lessons (cost hours - do not repeat)
+- The automation stack runs as **LENOVO\\lnxzf, session 1, NOT elevated**.
+  A Telegram launched ELEVATED (High) is UIPI-blocked: SetWindowPos -> "Access
+  is denied", SW_RESTORE silently no-ops, all screen captures fail.
+  **Rule: Telegram must run at NORMAL (medium) integrity.**
+- Do NOT launch Telegram via `runas /trustlevel:0x20000` (Basic User): that
+  trust level **kills the Qt accessibility bridge** (UIA tree empty:
+  `buttons: 0`). Launch via the user's Explorer instead:
+  `Start-Process explorer.exe "<Telegram.exe>"` -> medium integrity, full
+  token, UIA works.
+- Telegram keeps a **minimized ghost window** (rect -32000/-25600) plus a
+  `Qt51519TrayIconMessageWindowClass` tray helper. `_find_telegram_window` now
+  SCORES candidates (QWindowIcon +500, Tray -500, non-minimized +100, on-screen
+  +30) and `take_screenshot` self-heals by restoring + clamping into the work
+  area before one retry.
+- `fit_tg_dpi.ps1` = window to logical (50,40,1200,840); `restart_tg_medium.ps1`
+  = relaunch at medium integrity; `prep_screen.ps1` = minimize the IDEs that
+  cover Telegram. Anything painted over Telegram poisons the screen-region
+  capture - always `prep_screen` before evidence shots.
+
+### Dead ends (do not retry)
+- WebView2 CDP for the Mini App: Telegram renders the webview in-process, no
+  msedgewebview2 child, the BrowserAdditionalBrowserArguments policy has no
+  effect, nothing listens on 9222. Not needed - OCR + click works.
+- Inline "Open"/"Gift a Star" buttons in the welcome message: not UIA-exposed,
+  not reliably clickable. The INFO-PANEL command links are the entry point.
+- Plain text ("General Horoscopes", "/start", ...) is ignored by the bot.
+- The bot pushes only ONE sign/day (the selected sign) around 01:00.
+
+## RECON (earlier findings, still true)
 - Public site astrologyscience.online: "General Horoscopes - daily/weekly/monthly/
   yearly for all signs", 5 languages. No public API found.
 - Bot = **Mini App bot**. Chat-native limits PROVEN:

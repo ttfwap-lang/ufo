@@ -132,6 +132,11 @@ class TelegramGUIController:
         Title-independent: Telegram changes its window title to the active
         chat name (e.g. "whale cc 3 (3625)"), so we resolve by process name
         and prefer the main QWindowIcon class.
+
+        Robustness (RULE 2): Telegram can leave a minimized "ghost" window
+        (rect at -32000/-25600) next to a real, sane-geometry window. Binding
+        to the ghost breaks every screen-region capture, so candidates are
+        SCORED: non-minimized + visible + on-screen + QWindowIcon wins.
         """
         def _do_find():
             import win32gui
@@ -144,8 +149,6 @@ class TelegramGUIController:
             results = []
 
             def callback(hwnd, res):
-                if not win32gui.IsWindowVisible(hwnd):
-                    return
                 try:
                     _, pid = win32process.GetWindowThreadProcessId(hwnd)
                     proc_name = psutil.Process(pid).name() if psutil else None
@@ -164,13 +167,39 @@ class TelegramGUIController:
             except Exception:
                 pass
 
-            # Prefer the main icon window (has title + Qt QWindowIcon class)
-            for r in results:
-                hwnd, title, cls, pid = r
-                if "QWindowIcon" in cls and title:
-                    return r
-            # Fallback: first candidate
-            return results[0] if results else None
+            if not results:
+                return None
+
+            def _score(r):
+                hwnd, title, cls, _pid = r
+                s = 0
+                # The real main window is the Qt icon window. Tray/helper
+                # windows (Qt51519TrayIconMessageWindowClass) must never win,
+                # even when they are not minimized.
+                if "QWindowIcon" in cls:
+                    s += 500
+                elif "Tray" in cls or "tray" in cls:
+                    s -= 500
+                try:
+                    if not win32gui.IsIconic(hwnd):
+                        s += 100          # not minimized
+                    if win32gui.IsWindowVisible(hwnd):
+                        s += 50
+                    l, t, rr, b = win32gui.GetWindowRect(hwnd)
+                    w, h = rr - l, b - t
+                    if w > 200 and h > 200 and l > -1000 and t > -1000:
+                        s += 30           # on-screen, sane size
+                    if rr > 0 and b > 0:
+                        s += 10
+                except Exception:
+                    pass
+                if title:
+                    s += 5
+                return s
+
+            # Highest score wins; keep the original tie-break (main icon window)
+            best = max(results, key=_score)
+            return best
 
         return await asyncio.to_thread(_do_find)
     
@@ -216,6 +245,77 @@ class TelegramGUIController:
             pass
         return None
 
+    def _ensure_sane_geometry(self, hwnd: int) -> bool:
+        """RULE 2: keep Telegram visible, un-minimized and fully on-screen.
+
+        A window restored to an off-screen / oversized geometry breaks
+        screen-region screenshots ("Unable to capture the target window")
+        and puts click targets outside the desktop. This clamps the window
+        into the primary monitor's work area with a small margin.
+        """
+        try:
+            import win32gui
+            import win32con
+
+            # Un-minimize / un-hide first (idempotent)
+            if win32gui.IsIconic(hwnd):
+                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                import time as _t
+                _t.sleep(0.15)
+            if not win32gui.IsWindowVisible(hwnd):
+                # A hidden-but-real window must be shown, otherwise the
+                # screen-region capture grabs whatever is painted on top.
+                win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+                win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, 0, 0, 0, 0,
+                                      win32con.SWP_NOMOVE | win32con.SWP_NOSIZE
+                                      | win32con.SWP_SHOWWINDOW)
+                import time as _t2
+                _t2.sleep(0.2)
+
+            import ctypes
+            from ctypes import wintypes
+
+            SPI_GETWORKAREA = 0x0030
+            rect = wintypes.RECT()
+            ctypes.windll.user32.SystemParametersInfoW(
+                SPI_GETWORKAREA, 0, ctypes.byref(rect), 0)
+            wa_w = rect.right - rect.left
+            wa_h = rect.bottom - rect.top
+            if wa_w <= 0 or wa_h <= 0:  # fallback if work area unavailable
+                wa_w, wa_h = 1920, 1040
+
+            l, t, r, b = win32gui.GetWindowRect(hwnd)
+            w, h = r - l, b - t
+            margin = 8
+            max_w = max(640, wa_w - 2 * margin)
+            max_h = max(480, wa_h - 2 * margin)
+
+            need_fix = False
+            # iconic leftovers put the rect at -32000
+            if w <= 0 or h <= 0 or l < -1000 or t < -1000:
+                need_fix = True
+            # extends beyond the work area (bottom/right overflow is the
+            # common failure after a display change or geometry restore)
+            elif r > rect.right + 4 or b > rect.bottom + 4:
+                need_fix = True
+            elif w > max_w or h > max_h:
+                need_fix = True
+
+            if need_fix:
+                nw = min(w if w > 0 else max_w, max_w)
+                nh = min(h if h > 0 else max_h, max_h)
+                nx = max(rect.left + margin,
+                         min(l if l > -1000 else rect.left + margin,
+                             rect.right - nw - margin))
+                ny = max(rect.top + margin,
+                         min(t if t > -1000 else rect.top + margin,
+                             rect.bottom - nh - margin))
+                win32gui.MoveWindow(hwnd, nx, ny, nw, nh, True)
+                return True
+            return False
+        except Exception:
+            return False
+
     def _ensure_foreground(self) -> bool:
         """Ensure the Telegram window is the foreground window.
 
@@ -253,6 +353,10 @@ class TelegramGUIController:
             if win32gui.IsIconic(hwnd) or not win32gui.IsWindowVisible(hwnd):
                 win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
                 win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+
+            # RULE 2: sane size/position - clamp into the work area so
+            # screen-region captures can never fail on an off-screen window
+            self._ensure_sane_geometry(hwnd)
 
             # Unlock foreground permission
             user32.LockSetForegroundWindow(1)  # LSFW_UNLOCK
@@ -1158,12 +1262,30 @@ class TelegramGUIController:
     # ==================== Utility Methods ====================
     
     async def take_screenshot(self, region: Optional[Rect] = None) -> bytes:
-        """Take screenshot of the Telegram window (targets the specific window)."""
+        """Take screenshot of the Telegram window (targets the specific window).
+
+        Self-healing: a minimized / off-screen window (rect at -25600 after a
+        minimize-restore cycle or a geometry restore) makes the screen-region
+        capture fail. RULE 2 requires a sane visible window, so force it back
+        and retry once instead of aborting the step.
+        """
         if not self._desktop:
             return b""
         # Ensure window is fresh so we capture the real, current Telegram window
         await self._ensure_window_fresh()
-        return await self._desktop.screenshot(window=self._window, region=region)
+        try:
+            return await self._desktop.screenshot(window=self._window, region=region)
+        except Exception as first_err:
+            hwnd = self.get_concrete_hwnd()
+            if hwnd:
+                # Restore + clamp into the work area, then retry once
+                self._ensure_sane_geometry(hwnd)
+                await asyncio.sleep(0.4)
+                try:
+                    return await self._desktop.screenshot(window=self._window, region=region)
+                except Exception:
+                    pass
+            raise first_err
     
     async def close(self) -> None:
         """Close the desktop automation connection."""

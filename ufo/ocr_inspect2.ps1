@@ -31,13 +31,21 @@ $eng = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage([Windows.Globalizati
 if (-not $eng) { $eng = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages() }
 $ocr = Await ($eng.RecognizeAsync($bmp)) ([Windows.Media.Ocr.OcrResult])
 
-# Output WORD-level rects (lines have null rects in this engine)
-foreach ($l in $ocr.Lines) {
-    foreach ($w in $l.Words) {
-        $r = $w.BoundingRect
-        if ($r -and $r.Width -gt 0 -and $r.Height -gt 0) {
-            Write-Host ("WORD [{0,4},{1,4} {2,4}x{3,4}] {4}" -f [int]$r.X, [int]$r.Y, [int]$r.Width, [int]$r.Height, $w.Text)
-        }
+$first = $ocr.Lines[0]
+Write-Host "Line.Text: $($first.Text)"
+Write-Host "Line.Words count: $($first.Words.Count)"
+
+# Check words
+foreach ($w in $first.Words) {
+    Write-Host "Word: $($w.Text)"
+    Write-Host "  Word type: $($w.GetType().FullName)"
+    $w | Get-Member | Select-Object Name, MemberType | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+    $wr = $w.BoundingRect
+    if ($wr) {
+        Write-Host "  Word Rect: X=$($wr.X) Y=$($wr.Y) W=$($wr.Width) H=$($wr.Height)"
+    } else {
+        Write-Host "  Word Rect: NULL"
     }
 }
+
 $fs.Close()

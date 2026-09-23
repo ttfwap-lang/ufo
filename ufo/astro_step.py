@@ -199,6 +199,39 @@ async def main():
             print(it)
         print("done")
 
+    elif cmd == "clickocr":
+        # Click at OCR word center (bitmap coords -> physical)
+        # Usage: clickocr <word_text>  -- finds first matching word, clicks its center
+        target = sys.argv[2].lower()
+        import subprocess, json
+        result = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", 
+                                 r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\ocr_shot.ps1"], 
+                                capture_output=True, text=True, timeout=60)
+        for line in result.stdout.splitlines():
+            if line.startswith("WORD "):
+                # Parse: WORD [ x,  y   w x h] text
+                import re
+                m = re.match(r'WORD\s+\[\s*(\d+),\s*(\d+)\s+(\d+)x\s*(\d+)\]\s+(.+)', line)
+                if m:
+                    x, y, w, h, text = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4)), m.group(5)
+                    if target in text.lower():
+                        # Bitmap center -> physical using the LIVE window origin
+                        wr = phys_rect(c.window.rect)
+                        px, py = wr.left + x + w // 2, wr.top + y + h // 2
+                        print(f"Clicking '{text}' at bitmap ({x},{y}) -> physical ({px},{py})")
+                        await c._click_at_rect(Rect(left=px-15, top=py-15, right=px+15, bottom=py+15))
+                        await asyncio.sleep(1.5)
+                        await snap(c)
+                        return
+        print(f"No word matching '{target}' found")
+
+    elif cmd == "clickphys":
+        # Direct physical click (bypassing PNG coordinate mapping)
+        px, py = int(sys.argv[2]), int(sys.argv[3])
+        await c._click_at_rect(Rect(left=px-15, top=py-15, right=px+15, bottom=py+15))
+        await asyncio.sleep(1.0)
+        await snap(c)
+
     elif cmd == "webapp":
         domain = sys.argv[2] if len(sys.argv) > 2 else "AstrologyScienceBot"
         import os

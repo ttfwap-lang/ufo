@@ -31,13 +31,25 @@ $eng = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage([Windows.Globalizati
 if (-not $eng) { $eng = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages() }
 $ocr = Await ($eng.RecognizeAsync($bmp)) ([Windows.Media.Ocr.OcrResult])
 
-# Output WORD-level rects (lines have null rects in this engine)
-foreach ($l in $ocr.Lines) {
-    foreach ($w in $l.Words) {
-        $r = $w.BoundingRect
-        if ($r -and $r.Width -gt 0 -and $r.Height -gt 0) {
-            Write-Host ("WORD [{0,4},{1,4} {2,4}x{3,4}] {4}" -f [int]$r.X, [int]$r.Y, [int]$r.Width, [int]$r.Height, $w.Text)
-        }
-    }
-}
+# Inspect first line
+$first = $ocr.Lines[0]
+Write-Host "Line type: $($first.GetType().FullName)"
+Write-Host "Line members:"
+$first | Get-Member | Select-Object Name, MemberType, Definition | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+
+# Inspect BoundingRect
+$rect = $first.BoundingRect
+Write-Host "`nRect type: $($rect.GetType().FullName)"
+$rect | Get-Member | Select-Object Name, MemberType, Definition | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+Write-Host "Rect raw: X=$($rect.X) Y=$($rect.Y) W=$($rect.Width) H=$($rect.Height)"
+
+# Try with TryCreateFromUserProfileLanguages
+$eng2 = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+$ocr2 = Await ($eng2.RecognizeAsync($bmp)) ([Windows.Media.Ocr.OcrResult])
+Write-Host "`n=== TryCreateFromUserProfileLanguages ==="
+Write-Host "Lines: $($ocr2.Lines.Count)"
+$first2 = $ocr2.Lines[0]
+$r2 = $first2.BoundingRect
+Write-Host "Rect2: X=$($r2.X) Y=$($r2.Y) W=$($r2.Width) H=$($r2.Height)"
+
 $fs.Close()
