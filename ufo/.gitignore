@@ -141,3 +141,4 @@ uac_setup_done.json
 
 # gx10 runner secrets
 /gx10_runner/.env
+token_*.png
