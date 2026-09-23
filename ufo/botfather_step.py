@@ -183,6 +183,27 @@ async def main():
         await asyncio.sleep(0.5)
         await snap(c)
 
+    elif cmd == "grep":
+        # Find UIA elements whose text contains a needle; print type/rect/text.
+        # Used to read BotFather's token message EXACTLY (no OCR, no clipboard).
+        needle = sys.argv[2]
+        def _g():
+            out = []
+            for el in c.window.handle.descendants():
+                try:
+                    t = (el.window_text() or "").strip()
+                except Exception:
+                    continue
+                if needle in t:
+                    r = el.element_info.rectangle
+                    out.append((el.element_info.control_type,
+                                (r.left, r.top, r.right, r.bottom), t[:400]))
+            return out
+        hits = await asyncio.to_thread(_g)
+        print("hits:", len(hits))
+        for h in hits:
+            print(h)
+
     elif cmd == "reply":
         text = sys.argv[2]
         set_clipboard_guard = True  # clipboard must be pre-set locally
