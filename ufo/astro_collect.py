@@ -42,6 +42,10 @@ def bm2phys(bm):
 
 
 async def click(c, bm, label=""):
+    # The controller re-applies its own "sane" geometry inside every click
+    # (force_telegram_top), which silently invalidates the bitmap map.
+    # Re-pin the window immediately before each click.
+    fit_window(c)
     px, py = bm2phys(bm)
     print(f"  click {label or bm} bitmap={bm} -> physical=({px},{py})", flush=True)
     await c._click_at_rect(Rect(left=px - 15, top=py - 15, right=px + 15, bottom=py + 15))
@@ -138,31 +142,58 @@ async def ensure_info_panel(c):
     from ufo.automation.desktop import Rect
 
     def _find():
+        found = {}
         for el in c.window.handle.descendants(control_type="Button"):
             try:
                 t = (el.window_text() or "").strip()
             except Exception:
                 continue
-            if t in ("Info", "Close panel"):
+            if t in ("Info", "Close panel") and t not in found:
                 r = el.element_info.rectangle
                 if r.right - r.left > 1:
-                    return t, (r.left, r.top, r.right, r.bottom)
-        return None, None
+                    found[t] = (r.left, r.top, r.right, r.bottom)
+        return found
 
-    name, rect = await asyncio.to_thread(_find)
-    if name == "Info":
-        cx, cy = (rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2
+    found = await asyncio.to_thread(_find)
+    # "Close panel" present => the panel is ALREADY open. Clicking "Info"
+    # then would CLOSE it and the command links would disappear.
+    if "Close panel" in found:
+        print("  info panel already open", flush=True)
+        return False
+    if "Info" in found:
+        r = found["Info"]
+        cx, cy = (r[0] + r[2]) // 2, (r[1] + r[3]) // 2
         print(f"  opening info panel at ({cx},{cy})", flush=True)
         await c._click_at_rect(Rect(left=cx - 15, top=cy - 15,
                                      right=cx + 15, bottom=cy + 15))
         await asyncio.sleep(2.0)
         return True
-    print(f"  info panel already open ({name})", flush=True)
+    print("  info panel button not found", flush=True)
     return False
 
 
+def find_link(boxes):
+    """Find the info-panel "General Horoscopes" command link.
+
+    It is the LOWEST 'Horoscopes' that has a 'General' immediately to its
+    left on the same line (the chat can also contain a "General Horoscopes"
+    message header, which sits higher in the message list).
+    """
+    cands = [b for b in boxes if b[4].lower() == "horoscopes"]
+    for x, y, w, h, t in sorted(cands, key=lambda b: -b[1]):
+        left = [b for b in boxes
+                if b[4].lower() == "general" and abs(b[1] - y) <= 6
+                and 0 < x - (b[0] + b[2]) < 40]
+        if left:
+            # click the middle of the two-word label
+            gx = min(b[0] for b in left)
+            return (gx, y, (x + w) - gx, h, "General Horoscopes")
+    return None
+
+
 async def verify(c, name, must_have, label):
-    """Screenshot + OCR; assert the expected text is present."""
+    """Re-pin the window, screenshot + OCR, assert expected text is present."""
+    fit_window(c)          # clicks resize the window; normalise before capture
     path = await snap(c, name)
     if not path:
         return None, set(), ""
@@ -174,11 +205,11 @@ async def verify(c, name, must_have, label):
 
 
 async def click_box(c, box, label):
-    """Click the centre of an OCR word box."""
+    """Click the centre of an OCR word box (window re-pinned first)."""
     from ufo.automation.desktop import Rect
     x, y, w, h = box[0], box[1], box[2], box[3]
-    ox, oy = WIN_X, WIN_Y
-    px, py = ox + x + w // 2, oy + y + h // 2
+    fit_window(c)
+    px, py = WIN_X + x + w // 2, WIN_Y + y + h // 2
     print(f"  click {label} '{box[4]}' bitmap=({x},{y}) -> physical ({px},{py})",
           flush=True)
     await c._click_at_rect(Rect(left=px - 12, top=py - 12,
@@ -322,8 +353,7 @@ async def main():
             #    with the panel layout, so locate it by OCR and fall back to
             #    the measured map only if OCR cannot see it.
             ok, _w, boxes = await verify(c, f"v_pre_{sign}", [], "pre-state")
-            link = find_box(boxes, "Horoscopes", exact=True, rightmost=True,
-                            y_min=700) or find_box(boxes, "Horoscopes")
+            link = find_link(boxes)
             if link:
                 await click_box(c, link, "open app")
             else:
@@ -335,9 +365,7 @@ async def main():
                 await ensure_info_panel(c)
                 ok2, _w2, boxes2 = await verify(c, f"v_pre2_{sign}", [],
                                                "pre-state 2")
-                link = find_box(boxes2, "Horoscopes", exact=True,
-                                rightmost=True, y_min=700) or \
-                    find_box(boxes2, "Horoscopes")
+                link = find_link(boxes2)
                 if link:
                     await click_box(c, link, "open app (retry)")
                 else:
