@@ -36,24 +36,38 @@ def sh(*args: str) -> int:
 
 
 def main() -> int:
+    top = git("rev-parse", "--show-toplevel").stdout.strip()
+    if not top:
+        print("not inside a git repository")
+        return 1
+    print(f"git root: {top}")
+
     before = git("rev-parse", "main").stdout.strip()
     print(f"main before: {before[:12]}")
 
-    # Safety: refuse to rewrite if the working tree is dirty.
-    if git("status", "--porcelain").stdout.strip():
-        print("working tree is dirty - commit or stash first")
+    # Safety: refuse to rewrite if tracked files are modified.
+    dirty = [ln for ln in git("status", "--porcelain").stdout.splitlines()
+             if not ln.startswith("??")]
+    if dirty:
+        print("tracked changes present - commit them first:")
+        print("\n".join(dirty[:10]))
         return 1
 
-    env_backup = git("rev-parse", "refs/original/").stdout.strip()
-    # filter-branch prints a big warning; keep the output quiet.
-    rc = sh("filter-branch", "--force",
-            "--index-filter",
-            "git rm --cached --ignore-unmatch -- 'result.json'",
-            "--prune-empty", "--", "main")
+    # filter-branch must run from the repository root, and the index-filter
+    # must not use `git rm` (it trips over Windows' null device).
+    import os
+    cwd = os.getcwd()
+    os.chdir(top)
+    try:
+        rc = sh("filter-branch", "--force",
+                "--index-filter",
+                "git update-index --force-remove -- result.json",
+                "--prune-empty", "--", "main")
+    finally:
+        os.chdir(cwd)
     if rc:
         print("filter-branch failed")
         return rc
-    del env_backup
 
     after = git("rev-parse", "main").stdout.strip()
     print(f"main after : {after[:12]}")
