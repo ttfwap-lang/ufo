@@ -172,23 +172,64 @@ async def ensure_info_panel(c):
     return False
 
 
-def find_link(boxes):
+def find_link(boxes, capture_h=1000):
     """Find the info-panel "General Horoscopes" command link.
 
-    It is the LOWEST 'Horoscopes' that has a 'General' immediately to its
-    left on the same line (the chat can also contain a "General Horoscopes"
-    message header, which sits higher in the message list).
+    Must be a 'Horoscopes' with a 'General' immediately to its left on the
+    same line AND in the info-panel region: right of the chat pane and near
+    the bottom of the window. The chat itself also contains a "General
+    Horoscopes" message header, and picking that one clicks a message instead
+    of launching the Mini App (which silently does nothing).
     """
-    cands = [b for b in boxes if b[4].lower() == "horoscopes"]
+    panel_min_y = int(capture_h * 0.80)
+    cands = [b for b in boxes
+             if b[4].lower() == "horoscopes" and b[1] >= panel_min_y]
     for x, y, w, h, t in sorted(cands, key=lambda b: -b[1]):
         left = [b for b in boxes
                 if b[4].lower() == "general" and abs(b[1] - y) <= 6
                 and 0 < x - (b[0] + b[2]) < 40]
         if left:
-            # click the middle of the two-word label
             gx = min(b[0] for b in left)
             return (gx, y, (x + w) - gx, h, "General Horoscopes")
     return None
+
+
+# --------------------------------------------------------------- vision aid
+# UI-Venus-2-9B on gx10. Used ONLY when OCR cannot find the target: text
+# labels are resolved by OCR (pixel-exact, 100% in bench_venus_final.py),
+# while icons and unfamiliar layouts are what the vision model is for
+# (icon-button median error ~1.7px, measured against UIA rects).
+# This replaces the stale fixed-pixel fallbacks that used to mis-click.
+VENUS_ENABLED = os.environ.get("UFO_VISION", "1") not in ("0", "false", "no")
+
+
+async def vision_box(c, description, tag="vision"):
+    """Locate a control semantically with Venus; return an OCR-style box.
+
+    Returns (x, y, w, h, label) or None. The window is re-pinned first so the
+    bitmap-to-physical mapping stays valid (clicks resize the window).
+    """
+    if not VENUS_ENABLED:
+        return None
+    try:
+        import venus_client
+    except Exception as e:
+        print(f"  vision unavailable: {e}", flush=True)
+        return None
+    try:
+        fit_window(c)
+        path = await snap(c, f"vshot_{tag}")
+        if not path:
+            return None
+        res = venus_client.locate(path, description, prefer="venus")
+        if not res.found:
+            print(f"  vision could not locate {description!r}", flush=True)
+            return None
+        x, y = res.x, res.y
+        return (int(x) - 8, int(y) - 8, 16, 16, description[:40])
+    except Exception as e:
+        print(f"  vision error ({type(e).__name__}: {e})", flush=True)
+        return None
 
 
 async def verify(c, name, must_have, label):
@@ -298,6 +339,111 @@ async def ensure_connected(retries=4):
     return None
 
 
+async def ensure_chat_state(c, bot, expect=("astrology", "horoscope"),
+                           tries=3):
+    """Put Telegram into a known state before clicking anything.
+
+    Two drift modes were observed in the field and both silently poisoned
+    every later step:
+
+      * the wrong chat is active (the window title is the only truth), and
+      * the chat is in message-SELECTION mode, which replaces the whole
+        layout with a FORWARD/DELETE/CANCEL bar - the info panel link then
+        does not exist and every coordinate target is wrong.
+
+    Returns True when the window title matches the expected bot. Recovery is
+    a plain ESC (selection mode) plus a deeplink re-open; nothing here is
+    destructive.
+    """
+    import win32gui
+
+    for attempt in range(tries):
+        title = ""
+        try:
+            title = win32gui.GetWindowText(c.get_concrete_hwnd()) or ""
+        except Exception:
+            pass
+        low = title.lower()
+        if any(e in low for e in expect):
+            # selection mode overlays the chat even in the right chat
+            fit_window(c)
+            path = await snap(c, f"vstate_{attempt}")
+            if path:
+                _w, text, _b = ocr_words(path)
+                stuck = any(k in text for k in
+                            ("forward", "delete", "cancel"))
+                if stuck:
+                    print("  selection mode detected - pressing ESC",
+                          flush=True)
+                    await escape_press(c)
+                    await asyncio.sleep(1.2)
+            return True
+
+        print(f"  wrong/unknown chat (title={title!r}) - re-opening {bot}",
+              flush=True)
+        try:
+            os.startfile(f"tg://resolve?domain={bot}")
+        except Exception as e:
+            print(f"  deeplink failed: {e}", flush=True)
+        await asyncio.sleep(4.0)
+        await c.force_telegram_top()
+        await asyncio.sleep(1.0)
+    return False
+
+
+async def escape_press(c):
+    """Send ESC through the gated controller (Rule-1 countdown still applies).
+
+    _type_keys_safe takes a pywinauto key string, e.g. "{ESC}".
+    """
+    try:
+        ok = await c._type_keys_safe("{ESC}")
+        if not ok:
+            print("  ESC injection refused (countdown cancelled?)", flush=True)
+    except Exception as e:
+        print(f"  ESC failed: {type(e).__name__}: {e}", flush=True)
+
+
+async def detect_miniapp_consent(c, name="consent"):
+    """Detect Telegram's Mini App consent sheet.
+
+    Telegram shows "By launching this mini app, you agree to the Terms of
+    Service for Mini Apps." before the first launch of a Mini App. It is a
+    MODAL that replaces the layout, so every later coordinate target is wrong
+    while it is up - which is exactly how a run that "clicks the link" and
+    nothing happens.
+
+    Accepting it is a Terms-of-Service decision, so this function only
+    DETECTS. `accept_miniapp_consent` is opt-in via --accept-miniapp-tos.
+    """
+    fit_window(c)
+    path = await snap(c, name)
+    if not path:
+        return None
+    _w, text, boxes = ocr_words(path)
+    flat = text.lower()
+    if "terms of service" in flat and "mini app" in flat:
+        return {"detected": True, "screenshot": path,
+                "words": len(boxes)}
+    return {"detected": False, "screenshot": path}
+
+
+async def accept_miniapp_consent(c, words=None):
+    """Click the consent sheet's confirm button (opt-in; see module docstring).
+
+    The button is located by OCR: the sheet's primary action is the bottom-
+    right control, and its label is one of the known accept strings.
+    """
+    from ufo.automation.desktop import Rect
+
+    for label in ("Open", "Continue", "Accept", "Agree", "OK"):
+        box = find_box(words, label, exact=True, y_min=600)
+        if box:
+            await click_box(c, box, f"consent '{label}'")
+            return True
+    return False
+
+
 async def main():
     argv = sys.argv[1:]
     bot = "AstrologyScienceBot"
@@ -306,6 +452,7 @@ async def main():
     PERIOD_BM = {"tomorrow": TOMORROW_BM, "week": (954, 418),
                  "month": (954, 464), "year": (954, 512)}
     only = []
+    accept_tos = False
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -315,6 +462,12 @@ async def main():
             period = argv[i + 1]
             period_bm = PERIOD_BM.get(period, TOMORROW_BM)
             i += 2; continue
+        if a == "--accept-miniapp-tos":
+            # Explicit opt-in only: this clicks a button that accepts
+            # Telegram's Terms of Service for Mini Apps on the user's
+            # account. It is never done implicitly.
+            accept_tos = True
+            i += 1; continue
         only.append(a.lower())
         i += 1
     if not only:
@@ -325,47 +478,104 @@ async def main():
         print("connect failed")
         return
 
-    # Make sure the astrology bot chat is the active one
+    # Make sure the astrology bot chat is the active one, and that we are not
+    # sitting in a selection-mode overlay (see ensure_chat_state).
     import os
     os.startfile(f"tg://resolve?domain={bot}")
     await asyncio.sleep(5.0)
     await c.force_telegram_top()
     await asyncio.sleep(1.5)
+    ready = await ensure_chat_state(c, bot)
     title = ""
     try:
         import win32gui
         title = win32gui.GetWindowText(c.get_concrete_hwnd())
     except Exception:
         pass
-    print(f"active window title: {title!r}", flush=True)
-    if "Astrology" not in title and "Horoscope" not in title:
-        print("WARNING: bot chat not active - clicks may hit the wrong chat", flush=True)
+    print(f"active window title: {title!r} (state ok: {ready})", flush=True)
+    if not ready:
+        print("ABORT: could not reach the bot chat - refusing to click blindly",
+              flush=True)
+        try:
+            await c.close()
+        except Exception:
+            pass
+        return
 
     results = {}
     for sign in only:
         print(f"\n=== {sign.upper()} ===", flush=True)
         try:
-            # 0) known geometry + info panel open (the command links live there)
+            # 0) known state: right chat, no selection overlay, info panel open
             fit_window(c)
+            if not await ensure_chat_state(c, bot, tries=2):
+                raise RuntimeError("lost the bot chat mid-run")
+
+            # 0b) Mini App consent sheet - a modal that blocks the whole flow.
+            consent = await detect_miniapp_consent(c, f"consent_{sign}")
+            if consent and consent.get("detected"):
+                if not accept_tos:
+                    raise RuntimeError(
+                        "BLOCKED: Telegram is showing the Mini App consent "
+                        "sheet ('you agree to the Terms of Service for Mini "
+                        "Apps'). Accepting it is a Terms-of-Service decision, "
+                        "so the collector will not click it unless you pass "
+                        "--accept-miniapp-tos. Accept it once in the Telegram "
+                        "UI, or re-run with that flag.")
+                print("  consent sheet detected - accepting (opt-in flag set)",
+                      flush=True)
+                _w, _t, boxes = ocr_words(consent["screenshot"])
+                if not await accept_miniapp_consent(c, boxes):
+                    raise RuntimeError(
+                        "consent sheet present but its confirm button was not "
+                        "found - accept it once in the Telegram UI")
+
             await ensure_info_panel(c)
 
             # 1) open the Mini App. The command link's pixel position drifts
-            #    with the panel layout, so locate it by OCR and fall back to
-            #    the measured map only if OCR cannot see it.
-            ok, _w, boxes = await verify(c, f"v_pre_{sign}", [], "pre-state")
-            link = find_link(boxes)
+            #    with the panel layout, so locate it by OCR, fall back to the
+            #    vision model, and only then to the measured map.
+            _ok, _w, boxes = await verify(c, f"v_pre_{sign}", [], "pre-state")
+            from PIL import Image as _PILImage
+            try:
+                with _PILImage.open(
+                        r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\\"
+                        f"astro_v_pre_{sign}.png") as _im:
+                    _cap_h = _im.size[1]
+            except Exception:
+                _cap_h = 1000
+            link = find_link(boxes, _cap_h)
             if link:
                 await click_box(c, link, "open app")
             else:
-                await click(c, OPEN_APP_BM, "open app (fixed)")
+                link = await vision_box(
+                    c, "the 'General Horoscopes' command link in the chat "
+                       "info panel", f"link_{sign}")
+                if link:
+                    await click_box(c, link, "open app (vision)")
+                else:
+                    await click(c, OPEN_APP_BM, "open app (fixed)")
             await asyncio.sleep(3.0)
             ok, _w, _b = await verify(c, f"v_menu_{sign}", ["Select", "Tomorrow"],
                                       "app menu")
             if not ok:
                 await ensure_info_panel(c)
-                ok2, _w2, boxes2 = await verify(c, f"v_pre2_{sign}", [],
+                _ok, _w, boxes2 = await verify(c, f"v_pre2_{sign}", [],
                                                "pre-state 2")
-                link = find_link(boxes2)
+                try:
+                    with _PILImage.open(
+                            r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\\"
+                            f"astro_v_pre2_{sign}.png") as _im:
+                        _cap_h2 = _im.size[1]
+                except Exception:
+                    _cap_h2 = 1000
+                link = find_link(boxes2, _cap_h2)
+                if link is None:
+                    # OCR could not see the panel link: let the vision model
+                    # ground it instead of clicking stale measured pixels.
+                    link = await vision_box(
+                        c, "the 'General Horoscopes' command link in the "
+                           "chat info panel", f"link_retry_{sign}")
                 if link:
                     await click_box(c, link, "open app (retry)")
                 else:
@@ -405,6 +615,10 @@ async def main():
 
             # 3) pick the sign from the grid
             cell = find_box(boxes, sign.capitalize(), exact=True)
+            if cell is None:
+                cell = await vision_box(
+                    c, f"the '{sign.capitalize()}' option in the zodiac "
+                       f"sign selector", f"sign_{sign}")
             if cell:
                 await click_box(c, cell, f"select {sign}")
             else:
@@ -416,6 +630,10 @@ async def main():
                 _ok, _w, boxes = await verify(c, f"v_pick_try_{sign}", [],
                                               "state")
                 cell = find_box(boxes, sign.capitalize(), exact=True)
+                if cell is None:
+                    cell = await vision_box(
+                        c, f"the '{sign.capitalize()}' option in the zodiac "
+                           f"sign selector", f"sign_retry_{sign}")
                 if cell:
                     await click_box(c, cell, f"select {sign} (retry)")
                 else:
@@ -431,6 +649,10 @@ async def main():
             label = {"tomorrow": "Tomorrow", "week": "Week",
                      "month": "Month", "year": "Year"}.get(period, "Tomorrow")
             opt = find_box(boxes, label, exact=True, y_min=250, y_max=520)
+            if opt is None:
+                opt = await vision_box(
+                    c, f"the 'For {label}' option in the general horoscope "
+                       f"type list", f"period_{sign}")
             if opt:
                 await click_box(c, opt, f"for {period}")
             else:

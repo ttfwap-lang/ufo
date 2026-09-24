@@ -1,1 +1,0 @@
-{"job_id": "horo-final-1", "action": "collect_horoscope", "params": {"bot": "AstrologyScienceBot", "signs": ["leo"], "period": "tomorrow"}}

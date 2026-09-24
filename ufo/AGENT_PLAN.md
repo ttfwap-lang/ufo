@@ -63,6 +63,98 @@ Two endpoints: `POST /jobs {job_id, goal, app, params}` and `GET /result/{id}`.
 - `ui-venus` container serves UI-Venus-2-9B (vision/UI model - user may pair for visual steps).
 - `abliterated-proxy` = caddy.
 
+## VISION STACK (2026-09-24, added after the horoscope flow was solved)
+
+### What runs where
+| Component | Where | Role |
+|---|---|---|
+| `qwen-abliterated` (Qwen3.6-35B-A3B) | gx10 :8000 | reasoning + tool calling |
+| `ui-venus` (UI-Venus-2-9B) | gx10 :8002 | **UI grounding** (point localisation) |
+| OmniParser V2 (YOLO + Florence-2) | gx10 :7861 | **icon detection + captioning**, whole-screen parse |
+| WinRT OCR (`ocr_shot.ps1`) | Windows | exact text boxes (pixel-accurate) |
+| `ufo_bridge.py` | Windows :9301 | HTTP job API, owns the desktop |
+| `agent_runner.py` | gx10 container | Bot API loop, tool calling |
+
+All gx10 services bind `0.0.0.0` so the Windows host can reach them over the
+tailnet (Windows is `100.113.176.84`, gx10 is `100.67.13.78` - the
+`100.81.31.74` in older notes is not this machine).
+
+### UI-Venus coordinate convention (measured, not guessed)
+Venus returns **both axes normalised to 0-1000** relative to the image's own
+width and height:
+
+    x_px = x_venus / 1000 * image_width
+    y_px = y_venus / 1000 * image_height
+
+Getting this wrong looks like "the model is terrible" (median error 253px).
+Corrected, the same model is ~2px. **Always read the size from the file; never
+hardcode it** - an early version hardcoded 1438 for a 938px capture and
+reported a fake 1.53x error.
+
+### Measured accuracy (bench_venus_final.py, real Telegram captures)
+| Benchmark | Ground truth | <=25px | median |
+|---|---|---|---|
+| text labels, raw Venus | OCR phrase box | 8/12 (67%) | 9.8px |
+| text labels, fused | OCR phrase box | **12/12 (100%)** | 0.0px |
+| **icon buttons, Venus only** | UIA rect | **4/5 (80%)** | **1.7px** |
+| cross-validation Venus vs OmniParser | - | 0.3px agreement on the info-panel icon | |
+
+The icon row is the important one: those controls have **no text**, so OCR
+cannot see them at all - that capability is why the vision model is in the loop.
+
+### Locator policy (`venus_client.locate`, prefer="auto")
+1. OCR finds the label -> use the OCR phrase box (pixel-exact). Multiple
+   matches? Venus picks which instance.
+2. OCR finds nothing (icon-only, or the caller described the target) -> use the
+   Venus point.
+3. `engine="multi"` additionally asks OmniParser and reports `agreement_px` /
+   `cross_validated` - two independently trained models agreeing is the
+   strongest confidence signal available.
+
+Strict label matching is deliberate: a false match is far worse than a miss,
+because a miss defers to the vision model while a false match clicks the wrong
+control (this bit us - a loose matcher let the description "the back arrow
+navigation button" snap onto the OCR word "e").
+
+### Safety
+- Vision clicks are **refused** if the point lands in the window chrome
+  (`_point_is_safe`). Before this guard existed, a mis-grounded click hit the
+  window CLOSE button and killed Telegram. The E2E test asserts the guard
+  fires.
+- All input still goes through the gated controller (8s countdown, Rule 1/2).
+
+### Memory rebalance (the GB10 has 121.7 GB unified, all of it contested)
+Qwen 0.68 reserved ~65 GB of KV cache it could never use while Venus was
+starved and OmniParser could not allocate at all (CUDA OOM, only 1 GB free):
+
+| Pool | Before | After |
+|---|---|---|
+| Qwen | 0.68, `--max-num-seqs 1` | 0.56, `--max-num-seqs 8` |
+| Venus | 0.19, localhost-only, 2 seqs | 0.26, `0.0.0.0`, 8 seqs, 16k |
+| OmniParser | could not start | CUDA, REST API + UI, one model copy |
+
+`rebalance_models.sh` performs it. Qwen's binding constraint was concurrency,
+not memory.
+
+### OmniParser REST API
+`POST /api/parse {"image_b64": ...}` -> every element with
+`bbox_xywh` + `bbox_xyxy` + `cx/cy` + a caption (150 elements on a Telegram
+window in ~7s). The library emits **xywh**; returning it as xyxy silently
+moves every point, so both forms are exposed with explicit names.
+
+## KNOWN BLOCKER: Mini App consent sheet
+Telegram now shows a modal before the first Mini App launch:
+
+> "By launching this mini app, you agree to the Terms of Service for Mini
+> Apps."
+
+It replaces the whole layout, so every coordinate target is wrong while it is
+up - which looks exactly like "the click silently does nothing". The collector
+**detects** it (`detect_miniapp_consent`) and aborts with a precise message.
+It will not click the accept button unless run with `--accept-miniapp-tos`,
+because accepting a Terms of Service on the user's account is the user's
+decision, not an automation default.
+
 ## RECON: @AstrologyScienceBot - SOLVED FLOW (2026-09-24 ~05:00)
 ### The working recipe (no visual model, no web API)
 1. Open the bot chat (`tg://resolve?domain=AstrologyScienceBot`) and verify the

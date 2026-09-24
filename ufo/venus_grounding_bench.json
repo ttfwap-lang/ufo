@@ -1,0 +1,142 @@
+[
+  {
+    "file": "astro_v_pre_aries.png",
+    "label": "Horoscopes",
+    "ocr": [
+      877.5,
+      956.5
+    ],
+    "venus": [
+      583.0,
+      953.0
+    ],
+    "dist": 294.5207972283112,
+    "secs": 1.5256197452545166
+  },
+  {
+    "file": "astro_v_menu_aries.png",
+    "label": "Select",
+    "ocr": [
+      645.5,
+      326.5
+    ],
+    "venus": [
+      556.0,
+      328.0
+    ],
+    "dist": 89.51256894984078,
+    "secs": 1.4128329753875732
+  },
+  {
+    "file": "astro_v_grid_aries.png",
+    "label": "Taurus",
+    "ocr": [
+      801.5,
+      465.0
+    ],
+    "venus": [
+      557.0,
+      464.0
+    ],
+    "dist": 244.502044981223,
+    "secs": 1.4008021354675293
+  },
+  {
+    "file": "astro_v_pick_aries.png",
+    "label": "Tomorrow",
+    "ocr": [
+      828.5,
+      371.0
+    ],
+    "venus": [
+      566.0,
+      370.0
+    ],
+    "dist": 262.5019047549941,
+    "secs": 1.4043090343475342
+  },
+  {
+    "file": "astro_horoscope_aries.png",
+    "label": "Click",
+    "ocr": [
+      641.0,
+      514.5
+    ],
+    "venus": [
+      448.0,
+      516.0
+    ],
+    "dist": 193.0058289275223,
+    "secs": 0.9801266193389893
+  },
+  {
+    "file": "astro_v_grid_taurus.png",
+    "label": "Pisces",
+    "ocr": [
+      931.0,
+      605.5
+    ],
+    "venus": [
+      646.0,
+      606.0
+    ],
+    "dist": 285.00043859615374,
+    "secs": 1.4138810634613037
+  },
+  {
+    "file": "astro_horoscope_taurus.png",
+    "label": "Love",
+    "ocr": [
+      702.0,
+      559.0
+    ],
+    "venus": [
+      489.0,
+      558.0
+    ],
+    "dist": 213.00234740490538,
+    "secs": 1.398266077041626
+  },
+  {
+    "file": "astro_v_pre_cancer.png",
+    "label": "Horoscopes",
+    "ocr": [
+      877.5,
+      956.5
+    ],
+    "venus": [
+      583.0,
+      954.0
+    ],
+    "dist": 294.5106110142723,
+    "secs": 1.4007062911987305
+  },
+  {
+    "file": "astro_v_grid_cancer.png",
+    "label": "Gemini",
+    "ocr": [
+      931.0,
+      464.5
+    ],
+    "venus": [
+      646.0,
+      464.0
+    ],
+    "dist": 285.00043859615374,
+    "secs": 1.4244492053985596
+  },
+  {
+    "file": "astro_horoscope_cancer.png",
+    "label": "Career",
+    "ocr": [
+      892.0,
+      559.0
+    ],
+    "venus": [
+      618.0,
+      558.0
+    ],
+    "dist": 274.00182481144174,
+    "secs": 1.4013452529907227
+  }
+]

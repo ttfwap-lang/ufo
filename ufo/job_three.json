@@ -1,1 +1,0 @@
-{"job_id": "horo-api-3", "action": "collect_horoscope", "params": {"bot": "AstrologyScienceBot", "signs": ["virgo", "libra"], "period": "tomorrow"}}

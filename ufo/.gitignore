@@ -143,3 +143,18 @@ uac_setup_done.json
 /gx10_runner/.env
 token_*.png
 ufo_bridge_token.txt
+
+# ---- review/polish pass: scratch artefacts and transient evidence ----------
+# One-off diagnostic crops (c_*.png) and per-run vision screenshots.
+c_*.png
+astro_vshot_*.png
+astro_vstate_*.png
+# per-run collector evidence is regenerable; keep only the named report JSON
+astro_horoscope_*.png
+astro_v_*.png
+# job payloads used for manual curl testing
+job_*.json
+# bridge result artefact (regenerated per run)
+bridge_horoscope_report.json
+# transient captures from the consent/consent-sheet check (may show account UI)
+astro_consent_*.png

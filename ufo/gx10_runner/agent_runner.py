@@ -197,6 +197,35 @@ def tool_ufo_bridge(args: dict) -> str:
             f"{BRIDGE_JOB_TIMEOUT}s (job_id={job_id})")
 
 
+def tool_vision(args: dict) -> str:
+    """Perceive the Windows desktop with the gx10 vision models.
+
+    ops:
+      locate - find a labelled/icon control; returns pixel coordinates in the
+               Telegram window bitmap, optionally clicking it
+      ask    - ask a question about the current screen (state verification)
+      scan   - inventory every element + a description of the current view
+
+    The vision stack on the bridge is UI-Venus-2-9B (grounding) fused with
+    WinRT OCR: text labels resolve through OCR phrase boxes, icon-only
+    controls are grounded by Venus (median ~2px), and clicks are refused if
+    the point would land on window chrome.
+    """
+    op = (args.get("op") or "locate").lower()
+    action = {"locate": "vision_locate",
+              "ask": "vision_ask",
+              "scan": "vision_scan"}.get(op)
+    if not action:
+        return (f"unknown vision op {op!r}; use locate | ask | scan")
+    params = dict(args.get("params") or {})
+    for k in ("label", "question", "prefer", "screenshot", "settle"):
+        if k in args and k not in params:
+            params[k] = args[k]
+    if "click" in args:
+        params["click"] = bool(args["click"])
+    return tool_ufo_bridge({"action": action, "params": params})
+
+
 def tool_web(args: dict) -> str:
     if not ALLOW_WEB:
         return "Web access is disabled on this runner."
@@ -229,6 +258,7 @@ def tool_telegram(args: dict) -> str:
 TOOL_IMPLS = {
     "shell": tool_shell,
     "ufo_bridge": tool_ufo_bridge,
+    "vision": tool_vision,
     "web": tool_web,
     "telegram": tool_telegram,
 }
@@ -255,6 +285,54 @@ TOOLS_SCHEMA = [
                                "description": "Action parameters"},
                 },
                 "required": ["action"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "vision",
+            "description": (
+                "Perceive the Windows desktop with the gx10 vision models "
+                "(UI-Venus-2-9B grounding fused with WinRT OCR).\n"
+                "op='locate': find a control by its visible label OR by a "
+                "plain description of an icon (e.g. 'the microphone voice "
+                "message button'). Set click=true to click it. Clicks on "
+                "window chrome are refused automatically.\n"
+                "op='ask': ask a yes/no question about the current screen to "
+                "verify a step actually worked (e.g. 'Is the zodiac sign "
+                "selector grid open?').\n"
+                "op='scan': list every element and describe the current view.\n"
+                "Use this whenever you need to know WHAT or WHERE something is "
+                "on screen - it is far more reliable than guessing coordinates."),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "op": {"type": "string",
+                           "enum": ["locate", "ask", "scan"],
+                           "description": "What kind of perception to do."},
+                    "label": {
+                        "type": "string",
+                        "description": "op=locate: the target's visible text or "
+                                       "a description of the icon/control."},
+                    "question": {
+                        "type": "string",
+                        "description": "op=ask: the question about the screen."},
+                    "click": {
+                        "type": "boolean",
+                        "description": "op=locate: click the located control."},
+                    "prefer": {
+                        "type": "string",
+                        "enum": ["auto", "venus", "ocr"],
+                        "description": "auto (default) = OCR-primary with "
+                                       "Venus disambiguation; venus = force the "
+                                       "vision point; ocr = no model call."},
+                    "screenshot": {
+                        "type": "string",
+                        "description": "Optional PNG path; omit to capture the "
+                                       "Telegram window fresh."},
+                },
+                "required": ["op"],
             },
         },
     },
@@ -304,13 +382,32 @@ SYSTEM_PROMPT = (
     "server with access to a Windows desktop automation bridge.\n"
     "You fulfil the user's request by CALLING TOOLS, then reply with the "
     "result in plain text.\n"
-    "Key capability: ufo_bridge -> collect_horoscope fetches general daily "
-    "horoscopes for zodiac signs from a Telegram bot (e.g. AstrologyScienceBot) "
-    "by driving its Mini App; it returns each sign's text plus Love/Health/"
-    "Career/Lunar ratings.\n"
-    "Rules: never invent data - if a tool fails, say so. Keep replies concise "
-    "but complete; list every sign you were asked for. Use the telegram tool "
-    "only when you must post something to another chat."
+    "\n"
+    "TOOLCHAIN\n"
+    "  ufo_bridge -> collect_horoscope fetches general daily horoscopes for "
+    "zodiac signs from a Telegram bot (e.g. AstrologyScienceBot) by driving "
+    "its Mini App; it returns each sign's text plus Love/Health/Career/Lunar "
+    "ratings.\n"
+    "  vision -> look at the Windows screen: op='locate' finds a control (by "
+    "label or by describing an icon) and can click it, op='ask' verifies what "
+    "is on screen, op='scan' inventories everything.\n"
+    "  shell  -> allowlisted read-only host commands (GPU, docker, disk).\n"
+    "  web    -> fetch an http/https URL.\n"
+    "  telegram -> post a message to a chat.\n"
+    "\n"
+    "METHOD\n"
+    "  * For any multi-step UI task, verify each step with vision op='ask' "
+    "before assuming it worked; do not chain blind guesses.\n"
+    "  * Prefer a specific visible label over a description of an icon when "
+    "one exists - text labels are resolved exactly.\n"
+    "  * The vision tool returns the strategy it used (e.g. 'ocr-sole-match', "
+    "'venus-disambiguated', 'venus-only'). If a click reports "
+    "refused=true, the point landed on window chrome; re-locate with a more "
+    "specific label rather than retrying the same call.\n"
+    "  * Never invent data. If a tool fails, say so and try a different "
+    "approach.\n"
+    "  * Keep the final reply complete but concise; include every item asked "
+    "for."
 )
 
 

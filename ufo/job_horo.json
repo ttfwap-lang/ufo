@@ -1,1 +1,0 @@
-{"job_id": "horo-bridge-1", "action": "collect_horoscope", "params": {"bot": "AstrologyScienceBot", "signs": ["sagittarius"], "period": "tomorrow"}}

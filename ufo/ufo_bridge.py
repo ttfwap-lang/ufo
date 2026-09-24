@@ -77,10 +77,31 @@ def load_token() -> str:
 TOKEN = load_token()
 
 # ---------------------------------------------------------------- job store
+# BOUNDED on purpose. This is a 24/7 service and a job result can be large
+# (collect_horoscope embeds a full 12-sign OCR report, ~100 KB of text), so an
+# append-only dict leaks until the process is restarted. We keep the newest
+# MAX_JOBS entries and never evict a job that is still queued or running.
+MAX_JOBS = int(os.environ.get("UFO_BRIDGE_MAX_JOBS", "200"))
 JOBS: Dict[str, Dict[str, Any]] = {}
 JOB_QUEUE: "queue.Queue[str]" = queue.Queue()
 _worker_started = False
 _worker_lock = threading.Lock()
+_jobs_lock = threading.Lock()
+
+
+def _evict_old_jobs() -> None:
+    """Drop the oldest FINISHED jobs once the store exceeds MAX_JOBS."""
+    with _jobs_lock:
+        if len(JOBS) <= MAX_JOBS:
+            return
+        finished = sorted(
+            (j for j in JOBS.values()
+             if j.get("status") in ("done", "error")),
+            key=lambda j: j.get("created", 0.0))
+        for job in finished:
+            if len(JOBS) <= MAX_JOBS:
+                break
+            JOBS.pop(job["job_id"], None)
 
 
 def _new_job(job_id: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -95,7 +116,9 @@ def _new_job(job_id: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]
         "result": None,
         "error": None,
     }
-    JOBS[job_id] = job
+    with _jobs_lock:
+        JOBS[job_id] = job
+    _evict_old_jobs()
     return job
 
 
@@ -224,15 +247,6 @@ def _window_origin(c) -> tuple[int, int]:
     return int(l), int(_t)
 
 
-async def _click_bm(c, origin, bm, label=""):
-    from ufo.automation.desktop import Rect
-    px, py = origin[0] + bm[0], origin[1] + bm[1]
-    print(f"  [bridge] click {label or bm} -> ({px},{py})", flush=True)
-    await c._click_at_rect(Rect(left=px - 15, top=py - 15,
-                                 right=px + 15, bottom=py + 15))
-    await asyncio.sleep(2.5)
-
-
 def _ocr_words(png_path: str):
     """OCR a PNG and return [(x, y, text)] in bitmap coordinates.
 
@@ -271,118 +285,6 @@ def _ocr_words(png_path: str):
         print(f"[bridge] OCR attempt {attempt+1} returned no words", flush=True)
         time.sleep(2)
     return []
-
-
-async def _snap_and_ocr(c, tag: str):
-    """Screenshot the Telegram window, OCR it, return (path, words, W, H)."""
-    import tempfile
-    from PIL import Image
-    shot = await c.take_screenshot()
-    path = os.path.join(tempfile.gettempdir(), f"ufo_ocr_{tag}.png")
-    with open(path, "wb") as f:
-        f.write(shot)
-    words = _ocr_words(path)
-    try:
-        with Image.open(path) as im:
-            W, H = im.size
-    except Exception:
-        W = H = 0
-    return path, words, W, H
-
-
-def _pick(words, W, H, needle, exact=False, xr=(0.0, 1.0), yr=(0.0, 1.0),
-          prefer="last"):
-    """Find OCR words inside a RELATIVE band of the capture.
-
-    words are (x, y, w, h, text). Returns the match tuple so the caller can
-    click the word centre. `prefer` selects the first or last match in reading
-    order.
-    """
-    hits = []
-    for x, y, w, h, t in words:
-        if not (xr[0] * W <= x <= xr[1] * W):
-            continue
-        if not (yr[0] * H <= y <= yr[1] * H):
-            continue
-        tt = t.strip().strip("'\"")
-        if (tt.lower() == needle.lower()) if exact else (needle.lower() in tt.lower()):
-            hits.append((x, y, w, h, tt))
-    if not hits:
-        return None
-    return hits[-1] if prefer == "last" else hits[0]
-
-
-async def _click_at(c, origin, pos, label):
-    """Click the CENTRE of an OCR word tuple (x, y, w, h, text)."""
-    from ufo.automation.desktop import Rect
-    x, y, w, h = pos[0], pos[1], pos[2], pos[3]
-    px, py = origin[0] + x + w // 2, origin[1] + y + h // 2
-    print(f"[bridge] click {label} '{pos[4]}' bitmap=({x},{y},{w}x{h}) "
-          f"-> ({px},{py})", flush=True)
-    await c._click_at_rect(Rect(left=px - 12, top=py - 12,
-                                 right=px + 12, bottom=py + 12))
-    await asyncio.sleep(2.5)
-
-
-async def _ocr_click(c, origin, words, needle: str, exact=False, nth=0,
-                     y_min=None, y_max=None):
-    """Click the nth OCR word matching needle. Returns True if clicked.
-
-    y_min/y_max restrict the search to a horizontal band of the window, which
-    disambiguates repeated labels (e.g. "Change in 'Settings' menu" vs the
-    "Change Sign" button).
-    """
-    from ufo.automation.desktop import Rect
-    hits = []
-    for x, y, t in words:
-        if y_min is not None and y < y_min:
-            continue
-        if y_max is not None and y > y_max:
-            continue
-        tt = t.strip().strip("'\"")
-        if (tt.lower() == needle.lower()) if exact else (needle.lower() in tt.lower()):
-            hits.append((x, y, tt))
-    if not hits or (nth >= 0 and len(hits) <= nth):
-        return False
-    x, y, t = hits[nth]
-    px, py = origin[0] + x, origin[1] + y
-    print(f"[bridge] ocr-click '{t}' bitmap=({x},{y}) -> ({px},{py})", flush=True)
-    await c._click_at_rect(Rect(left=px - 12, top=py - 12, right=px + 12, bottom=py + 12))
-    await asyncio.sleep(2.5)
-    return True
-
-
-async def _ensure_info_panel(c):
-    """Open the chat info panel if it is closed.
-
-    The bot's command links ("General Horoscopes" etc.) live in the info panel,
-    which is NOT open by default in a fresh window. The panel toggle is a real
-    UIA Button, so this is an exact-rect click rather than pixel guessing.
-    """
-    from ufo.automation.desktop import Rect
-    import asyncio as _a
-
-    def _find():
-        for el in c.window.handle.descendants(control_type="Button"):
-            try:
-                t = (el.window_text() or "").strip()
-            except Exception:
-                continue
-            if t in ("Info", "Close panel"):
-                r = el.element_info.rectangle
-                if r.right - r.left > 1:
-                    return t, (r.left, r.top, r.right, r.bottom)
-        return None, None
-
-    name, rect = await _a.to_thread(_find)
-    if name == "Info":
-        cx, cy = (rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2
-        print(f"[bridge] opening info panel at ({cx},{cy})", flush=True)
-        await c._click_at_rect(Rect(left=cx - 15, top=cy - 15,
-                                     right=cx + 15, bottom=cy + 15))
-        await _a.sleep(2.0)
-        return True
-    return False
 
 
 async def action_collect_horoscope(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -448,140 +350,14 @@ async def action_collect_horoscope(params: Dict[str, Any]) -> Dict[str, Any]:
             "collector_rc": proc.returncode}
 
 
-async def _legacy_collect_horoscope(params: Dict[str, Any]) -> Dict[str, Any]:
-    """In-process variant kept for reference (NOT used).
-
-    It drove the UI directly from the bridge process; that proved unreliable
-    because the bridge and Telegram can sit on different integrity/foreground
-    states, so the action now delegates to the daemon-proven collector.
-    """
-    from astro_collect import SIGNS, SIGN_BM, TOMORROW_BM, CHANGE_SIGN_BM, \
-        OPEN_APP_BM
-
-    bot = params.get("bot", "AstrologyScienceBot")
-    signs = params.get("signs") or SIGNS
-    period = params.get("period", "tomorrow")
-    out_dir = params.get("out_dir") or r"C:\Users\lnxzf\Desktop\projects\ufo\ufo"
-    period_bm = {"week": (940, 418), "month": (940, 464),
-                 "year": (940, 512)}.get(period, TOMORROW_BM)
-
-    c = await _connect_controller()
-    import os
-    _fit_window(c)
-    os.startfile(f"tg://resolve?domain={bot}")
-    await asyncio.sleep(5.0)
-    await c.force_telegram_top()
-    await asyncio.sleep(1.0)
-    _fit_window(c)
-
-    import win32gui
-    title = win32gui.GetWindowText(c.get_concrete_hwnd())
-    print(f"[bridge] active chat: {title!r}", flush=True)
-
-    shots = {}
-    for sign in signs:
-        print(f"[bridge] === {sign} ===", flush=True)
-
-        # 1) open the Mini App from the info-panel command link.
-        #    Coordinates come from the validated astro_collect map; OCR only
-        #    VERIFIES the outcome (and relocates the link if it moved).
-        await _ensure_info_panel(c)
-        _, words, W, H = await _snap_and_ocr(c, f"pre_{sign}")
-        origin = _window_origin(c)
-
-        def _menu_open(ws, w, h):
-            return (_pick(ws, w, h, "Select", exact=True) is not None
-                    and _pick(ws, w, h, "Tomorrow", exact=True) is not None)
-
-        if not _menu_open(words, W, H):
-            cands = [w for w in words
-                     if w[4].strip().strip("'\"").lower() == "horoscopes"]
-            link = max(cands, key=lambda w: w[0]) if cands else None
-            if link:
-                await _click_at(c, origin, link, "open app")
-            else:
-                await _click_bm(c, origin, OPEN_APP_BM, "open app (fixed)")
-            await asyncio.sleep(3.0)
-            _, words, W, H = await _snap_and_ocr(c, f"menu_{sign}")
-            if not _menu_open(words, W, H) and link is None:
-                # fixed map missed -> retry with the located link
-                cands = [w for w in words
-                         if w[4].strip().strip("'\"").lower() == "horoscopes"]
-                link = max(cands, key=lambda w: w[0]) if cands else None
-                if link:
-                    await _click_at(c, _window_origin(c), link,
-                                    "open app (retry)")
-                    await asyncio.sleep(3.0)
-                    _, words, W, H = await _snap_and_ocr(c, f"menu2_{sign}")
-        print(f"[bridge]   menu visible: {_menu_open(words, W, H)}", flush=True)
-        if not _menu_open(words, W, H):
-            raise RuntimeError(f"Mini App menu did not open for {sign}")
-
-        # 2) "Change Sign" (the lower "Change" label)
-        origin = _window_origin(c)
-        btn = _pick(words, W, H, "Change", xr=(0.45, 1.0), yr=(0.45, 0.80),
-                    prefer="last")
-        if btn:
-            await _click_at(c, origin, btn, "change sign")
-        else:
-            await _click_bm(c, origin, CHANGE_SIGN_BM, "change sign (fixed)")
-        await asyncio.sleep(2.0)
-
-        _, words, W, H = await _snap_and_ocr(c, f"grid_{sign}")
-        grid_ok = any(_pick(words, W, H, s, exact=True) is not None
-                      for s in ("aries", "taurus", "gemini", "cancer"))
-        print(f"[bridge]   sign grid visible: {grid_ok}", flush=True)
-        if not grid_ok:
-            raise RuntimeError(f"sign selector did not open for {sign}")
-
-        # 3) pick the sign (grid area, right half)
-        cell = _pick(words, W, H, sign.capitalize(), exact=True,
-                     xr=(0.45, 1.0), yr=(0.30, 0.75))
-        if cell:
-            await _click_at(c, _window_origin(c), cell, f"select {sign}")
-        else:
-            await _click_bm(c, _window_origin(c), SIGN_BM[sign],
-                            f"select {sign} (fixed)")
-        await asyncio.sleep(2.0)
-
-        _, words, W, H = await _snap_and_ocr(c, f"picked_{sign}")
-        applied = _pick(words, W, H, sign.lower(), exact=False) is not None
-        print(f"[bridge]   sign {sign} applied: {applied}", flush=True)
-        if not applied:
-            raise RuntimeError(f"sign {sign} was not applied")
-
-        # 4) request the period's horoscope
-        label = {"tomorrow": "Tomorrow", "week": "Week",
-                 "month": "Month", "year": "Year"}.get(period, "Tomorrow")
-        opt = _pick(words, W, H, label, exact=True, xr=(0.45, 1.0),
-                    yr=(0.20, 0.50))
-        if opt:
-            await _click_at(c, _window_origin(c), opt, f"for {period}")
-        else:
-            await _click_bm(c, _window_origin(c), period_bm,
-                            f"for {period} (fixed)")
-        await asyncio.sleep(7.0)
-        shot = await c.take_screenshot()
-        path = os.path.join(out_dir, f"bridge_horoscope_{sign}.png")
-        with open(path, "wb") as f:
-            f.write(shot)
-        shots[sign] = path
-        print(f"[bridge] saved {path}", flush=True)
-
-    # OCR the captures into a structured report
-    report = _ocr_reports(shots)
-    rep_path = os.path.join(out_dir, "bridge_horoscope_report.json")
-    with open(rep_path, "w", encoding="utf-8") as f:
-        json.dump(report, f, indent=2, ensure_ascii=False)
-    await c.close()
-    return {"bot": bot, "period": period, "signs": signs,
-            "shots": shots, "report_path": rep_path, "report": report}
-
-
 def _ocr_reports(shots: Dict[str, str]) -> Dict[str, Any]:
-    """Turn the evidence captures into per-sign text + ratings."""
+    """Turn the evidence captures into per-sign text + ratings.
+
+    OCR words are filtered to the chat pane and re-clustered into lines; the
+    Love/Health/Career/Lunar scores are then read straight out of the card.
+    """
     import re
-    out = {}
+    out: Dict[str, Any] = {}
     for sign, path in shots.items():
         try:
             words = [w for w in _ocr_words(path) if w[0] >= 700]  # chat pane
@@ -589,7 +365,8 @@ def _ocr_reports(shots: Dict[str, str]) -> Dict[str, Any]:
             lines, cur, cur_y = [], [], None
             for x, y, _w, _h, t in words:
                 if cur_y is None or abs(y - cur_y) <= 7:
-                    cur.append((x, t)); cur_y = y if cur_y is None else cur_y
+                    cur.append((x, t))
+                    cur_y = y if cur_y is None else cur_y
                 else:
                     lines.append(" ".join(t for _, t in sorted(cur)))
                     cur, cur_y = [(x, t)], y
@@ -599,13 +376,250 @@ def _ocr_reports(shots: Dict[str, str]) -> Dict[str, Any]:
             ratings = dict(re.findall(
                 r"(Love|Health|Career|Lunar)\s*\((\d)/5\)", text))
             out[sign] = {"ratings": ratings, "text": text}
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             out[sign] = {"error": str(e)}
     return out
 
 
 async def action_list_actions(_params) -> Dict[str, Any]:
     return {"actions": sorted(ACTIONS.keys())}
+
+
+# =====================================================================
+# VISION (UI-Venus-2-9B on gx10, fused with WinRT OCR)
+# =====================================================================
+async def _vision_snap(c, tag: str) -> str:
+    """Screenshot the Telegram window to a temp PNG and return its path."""
+    import tempfile
+    _fit_window(c)
+    shot = await c.take_screenshot()
+    path = os.path.join(tempfile.gettempdir(), f"ufo_vision_{tag}.png")
+    with open(path, "wb") as f:
+        f.write(shot)
+    return path
+
+
+# Window chrome is inside the capture (the capture is the full window, title
+# bar included). A mis-grounded vision point in that band hits minimise /
+# maximise / CLOSE, which previously closed Telegram outright. Vision clicks
+# are therefore refused unless the point lands in the client area.
+_CHROME_TOP_PX = 42
+_CHROME_EDGE_PX = 24
+
+
+def _point_is_safe(png: str, x: float, y: float) -> tuple[bool, str]:
+    """Reject vision points that land on window chrome or outside the client."""
+    from PIL import Image
+    try:
+        with Image.open(png) as im:
+            W, H = im.size
+    except Exception as exc:
+        return False, f"cannot measure capture: {exc}"
+    if not (0 <= x < W and 0 <= y < H):
+        return False, f"point ({x:.0f},{y:.0f}) outside capture {W}x{H}"
+    if y < _CHROME_TOP_PX:
+        return False, (f"point y={y:.0f} is in the title-bar/chrome band "
+                       f"(y<{_CHROME_TOP_PX}) - would hit window buttons")
+    if x < _CHROME_EDGE_PX or x > W - _CHROME_EDGE_PX:
+        return False, f"point x={x:.0f} is in the window edge band"
+    if y > H - 8:
+        return False, f"point y={y:.0f} is on the bottom window border"
+    return True, "ok"
+
+
+async def action_vision_locate(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Locate a labelled UI element with Venus+OCR fusion.
+
+    params:
+      screenshot - path to a PNG (optional; if omitted a fresh Telegram
+                   screenshot is taken)
+      label      - text/icon description of the target, e.g. "Change Sign"
+      prefer     - fusion (default) | venus | ocr
+      click      - if true, click the located point through the gated
+                   controller (8s countdown applies, per AGENTS.md)
+    """
+    import re as _re
+    import venus_client
+
+    label = params.get("label", "")
+    if not label:
+        raise ValueError("vision_locate requires 'label'")
+    prefer = params.get("prefer", "auto")
+    engine = params.get("engine", "venus")     # venus | multi
+    c = None
+    try:
+        if params.get("screenshot") and os.path.exists(params["screenshot"]):
+            png = params["screenshot"]
+        else:
+            c = await _connect_controller()
+            png = await _vision_snap(c, _re.sub(r"\W+", "_", label)[:24])
+
+        boxes = venus_client.ocr_words(png)
+        if engine == "multi":
+            out = venus_client.locate_multi(png, label, ocr_boxes=boxes)
+            out["screenshot"] = png
+            out["engine"] = "multi"
+            if params.get("click"):
+                cands = out.get("primary") or {}
+                if not cands.get("found"):
+                    raise RuntimeError(
+                        f"vision could not locate {label!r}: "
+                        f"{cands.get('note', 'no estimate')}")
+                px, py = cands["x"], cands["y"]
+                safe, why = _point_is_safe(png, px, py)
+                out["safe_to_click"] = safe
+                out["safety"] = why
+                if not safe:
+                    out["refused"] = True
+                    print(f"[bridge] REFUSED multi-click on {label!r}: {why}",
+                          flush=True)
+                    return out
+                from ufo.automation.desktop import Rect
+                ox, oy = _window_origin(c)
+                await c._click_at_rect(Rect(left=ox + px - 15, top=oy + py - 15,
+                                            right=ox + px + 15, bottom=oy + py + 15))
+                await asyncio.sleep(float(params.get("settle", 2.5)))
+                out["clicked_physical"] = [int(ox + px), int(oy + py)]
+            return out
+
+        res = venus_client.locate(png, label, ocr_boxes=boxes, prefer=prefer)
+        out = res.as_dict()
+        out["screenshot"] = png
+        out["engine"] = engine
+        out["ocr_candidates"] = len([b for b in boxes
+                                     if venus_client._label_matches(label, b[4])])
+        if params.get("click"):
+            if not res.found:
+                raise RuntimeError(f"vision could not locate {label!r}: {res.note}")
+            safe, why = _point_is_safe(png, res.x, res.y)
+            out["safe_to_click"] = safe
+            out["safety"] = why
+            if not safe:
+                out["refused"] = True
+                print(f"[bridge] REFUSED vision-click on {label!r}: {why}", flush=True)
+                return out
+            from ufo.automation.desktop import Rect
+            ox, oy = _window_origin(c)
+            px, py = ox + res.x, oy + res.y
+            print(f"[bridge] vision-click '{label}' -> ({px},{py}) "
+                  f"via {res.strategy}", flush=True)
+            await c._click_at_rect(Rect(left=px - 15, top=py - 15,
+                                        right=px + 15, bottom=py + 15))
+            await asyncio.sleep(float(params.get("settle", 2.5)))
+            out["clicked_physical"] = [int(px), int(py)]
+        return out
+    finally:
+        if c is not None:
+            await c.close()
+
+
+async def action_vision_ask(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Ask Venus a free-form question about the current screen (state check).
+
+    params:
+      question   - e.g. "Is the zodiac sign selector grid open?"
+      screenshot - optional PNG (default: fresh Telegram screenshot)
+      reasoning  - enable Venus' reasoning mode (default false)
+    """
+    import base64
+    import json as _json
+    import urllib.request
+
+    question = params.get("question", "")
+    if not question:
+        raise ValueError("vision_ask requires 'question'")
+
+    c = None
+    try:
+        if params.get("screenshot") and os.path.exists(params["screenshot"]):
+            png = params["screenshot"]
+        else:
+            c = await _connect_controller()
+            png = await _vision_snap(c, "ask")
+
+        b64 = base64.b64encode(open(png, "rb").read()).decode()
+        payload = {
+            "model": os.environ.get("VENUS_MODEL", "ui-venus"),
+            "messages": [{"role": "user", "content": [
+                {"type": "image_url",
+                 "image_url": {"url": f"data:image/png;base64,{b64}"}},
+                {"type": "text", "text": question}]}],
+            "temperature": 0.2,
+            "max_tokens": int(params.get("max_tokens", 512)),
+        }
+        if not params.get("reasoning"):
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
+        req = urllib.request.Request(
+            os.environ.get("VENUS_URL", "http://100.67.13.78:8002/v1")
+            .rstrip("/") + "/chat/completions",
+            data=_json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json",
+                     "Authorization": "Bearer EMPTY"})
+        with urllib.request.urlopen(req, timeout=300) as r:
+            d = _json.loads(r.read().decode())
+        msg = d["choices"][0]["message"]
+        return {"question": question, "screenshot": png,
+                "answer": (msg.get("content") or "").strip(),
+                "usage": d.get("usage")}
+    finally:
+        if c is not None:
+            await c.close()
+
+
+async def action_vision_elements(params: Dict[str, Any]) -> Dict[str, Any]:
+    """OmniParser screen parse: every element with a box and an icon caption.
+
+    Complements vision_locate: instead of answering one grounding question,
+    this enumerates the whole screen (icon detection + Florence-2 captions),
+    which is how the agent discovers controls it was never told the name of.
+    """
+    import venus_client
+    c = None
+    try:
+        if params.get("screenshot") and os.path.exists(params["screenshot"]):
+            png = params["screenshot"]
+        else:
+            c = await _connect_controller()
+            png = await _vision_snap(c, "elements")
+        elements = venus_client.omniparser_elements(
+            png, imgsz=int(params.get("imgsz", 1024)))
+        limit = int(params.get("limit", 60))
+        return {"screenshot": png, "count": len(elements),
+                "elements": elements[:limit]}
+    finally:
+        if c is not None:
+            await c.close()
+
+
+async def action_vision_scan(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Inventory every UI element the vision+OCR stack can see right now.
+
+    Returns OCR words plus Venus' free-form description of the screen, which
+    is what the agent uses to decide its next step.
+    """
+    import venus_client
+    c = None
+    try:
+        c = await _connect_controller()
+        png = await _vision_snap(c, "scan")
+        boxes = venus_client.ocr_words(png)
+        words = [{"text": b[4], "box": [b[0], b[1], b[2], b[3]]} for b in boxes]
+        desc = ""
+        try:
+            asked = await action_vision_ask(
+                {"screenshot": png, "question": params.get(
+                    "question",
+                    "Describe the current screen: which app, which view, and "
+                    "which interactive controls are visible. Be concise.")})
+            desc = asked.get("answer", "")
+        except Exception as e:
+            desc = f"(vision description unavailable: {e})"
+        return {"screenshot": png, "word_count": len(words), "words": words,
+                "description": desc}
+    finally:
+        if c is not None:
+            await c.close()
+
 
 
 async def action_health(_params) -> Dict[str, Any]:
@@ -617,12 +631,32 @@ async def action_health(_params) -> Dict[str, Any]:
         await c.close()
     except Exception as e:
         title = f"error: {e}"
+
+    # report vision-model reachability too (it is part of the toolchain)
+    vision = {}
+    for label, url in (("venus", os.environ.get(
+            "VENUS_URL", "http://100.67.13.78:8002/v1").rstrip("/")),
+            ("omniparser", os.environ.get(
+            "OMNIPARSER_URL", "http://100.67.13.78:7861").rstrip("/"))):
+        try:
+            import urllib.request
+            with urllib.request.urlopen(url + "/api/health" if "omni" in label
+                                        else url + "/models", timeout=8) as r:
+                body = r.read().decode()
+            vision[label] = "ok" if body else "empty response"
+        except Exception as e:
+            vision[label] = f"unavailable: {type(e).__name__}"
+
     return {"telegram_title": title, "queued": JOB_QUEUE.qsize(),
-            "workers": 1}
+            "workers": 1, "vision": vision}
 
 
 ACTIONS = {
     "collect_horoscope": action_collect_horoscope,
+    "vision_locate": action_vision_locate,
+    "vision_ask": action_vision_ask,
+    "vision_elements": action_vision_elements,
+    "vision_scan": action_vision_scan,
     "list_actions": action_list_actions,
     "health": action_health,
 }
@@ -634,9 +668,13 @@ def _worker_loop():
     loop = asyncio.get_event_loop()
     while True:
         job_id = JOB_QUEUE.get()
-        job = JOBS.get(job_id)
+        with _jobs_lock:
+            job = JOBS.get(job_id)
         if not job:
+            JOB_QUEUE.task_done()
             continue
+        # NOTE: the job dict is mutated in place while HTTP handlers may be
+        # serialising it, so readers get a snapshot copy (see _job_snapshot).
         job["status"] = "running"
         job["started"] = time.time()
         try:
@@ -655,6 +693,15 @@ def _worker_loop():
         finally:
             job["finished"] = time.time()
             JOB_QUEUE.task_done()
+            _evict_old_jobs()
+
+
+def _job_snapshot(job_id: str) -> Optional[Dict[str, Any]]:
+    """Return a shallow copy so a response can never observe a half-written
+    job (the worker thread mutates the same dict while we serialise it)."""
+    with _jobs_lock:
+        job = JOBS.get(job_id)
+        return dict(job) if job else None
 
 
 def ensure_worker():
@@ -699,7 +746,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith("/result/"):
             job_id = path[len("/result/"):]
-            job = JOBS.get(job_id)
+            job = _job_snapshot(job_id)
             if not job:
                 self._send(404, {"error": "unknown job_id"})
                 return
@@ -726,7 +773,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": "missing 'action'"})
             return
         job_id = payload.get("job_id") or str(uuid.uuid4())
-        if job_id in JOBS:
+        with _jobs_lock:
+            duplicate = job_id in JOBS
+        if duplicate:
             self._send(409, {"error": "job_id already exists", "job_id": job_id})
             return
         job = _new_job(job_id, action, payload.get("params") or {})
