@@ -27,7 +27,9 @@ def git(*args: str) -> str:
 
 
 def sh(*args: str) -> int:
-    p = subprocess.run(["git", "-C", REPO, *args], capture_output=True,
+    """Run git in the CURRENT directory (filter-branch insists on the top
+    level, so this deliberately does NOT pin -C to the script's folder)."""
+    p = subprocess.run(["git", *args], capture_output=True,
                        text=True, encoding="utf-8", errors="replace")
     if p.returncode:
         print(p.stdout[-2000:])
