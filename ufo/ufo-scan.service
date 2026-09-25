@@ -1,0 +1,12 @@
+[Unit]
+Description=UFO stack change detector (one diff pass)
+Documentation=file:///home/flak3dd/ufo-watchdog/CHANGES.md
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Read-only observation. This never repairs anything - ufo-watchdog.service
+# owns repairs. Keeping the two separate means a bug in the observer can never
+# take the supervisor down with it.
+ExecStart=%h/ufo-watchdog/ufo_scan.sh diff
+TimeoutStartSec=120

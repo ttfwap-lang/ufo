@@ -1,0 +1,14 @@
+[Unit]
+Description=Diff the UFO stack state every 2 minutes (another agent is editing it)
+Documentation=file:///home/flak3dd/ufo-watchdog/CHANGES.md
+
+[Timer]
+# 2 minutes matches the watchdog cadence, so the changelog lines up with repair
+# actions. Persistent=true means a gap (reboot, suspend) is caught up at once.
+OnBootSec=45s
+OnUnitActiveSec=120s
+AccuracySec=10s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

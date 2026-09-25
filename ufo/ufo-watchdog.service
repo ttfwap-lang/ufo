@@ -1,0 +1,19 @@
+[Unit]
+Description=UFO stack self-healing watchdog (one pass)
+Documentation=file:///home/flak3dd/ufo-watchdog/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# The watchdog repairs the firewall, so it needs sudo - but it is written so
+# that it NEVER touches the firewall before confirming/allowing SSH.
+ExecStart=%h/ufo-watchdog/ufo_watchdog.sh
+# Generous, because a repair can legitimately wait on a container rebuild.
+# It used to be 180s, which systemd enforced by killing the watchdog MID-REPAIR
+# - the worst outcome for a repair tool. Probes are now cached so a healthy
+# pass finishes in seconds; the headroom is only for the slow path.
+TimeoutStartSec=600
+
+# The watchdog must be able to restart containers and user services.
+KillMode=process

@@ -158,3 +158,28 @@ job_*.json
 bridge_horoscope_report.json
 # transient captures from the consent/consent-sheet check (may show account UI)
 astro_consent_*.png
+
+# ---- supervision / change-detection (production) --------------------------
+# kept: ufo_watchdog.sh + .service/.timer, ufo_scan.sh + ufo-scan.*,
+#       run_bridge.ps1, bridge_watchdog.ps1, ufo_scan_win.ps1
+# ignored below: the one-off diagnostics written while bringing the stack up
+
+# one-off gx10 diagnostics (each was a single-question probe; superseded)
+gx10_diag.sh
+gx10_diag2.sh
+gx10_unsloth_probe.sh
+gx10_unsloth2.sh
+gx10_recheck.sh
+gx10_bridge_check.sh
+gx10_account_audit.sh
+gx10_fix_firewall.sh
+gx10_repair_ssh.sh
+gx10_verify2.sh
+deploy_watchdog.sh
+fix_vision_stack.sh
+deploy_scanner.sh
+deploy_stack_aware.sh
+diag_venus.sh
+diag_stacks.sh
+diag_e2e_failures.py
+list_elements.py
