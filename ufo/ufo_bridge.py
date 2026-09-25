@@ -21,6 +21,7 @@ import asyncio
 import json
 import os
 import queue
+import re
 import secrets
 import subprocess
 import sys
@@ -513,6 +514,36 @@ async def action_vision_locate(params: Dict[str, Any]) -> Dict[str, Any]:
             await c.close()
 
 
+def _strip_reasoning(text: str) -> str:
+    """Remove reasoning traces from a vision answer.
+
+    Venus is launched with `--reasoning-parser qwen3`, so even with
+    `enable_thinking: false` the template can emit a stray `</think>` (and
+    occasionally the reasoning text itself) into `content`. Observed verbatim
+    in a live run: the answer came back as
+
+        "Element AI\\n</think>\\n\\nElement AI"
+
+    which the agent would then read as part of the model's conclusion - a state
+    check that reports the app name plus template debris invites the agent to
+    reason about the debris. Everything up to the LAST closing tag is reasoning;
+    if the model put its thinking first and the answer after, we keep the tail.
+    """
+    if not text:
+        return ""
+    out = text
+    # If there is a closing tag, anything before it is the reasoning trace.
+    idx = out.rfind("</think>")
+    if idx != -1:
+        out = out[idx + len("</think>"):]
+    # Drop an unterminated opening tag plus whatever followed it.
+    out = re.sub(r"<think>.*", "", out, flags=re.S)
+    # Some builds emit the tags with no angle brackets, e.g. "think>" or a
+    # bare "</think>" split across chunks; handle the common leftovers.
+    out = out.replace("<think>", "").replace("</think>", "")
+    return out.strip()
+
+
 async def action_vision_ask(params: Dict[str, Any]) -> Dict[str, Any]:
     """Ask Venus a free-form question about the current screen (state check).
 
@@ -550,7 +581,10 @@ async def action_vision_ask(params: Dict[str, Any]) -> Dict[str, Any]:
         if not params.get("reasoning"):
             payload["chat_template_kwargs"] = {"enable_thinking": False}
         req = urllib.request.Request(
-            os.environ.get("VENUS_URL", "http://100.67.13.78:8002/v1")
+            # The tunnel port, not 8002. The model itself is bound to
+            # 127.0.0.1 on gx10, so the direct port is unreachable from
+            # Windows and this fallback silently broke every vision call.
+            os.environ.get("VENUS_URL", "http://100.67.13.78:18002/v1")
             .rstrip("/") + "/chat/completions",
             data=_json.dumps(payload).encode(),
             headers={"Content-Type": "application/json",
@@ -559,7 +593,8 @@ async def action_vision_ask(params: Dict[str, Any]) -> Dict[str, Any]:
             d = _json.loads(r.read().decode())
         msg = d["choices"][0]["message"]
         return {"question": question, "screenshot": png,
-                "answer": (msg.get("content") or "").strip(),
+                "answer": _strip_reasoning(msg.get("content") or ""),
+                "raw_content_len": len(msg.get("content") or ""),
                 "usage": d.get("usage")}
     finally:
         if c is not None:
