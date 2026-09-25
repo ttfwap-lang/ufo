@@ -1,0 +1,29 @@
+[Unit]
+Description=UFO model tailnet tunnel (expose loopback-bound model servers)
+Documentation=file:///home/flak3dd/ufo-watchdog/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Separate ports because 0.0.0.0:8002 cannot coexist with 127.0.0.1:8002.
+#   18000 -> brain  (llama.cpp on 127.0.0.1:8000)
+#   18002 -> Venus  (vLLM on 127.0.0.1:8002)
+#   18061 -> OmniParser (0.0.0.0:7861, for symmetry/future loopback binds)
+#
+# This exists so the model containers never have to be relaunched with a
+# different --host just to be reachable. Another agent owns those launches;
+# cooperating beats fighting.
+# The interpreter is named explicitly. Relying on the shebang alone gave
+# "status=203/EXEC" on every start attempt, because systemd executes ExecStart
+# directly and the file had no shebang - the unit crash-looped silently while
+# `is-active` merely reported "activating".
+ExecStart=/usr/bin/python3 %h/ufo-watchdog/ufo_tunnel.py 18000 127.0.0.1 8000 18002 127.0.0.1 8002 18061 127.0.0.1 7861
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=append:%h/ufo-watchdog/tunnel.log
+StandardError=append:%h/ufo-watchdog/tunnel.log
+
+[Install]
+WantedBy=default.target

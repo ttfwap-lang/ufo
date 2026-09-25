@@ -33,7 +33,14 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VENUS_URL = os.environ.get("VENUS_URL", "http://100.67.13.78:8002/v1")
+# Tailnet endpoints for the gx10 models.
+#
+# These go through ufo-tunnel.service on gx10, not straight to the model port.
+# The models are launched with `--host 127.0.0.1` by another agent's stack
+# manager, so nothing on the tailnet can reach 8002/8000 directly, and a
+# listener on 0.0.0.0:8002 cannot coexist with one on 127.0.0.1:8002 anyway.
+# The tunnel republishes them on 18000/18002 without touching the containers.
+VENUS_URL = os.environ.get("VENUS_URL", "http://100.67.13.78:18002/v1")
 VENUS_MODEL = os.environ.get("VENUS_MODEL", "ui-venus")
 OCR_PS1 = os.environ.get(
     "UFO_OCR_PS1",
@@ -341,7 +348,11 @@ def locate(png_path: str, label: str, *,
 # OmniParser V2 (YOLO icon detector + Florence-2 captioner) on gx10
 # --------------------------------------------------------------------------
 OMNIPARSER_URL = os.environ.get("OMNIPARSER_URL",
-                                "http://100.67.13.78:7861").rstrip("/")
+                                "http://100.67.13.78:18061").rstrip("/")
+# The tunnel also republishes OmniParser on 18061 for the case where its unit
+# is running with CUDA_VISIBLE_DEVICES= (it then binds loopback only and its own
+# /api/health reports device=cpu). 18061 -> 127.0.0.1:7861 works either way, so
+# one URL is correct regardless of how the service is configured.
 
 
 def omniparser_elements(png_path: str, *, url: str = OMNIPARSER_URL,

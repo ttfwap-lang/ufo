@@ -34,6 +34,12 @@ mkdir -p "$LOG_DIR"
 
 TAILNET_IP="$(tailscale ip -4 2>/dev/null || echo 100.67.13.78)"
 WINDOWS_IP="100.113.176.84"
+# Tailnet-facing ports are served by ufo-tunnel.service, not by the model
+# processes themselves. The models are launched with --host 127.0.0.1 by
+# another agent's stack manager; rather than relaunch them (a 17.5 GiB reload
+# every round, and an unwinnable fight), the tunnel republishes them.
+BRAIN_PUBLIC_PORT=18000
+VENUS_PUBLIC_PORT=18002
 COOLDOWN_SEC=1800            # 30 min between repair attempts for one target
 STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
@@ -111,9 +117,11 @@ probe() {
 }
 cache_all() {
   probe venus_loopback "http://127.0.0.1:8002/v1/models" 6
-  probe venus_tailnet  "http://$TAILNET_IP:8002/v1/models" 6
+  probe venus_tailnet  "http://$TAILNET_IP:$VENUS_PUBLIC_PORT/v1/models" 6
   probe omni           "http://127.0.0.1:7861/api/health" 6
   probe brain          "http://127.0.0.1:8000/v1/models" 6
+  probe brain_tailnet  "http://$TAILNET_IP:$BRAIN_PUBLIC_PORT/v1/models" 6
+  probe tunnel_up      "http://$TAILNET_IP:$VENUS_PUBLIC_PORT/v1/models" 6
   probe bridge         "http://$WINDOWS_IP:9301/health" 8
 }
 # y must communicate through its EXIT STATUS, not its stdout.
@@ -162,17 +170,34 @@ recreate_venus() {
   # on this host (/home/flak3dd/models/ui-venus), and would have failed while
   # "repairing" a working service. venus_run.sh already documents and pins the
   # GPU-memory ceiling, the 0.0.0.0 bind and the real model path.
+  #
+  # It is launched DETACHED and this function returns immediately. venus_run.sh
+  # waits for the model to answer /v1/models, which takes ~300 s for a 17.5 GiB
+  # load. Blocking on that held the oneshot service open for five minutes, and
+  # because the timer uses OnUnitActiveSec it could not re-arm until the service
+  # went inactive - so the watchdog silently stopped running for exactly as long
+  # as it was busiest. A supervisor must never be the thing that stops watching.
   local runner="$HOME/ufo-galaxy/venus_run.sh"
   if [ ! -x "$runner" ]; then
     err "venus_run.sh missing or not executable at $runner - cannot repair venus"
     return
   fi
-  warn "recreating ui-venus via venus_run.sh (ensures --host 0.0.0.0)"
-  if bash "$runner" >>"$LOG" 2>&1; then
-    act "ui-venus recreated via venus_run.sh (loads 17.5 GiB, ~3-5 min)"
-  else
-    err "venus_run.sh FAILED - see $LOG"
+  if [ -f "$LOG_DIR/.venus_rebuild_running" ]; then
+    warn "a venus rebuild is already in flight - not starting another"
+    return
   fi
+  warn "rebuilding ui-venus via venus_run.sh (detached; ~5 min to load)"
+  : >"$LOG_DIR/.venus_rebuild_running"
+  setsid nohup bash -c "
+    if bash '$runner' >>'$LOG' 2>&1; then
+      rm -f '$LOG_DIR/.venus_rebuild_running'
+    else
+      echo '$(date -u +%Y-%m-%dT%H:%M:%SZ)  ERROR  venus_run.sh FAILED (see this log)' >>'$LOG'
+      rm -f '$LOG_DIR/.venus_rebuild_running'
+    fi
+  " </dev/null >/dev/null 2>&1 &
+  disown 2>/dev/null || true
+  act "venus rebuild launched in background (watchdog continues immediately)"
 }
 
 check_venus() {
@@ -185,6 +210,11 @@ check_venus() {
     return
   fi
   if ! container_running ui-venus; then
+    # A detached rebuild may already be under way; do not race it.
+    if [ -f "$LOG_DIR/.venus_rebuild_running" ]; then
+      ok "ui-venus absent but a rebuild is already in flight - not starting another"
+      return
+    fi
     warn "ui-venus is not running"
     if may_repair venus; then recreate_venus; else warn "venus repair in cooldown"; fi
     return
@@ -199,13 +229,18 @@ check_venus() {
   # "still loading" branch forever and was never repaired.
   if y venus_loopback; then
     if y venus_tailnet; then
-      ok "venus healthy and tailnet-reachable"
+      ok "venus healthy and reachable over the tailnet tunnel (:$VENUS_PUBLIC_PORT)"
     else
-      warn "venus answers on loopback but NOT on $TAILNET_IP (bound to 127.0.0.1)"
-      if may_repair venus; then recreate_venus; else warn "venus repair in cooldown"; fi
-      # re-probe so state.json reflects reality after the repair
-      probe venus_loopback "http://127.0.0.1:8002/v1/models" 6
-      probe venus_tailnet  "http://$TAILNET_IP:8002/v1/models" 6
+      # The model is fine; only the tunnel is missing. Repair the tunnel, NOT
+      # the model. Relaunching a 17.5 GiB model to fix a port-forward problem
+      # was the wrong repair and cost five minutes every time.
+      warn "venus is up but not reachable on :$VENUS_PUBLIC_PORT - the tunnel is the problem, not the model"
+      if may_repair tunnel; then
+        act "restarting ufo-tunnel.service"
+        systemctl --user restart ufo-tunnel.service >/dev/null 2>&1 \
+          && act "tunnel restarted" || err "tunnel restart failed"
+      else warn "tunnel repair in cooldown"; fi
+      probe venus_tailnet "http://$TAILNET_IP:$VENUS_PUBLIC_PORT/v1/models" 6
     fi
     return
   fi
@@ -216,6 +251,10 @@ check_venus() {
     return
   fi
   warn "venus not answering on 127.0.0.1:8002 after ${age}s"
+  if [ -f "$LOG_DIR/.venus_rebuild_running" ]; then
+    ok "a venus rebuild is in flight - not restarting on top of it"
+    return
+  fi
   if may_repair venus; then
     act "restarting ui-venus (hung or failed to bind)"
     docker restart ui-venus >/dev/null 2>&1 && act "ui-venus restarted" || err "ui-venus restart failed"
@@ -318,6 +357,16 @@ check_base() {
   docker ps >/dev/null 2>&1 || err "docker daemon not responding to 'docker ps'"
   local lg; lg=$(loginctl show-user "$(whoami)" -p Linger --value 2>/dev/null)
   [ "$lg" = "yes" ] || warn "linger is '$lg' - services will NOT survive logout/reboot"
+  # The tunnel is what makes loopback-bound models reachable from Windows, so
+  # its absence is a total vision outage even when every model is healthy.
+  local ta; ta=$(systemctl --user is-active ufo-tunnel.service 2>/dev/null)
+  if [ "$ta" != "active" ]; then
+    warn "ufo-tunnel.service is '$ta' - Windows cannot reach any loopback-bound model"
+    if may_repair tunnel; then
+      systemctl --user restart ufo-tunnel.service >/dev/null 2>&1 \
+        && act "ufo-tunnel.service restarted" || err "tunnel restart failed"
+    else warn "tunnel repair in cooldown"; fi
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -375,9 +424,10 @@ main() {
   # Resolve the booleans into plain scalars BEFORE the heredoc. Reading the
   # associative array through $( ) inside a heredoc runs in a subshell, which
   # is a fragile way to obtain a value you already have.
-  local v_loop v_tail v_omni v_brain v_bridge
+  local v_loop v_tail v_omni v_brain v_bridge v_btail
   v_loop=$(j venus_loopback); v_tail=$(j venus_tailnet)
   v_omni=$(j omni); v_brain=$(j brain); v_bridge=$(j bridge)
+  v_btail=$(j brain_tailnet)
 
   cat >"$STATE" <<EOF
 {
@@ -389,6 +439,7 @@ main() {
   "venus_tailnet":  $v_tail,
   "omniparser_api": $v_omni,
   "brain":          $v_brain,
+  "brain_tailnet":  $v_btail,
   "bridge":         $v_bridge
 }
 EOF

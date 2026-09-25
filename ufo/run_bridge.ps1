@@ -53,6 +53,17 @@ function Write-Heartbeat([string]$State, [string]$Detail) {
 Write-Heartbeat 'starting' "wrapper=$PID"
 Add-Content -Path $log -Value ("=== bridge start {0} wrapper={1} ===" -f (Get-Date -Format o), $PID)
 
+# Pin the gx10 model endpoints explicitly. A scheduled task does NOT inherit
+# the interactive shell's environment, so relying on a variable that happens
+# to be set in a terminal produces a bridge that silently cannot see Venus.
+# These point at ufo-tunnel.service on gx10 (18000/18002/18061), which
+# republishes models that are themselves bound to loopback.
+$env:VENUS_URL       = 'http://100.67.13.78:18002/v1'
+$env:VENUS_MODEL     = 'ui-venus'
+$env:OMNIPARSER_URL  = 'http://100.67.13.78:18061'
+$env:VLLM_URL        = 'http://100.67.13.78:18000/v1'
+Add-Content -Path $log -Value ("    VENUS_URL=$env:VENUS_URL OMNIPARSER_URL=$env:OMNIPARSER_URL")
+
 # Launch the bridge as a child process and poll it, so the heartbeat is a REAL
 # liveness signal. The first version wrote the heartbeat only at start and exit,
 # which meant a healthy bridge's heartbeat went permanently stale - and a stale
