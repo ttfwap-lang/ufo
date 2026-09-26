@@ -41,7 +41,7 @@ class ScreenLockout:
         on_pause: Optional[Callable] = None,
         stop_key: Optional[object] = None,
         pause_key: Optional[int] = None,
-        stop_key_label: str = "ScrollLock/F12",
+        stop_key_label: str = "Ctrl+Shift+Q (or ScrollLock/F12)",
         pause_key_label: str = "P",
         cancel_via_esc: bool = True,
     ):
@@ -72,8 +72,12 @@ class ScreenLockout:
         MOD_SHIFT = 0x0004
         if stop_key is None:
             self._cancel_hotkeys = [
-                (0, 0x91),                          # Scroll Lock (primary)
-                (0, 0x7B),                          # F12 (backup)
+                # AGENTS.md RULE 1 names Ctrl+Shift+Q as THE cancel key; it was
+                # missing from this preset, so an operator following the rules
+                # pressed it and nothing happened. The single keys stay as extras.
+                (MOD_CONTROL | MOD_SHIFT, 0x51),    # Ctrl+Shift+Q (documented primary)
+                (0, 0x91),                          # Scroll Lock
+                (0, 0x7B),                          # F12
             ]
         elif isinstance(stop_key, int):
             self._cancel_hotkeys = [(0, stop_key)]

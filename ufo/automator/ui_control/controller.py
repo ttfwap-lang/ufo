@@ -258,10 +258,15 @@ class ControlReceiver(ReceiverBasic):
                 expected_text = args.get('text', '')
                 try:
                     win_text = self.control.iface_value.CurrentValue if hasattr(self.control, 'iface_value') and self.control.iface_value else self.control.window_text() if self.control is not None else ''
-                    if expected_text and expected_text not in win_text:
-                        logger.warning(f"Note: expected_text '{expected_text}' not in window_text '{win_text}' after {method_name}")
                 except Exception:
-                    pass
+                    win_text = None  # unreadable control: cannot verify, do not block
+                if expected_text and win_text is not None and expected_text not in win_text:
+                    # The call "succeeded" but the text is not there (custom,
+                    # read-only or disabled control). Raise so the except-block's
+                    # real fallbacks (ValuePattern, type_keys, pyautogui) run -
+                    # a warning here returned success and then pressed Enter on
+                    # an empty/stale field.
+                    raise Exception(f"expected_text not in control text after {method_name}")
             if ufo_config.system.input_text_enter and method_name in ['type_keys', 'set_text', 'set_edit_text']:
                 self.atomic_execution('type_keys', params={'keys': '{ENTER}'})
             return result

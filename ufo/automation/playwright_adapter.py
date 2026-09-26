@@ -150,7 +150,19 @@ class PlaywrightDesktop:
     async def get_text(self, element: Element) -> str:
         return await element.handle.text_content() or ""
 
-    async def screenshot(self, region: Optional[Rect] = None) -> bytes:
+    async def screenshot(self, window: Optional[Element] = None,
+                         region: Optional[Rect] = None) -> bytes:
+        """Signature matches the DesktopAutomation protocol (window, region).
+
+        It used to be (region) only, so a caller written against the protocol
+        - screenshot(window=..., region=...) as telegram_gui does - raised
+        TypeError the first time it drove a Chrome/Edge/Electron target
+        (@runtime_checkable only checks names, not signatures). `window` is
+        ignored: the page is the window. A Rect passed positionally is still
+        read as the region, for older callers.
+        """
+        if isinstance(window, Rect) and region is None:
+            window, region = None, window
         if self._page is None:
             raise RuntimeError("PlaywrightDesktop.launch() must be called first")
 

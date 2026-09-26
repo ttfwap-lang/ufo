@@ -240,3 +240,79 @@ def test_recovered_early_failure_does_not_raise_unboundlocal():
     constellation.mark_task_completed.return_value = []
 
     assert asyncio.run(orch._execute_task_with_events(task, constellation)) is None
+
+
+# ---- late finder report (automator partition)
+
+def test_lockout_default_cancel_keys_include_ctrl_shift_q():
+    """AGENTS.md RULE 1: Ctrl+Shift+Q cancels. Registration is not exercised here."""
+    from ufo.automator.app_apis.telegram.telegram_lockout import ScreenLockout
+
+    keys = ScreenLockout()._cancel_hotkeys
+    assert (0x0002 | 0x0004, 0x51) in keys          # Ctrl+Shift+Q
+    assert (0, 0x1B) in keys                         # ESC backup still there
+
+
+def test_uia_launch_returns_the_real_pid(monkeypatch):
+    from ufo.automation.uia_adapter import UIADesktop
+
+    class App:
+        process = 4242                               # pywinauto stores the int PID
+
+        def start(self, cmd):
+            return self
+
+    d = UIADesktop.__new__(UIADesktop)
+    d._application_cls = lambda backend: App()
+    d._ensure_imported = lambda: None
+    assert asyncio.run(d.launch("notepad.exe")) == 4242
+
+
+def test_playwright_screenshot_accepts_the_protocol_signature():
+    from ufo.automation.desktop import Rect
+    from ufo.automation.playwright_adapter import PlaywrightDesktop
+
+    seen = []
+
+    class Page:
+        async def screenshot(self, clip=None):
+            seen.append(clip)
+            return b"png"
+
+    p = PlaywrightDesktop.__new__(PlaywrightDesktop)
+    p._page = Page()
+    r = Rect(left=1, top=2, right=11, bottom=22)
+    assert asyncio.run(p.screenshot(window=None, region=r)) == b"png"   # protocol form
+    assert asyncio.run(p.screenshot(r)) == b"png"                       # legacy positional
+    assert seen[0] == seen[1] == {"x": 1, "y": 2, "width": 10, "height": 20}
+
+
+def test_set_text_that_did_not_stick_uses_the_fallback_and_skips_enter(monkeypatch):
+    from ufo.automator.ui_control import controller as ctl
+
+    class Ctrl:
+        iface_value = None
+
+        def window_text(self):
+            return ""                                # the text never arrived
+
+        def set_text(self, text):
+            pass
+
+    r = ctl.ControlReceiver.__new__(ctl.ControlReceiver)
+    r.control = Ctrl()
+    calls = []
+
+    def atomic(name, params):
+        calls.append((name, params.get("keys") if isinstance(params, dict) else None))
+        return "ok"
+
+    r.atomic_execution = atomic
+    monkeypatch.setattr(ctl.ufo_config.system, "input_text_api", "set_text", raising=False)
+    monkeypatch.setattr(ctl.ufo_config.system, "input_text_enter", True, raising=False)
+    monkeypatch.setattr(ctl.ufo_config.system, "input_text_inter_key_pause", 0.0, raising=False)
+    r.set_edit_text({"text": "hello"})
+    names = [c[0] for c in calls]
+    assert names[0] == "set_text"
+    assert names[1] == "type_keys" and "hello" in (calls[1][1] or "")  # keystroke fallback ran
+    assert ("type_keys", "{ENTER}") not in calls                       # no Enter on an empty field

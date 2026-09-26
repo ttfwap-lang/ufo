@@ -69,9 +69,11 @@ class UIADesktop:
 
         self._app = await asyncio.to_thread(_do_launch)
         self._launched = True   # we started it, so closing may stop it
-        self._pid = getattr(self._app.process, "pid", None) if hasattr(
-            self._app, "process"
-        ) else None
+        # pywinauto's Application.process IS the int PID (application.py sets
+        # `self.process = dw_process_id`); getattr(..., "pid") was always None,
+        # so launch() returned 0 and the pid could never be used to reconnect.
+        proc = getattr(self._app, "process", None)
+        self._pid = proc if isinstance(proc, int) else getattr(proc, "pid", None)
         return self._pid or 0
 
     async def connect(self, process_id: int) -> None:
