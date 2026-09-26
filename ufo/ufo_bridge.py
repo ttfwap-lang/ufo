@@ -170,7 +170,7 @@ def launch_telegram() -> bool:
     # this process's token, and an elevated Telegram breaks every UIA read and
     # screen capture for the medium-integrity controller.
     try:
-        subprocess.Popen(["explorer.exe", TELELEGRAM_EXE])
+        subprocess.Popen(["explorer.exe", TELEGRAM_EXE])
     except Exception as e:
         print(f"[bridge] explorer launch failed ({e}); trying startfile", flush=True)
         try:

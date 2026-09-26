@@ -160,6 +160,21 @@ class EndpointGate:
                 logger.info("Endpoint %s recovered after %d trip(s).", key, st.trips)
             self._states[key] = _EndpointState()
 
+    def release_probe(self, key: str) -> None:
+        """Hand back the half-open ticket WITHOUT judging the endpoint.
+
+        For a probe call that ended in neither a success nor an endpoint failure
+        (a 400 for a bad request, a client-side bug, a cancelled task). Only
+        record_success/record_failure used to clear the ticket, so such an
+        ending left it set forever and every later call got 'recovery probe in
+        flight' until the process restarted. The breaker state is kept, so the
+        next caller simply becomes the probe.
+        """
+        with self._lock:
+            st = self._states.get(key)
+            if st is not None:
+                st.half_open_ticket = False
+
     def record_failure(self, key: str, error: BaseException | str, hard: bool = False) -> bool:
         """Count a failure. `hard` (liveness probe failed) opens immediately.
         Returns True if the gate is now open."""

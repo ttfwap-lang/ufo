@@ -94,15 +94,19 @@ class HumanMouse:
         self._first_move_done = False
 
     def _maybe_warn(self) -> None:
-        """Show the on-top warning countdown before the FIRST real movement."""
+        """Show the on-top warning countdown before the FIRST real movement.
+
+        RULE 1: if the hook raises (the operator cancelled the countdown, or the
+        gate could not be shown) the exception PROPAGATES and no input is sent.
+        It used to be swallowed, so a cancelled countdown still moved the
+        cursor. The gate is only marked done once it has actually passed, so a
+        cancelled instance re-shows the countdown on its next attempt.
+        """
         if self._first_move_done:
             return
-        self._first_move_done = True  # mark first so hook runs exactly once
         if self._first_move_hook:
-            try:
-                self._first_move_hook()
-            except Exception:
-                pass
+            self._first_move_hook()
+        self._first_move_done = True
 
     # ==================== Public API ====================
 
@@ -116,6 +120,7 @@ class HumanMouse:
 
     def click(self, x: float, y: float, down_ms: Optional[float] = None) -> None:
         """move_to + a human click (button down/hold/up)."""
+        self._maybe_warn()  # RULE 1: a click can be the first input of an instance
         self._move_with_submovements(x, y)
         hold = down_ms if down_ms is not None else self._rng.uniform(48.0, 92.0)
         self._button(True)
@@ -123,6 +128,7 @@ class HumanMouse:
         self._button(False)
 
     def double_click(self, x: float, y: float) -> None:
+        self._maybe_warn()  # RULE 1
         self._move_with_submovements(x, y)
         for _ in range(2):
             self._button(True)

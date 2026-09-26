@@ -257,14 +257,18 @@ async def _retry_with_backoff(service: BaseService, messages: list, n: int) -> L
         ENDPOINT_GATE.check(key)
     try:
         result = await service.chat_completion(messages, n=n)
-    except Exception as e:
-        if key and endpoint_health.is_endpoint_failure(e):
+    except BaseException as e:  # BaseException: a cancelled probe must release too
+        if key and isinstance(e, Exception) and endpoint_health.is_endpoint_failure(e):
             await _note_endpoint_failure(service, key, e)
             down = ENDPOINT_GATE.open_error(key)
             if down is not None:
                 # Gate just opened: stop this ladder now (EndpointDown is not
                 # retryable) instead of sleeping and re-trying a hung box.
                 raise down from e
+        elif key:
+            # Neither success nor an endpoint failure (e.g. a 400): if this call
+            # held the half-open ticket, give it back or the gate never reopens.
+            ENDPOINT_GATE.release_probe(key)
         raise
     if key:
         ENDPOINT_GATE.record_success(key)

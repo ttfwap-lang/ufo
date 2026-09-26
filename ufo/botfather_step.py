@@ -19,6 +19,7 @@ sys.path.insert(0, "C:\\Users\\lnxzf\\Desktop\\projects\\ufo")
 from ufo.automator.app_apis.telegram import TelegramGUIController
 from ufo.automation.factory import get_desktop_automation
 from ufo.automation.desktop import Rect
+from ufo.utils.redact import redact  # RULE 5: tokens never reach stdout
 import ctypes
 
 
@@ -204,8 +205,10 @@ async def main():
                     continue
                 if needle in t:
                     r = el.element_info.rectangle
+                    # RULE 5: the API token is NEVER logged. Presence/position
+                    # only - the text is masked before it can reach stdout.
                     out.append((el.element_info.control_type,
-                                (r.left, r.top, r.right, r.bottom), t[:400]))
+                                (r.left, r.top, r.right, r.bottom), redact(t)[:400]))
             return out
         hits = await asyncio.to_thread(_g)
         print("hits:", len(hits))
@@ -234,7 +237,7 @@ async def main():
 
     elif cmd == "copyclip":
         # Read current clipboard exactly (after a Ctrl+C elsewhere).
-        print("CLIPBOARD:", repr(get_clipboard())[:300])
+        print("CLIPBOARD:", repr(redact(get_clipboard() or ""))[:300])  # RULE 5
 
     elif cmd == "keys":
         # Send a raw key sequence (e.g. "{TAB}{ENTER}") via gated typing:
@@ -261,7 +264,7 @@ async def main():
             await asyncio.sleep(0.6)
             await c._type_keys_safe(c.SHORTCUTS["copy"])
             await asyncio.sleep(0.5)
-        print("CLIPBOARD:", repr(get_clipboard())[:400])
+        print("CLIPBOARD:", repr(redact(get_clipboard() or ""))[:400])  # RULE 5
 
     elif cmd == "type":
         text = sys.argv[2]

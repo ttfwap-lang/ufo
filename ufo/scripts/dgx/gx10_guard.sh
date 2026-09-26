@@ -98,7 +98,8 @@ guard_audit() {
   if _gt "$sum" "$MODEL_POOL_MAX"; then echo "WARN: pools exceed the budget"; rc=1; fi
   if _gt "$FREE_TARGET_PCT" "$fpct"; then echo "WARN: free memory ${fpct}% is under the ${FREE_TARGET_PCT}% target"; rc=1; fi
   if _gt "$FREE_FLOOR_PCT" "$fpct"; then echo "CRITICAL: free memory ${fpct}% is under the ${FREE_FLOOR_PCT}% floor"; rc=2; fi
-  if _gt "$some" 20; then echo "WARN: sustained memory stalls (some avg10 > 20%)"; rc=1; fi
+  # WARN never lowers a CRITICAL already raised above (the floor check sets rc=2).
+  if _gt "$some" 20; then echo "WARN: sustained memory stalls (some avg10 > 20%)"; [ "$rc" -ge 1 ] || rc=1; fi
   # Thrashing is memory PRESSURE (tasks stalled on memory), not swap occupancy: cold pages parked
   # in swap after an earlier episode stay there indefinitely and cost nothing until touched.
   if _gt "$full" 10; then echo "CRITICAL: thrashing (memory stalls full avg10 > 10%)"; rc=2; fi

@@ -482,8 +482,8 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
             if function_name == self.SELECT_APPLICATION_COMMAND:
                 execution_result = await self._execute_application_selection(parsed_response, target_registry, command_dispatcher)
                 target_id = parsed_response.arguments.get('id') if parsed_response.arguments else None
-                target = target_registry.get(target_id) if target_registry and target_id else None
-                selected_target_id = target_id
+                target = self._resolve_target(target_registry, target_id)
+                selected_target_id = target.id if target else target_id
                 selected_application_root = ''
                 assigned_third_party_agent = ''
                 if target:
@@ -521,6 +521,30 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
             self.logger.error(f'Constellation execution failed: {e}')
             return [Result(status=ResultStatus.ERROR, result=f'Error executing DAG: {e}', error=str(e))]
 
+    def _resolve_target(self, target_registry: Optional[TargetRegistry], target_id: Any) -> Optional[TargetInfo]:
+        """Resolve the model's `id` argument to a target: exact ID first, then name.
+
+        Smaller local models often answer with the window title instead of its
+        numeric ID, so a unique case-insensitive name match is accepted rather
+        than failing the whole round. Used by BOTH the selection itself and
+        execute()'s bookkeeping - execute() used to re-look-up the raw id, so a
+        name-matched selection succeeded but lost its app root / agent routing.
+        """
+        if not target_registry or target_id in (None, ''):
+            return None
+        target = target_registry.get(str(target_id))
+        if target:
+            return target
+        needle = str(target_id).strip().lower()
+        candidates = [t for t in target_registry.all_targets() if (t.name or '').strip().lower() == needle]
+        if not candidates:
+            candidates = [t for t in target_registry.all_targets() if needle and needle in (t.name or '').lower()]
+        if not candidates:
+            return None
+        if len(candidates) > 1:
+            self.logger.warning(f"Ambiguous target name '{target_id}' matched {len(candidates)} windows; using the first.")
+        return candidates[0]
+
     async def _execute_application_selection(self, parsed_response: HostAgentResponse, target_registry: TargetRegistry, command_dispatcher: BasicCommandDispatcher) -> List[Result]:
         """
         Execute application selection with proper handling of different target types.
@@ -535,20 +559,9 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
                 raise ValueError('No target ID specified for application selection')
             if not target_registry:
                 raise ValueError('Target registry not available')
-            target = target_registry.get(str(target_id))
-            if not target:
-                # Smaller local models often answer with the window title
-                # instead of its numeric ID. Accept a unique case-insensitive
-                # name match rather than failing the whole round.
-                needle = str(target_id).strip().lower()
-                candidates = [t for t in target_registry.all_targets() if (t.name or '').strip().lower() == needle]
-                if not candidates:
-                    candidates = [t for t in target_registry.all_targets() if needle and needle in (t.name or '').lower()]
-                if candidates:
-                    if len(candidates) > 1:
-                        self.logger.warning(f"Ambiguous target name '{target_id}' matched {len(candidates)} windows; using the first.")
-                    target = candidates[0]
-                    target_id = target.id
+            target = self._resolve_target(target_registry, target_id)
+            if target:
+                target_id = target.id
             if not target:
                 raise ValueError(f"Target with ID '{target_id}' not found")
             self.logger.info(f'Selecting target: {target.name} (ID: {target_id}, Kind: {target.kind})')

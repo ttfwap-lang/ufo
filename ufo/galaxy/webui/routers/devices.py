@@ -10,6 +10,7 @@ from ufo.galaxy.webui.dependencies import get_app_state, verify_api_key
 from ufo.galaxy.webui.models.requests import DeviceAddRequest
 from ufo.galaxy.webui.models.responses import DeviceAddResponse
 from ufo.galaxy.webui.services import ConfigService, DeviceService
+from ufo.galaxy.webui.security.url_validator import ServerUrlValidationError, validate_server_url
 router = APIRouter(prefix='/api', tags=['devices'])
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,15 @@ async def add_device(device: DeviceAddRequest) -> Dict[str, Any]:
             raise HTTPException(status_code=404, detail='devices.yaml not found')
         if config_service.device_id_exists(device.device_id):
             raise HTTPException(status_code=409, detail=f"Device ID '{device.device_id}' already exists")
+        # SSRF check BEFORE anything is persisted. It used to run only inside
+        # register_and_connect_device, after add_device_to_config had already
+        # written the rejected URL to devices.yaml, where a later reload would
+        # use it without re-validation.
+        try:
+            validate_server_url(device.server_url)
+        except ServerUrlValidationError as e:
+            logger.warning(f"Rejected device '{device.device_id}' due to invalid server_url: {e}")
+            raise HTTPException(status_code=409, detail=str(e))
         new_device = config_service.add_device_to_config(device_id=device.device_id, server_url=device.server_url, os=device.os, capabilities=device.capabilities, metadata=device.metadata, auto_connect=device.auto_connect if device.auto_connect is not None else True, max_retries=device.max_retries if device.max_retries is not None else 5)
         await device_service.register_and_connect_device(device_id=device.device_id, server_url=device.server_url, os=device.os, capabilities=device.capabilities, metadata=device.metadata, max_retries=device.max_retries if device.max_retries is not None else 5, auto_connect=device.auto_connect if device.auto_connect is not None else True)
         return {'status': 'success', 'message': f"Device '{device.device_id}' added successfully", 'device': new_device}

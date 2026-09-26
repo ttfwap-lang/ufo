@@ -379,6 +379,12 @@ class TaskConstellation(IConstellation):
         task = self._tasks[task_id]
         if task.status == TaskStatus.PENDING:
             task.start_execution()
+        if not success and not isinstance(error, Exception):
+            # A failure must reach evaluate_condition as an Exception: it tests
+            # `isinstance(x, Exception)`, so error=None (a device timeout returns
+            # FAILED without raising) made SUCCESS_ONLY/CONDITIONAL dependents
+            # run as if their prerequisite had succeeded.
+            error = RuntimeError(str(error) if error else f'Task {task_id} failed')
         if success:
             task.complete_with_success(result)
         else:

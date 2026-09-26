@@ -379,6 +379,10 @@ class TaskConstellationOrchestrator:
         :param constellation: The parent TaskConstellation
         :return: Task execution result
         """
+        # Bound before `try`: if start_execution/execute raises and a recovery
+        # node is injected, control reaches `return result` below without the
+        # assignment inside `try` ever running (UnboundLocalError).
+        result = None
         try:
             start_event = TaskEvent(event_type=EventType.TASK_STARTED, source_id=f'orchestrator_{id(self)}', timestamp=time.time(), data={'constellation_id': constellation.constellation_id}, task_id=task.task_id, status=TaskStatus.RUNNING.value)
             await self._event_bus.publish_event(start_event)
@@ -392,7 +396,12 @@ class TaskConstellationOrchestrator:
                 return
             if self._logger:
                 self._logger.info(f'Task {task.task_id} execution result: {result}, is_success: {is_success}')
-            newly_ready = constellation.mark_task_completed(task.task_id, success=is_success, result=result)
+            failure = None
+            if not is_success:
+                err = getattr(result, 'error', None)
+                failure = err if isinstance(err, Exception) else RuntimeError(
+                    f'Task {task.task_id} ended {result.status}: {err or "no error detail"}')
+            newly_ready = constellation.mark_task_completed(task.task_id, success=is_success, result=result, error=failure)
             completed_event = TaskEvent(event_type=EventType.TASK_COMPLETED if is_success else EventType.TASK_FAILED, source_id=f'orchestrator_{id(self)}', timestamp=time.time(), data={'constellation_id': constellation.constellation_id, 'newly_ready_tasks': [t.task_id for t in newly_ready], 'constellation': constellation}, task_id=task.task_id, status=result.status, result=result)
             await self._event_bus.publish_event(completed_event)
             if self._logger:

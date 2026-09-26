@@ -86,6 +86,8 @@ class DistributedLockManager:
         self._available = False
         self._local_locks: Dict[str, threading.Lock] = {}
         self._local_lock_guard = threading.Lock()
+        # Keys acquired via the local fallback while Redis was unreachable.
+        self._fallback_keys: set = set()
         self._init_redis()
 
     def _init_redis(self) -> None:
@@ -139,6 +141,15 @@ class DistributedLockManager:
         """
         wid = worker_id or self._worker_id
         if self.is_distributed:
+            # A lock taken through the local fallback (Redis was down at acquire
+            # time) must be released locally. Routing it to Redis found no key,
+            # returned False and left the threading.Lock held forever - that
+            # idempotency key then collided on every later acquire.
+            with self._local_lock_guard:
+                fell_back = idempotency_key in self._fallback_keys
+                self._fallback_keys.discard(idempotency_key)
+            if fell_back:
+                return self._release_local(idempotency_key)
             return self._release_redis(idempotency_key, wid)
         else:
             return self._release_local(idempotency_key)
@@ -212,7 +223,11 @@ class DistributedLockManager:
                 return False
         except Exception as e:
             logger.error(f'[DLM] Redis acquire failed: {e}')
-            return self._acquire_local(idempotency_key)
+            acquired = self._acquire_local(idempotency_key)
+            if acquired:
+                with self._local_lock_guard:
+                    self._fallback_keys.add(idempotency_key)
+            return acquired
 
     def _release_redis(self, idempotency_key: str, worker_id: str) -> bool:
         """Release via atomic Lua script (only owner can delete)."""
