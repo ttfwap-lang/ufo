@@ -111,6 +111,10 @@ config/*/backend_state.json
 python_env/
 scratch/
 models/
+# ...but galaxy/webui/models/ is SOURCE (pydantic request/response models imported
+# by tracked code), not model weights. The blanket rule above hid it from git, so a
+# clean clone could not start the WebUI and the package had no copy to recover from.
+!galaxy/webui/models/
 ruff_errors.json
 gen-lang-client-*.json
 test_cap.png
