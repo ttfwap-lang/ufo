@@ -68,3 +68,12 @@ watchdog calling it) is how a SparkDeck launch that blows the budget gets notice
 ## Not measured
 Throughput gain from `QWEN_SEQS` 1 → 4 and whether 0.35/0.20 fits on the current model builds are expectations
 from the memory arithmetic, not measurements; the box was unreachable. Run `--audit` and a load test after applying.
+
+## Measured after applying (2026-09-26, through the SSH tunnel from the Windows PC)
+- `:8000` serves `qwen-abliterated` and `qwen38-27b-turbo` (the alias works); `:8002` serves `ui-venus`. llama.cpp 27B is stopped and out of the `balanced`/`full` stacks.
+- Single stream ~83 tok/s (the dense 27B was estimated at ~10). 8 concurrent short requests finished in 1.8 s wall, ~480-500 tok/s aggregate, on three runs. 4 concurrent varied 150-310 tok/s (warm-up noise).
+- Memory after the apply: pools 0.60 (Qwen 0.35 + Venus 0.20 + 0.6B 0.05), 39 GB available (~32% free), memory pressure 0.00%, swap down from 8 GB to 7 GB and stuck there (cold pages).
+- **One 82 s stall** on the first request of one test run (3 tok/s), not reproduced in the other runs. Most likely swapped-out pages of the model process being touched. If it recurs, `sudo swapoff -a && sudo swapon -a` returns the swap to RAM (~7 GB, there is room).
+- Installed and active: memguard timer, OOM shield for sshd/tailscaled/dockerd/containerd, `vm.swappiness=10`, `vm.min_free_kbytes` 2 GB. **Not installed: earlyoom** (`sudo apt-get install -y earlyoom` then re-run `protect_ssh.sh`); without it the kill layer at the 5% floor does not exist and only memguard's release/shed steps enforce it.
+- Still running and not touched: `qwen35-9b-defiant` (llama.cpp) and `qwen3-0.6b` (vLLM 0.05).
+- Venus was restarted once by something other than `gx10_apply.sh` after the stack files were edited (SparkDeck re-syncing its stacks is the likely cause; not confirmed).

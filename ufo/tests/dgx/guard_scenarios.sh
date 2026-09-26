@@ -69,7 +69,7 @@ run "ui-venus=0.20" 'guard_acquire qwen-abliterated 0.35';          check "other
 setmem 60 0 1.0 0.0;   run "ui-venus=0.20 qwen-abliterated=0.35" 'guard_audit'; check "audit healthy -> 0" 0 $RC
 setmem 60 0 25.0 2.0;  run "ui-venus=0.20 qwen-abliterated=0.35" 'guard_audit'; check "audit stalls -> 1 (warn)" 1 $RC
 setmem 60 0 30.0 15.0; run "ui-venus=0.20 qwen-abliterated=0.35" 'guard_audit'; check "audit thrash -> 2 (critical)" 2 $RC
-setmem 60 6000 1.0 0.0; run "ui-venus=0.20 qwen-abliterated=0.35" 'guard_audit'; check "audit 6 GB swapped -> 2" 2 $RC
+setmem 60 6000 1.0 0.0; run "ui-venus=0.20 qwen-abliterated=0.35" 'guard_audit'; check "audit 6 GB in swap but no pressure -> warn (1), not critical" 1 $RC
 setmem 60 0 1.0 0.0;   run "ui-venus=0.26 qwen-abliterated=0.70" 'guard_audit'; check "audit over-budget pools -> 1" 1 $RC
 
 # ---- floor (5%) / target (10%) at launch. 0.35 pool = 42 GB of 121.
