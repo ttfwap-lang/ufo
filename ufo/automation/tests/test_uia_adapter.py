@@ -89,13 +89,38 @@ async def test_find_window_returns_element_with_rect():
 
 
 @pytest.mark.asyncio
-async def test_find_window_without_app_raises_runtime_error():
+async def test_find_window_without_app_searches_desktop(monkeypatch):
+    """find_window with no connection falls back to a desktop-wide search.
+
+    The old version of this test expected a RuntimeError mentioning "launch",
+    from a time when find_window required a connection. The code now documents
+    and implements the fallback instead: with _app unset it searches all
+    top-level windows via pywinauto's Desktop class and raises whatever that
+    search reports - which for a window that is not there is a timeout.
+
+    It was left asserting the removed behaviour and failed on every run. The
+    search is mocked so this does not depend on whether a Notepad happens to be
+    open on the machine running the suite.
+    """
     adapter = UIADesktop()
     adapter._pywinauto = MagicMock()
     adapter._application_cls = MagicMock()
 
-    with pytest.raises(RuntimeError, match="launch"):
+    fake_window = MagicMock()
+    fake_window.wait.side_effect = RuntimeError("timed out")
+    fake_desktop = MagicMock()
+    fake_desktop.window.return_value = fake_window
+
+    import pywinauto
+    monkeypatch.setattr(pywinauto, "Desktop", MagicMock(return_value=fake_desktop))
+
+    with pytest.raises(RuntimeError, match="timed out"):
         await adapter.find_window("Notepad")
+
+    # The desktop fallback really was taken, not an in-app search.
+    fake_desktop.window.assert_called_once()
+    fake_window.wait.assert_called_once_with("exists", timeout=10)
+    assert adapter._app is None
 
 
 @pytest.mark.asyncio
@@ -152,13 +177,51 @@ async def test_get_text_uses_window_text():
 
 @pytest.mark.asyncio
 async def test_close_kills_application_process():
+    """A process WE started is cleaned up when the adapter closes.
+
+    launch() spawns it, so leaving it running after teardown would leak a
+    session nobody asked for.
+    """
     mock_app = MagicMock()
+    factory = MagicMock()
+    factory.return_value.start.return_value = mock_app
     adapter = UIADesktop()
-    adapter._app = mock_app
+    adapter._pywinauto = object()        # keep _ensure_imported() from re-importing
+    adapter._application_cls = factory
+
+    await adapter.launch("Telegram.exe")
+    assert adapter._launched is True
 
     await adapter.close()
 
     mock_app.kill.assert_called_once()
+    assert adapter._app is None
+
+
+@pytest.mark.asyncio
+async def test_close_does_not_kill_attached_application():
+    """connect() attaches to an ALREADY-RUNNING app, so close() must not kill it.
+
+    This was the missing case: close() killed the app whenever _app was set, and
+    connect()/connect_handle() both set it while only launch() actually started
+    anything. The result was that attaching to the operator's running Telegram
+    and then tidying up TERMINATED TELEGRAM DESKTOP - with kill()'s exception
+    swallowed, so nothing reported it. Callers include ufo_bridge.py and
+    telegram_receiver.py, so it reached production.
+    """
+    mock_app = MagicMock()
+    factory = MagicMock()
+    factory.return_value.connect.return_value = mock_app
+    adapter = UIADesktop()
+    adapter._pywinauto = object()
+    adapter._application_cls = factory
+
+    await adapter.connect(process_id=1234)
+    assert adapter._launched is False    # attached, not started
+
+    await adapter.close()
+
+    mock_app.kill.assert_not_called()    # the running app survives
     assert adapter._app is None
 
 

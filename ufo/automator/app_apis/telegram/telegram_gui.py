@@ -668,36 +668,70 @@ class TelegramGUIController:
             print(f"[troubleshoot] desktop fallback failed: {e}")
             return b""
 
+    @staticmethod
+    def _is_sane_window_capture(png: bytes) -> bool:
+        """True when a region=None capture is plausibly a whole window.
+
+        Blank was never the only way a capture fails to be evidence. The same
+        controller, on the same call with no region, has returned 199x34 (167
+        bytes) when the window was in a bad state, against 1938x1158 (167 KB)
+        when it was healthy. That fragment is not blank - it has black pixels,
+        so _looks_blank() correctly reports content - but nothing 34px tall can
+        show what the UI was doing, and it would still be written to disk under
+        a confident `screenshot -> <path>`.
+
+        The floor is deliberately loose: it exists to reject fragments, not to
+        judge layout, so it must not reject a genuinely small or half-screen
+        Telegram window.
+        """
+        try:
+            from io import BytesIO
+            from PIL import Image
+            with Image.open(BytesIO(png)) as im:
+                w, h = im.size
+            return w >= 100 and h >= 50
+        except Exception:
+            return True  # undecidable - let _looks_blank() have the last word
+
     async def troubleshoot_screenshot(self, label: str = "troubleshoot") -> Optional[str]:
         """GLOBAL RULE 3: capture a screenshot to diagnose any stuck state.
 
         Saves to ufo_skill_state/evidence/debug/<label>_<ts>.png and returns
         the path. Always called before blind retries.
 
-        A capture is only reported as evidence if it actually contains
-        something: a blank window capture is retried from the whole desktop,
-        and if that is blank too the path is still returned but logged as
-        BLANK rather than presented as an answer.
+        A capture is only reported as evidence if it actually shows something: a
+        blank window capture, or one too small to contain the UI, is retried
+        from the whole desktop. If that fails too the path is still returned but
+        logged as UNUSABLE rather than presented as an answer.
         """
         try:
             from datetime import datetime
             from pathlib import Path
             shot = await self.take_screenshot()
+
+            def _defect(data: bytes) -> Optional[str]:
+                if not data:
+                    return "no bytes captured"
+                if self._looks_blank(data):
+                    return "blank - the window rendered no content"
+                if not self._is_sane_window_capture(data):
+                    return "too small to show UI state"
+                return None
+
+            why = _defect(shot) if shot else "no bytes captured"
+            if why:
+                desktop = self._grab_desktop()
+                if not _defect(desktop):
+                    shot, why = desktop, None
             if not shot:
                 return None
-            blank = self._looks_blank(shot)
-            if blank:
-                desktop = self._grab_desktop()
-                if desktop and not self._looks_blank(desktop):
-                    shot, blank = desktop, False
             d = Path("ufo_skill_state/evidence/debug")
             d.mkdir(parents=True, exist_ok=True)
             ts = datetime.now().isoformat().replace(":", "-")
             path = d / f"{label}_{ts}.png"
             with open(path, "wb") as f:
                 f.write(shot)
-            note = (" (BLANK - neither the window nor the desktop had content; "
-                    "this is NOT usable evidence)") if blank else ""
+            note = f" (UNUSABLE: {why} - this is NOT evidence)" if why else ""
             print(f"[troubleshoot] screenshot -> {path}{note}")
             return str(path)
         except Exception as e:

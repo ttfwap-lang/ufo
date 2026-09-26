@@ -50,6 +50,9 @@ class UIADesktop:
         self._application_cls = None
         self._app = None
         self._pid: Optional[int] = None
+        # Ownership flag: did WE start this process, or merely attach to one that
+        # was already running? close() only kills what we started.
+        self._launched = False
 
     def _ensure_imported(self) -> None:
         if self._pywinauto is None:
@@ -65,6 +68,7 @@ class UIADesktop:
             return application
 
         self._app = await asyncio.to_thread(_do_launch)
+        self._launched = True   # we started it, so closing may stop it
         self._pid = getattr(self._app.process, "pid", None) if hasattr(
             self._app, "process"
         ) else None
@@ -79,6 +83,7 @@ class UIADesktop:
             return application
 
         self._app = await asyncio.to_thread(_do_connect)
+        self._launched = False  # attached to a running app - NOT ours to kill
         self._pid = process_id
 
     async def connect_handle(self, hwnd: int) -> None:
@@ -90,6 +95,7 @@ class UIADesktop:
             return application
 
         self._app = await asyncio.to_thread(_do_connect)
+        self._launched = False  # attached to a running app - NOT ours to kill
         self._pid = None
 
     async def window_from_handle(self, hwnd: int) -> Element:
@@ -334,7 +340,28 @@ class UIADesktop:
         return await asyncio.to_thread(_do_screenshot)
 
     async def close(self) -> None:
-        if self._app is not None:
+        """Release the connection - stop the process ONLY if we started it.
+
+        This distinction is the whole point of the method, and it was missing:
+        launch() does Application().start() (a process we own) while connect()
+        and connect_handle() do Application().connect() (a process that was
+        already running and merely attached to). close() killed the app in both
+        cases, so any caller that attached to the operator's running Telegram
+        and then tidied up after itself TERMINATED TELEGRAM DESKTOP. That is
+        what TelegramGUIController.close() does - and its own docstring says it
+        closes "the desktop automation connection", not the application.
+
+        Callers include ufo_bridge.py (5 sites) and telegram_receiver.py, so the
+        kill reached production. Observed live: a script that connected, took a
+        screenshot and called close() left Telegram gone a minute later, with no
+        error anywhere, because kill() failures are swallowed.
+
+        A launched process is still cleaned up - leaving a spawned app behind
+        after teardown would leak a session nobody asked for.
+        """
+        if self._app is None:
+            return
+        if self._launched:
 
             def _do_close():
                 try:
@@ -343,4 +370,6 @@ class UIADesktop:
                     pass
 
             await asyncio.to_thread(_do_close)
-            self._app = None
+        # Attached-only: drop our reference and leave the running app alone.
+        self._app = None
+        self._launched = False
