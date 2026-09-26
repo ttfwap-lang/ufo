@@ -116,7 +116,11 @@ class ExecutionResult:
     @property
     def is_successful(self) -> bool:
         """Check if execution was successful."""
-        return self.status.value in ["completed", "success"] and self.error is None
+        # status arrives as a TaskStatus enum from the orchestrator but as a plain
+        # string from device results; accept both (5876f2f assumed the enum and
+        # raised AttributeError on every device-produced result).
+        status = getattr(self.status, "value", self.status)
+        return status in ["completed", "success"] and self.error is None
 
 
 @dataclass

@@ -77,11 +77,18 @@ def test_real_time_dag_updates():
         constellation.add_dependency(dep)
     constellation.mark_task_completed('initial_task', True)
     constellation.mark_task_completed('dynamic_task_2', True)
-    constellation.mark_task_completed('dynamic_task_3', False)
-    constellation.mark_task_completed('dynamic_task_4', True)
+    newly_ready = constellation.mark_task_completed('dynamic_task_3', False)
+    # dynamic_task_4 depends on dynamic_task_3 with SUCCESS_ONLY, and task 3 failed:
+    # task 4 must stay blocked. (This test used to complete task 4 anyway - it only
+    # worked because a failure without an exception was treated as success.)
+    assert 'dynamic_task_4' not in [t.task_id for t in newly_ready]
+    # ...and it is CANCELLED (terminal), so the constellation can finish instead of
+    # waiting forever for a task that can never run.
+    assert constellation.get_task('dynamic_task_4').status == TaskStatus.CANCELLED
+    assert constellation.is_complete()
     constellation.complete_execution()
     print('✅ Real-time updates test completed')
-    assert constellation.state in (ConstellationState.COMPLETED, ConstellationState.PARTIALLY_FAILED), 'Constellation execution should finish'
+    assert constellation.state in (ConstellationState.COMPLETED, ConstellationState.PARTIALLY_FAILED, ConstellationState.FAILED), 'Constellation execution should finish'
 
 def test_complex_dag_structure():
     """Test complex DAG structure with multiple dependencies."""

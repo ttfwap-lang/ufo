@@ -364,6 +364,38 @@ class TaskConstellation(IConstellation):
         task.start_execution()
         self.update_state()
 
+    def _propagate_outcome(self, task_id: str, outcome: Any) -> List[TaskStar]:
+        """Apply a finished task's outcome to its dependents; return newly ready ones.
+
+        A dependent whose condition is satisfied has the dependency removed (and
+        becomes ready once all are). A dependent whose condition can NEVER be met
+        any more - e.g. SUCCESS_ONLY on a failed prerequisite - is CANCELLED, and
+        that cancellation propagates the same way down the chain. Without this a
+        blocked dependent stays PENDING forever: is_complete() never becomes True
+        and the orchestrator's `while not constellation.is_complete()` loop never
+        ends. (Before failures were forced to carry an Exception, the non-raising
+        failure path hid this by wrongly running such dependents instead.)
+        """
+        newly_ready: List[TaskStar] = []
+        queue = [(task_id, outcome)]
+        while queue:
+            src, src_outcome = queue.pop(0)
+            for dependency in list(self._dependencies.values()):
+                if dependency.from_task_id != src:
+                    continue
+                dependent = self._tasks.get(dependency.to_task_id)
+                if not dependent or dependent.status not in (TaskStatus.PENDING, TaskStatus.WAITING_DEPENDENCY):
+                    continue
+                if dependency.evaluate_condition(src_outcome):
+                    dependent.remove_dependency(src)
+                    if self._are_dependencies_satisfied(dependent.task_id) and dependent not in newly_ready:
+                        newly_ready.append(dependent)
+                else:
+                    dependent.cancel()
+                    reason = RuntimeError(f'Skipped: prerequisite {src} did not satisfy the {dependency.dependency_type.value} dependency')
+                    queue.append((dependent.task_id, reason))
+        return newly_ready
+
     def mark_task_completed(self, task_id: str, success: bool, result: Any=None, error: Exception=None) -> List[TaskStar]:
         """
         Mark a task as completed and update dependent tasks.
@@ -389,15 +421,7 @@ class TaskConstellation(IConstellation):
             task.complete_with_success(result)
         else:
             task.complete_with_failure(error)
-        newly_ready = []
-        for dependency in self._dependencies.values():
-            if dependency.from_task_id == task_id:
-                dependent_task = self._tasks.get(dependency.to_task_id)
-                if dependent_task and dependent_task.status == TaskStatus.PENDING:
-                    if dependency.evaluate_condition(result if success else error):
-                        dependent_task.remove_dependency(task_id)
-                        if self._are_dependencies_satisfied(dependent_task.task_id):
-                            newly_ready.append(dependent_task)
+        newly_ready = self._propagate_outcome(task_id, result if success else error)
         self.update_state()
         self._updated_at = datetime.now(timezone.utc)
         return newly_ready

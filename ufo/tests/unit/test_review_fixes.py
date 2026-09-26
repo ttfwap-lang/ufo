@@ -366,3 +366,48 @@ def test_playwright_screenshot_captures_the_window_it_was_given():
     p._page = b                                      # find_window('B') was called last
     assert asyncio.run(p.screenshot(window=Element(handle=a, name="A"))) == b"A"
     assert asyncio.run(p.screenshot()) == b"B"
+
+
+# ---- cascade: a dependent that can never run must become terminal, not hang
+def _chain(*deps):
+    from ufo.galaxy.constellation.task_constellation import TaskConstellation
+    from ufo.galaxy.constellation.task_star import TaskStar
+    from ufo.galaxy.constellation.task_star_line import TaskStarLine
+
+    c = TaskConstellation()
+    ids = sorted({x for d in deps for x in d[:2]})
+    for i in ids:
+        c.add_task(TaskStar(task_id=i, description=i))
+    for a, b, kind in deps:
+        c.add_dependency(TaskStarLine(from_task_id=a, to_task_id=b, dependency_type=kind))
+    return c
+
+
+def test_failure_cancels_the_success_only_chain_and_the_run_can_finish():
+    from ufo.galaxy.constellation.enums import DependencyType as D, TaskStatus as S
+
+    c = _chain(("a", "b", D.SUCCESS_ONLY), ("b", "c", D.SUCCESS_ONLY))
+    c.mark_task_completed("a", success=False)
+    assert c.get_task("b").status == S.CANCELLED
+    assert c.get_task("c").status == S.CANCELLED   # transitively
+    assert c.is_complete()                          # orchestrator loop can exit
+
+
+def test_completion_only_dependent_still_runs_after_a_failure():
+    from ufo.galaxy.constellation.enums import DependencyType as D, TaskStatus as S
+
+    c = _chain(("a", "b", D.COMPLETION_ONLY), ("a", "x", D.SUCCESS_ONLY), ("x", "y", D.COMPLETION_ONLY))
+    ready = c.mark_task_completed("a", success=False)
+    assert c.get_task("x").status == S.CANCELLED
+    # b (completion-only on a) and y (completion-only on x, which a cancel
+    # FINISHES) both become ready in the same step
+    assert sorted(t.task_id for t in ready) == ["b", "y"]
+    assert c.get_task("y").status == S.PENDING and c.get_task("y").is_ready_to_execute
+
+
+def test_success_path_is_unchanged():
+    from ufo.galaxy.constellation.enums import DependencyType as D, TaskStatus as S
+
+    c = _chain(("a", "b", D.SUCCESS_ONLY))
+    ready = c.mark_task_completed("a", success=True, result="ok")
+    assert [t.task_id for t in ready] == ["b"] and c.get_task("b").status == S.PENDING
