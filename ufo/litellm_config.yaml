@@ -77,13 +77,19 @@ model_list:
       extra_body:
         chat_template_kwargs:
           enable_thinking: false
-  # The two smaller gx10 vLLMs. Both bind 127.0.0.1 on the box (like the brain),
-  # so they are reached through ufo-tunnel.service's TAILNET-ONLY forwards
+  # Two more gx10 models. Both bind 127.0.0.1 on the box (like the brain), so
+  # they are reached through ufo-tunnel.service's TAILNET-ONLY forwards
   # (100.67.13.78:18004/18005 -> 127.0.0.1:8004/8005; ufw allows 100.64.0.0/10
   # only), the same way Venus is reached on :18002. See ufo-tunnel.service.
-  - model_name: "gx10-qwen35-9b"
+  #
+  # :8004 is the REAL Qwen3.8 27B (llama.cpp, Q8_0 GGUF) since 2026-09-27; it
+  # replaced qwen35-9b-defiant in that slot. NOTE the name clash: the brain on
+  # :8000 (qwen-abliterated, a 35B-A3B) ALSO answers to the name
+  # "qwen38-27b-turbo" as a served-model alias, so the ufo-* entries above that
+  # say "openai/qwen38-27b-turbo" at :8000 get the 35B, not this 27B.
+  - model_name: "gx10-qwen38-27b"
     litellm_params:
-      model: "openai/qwen35-9b-defiant"
+      model: "openai/qwen38-27b-turbo"
       api_base: "http://100.67.13.78:18004/v1"
       api_key: "sk-local"
       rpm: 10000

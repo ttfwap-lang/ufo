@@ -12,7 +12,8 @@ Type=simple
 #   18061 -> OmniParser (0.0.0.0:7861, for symmetry/future loopback binds)
 #   100.67.13.78:8000 / 192.168.4.103:8000 -> brain on its usual port, for
 #            clients that expect :8000 on the tailnet / LAN address
-#   100.67.13.78:18004 -> qwen35-9b-defiant (vLLM on 127.0.0.1:8004)
+#   100.67.13.78:18004 -> qwen38-27b-turbo (llama.cpp on 127.0.0.1:8004; the
+#            27B replaced qwen35-9b-defiant in this slot on 2026-09-27)
 #   100.67.13.78:18005 -> qwen3-0.6b        (vLLM on 127.0.0.1:8005)
 #            The last two bind the TAILNET address only, not 0.0.0.0: the only
 #            consumer is the Windows host over Tailscale, so the LAN never sees
