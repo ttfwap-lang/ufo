@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import sys
 import time
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
@@ -439,7 +441,9 @@ class TelegramGUIController:
         win32gui.BringWindowToTop(hwnd)
         win32gui.SetForegroundWindow(hwnd)
         time.sleep(0.3)
-        return True
+        # Verify the window actually has focus
+        import win32gui as _wg
+        return _wg.GetForegroundWindow() == hwnd
 
     def _focus_via_appactivate(self) -> bool:
         """Focus using WScript.Shell AppActivate (very reliable focus steal)."""
@@ -457,7 +461,12 @@ class TelegramGUIController:
             else:
                 shell.AppActivate("Telegram")
             time.sleep(0.3)
-            return True
+            # Verify the window actually has focus
+            try:
+                import win32gui
+                return win32gui.GetForegroundWindow() == self.get_concrete_hwnd()
+            except Exception:
+                return False
         except Exception:
             return False
 
@@ -573,13 +582,13 @@ class TelegramGUIController:
         # UIPI path: elevated fixer (operator approves UAC once)
         print("force_telegram_top: UIPI-blocked - requesting elevated fix (approve UAC)")
         try:
-            import subprocess
+            import subprocess, sys as _sys
             proc = subprocess.run(
                 [
                     "powershell", "-NoProfile", "-Command",
                     "Start-Process -FilePath "
-                    "'C:\\Users\\lnxzf\\Desktop\\projects\\ufo\\ufo\\.venv\\Scripts\\python.exe' "
-                    "-ArgumentList 'C:\\Users\\lnxzf\\Desktop\\projects\\ufo\\ufo\\elev_fix_window.py' "
+                    f"'{_sys.executable}' "
+                    f"-ArgumentList '{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'elev_fix_window.py'))}' "
                     "-Verb RunAs -Wait",
                 ],
                 capture_output=True, text=True, timeout=120,
@@ -1452,12 +1461,51 @@ class TelegramGUIController:
                 spelling, so "SavedMessages" searches "Saved Messages".
                 
         Returns:
-            List of matching chats.
+            List of matching chats found via the sidebar search.
         """
-        # Use keyboard shortcut to search
-        await self._open_chat_by_keyboard(query)
-        # Then parse results (would need visual/UIA)
-        return []
+        # Use sidebar search to find chats
+        field = await self._find_sidebar_search()
+        if field is None:
+            print("[search_chats] sidebar Search field not found")
+            return []
+        
+        if not await self._click_at_rect(field.rect):
+            print("[search_chats] failed to click search field")
+            return []
+        
+        await asyncio.sleep(0.3)
+        # Clear and type the query
+        if not (await self._type_keys_safe(self.SHORTCUTS["select_all"])
+                and await self._type_keys_safe("{DEL}")
+                and await self._type_text_safe(query)):
+            print("[search_chats] failed to type query")
+            return []
+        
+        await asyncio.sleep(1.0)
+        
+        # Use UIA to find the search results dropdown
+        results: List[ChatItem] = []
+        if self._window:
+            try:
+                for ed in self._window.handle.descendants(control_type="ListItem"):
+                    try:
+                        info = ed.element_info
+                        if info.name:
+                            results.append(ChatItem(
+                                name=info.name,
+                                id=info.name,
+                                timestamp=None,
+                                preview=None,
+                            ))
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+        
+        if not results:
+            print(f"[search_chats] no ListItems found for '{query}'")
+        
+        return results
     
     # ==================== Message Operations ====================
     

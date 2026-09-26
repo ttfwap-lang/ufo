@@ -929,7 +929,7 @@ class DragCommand(ControlCommand):
         path = self.params.get('path', [])
         for i in range(len(path)):
             start_x, start_y = (path[i].get('x', 0), path[i].get('y', 0))
-            end_x, end_y = (path[i + 1].get('x', 0), path[i + 1].get('y', 0) if i + 1 < len(path) else path[i])
+            end_x, end_y = (path[i + 1].get('x', 0), path[i + 1].get('y', 0)) if i + 1 < len(path) else (path[i].get('x', 0), path[i].get('y', 0))
             if self.params.get('scaler', None) and self.receiver.application:
                 scaled_width = self.params['scaler'][0]
                 scaled_height = self.params['scaler'][1]

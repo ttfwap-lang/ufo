@@ -7,7 +7,7 @@ Single responsibility: Message handling and routing.
 import asyncio
 import json
 import logging
-from typing import Dict, Any, Optional, TYPE_CHECKING
+from typing import Dict, Any, Optional, Callable, TYPE_CHECKING
 import websockets
 from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
 from .device_registry import DeviceRegistry
@@ -40,7 +40,7 @@ class MessageProcessor:
         self.connection_manager = connection_manager
         self._message_handlers: Dict[str, asyncio.Task] = {}
         self._handler_transports: Dict[str, Any] = {}
-        self._disconnection_handler: Optional[callable] = None
+        self._disconnection_handler: Optional[Callable] = None
         self.logger = logging.getLogger(f'{__name__}.MessageProcessor')
 
     def set_connection_manager(self, connection_manager: 'WebSocketConnectionManager') -> None:
@@ -55,7 +55,7 @@ class MessageProcessor:
         self.connection_manager = connection_manager
         self.logger.debug('🔗 ConnectionManager reference set')
 
-    def set_disconnection_handler(self, handler: callable) -> None:
+    def set_disconnection_handler(self, handler: Callable) -> None:
         """
         Set the disconnection handler callback.
 

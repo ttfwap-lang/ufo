@@ -643,15 +643,6 @@ class ScreenLockout:
         user32.DestroyWindow(hwnd)
 
     # ==================== Input/click bursts ====================
-
-    def begin_input_burst(self) -> None:
-        """Mark AI input injection: focus keeper yields foreground + hotkeys ignored."""
-        self._in_input_burst = True
-
-    def end_input_burst(self) -> None:
-        """Mark input injection finished: overlay re-owns foreground."""
-        self._in_input_burst = False
-
     def begin_click_burst(self) -> None:
         """Prepare for a real mouse click during lockout.
 

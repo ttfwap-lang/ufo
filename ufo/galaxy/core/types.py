@@ -116,7 +116,7 @@ class ExecutionResult:
     @property
     def is_successful(self) -> bool:
         """Check if execution was successful."""
-        return self.status in ["completed", "success"] and self.error is None
+        return self.status.value in ["completed", "success"] and self.error is None
 
 
 @dataclass

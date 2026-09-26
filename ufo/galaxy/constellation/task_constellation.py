@@ -7,7 +7,7 @@ dynamic modification, and advanced dependency handling capabilities.
 import uuid
 from collections import defaultdict, deque
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from ufo.galaxy.constellation.enums import ConstellationState
 from ufo.galaxy.visualization.dag_visualizer import DAGVisualizer
 from ..core.interfaces import IConstellation
