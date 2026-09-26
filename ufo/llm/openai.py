@@ -79,6 +79,10 @@ class BaseOpenAIService(BaseService):
         self.config_llm = config[agent_type]
         self.config = config
         self.api_type = self.config_llm['API_TYPE'].lower()
+        # OpenAI-compatible providers can use a separate price namespace so
+        # Featherless usage is not misreported as zero or charged at OpenAI
+        # rates.  Unknown providers retain the historical model-only lookup.
+        self.price_provider = str(self.config_llm.get('PRICE_PROVIDER') or self.api_type).lower()
         self.max_retry = self.config['MAX_RETRY']
         self.prices = self.config.get('PRICES', {})
         self.agent_type = agent_type
@@ -97,9 +101,20 @@ class BaseOpenAIService(BaseService):
         else:
             self.json_schema_enabled = bool(self.config_llm.get('JSON_SCHEMA', False))
 
+    def _get_cost_estimate(self, model: str, prompt_tokens: int, completion_tokens: int) -> float:
+        """Estimate cost using the configured provider namespace."""
+        return self.get_cost_estimator(
+            self.price_provider,
+            model,
+            self.prices,
+            prompt_tokens,
+            completion_tokens,
+        )
+
     async def _ensure_json_schema_probed(self) -> None:
         """Probe JSON schema support lazily and offload to thread."""
-        if self.use_responses:
+        if self.use_responses or not self.config_llm.get('JSON_SCHEMA', False):
+            self.json_schema_enabled = False
             return
         if self.probe_key in _PROBED_JSON_SCHEMA_MODELS:
             self.json_schema_enabled = _PROBED_JSON_SCHEMA_MODELS[self.probe_key]
@@ -185,13 +200,13 @@ class BaseOpenAIService(BaseService):
                         completion_tokens = getattr(usage, 'completion_tokens', 0) or 0
             if not collected_content or not collected_content[0]:
                 raise RuntimeError(f"OpenAI API streaming response produced empty content for model '{self.model}'")
-            cost = self.get_cost_estimator(self.api_type, self.model, self.prices, prompt_tokens, completion_tokens)
+            cost = self._get_cost_estimate(self.model, prompt_tokens, completion_tokens)
             return LLMResult(responses=collected_content, cost=cost, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, model=self.model, api_type=self.api_type, agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, 'value', str(self.agent_type)))
         else:
             usage = getattr(response, 'usage', None)
             prompt_tokens = getattr(usage, 'prompt_tokens', 0) if usage else 0
             completion_tokens = getattr(usage, 'completion_tokens', 0) if usage else 0
-            cost = self.get_cost_estimator(self.api_type, self.model, self.prices, prompt_tokens, completion_tokens)
+            cost = self._get_cost_estimate(self.model, prompt_tokens, completion_tokens)
             if not response.choices or response.choices[0].message.content is None:
                 raise RuntimeError(f"OpenAI API returned response with no choices or empty content for model '{self.model}'")
             responses = [response.choices[0].message.content]
@@ -227,7 +242,7 @@ class BaseOpenAIService(BaseService):
         usage = response_dict.get('usage', {}) if isinstance(response_dict, dict) else {}
         input_tokens = usage.get('input_tokens', 0) if isinstance(usage, dict) else 0
         output_tokens = usage.get('output_tokens', 0) if isinstance(usage, dict) else 0
-        cost = self.get_cost_estimator(self.api_type, self.model, self.prices, input_tokens, output_tokens)
+        cost = self._get_cost_estimate(self.model, input_tokens, output_tokens)
         return LLMResult(responses=[content_text], cost=cost, prompt_tokens=input_tokens, completion_tokens=output_tokens, model=self.model, api_type=self.api_type, agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, 'value', str(self.agent_type)))
 
     @staticmethod
@@ -298,7 +313,7 @@ class BaseOpenAIService(BaseService):
         else:
             input_tokens = 0
             output_tokens = 0
-        cost = self.get_cost_estimator(self.api_type, self.config_llm['API_MODEL'], self.prices, input_tokens, output_tokens)
+        cost = self._get_cost_estimate(self.config_llm['API_MODEL'], input_tokens, output_tokens)
         return LLMResult(responses=[response], cost=cost, prompt_tokens=input_tokens, completion_tokens=output_tokens, model=self.config_llm.get('API_MODEL', 'gpt-4o'), api_type=self.api_type, agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, 'value', str(self.agent_type)))
 
     @functools.lru_cache()
@@ -480,6 +495,11 @@ class OperatorServicePreview(BaseService):
         self._agent_type = agent_type
         if client is None:
             self.client = self.get_openai_client()
+        self.price_provider = str(self.config_llm.get('PRICE_PROVIDER') or self.api_type).lower()
+        self.prices = config.get('PRICES', {})
+
+    def _get_cost_estimate(self, model: str, prompt_tokens: int, completion_tokens: int) -> float:
+        return self.get_cost_estimator(self.price_provider, model, self.prices, prompt_tokens, completion_tokens)
 
     def get_openai_client(self):
         """
@@ -512,7 +532,7 @@ class OperatorServicePreview(BaseService):
         else:
             input_tokens = 0
             output_tokens = 0
-        cost = self.get_cost_estimator(self.api_type, self.api_model, self.prices, input_tokens, output_tokens)
+        cost = self._get_cost_estimate(self.api_model, input_tokens, output_tokens)
         return LLMResult(responses=[response], cost=cost, prompt_tokens=input_tokens, completion_tokens=output_tokens, model=self.api_model, api_type=self.api_type, agent_type=self._agent_type if isinstance(self._agent_type, str) else getattr(self._agent_type, 'value', str(self._agent_type)))
 
     def get_token_provider(self):

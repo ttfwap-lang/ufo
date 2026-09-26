@@ -366,6 +366,30 @@ class SystemConfig:
     # ========== Omniparser ==========
     omniparser: Dict[str, Any] = field(default_factory=dict)
 
+    # ========== BrowserAct ==========
+    # Settings for the constrained BrowserAct MCP executor.  Values are
+    # intentionally generic so a fresh checkout can use PATH discovery and
+    # an operator can select a browser without rewriting source code.
+    browseract: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "ENABLED": True,
+            "CLI_PATH": "",
+            "BROWSER_ID": "",
+            "AUTO_SELECT_SINGLE_BROWSER": True,
+            "ALLOW_STEALTH_EXTRACT": False,
+            "ALLOW_REMOTE_ASSIST": True,
+            "ALLOW_PRIVATE_NETWORKS": False,
+            "ALLOW_ABOUT_BLANK": True,
+            "COMMAND_TIMEOUT_SECONDS": 300,
+            "MAX_INPUT_CHARS": 10000,
+            "MAX_OUTPUT_CHARS": 30000,
+            "MAX_STATE_CHARS": 30000,
+            "SESSION_IDLE_SECONDS": 900,
+            "ALLOWED_DOMAINS": [],
+            "REQUIRE_DOMAIN_ALLOWLIST": False,
+        }
+    )
+
     # ========== Control Filtering ==========
     control_filter_type: List[str] = field(default_factory=list)
     control_filter_top_k_plan: int = 2
@@ -523,6 +547,7 @@ class SystemConfig:
             "qa_pair_file": "QA_PAIR_FILE",
             "qa_pair_num": "QA_PAIR_NUM",
             "omniparser": "OMNIPARSER",
+            "browseract": "BROWSERACT",
             "control_filter_type": "CONTROL_FILTER_TYPE",
             "control_filter_top_k_plan": "CONTROL_FILTER_TOP_K_PLAN",
             "control_filter_top_k_semantic": "CONTROL_FILTER_TOP_K_SEMANTIC",
@@ -629,6 +654,8 @@ class SystemConfig:
             "QA_PAIR_NUM": "qa_pair_num",
             # Omniparser
             "OMNIPARSER": "omniparser",
+            # BrowserAct
+            "BROWSERACT": "browseract",
             # Control Filtering
             "CONTROL_FILTER_TYPE": "control_filter_type",
             "CONTROL_FILTER_TOP_K_PLAN": "control_filter_top_k_plan",

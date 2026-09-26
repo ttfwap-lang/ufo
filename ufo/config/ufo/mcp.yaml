@@ -134,6 +134,19 @@ mcp_servers:
     - ufo.client.mcp.local_servers.web_research_mcp_server
     command: C:\Users\lnxzf\AppData\Local\Programs\Python\Python312\python.exe
     description: Web search and URL scraping tools for research.
+  BrowserActExecutor:
+    type: local
+    args:
+    - -W
+    - ignore
+    - -m
+    - ufo.client.mcp.local_servers.browseract_mcp_server
+    command: python
+    description: >-
+      Constrained BrowserAct Agent CLI browser navigation. Use open -> state ->
+      one mutation -> fresh state. BrowserAct element indexes are ephemeral and
+      state_token values must be passed back unchanged. No arbitrary commands,
+      browser lifecycle changes, cookies, eval, or proxy operations are exposed.
   UITarsExecutor:
     type: local
     args:
@@ -208,6 +221,9 @@ HOST_AGENT:
     - name: WebResearchExecutor
       namespace: WebResearchExecutor
       type: local
+    - name: BrowserActExecutor
+      namespace: BrowserActExecutor
+      type: local
     - name: UITarsExecutor
       namespace: UITarsExecutor
       type: local
@@ -235,6 +251,9 @@ APP_AGENT:
       type: local
     - name: WebResearchExecutor
       namespace: WebResearchExecutor
+      type: local
+    - name: BrowserActExecutor
+      namespace: BrowserActExecutor
       type: local
     - name: PDFReaderExecutor
       namespace: PDFReaderExecutor

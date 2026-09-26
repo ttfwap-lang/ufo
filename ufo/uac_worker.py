@@ -50,14 +50,32 @@ def release_exec_lock(h) -> None:
 
 
 def main() -> int:
-    # Signal readiness (proves it runs elevated / hidden)
-    try:
-        with open(HEARTBEAT, "w") as f:
-            json.dump({"alive": True, "time": time.time(), "user": "SYSTEM"}, f)
-    except Exception:
-        pass
+    # Signal readiness (proves it runs elevated / hidden).
+    #
+    # This is a HEARTBEAT, so it must be refreshed on a timer, not written
+    # once: uac_run.py decides whether the daemon is alive by the file's age.
+    # Writing it only at startup made a daemon that died at any later point
+    # look alive forever, and the client would then burn its full timeout
+    # waiting on a command nobody was ever going to run.
+    last_beat = 0.0
+
+    def beat() -> None:
+        nonlocal last_beat
+        try:
+            tmp = HEARTBEAT + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump({"alive": True, "time": time.time(), "user": "SYSTEM"}, f)
+            # Atomic: a client polling the heartbeat never reads a torn file.
+            os.replace(tmp, HEARTBEAT)
+            last_beat = time.time()
+        except Exception:
+            pass
+
+    beat()
 
     while True:
+        if time.time() - last_beat > 5.0:
+            beat()
         try:
             if os.path.exists(CMD):
                 lock = None

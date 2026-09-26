@@ -33,7 +33,6 @@ from ufo.automator.ui_control.screenshot import PhotographerFacade
 from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.aip.messages import Command, Result, ResultStatus
 from ufo.llm import AgentType
-from ufo.llm.grounding_model.omniparser_service import get_omniparser
 from ufo.module.context import ContextNames
 from ufo.module.dispatcher import BasicCommandDispatcher
 ufo_config = LazyUFOConfig()
@@ -291,6 +290,10 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
         omniparser_endpoint = omniparser_config.get('ENDPOINT', '') if omniparser_config else ''
         if omniparser_endpoint:
             try:
+                # Gradio is an optional OmniParser dependency; import it only
+                # when that backend is actually selected.
+                from ufo.llm.grounding_model.omniparser_service import get_omniparser
+
                 omniparser_service = get_omniparser(omniparser_endpoint)
             except Exception as e:
                 # The gradio client connects on construction; an unreachable
@@ -889,6 +892,12 @@ REPEATED_FAILURE_LIMIT = 3
 MAX_ACTIONS_PER_STEP = 4
 
 
+def _is_browseract_action(action: Any) -> bool:
+    """Return whether an action targets the state-indexed BrowserAct arm."""
+    function = str(getattr(action, "function", "") or "").strip().lower()
+    return function == "browser_action" or function.startswith("browseract_") or function.startswith("browser_")
+
+
 def _record_and_check_repeated_failure(agent, actions, execution_results) -> bool:
     """True once the identical action has failed REPEATED_FAILURE_LIMIT times consecutively."""
     import json as _json
@@ -1046,12 +1055,18 @@ class AppActionExecutionStrategy(BaseProcessingStrategy):
         results: List[Result] = []
         stop_reason = ''
         executed = 0
+        browseract_seen = False
         for action in actions:
             if stop_reason:
                 results.append(skipped(stop_reason))
                 continue
             if not action.function:
                 results.append(skipped('No function given.'))
+                continue
+            is_browseract = _is_browseract_action(action)
+            if is_browseract and (browseract_seen or executed > 0):
+                stop_reason = 'BrowserAct actions use ephemeral indexes; re-observe state and plan the next mutation in a new step.'
+                results.append(skipped(stop_reason))
                 continue
             if executed >= MAX_ACTIONS_PER_STEP:
                 results.append(skipped(f'Only {MAX_ACTIONS_PER_STEP} actions run per step.'))
@@ -1071,6 +1086,12 @@ class AppActionExecutionStrategy(BaseProcessingStrategy):
                 raise Exception(f'Failed to execute app action: {str(e)}')
             results.append(result)
             executed += 1
+            if is_browseract:
+                browseract_seen = True
+                # The server returns a fresh state/token after every mutation,
+                # but the model must see it before planning another indexed
+                # action.  Keep ordinary multi-action UIA behaviour unchanged.
+                stop_reason = 'BrowserAct mutation completed; use the returned fresh state before the next action.'
             if result.status != ResultStatus.SUCCESS:
                 stop_reason = 'Skipped because a previous action in this step failed.'
         return results

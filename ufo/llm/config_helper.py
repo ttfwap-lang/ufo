@@ -60,18 +60,18 @@ def get_dgx_host() -> Optional[str]:
 
 def _probe_local_auto() -> bool:
     """Probe for any available local LLM endpoint (localhost or DGX)."""
-    # Check DGX Spark on the network first. agents_dgx.yaml currently serves
-    # gemma4-ufo via Ollama on :11434 and qwen-abliterated via vLLM on :8000
-    # (not the :8080/:8081 llama-server layout this used to assume) — probe
-    # what's actually there, not what the config used to be.
+    # Check the DGX Spark through the SSH tunnel first. agents_dgx.yaml serves
+    # qwen38-27b-turbo (llama.cpp) on :8000 and ui-venus (vLLM) on :8002 — not
+    # the :8080/:8081 llama-server layout this used to assume. Probe what's
+    # actually there, not what the config used to be.
     dgx_host = get_dgx_host()
     if dgx_host:
-        if _probe_endpoint(f'http://{dgx_host}:11434/api/tags') or _probe_endpoint(f'http://{dgx_host}:8000/v1/models'):
+        if _probe_endpoint(f'http://{dgx_host}:8000/v1/models'):
             return True
-    # Check localhost LiteLLM and llama-server
+    # Check localhost LiteLLM router, then the raw tunnel ports.
     if _probe_endpoint('http://127.0.0.1:4000/health'):
         return True
-    if _probe_endpoint('http://127.0.0.1:8080/health') or _probe_endpoint('http://127.0.0.1:8081/health'):
+    if _probe_endpoint('http://127.0.0.1:8000/v1/models'):
         return True
     return False
 
@@ -89,7 +89,7 @@ def get_backend_selection() -> dict:
         with open(state_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             if isinstance(data, dict) and 'selected' in data:
-                if data['selected'] not in ['local', 'cloud', 'auto', 'profile', 'disk', 'dgx']:
+                if data['selected'] not in ['local', 'cloud', 'featherless', 'auto', 'profile', 'disk', 'dgx']:
                     return {'selected': 'disk', 'source': 'default'}
                 if data['selected'] == 'profile' and (not isinstance(data.get('profile_path'), str)):
                     logger.warning("Corrupt state: 'profile' selected but 'profile_path' missing or invalid. Degrading to 'disk'.")
@@ -104,7 +104,7 @@ def set_backend_selection(selection: str, profile_path: Optional[str]=None, upda
     global _auto_probe_memo
     loader = ConfigLoader.get_instance()
     state_path = loader.base_path / 'ufo' / 'backend_state.json'
-    if selection not in ['local', 'cloud', 'auto', 'profile', 'disk', 'dgx']:
+    if selection not in ['local', 'cloud', 'featherless', 'auto', 'profile', 'disk', 'dgx']:
         raise ValueError(f'Unknown selection: {selection}')
     if selection == 'profile' and (not profile_path):
         raise ValueError('Profile selection requires profile_path')
@@ -120,6 +120,13 @@ def set_backend_selection(selection: str, profile_path: Optional[str]=None, upda
         prof = resolve_backend_profile(validation_target, profile_path)
         if not prof:
             raise BackendProfileError(f'Invalid or missing profile for selection: {selection}')
+        if selection == 'featherless':
+            featherless_key = os.environ.get('FEATHERLESS_API_KEY', '').strip()
+            if featherless_key.startswith('$'):
+                reference = featherless_key[2:-1] if featherless_key.startswith('${') and featherless_key.endswith('}') else featherless_key[1:]
+                featherless_key = os.environ.get(reference, '').strip()
+            if not featherless_key or featherless_key == 'EMPTY':
+                raise BackendProfileError('Featherless backend requires FEATHERLESS_API_KEY before it can be selected.')
     state = {'selected': selection, 'updated_at': datetime.now(timezone.utc).isoformat(), 'updated_by': updated_by}
     if profile_path:
         state['profile_path'] = profile_path
@@ -190,6 +197,8 @@ def _resolve_backend_profile_full(selection: Optional[str]=None, profile_path: O
     ufo_dir = loader.base_path / 'ufo'
     if actual_selection == 'cloud':
         target_path = ufo_dir / 'agents_cloud.yaml'
+    elif actual_selection == 'featherless':
+        target_path = ufo_dir / 'profiles' / 'agents_featherless.yaml'
     elif actual_selection == 'local':
         target_path = ufo_dir / 'agents_local_vision.yaml'
     elif actual_selection == 'dgx':

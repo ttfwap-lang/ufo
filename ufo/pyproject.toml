@@ -7,13 +7,12 @@ name = "ufo"
 version = "3.0.0"
 description = "UFO³: Multi-Device Agent Galaxy (Windows ARM64 + DGX Spark)"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 authors = [{name = "Microsoft", email = "ufo@microsoft.com"}]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: Microsoft :: Windows :: Windows 11",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -99,6 +98,10 @@ warn_unused_ignores = true
 disallow_untyped_defs = false
 no_implicit_optional = false
 exclude = ["logs/", "python_env/", "scripts/legacy/", "legacy/"]
+
+[tool.setuptools]
+packages.find = {where = [".."], include = ["ufo", "ufo.*", "ufo_logging", "ufo_logging.*"]}
+package-dir = {"" = ".", "ufo_logging" = "ufo_logging"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "automation/tests", "terminal/tests", "llm/tests"]

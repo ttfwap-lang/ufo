@@ -3,12 +3,19 @@ FROM python:3.12-slim
 LABEL org.opencontainers.image.title="ufo-gx10-tg-runner"
 LABEL org.opencontainers.image.description="24/7 agentic Telegram runner (LLM tool-calling) for DGX Spark"
 
-# python:3.12-slim has no gcc; everything is urllib-based (zero pip deps)
-RUN useradd -m -u 1001 runner
+# The core runner is urllib-based (zero pip dependencies).  BrowserAct is
+# optional because its CLI is a separate Python 3.12 tool; set
+# INSTALL_BROWSERACT=1 in the compose build args when the navigation arm is
+# enabled.
+ARG INSTALL_BROWSERACT=0
+RUN useradd -m -u 1001 runner && mkdir -p /data && chown runner:runner /data
 WORKDIR /app
 
-COPY agent_runner.py /app/agent_runner.py
-RUN chmod +x /app/agent_runner.py
+COPY agent_runner.py browseract_navigation.py /app/
+RUN chmod +x /app/agent_runner.py && \
+    if [ "$INSTALL_BROWSERACT" = "1" ] || [ "$INSTALL_BROWSERACT" = "true" ]; then \
+      python -m pip install --no-cache-dir --disable-pip-version-check browser-act-cli==1.4.2; \
+    fi
 
 USER runner
 ENV PYTHONUNBUFFERED=1

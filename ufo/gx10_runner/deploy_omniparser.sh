@@ -21,6 +21,10 @@ Type=simple
 WorkingDirectory=%h/OmniParser
 Environment=PYTHONUNBUFFERED=1
 Environment=OMNIPARSER_BIND=0.0.0.0
+# The GB10's unified memory is fully reserved by the two LLM pools, so the
+# detector/captioner cannot allocate on CUDA and the service crash-loops with
+# CUDA out of memory. They are small (~1.3 GB) so run them on CPU instead.
+Environment=OMNIPARSER_DEVICE=cpu
 Environment=OMNIPARSER_PORT=7861
 ExecStart=%h/OmniParser/.venv/bin/python omniparser_api.py
 Restart=always

@@ -261,10 +261,10 @@ async def execute_refusal_cascade(
                     "TOP_P": 0.0,
                     "MAX_TOKENS": 4096,
                 }
-                service = BaseService.get_service("openai", agent_type, model_id, tier_config)
+                service = BaseService.get_service("openai", agent_type, model_id, config=tier_config)
                 if not service:
                     from ufo.llm.openai import OpenAIService
-                    service = OpenAIService(tier_config, agent_type, "openai", api_base)
+                    service = OpenAIService(tier_config, agent_type)
 
                 result = await service.chat_completion(tier_messages, n=n)
 

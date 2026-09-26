@@ -1,0 +1,84 @@
+# UFO BrowserAct navigation profile
+#
+# BrowserAct returns compact, indexed page state rather than desktop UIA
+# screenshots.  This profile is therefore non-visual and uses the configured
+# Featherless Qwen/Claude-OS tool-calling models.  The main UFO action
+# protocol remains JSON/MCP-based; the BrowserAct MCP executor translates the
+# model's browser_action call into the CLI state/action loop.
+#
+# Select explicitly with:
+#   python scripts/switch_backend.py featherless
+# or set backend_state.json to {"selected": "featherless"}.
+# The active DGX route is not changed by merely adding this profile.
+# Default role mapping: the 27B Instruct model handles planning, the
+# Qwen3.8 Flash model handles fast native tool calls, and the 9B Heretic model
+# is the low-cost backup/evaluation route. Override API_MODEL per role with
+# the normal UFO environment configuration when needed.
+
+HOST_AGENT:
+  VISUAL_MODE: false
+  REASONING_MODEL: false
+  API_TYPE: openai
+  API_BASE: "https://api.featherless.ai/v1"
+  API_KEY: "${FEATHERLESS_API_KEY}"
+  API_MODEL: "DavidAU/Qwen3.5-27B-Claude-4.6-OS-INSTRUCT"
+  PRICE_PROVIDER: featherless
+  USE_RESPONSES: false
+  JSON_SCHEMA: false
+  REFUSAL_ROTATION: false
+  MAX_TOKENS: 8192
+  PROMPT: ufo/prompts/share/base/host_agent.yaml
+  EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/host_agent_example.yaml
+
+APP_AGENT:
+  VISUAL_MODE: false
+  REASONING_MODEL: false
+  API_TYPE: openai
+  API_BASE: "https://api.featherless.ai/v1"
+  API_KEY: "${FEATHERLESS_API_KEY}"
+  API_MODEL: "Qwen/Qwen3.8-Flash-Next"
+  PRICE_PROVIDER: featherless
+  USE_RESPONSES: false
+  JSON_SCHEMA: false
+  REFUSAL_ROTATION: false
+  MAX_TOKENS: 8192
+  PROMPT: ufo/prompts/share/base/app_agent.yaml
+  EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/app_agent_example.yaml
+  EXAMPLE_PROMPT_AS: ufo/prompts/examples/{mode}/app_agent_example_as.yaml
+
+BACKUP_AGENT:
+  VISUAL_MODE: false
+  REASONING_MODEL: false
+  API_TYPE: openai
+  API_BASE: "https://api.featherless.ai/v1"
+  API_KEY: "${FEATHERLESS_API_KEY}"
+  API_MODEL: "DavidAU/Qwen3.5-9B-Claude-4.6-OS-HERETIC-UNCENSORED-INSTRUCT"
+  PRICE_PROVIDER: featherless
+  USE_RESPONSES: false
+  JSON_SCHEMA: false
+  REFUSAL_ROTATION: false
+  MAX_TOKENS: 4096
+  PROMPT: ufo/prompts/share/base/app_agent.yaml
+
+EVALUATION_AGENT:
+  VISUAL_MODE: false
+  REASONING_MODEL: false
+  API_TYPE: openai
+  API_BASE: "https://api.featherless.ai/v1"
+  API_KEY: "${FEATHERLESS_API_KEY}"
+  API_MODEL: "DavidAU/Qwen3.5-9B-Claude-4.6-OS-HERETIC-UNCENSORED-INSTRUCT"
+  PRICE_PROVIDER: featherless
+  USE_RESPONSES: false
+  JSON_SCHEMA: false
+  REFUSAL_ROTATION: false
+  MAX_TOKENS: 4096
+
+MAX_TOKENS: 8192
+MAX_RETRY: 3
+TEMPERATURE: 0.0
+TOP_P: 0.0
+TIMEOUT: 120
+
+APP_API_PROMPT_ADDRESS:
+  msedge.exe: ufo/prompts/apps/web/api.yaml
+  chrome.exe: ufo/prompts/apps/web/api.yaml

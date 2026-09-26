@@ -51,20 +51,27 @@ class OmniparserGrounding(BasicGrounding):
             return copy.deepcopy(cached)
         try:
             results = self.service.chat_completion(image_path, box_threshold, iou_threshold, use_paddleocr, imgsz, api_name)
-            grounding_results = results[1].splitlines()
+            if isinstance(results, list):
+                # REST /api/parse transport: already normalised per-element dicts
+                # with fractional bboxes, no markdown round trip needed.
+                list_of_grounding_results = results
+            else:
+                # Stock gradio UI: (image, markdown) tuple of JSON-per-line.
+                grounding_results = results[1].splitlines()
         except Exception as e:
             logger.warning(f'Failed to get grounding results for Omniparser. Error: {e}')
             return list_of_grounding_results
-        for item in grounding_results:
-            try:
-                item = json.loads(item)
-                list_of_grounding_results.append(item)
-            except json.JSONDecodeError:
+        if not isinstance(results, list):
+            for item in grounding_results:
                 try:
-                    item = ast.literal_eval(item[item.index('{'):item.rindex('}') + 1])
+                    item = json.loads(item)
                     list_of_grounding_results.append(item)
-                except (ValueError, SyntaxError) as parse_err:
-                    logger.debug('Skipping unparseable OmniParser result item: %s', parse_err)
+                except json.JSONDecodeError:
+                    try:
+                        item = ast.literal_eval(item[item.index('{'):item.rindex('}') + 1])
+                        list_of_grounding_results.append(item)
+                    except (ValueError, SyntaxError) as parse_err:
+                        logger.debug('Skipping unparseable OmniParser result item: %s', parse_err)
         _PREDICT_CACHE[cache_key] = copy.deepcopy(list_of_grounding_results)
         while len(_PREDICT_CACHE) > _PREDICT_CACHE_SIZE:
             _PREDICT_CACHE.popitem(last=False)

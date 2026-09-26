@@ -320,6 +320,12 @@ async def get_completions(messages, agent: str=AgentType.APP, use_backup_engine:
             record_dlq_event(agent_type=str(agent_type), messages=messages if isinstance(messages, list) else [], error=terminal_error, model=api_model, circuit_breaker_state=_circuit_breaker.get_state(agent_type), extra_meta={'trigger': 'budget_exceeded_terminal'})
             raise terminal_error
     dispatch_messages = messages
+    refusal_value = agent_config.get('REFUSAL_ROTATION', True)
+    refusal_rotation_enabled = (
+        refusal_value
+        if isinstance(refusal_value, bool)
+        else str(refusal_value).strip().lower() not in {'0', 'false', 'no', 'off', 'disabled'}
+    )
     if is_cloud and isinstance(messages, list):
         try:
             from ufo.security.pii_redactor import PIIRedactor
@@ -351,21 +357,22 @@ async def get_completions(messages, agent: str=AgentType.APP, use_backup_engine:
             raise RuntimeError(f"Provider returned empty or null response for model '{api_model}': {result.responses}")
 
         # Refusal & Restrictive Safety Detection Engine
-        try:
-            from ufo.llm.refusal_rotator import execute_refusal_cascade, is_refusal_response
-            is_refused, ref_reason = is_refusal_response(result)
-            if is_refused:
-                logger.warning(f"Refusal identified for {agent_type} on model '{api_model}': {ref_reason}. Triggering uncensored rotation cascade...")
-                return await execute_refusal_cascade(
-                    messages=messages,
-                    agent_type=agent_type,
-                    n=n,
-                    configs=configs,
-                    response_schema=response_schema,
-                    trigger_reason=ref_reason
-                )
-        except Exception as ref_err:
-            logger.warning(f"Refusal cascade inspection encountered an error: {ref_err}")
+        if refusal_rotation_enabled:
+            try:
+                from ufo.llm.refusal_rotator import execute_refusal_cascade, is_refusal_response
+                is_refused, ref_reason = is_refusal_response(result)
+                if is_refused:
+                    logger.warning(f"Refusal identified for {agent_type} on model '{api_model}': {ref_reason}. Triggering uncensored rotation cascade...")
+                    return await execute_refusal_cascade(
+                        messages=messages,
+                        agent_type=agent_type,
+                        n=n,
+                        configs=configs,
+                        response_schema=response_schema,
+                        trigger_reason=ref_reason
+                    )
+            except Exception as ref_err:
+                logger.warning(f"Refusal cascade inspection encountered an error: {ref_err}")
 
         try:
             from ufo.telemetry.cost_tracker import CostTracker
@@ -390,21 +397,22 @@ async def get_completions(messages, agent: str=AgentType.APP, use_backup_engine:
         return result
     except Exception as e:
         # Check if exception itself is a refusal or safety policy block
-        try:
-            from ufo.llm.refusal_rotator import execute_refusal_cascade, is_refusal_exception
-            is_ref_ex, ref_ex_reason = is_refusal_exception(e)
-            if is_ref_ex:
-                logger.warning(f"Safety/refusal exception encountered for {agent_type} on model '{api_model}': {ref_ex_reason}. Triggering uncensored rotation cascade...")
-                return await execute_refusal_cascade(
-                    messages=messages,
-                    agent_type=agent_type,
-                    n=n,
-                    configs=configs,
-                    response_schema=response_schema,
-                    trigger_reason=ref_ex_reason
-                )
-        except Exception as cascade_err:
-            logger.warning(f"Exception-level refusal cascade failed: {cascade_err}")
+        if refusal_rotation_enabled:
+            try:
+                from ufo.llm.refusal_rotator import execute_refusal_cascade, is_refusal_exception
+                is_ref_ex, ref_ex_reason = is_refusal_exception(e)
+                if is_ref_ex:
+                    logger.warning(f"Safety/refusal exception encountered for {agent_type} on model '{api_model}': {ref_ex_reason}. Triggering uncensored rotation cascade...")
+                    return await execute_refusal_cascade(
+                        messages=messages,
+                        agent_type=agent_type,
+                        n=n,
+                        configs=configs,
+                        response_schema=response_schema,
+                        trigger_reason=ref_ex_reason
+                    )
+            except Exception as cascade_err:
+                logger.warning(f"Exception-level refusal cascade failed: {cascade_err}")
 
         _circuit_breaker.record_failure(agent_type)
         if use_backup_engine and agent_type != fallback_target:

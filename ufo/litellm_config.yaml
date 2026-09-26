@@ -1,52 +1,75 @@
 model_list:
+  # The agent LLM is the DGX Spark's llama.cpp server, reached through the
+  # SSH tunnel on 127.0.0.1:8000 (scripts/gx10_up.ps1). It is the only LLM
+  # currently serving, so host/app/all point at it; the cloud entries below
+  # are the intended fallbacks and stay inert until their keys are valid.
+  #
+  # `chat_template_kwargs: {enable_thinking: false}` is REQUIRED: without it
+  # qwen38-27b-turbo emits a long `reasoning_content` block that consumes the
+  # whole completion budget and returns an empty `content`.
   - model_name: "ufo-host-model"
     litellm_params:
-      model: "openai/qwen3-vl"
-      api_base: "http://127.0.0.1:8080/v1"
+      model: "openai/qwen38-27b-turbo"
+      api_base: "http://127.0.0.1:8000/v1"
       api_key: "sk-local"
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0
       num_retries: 2
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
   - model_name: "ufo-app-model"
     litellm_params:
-      model: "openai/gemma4"
-      api_base: "http://127.0.0.1:8081/v1"
+      model: "openai/qwen38-27b-turbo"
+      api_base: "http://127.0.0.1:8000/v1"
       api_key: "sk-local"
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0
       num_retries: 2
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
   - model_name: "ufo-model"
     litellm_params:
-      model: "openai/qwen3-vl"
-      api_base: "http://127.0.0.1:8080/v1"
+      model: "openai/qwen38-27b-turbo"
+      api_base: "http://127.0.0.1:8000/v1"
       api_key: "sk-local"
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
   # NOTE: LiteLLM's "os.environ/VAR" substitution replaces an entire field value,
   # it cannot interpolate a var into part of a string (unlike UFO's own
   # config_loader._expand_env_vars used for agents_dgx.yaml). So api_base here
   # is a literal and must be kept in sync if the DGX's address changes.
-  # Currently gx10's stable Tailscale IP (100.111.170.95) -- prefer this over
-  # the LAN IP since it stays valid across network changes.
+  # gx10's Tailscale IP (100.111.170.95) is NOT reachable from this host
+  # (connections time out), so the tunnel's 127.0.0.1:8000 is used instead.
   - model_name: "ufo-dgx-model"
     litellm_params:
-      model: "openai/qwen-abliterated"
-      api_base: "http://100.111.170.95:8000/v1"
+      model: "openai/qwen38-27b-turbo"
+      api_base: "http://127.0.0.1:8000/v1"
       api_key: "sk-local"
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
   - model_name: "ufo-dgx-app-model"
     litellm_params:
-      model: "openai/gemma4-ufo"
-      api_base: "http://100.111.170.95:11434/v1"
-      api_key: "ollama"
+      model: "openai/qwen38-27b-turbo"
+      api_base: "http://127.0.0.1:8000/v1"
+      api_key: "sk-local"
       rpm: 10000
       max_tokens: 2000
       temperature: 0.0
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
   - model_name: "claude-3-7-sonnet"
     litellm_params:
       model: "anthropic/claude-3-7-sonnet-latest"

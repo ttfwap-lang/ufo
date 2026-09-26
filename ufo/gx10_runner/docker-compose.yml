@@ -1,6 +1,10 @@
 services:
   tg-runner:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+      args:
+        INSTALL_BROWSERACT: ${INSTALL_BROWSERACT:-0}
     container_name: ufo-tg-runner
     restart: always
     env_file:

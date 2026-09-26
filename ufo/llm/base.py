@@ -3,7 +3,7 @@
 
 import abc
 from importlib import import_module
-from typing import Dict
+from typing import Dict, Optional
 
 from ufo.config.config_loader import get_galaxy_config, get_ufo_config
 from ufo.llm.config_helper import get_agent_config
@@ -21,13 +21,19 @@ class BaseService(abc.ABC):
 
     @staticmethod
     def get_service(
-        name: str, agent_type: str, model_name: str = None
+        name: str,
+        agent_type: str,
+        model_name: str = None,
+        config: Optional[Dict] = None,
     ) -> "BaseService":
         """
         Get the service class based on the name.
         :param name: The name of the service.
         :param agent_type: The agent type (used to get appropriate config).
         :param model_name: The model name (used for custom service routing).
+        :param config: Optional complete service config.  This is used by
+            provider-specific fallback routes (for example Featherless
+            refusal recovery) without changing the process-wide active route.
         :return: The service class.
         """
         service_map = {
@@ -48,50 +54,51 @@ class BaseService(abc.ABC):
             "cogagent": "CogAgentService",
         }
 
-        # Get agent-specific config using new config system
-        agent_config = get_agent_config(agent_type)
-
-        # Get global configs (MAX_RETRY, TIMEOUT, PRICES, etc.) from appropriate source
-        # For CONSTELLATION_AGENT, use galaxy config; for others, use ufo config
+        # Get agent-specific config using the new config system, unless a
+        # caller supplied an isolated provider config (e.g. a fallback route).
         from ufo.llm import AgentType
 
-        if agent_type == AgentType.CONSTELLATION:
-            global_config = get_galaxy_config()
-            system_config = global_config.constellation  # ConstellationRuntimeConfig
-        else:
-            global_config = get_ufo_config()
-            system_config = global_config.system  # SystemConfig
-
-        # Wrap agent config in a dict keyed by agent_type for backward compatibility
-        # Services expect: configs[agent_type]["API_TYPE"], configs[agent_type]["API_MODEL"], etc.
-        # Convert agent_type enum to its string value if needed
         agent_type_key = (
             agent_type.value if hasattr(agent_type, "value") else agent_type
         )
 
-        # Create configs dict with agent config and global system values
-        configs_dict = {
-            agent_type_key: agent_config,
-            # Global system configs that services expect at top level
-            "MAX_RETRY": getattr(
-                system_config, "MAX_RETRY", getattr(system_config, "max_retry", 20)
-            ),
-            "TIMEOUT": getattr(
-                system_config, "TIMEOUT", getattr(system_config, "timeout", 60)
-            ),
-            "PRICES": getattr(
-                system_config, "PRICES", getattr(system_config, "prices", {})
-            ),
-            "TEMPERATURE": getattr(
-                system_config, "TEMPERATURE", getattr(system_config, "temperature", 0.0)
-            ),
-            "TOP_P": getattr(
-                system_config, "TOP_P", getattr(system_config, "top_p", 0.0)
-            ),
-            "MAX_TOKENS": getattr(
-                system_config, "MAX_TOKENS", getattr(system_config, "max_tokens", 2000)
-            ),
-        }
+        if config is not None:
+            agent_config = config.get(agent_type_key, config.get(agent_type))
+            if not isinstance(agent_config, dict):
+                raise ValueError(f"Config for agent {agent_type!r} is missing")
+            # Preserve the caller's complete top-level settings and fill only
+            # the values expected by older service implementations.
+            configs_dict = dict(config)
+            configs_dict[agent_type_key] = agent_config
+            configs_dict.setdefault("MAX_RETRY", 2)
+            configs_dict.setdefault("TIMEOUT", 60)
+            configs_dict.setdefault("PRICES", {})
+            configs_dict.setdefault("TEMPERATURE", 0.0)
+            configs_dict.setdefault("TOP_P", 0.0)
+            configs_dict.setdefault("MAX_TOKENS", 2000)
+        else:
+            agent_config = get_agent_config(agent_type)
+
+            # Get global configs (MAX_RETRY, TIMEOUT, PRICES, etc.) from the
+            # appropriate source.  Constellation has a separate config tree.
+            if agent_type == AgentType.CONSTELLATION:
+                global_config = get_galaxy_config()
+                system_config = global_config.constellation
+            else:
+                global_config = get_ufo_config()
+                system_config = global_config.system
+
+            # Wrap agent config in a dict keyed by agent_type for backward
+            # compatibility. Services expect configs[agent_type][...].
+            configs_dict = {
+                agent_type_key: agent_config,
+                "MAX_RETRY": getattr(system_config, "MAX_RETRY", getattr(system_config, "max_retry", 20)),
+                "TIMEOUT": getattr(system_config, "TIMEOUT", getattr(system_config, "timeout", 60)),
+                "PRICES": getattr(system_config, "PRICES", getattr(system_config, "prices", {})),
+                "TEMPERATURE": getattr(system_config, "TEMPERATURE", getattr(system_config, "temperature", 0.0)),
+                "TOP_P": getattr(system_config, "TOP_P", getattr(system_config, "top_p", 0.0)),
+                "MAX_TOKENS": getattr(system_config, "MAX_TOKENS", getattr(system_config, "max_tokens", 2000)),
+            }
 
         service_name = service_map.get(name, None)
         if service_name:
@@ -133,8 +140,8 @@ class BaseService(abc.ABC):
         :return: The estimated cost for using the model.
         """
 
-        if api_type.lower() == "openai":
-            name = str(api_type + "/" + model)
+        if api_type.lower() in {"openai", "featherless"}:
+            name = str(api_type.lower() + "/" + model)
         elif api_type.lower() in ["aoai", "azure_ad"]:
             name = str("azure/" + model)
         elif api_type.lower() == "qwen":

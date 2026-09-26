@@ -43,6 +43,15 @@ PRICES:
   "openai/text-davinci:003": {"input": 0.02, "output": 0.02}
   "openai/text-ada-001": {"input": 0.0004, "output": 0.0004}
   
+  # Featherless-hosted models (USD / 1K tokens; model pages checked 2026-09-25).
+  # Verify against https://featherless.ai/#pricing before relying on budget
+  # enforcement; hosted prices can change independently of this file.
+  "featherless/Qwen/Qwen3.6-35B-A3B": {"input": 0.0008, "output": 0.0024}
+  "featherless/Qwen/Qwen3.5-9B": {"input": 0.0003, "output": 0.0010}
+  "featherless/Qwen/Qwen3.8-Flash-Next": {"input": 0.00015, "output": 0.0005}
+  "featherless/DavidAU/Qwen3.5-9B-Claude-4.6-OS-HERETIC-UNCENSORED-INSTRUCT": {"input": 0.000431, "output": 0.00112}
+  "featherless/DavidAU/Qwen3.5-27B-Claude-4.6-OS-INSTRUCT": {"input": 0.0012, "output": 0.0096}
+
   # Azure Models
   "azure/gpt-35-turbo-20220309": {"input": 0.0015, "output": 0.002}
   "azure/gpt-35-turbo-20230613": {"input": 0.0015, "output": 0.002}

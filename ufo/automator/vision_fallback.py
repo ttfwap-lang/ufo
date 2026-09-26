@@ -168,10 +168,21 @@ class VisionFallbackManager:
                 logger.debug('OmniParser not configured — skipping Stage 1')
                 return None
             endpoint = ''
+            enabled = True
             if isinstance(omniparser_cfg, dict):
                 endpoint = omniparser_cfg.get('ENDPOINT', '')
+                enabled = bool(omniparser_cfg.get('ENABLED', True))
             elif hasattr(omniparser_cfg, 'ENDPOINT'):
                 endpoint = getattr(omniparser_cfg, 'ENDPOINT', '')
+                enabled = bool(getattr(omniparser_cfg, 'ENABLED', True))
+            # OmniParser runs CPU-only on the GB10 (the unified memory is fully
+            # reserved by the two LLM pools) and costs ~34s per screenshot, which
+            # is unusable inside an agent step and starves the LLM/grounding
+            # containers of host CPU. It is off by default; UIA + HumanMouse +
+            # WinRT OCR + UI-Venus cover the cases it used to handle.
+            if not enabled:
+                logger.debug('OmniParser disabled in config — skipping Stage 1')
+                return None
             if not endpoint or 'xxx' in endpoint:
                 logger.debug('OmniParser endpoint not set — skipping Stage 1')
                 return None

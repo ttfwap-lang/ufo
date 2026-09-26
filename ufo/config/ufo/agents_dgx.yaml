@@ -3,21 +3,24 @@
 # =============================================================================
 # Connects to the models running on the NVIDIA DGX Spark (gx10), all reached
 # through the SSH tunnel on 127.0.0.1 (see scripts/gx10_tunnel_*.ps1):
-#   - qwen-abliterated (vLLM OpenAI-compat API on :8000)
-#       -> Qwen3.6-35B-A3B-abliterated, NVFP4 (~23 GB of weights). The checkpoint is
-#          multimodal (Qwen3_5MoeForConditionalGeneration, has a vision tower), so it
-#          serves every role: HOST_AGENT, APP_AGENT, BACKUP_AGENT and EVALUATION_AGENT.
-#          Thinking is switched off for the planner roles (EXTRA_BODY) to keep steps fast.
-#          Launch with scripts/dgx/qwen_run.sh (GPU memory share 0.35).
+#   - qwen38-27b-turbo (llama.cpp OpenAI-compat server on :8000) is the agent LLM
+#       and serves every role: HOST_AGENT, APP_AGENT, BACKUP_AGENT and EVALUATION_AGENT.
+#       The underlying checkpoint (Qwen3.6-35B-A3B-abliterated, NVFP4) is multimodal
+#       (Qwen3_5MoeForConditionalGeneration, has a vision tower), so VISUAL_MODE works.
+#       EXTRA_BODY is REQUIRED, not cosmetic: without enable_thinking:false the model
+#       emits a long reasoning block that eats the entire completion budget and
+#       returns an empty `content`. With it, a short reply is 3 tokens instead of 34.
 #   - ui-venus (vLLM on :8002) is the pixel grounder behind click_on_description; it is
 #     configured in system.yaml (GROUNDING_MODEL), not here. scripts/dgx/venus_run.sh.
-#   - gemma4-ufo (Ollama :11434) is no longer used by this profile. It is kept on the
-#     box only as an alternative planner (Q4_K_M, ~17 GB): to switch a role back, set
-#     API_TYPE: ollama, API_BASE ...:11434, API_MODEL: gemma4-ufo and drop EXTRA_BODY.
+#     It is ALSO a thinking model and needs the same enable_thinking:false override;
+#     venus_client.py sets it automatically.
+#   - OmniParser V2 (:7861, POST /api/parse) is the vision-fallback rank. It runs on
+#     CPU on the GB10 because the unified memory is fully used by the two LLM pools.
+#   - Ollama (:11434) is not used by this profile and currently has no models pulled.
 #
-# Set the DGX host via environment variable (127.0.0.1 through the tunnel, or the
-# Tailscale IP 100.111.170.95):
-#   set UFO_DGX_HOST=127.0.0.1
+# Set the DGX host via environment variable (127.0.0.1 through the tunnel). The
+# Tailscale IP 100.111.170.95 is NOT reachable from this host (connections time
+# out), so keep UFO_DGX_HOST=127.0.0.1 and rely on the tunnel.
 #
 # To switch to this config from the widget:
 #   Terminal -> AI Backend -> Switch to DGX (widget will prompt for host IP)
@@ -29,7 +32,7 @@ HOST_AGENT:
   API_TYPE: openai
   API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
   API_KEY: "sk-local"
-  API_MODEL: "qwen-abliterated"
+  API_MODEL: "qwen38-27b-turbo"
   EXTRA_BODY: {chat_template_kwargs: {enable_thinking: false}}
   MAX_IMAGE_PIXELS: 1800000  # bounds screenshot prefill cost (~1.8k image tokens each). Not a correctness limit: the model's tokenizer.json once truncated at 2048 tokens (fixed on the DGX, backup tokenizer.json.bak-20260922)
   PROMPT: ufo/prompts/share/base/host_agent.yaml
@@ -41,7 +44,7 @@ APP_AGENT:
   API_TYPE: openai
   API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
   API_KEY: "sk-local"
-  API_MODEL: "qwen-abliterated"
+  API_MODEL: "qwen38-27b-turbo"
   EXTRA_BODY: {chat_template_kwargs: {enable_thinking: false}}
   MAX_IMAGE_PIXELS: 1800000  # bounds screenshot prefill cost (~1.8k image tokens each). Not a correctness limit: the model's tokenizer.json once truncated at 2048 tokens (fixed on the DGX, backup tokenizer.json.bak-20260922)
   PROMPT: ufo/prompts/share/base/app_agent.yaml
@@ -53,7 +56,7 @@ BACKUP_AGENT:
   API_TYPE: openai
   API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
   API_KEY: "sk-local"
-  API_MODEL: "qwen-abliterated"
+  API_MODEL: "qwen38-27b-turbo"
   EXTRA_BODY: {chat_template_kwargs: {enable_thinking: false}}
   MAX_IMAGE_PIXELS: 1800000  # bounds screenshot prefill cost (~1.8k image tokens each). Not a correctness limit: the model's tokenizer.json once truncated at 2048 tokens (fixed on the DGX, backup tokenizer.json.bak-20260922)
 
@@ -63,7 +66,7 @@ EVALUATION_AGENT:
   API_TYPE: openai
   API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
   API_KEY: "sk-local"
-  API_MODEL: "qwen-abliterated"
+  API_MODEL: "qwen38-27b-turbo"
 
 OMNIPARSER:
   ENDPOINT: ''

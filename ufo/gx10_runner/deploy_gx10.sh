@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Deploy the gx10 Telegram runner: sync -> build -> up (detached, restart always).
+# Deploy the gx10 Telegram/agent runner: sync -> build -> up (detached, restart always).
+# docker-compose.yml intentionally builds Dockerfile.agent; keep both legacy
+# and native agent sources available during the transition.
 set -euo pipefail
 
 DGX="${DGX:-flak3dd@gx10.local}"
 KEY="${KEY:-$HOME/.ssh/id_ed25519_ufo_agent}"
-APP_DIR="ufo-tg-runner"
+APP_DIR="${APP_DIR:-ufo-tg-runner}"
 
 echo "==> syncing to $DGX:~/$APP_DIR"
 ssh -i "$KEY" "$DGX" "mkdir -p ~/$APP_DIR"
 scp -i "$KEY" -r \
-  telegram_runner.py Dockerfile docker-compose.yml .env.example \
+  telegram_runner.py Dockerfile Dockerfile.agent agent_runner.py \
+  browseract_navigation.py docker-compose.yml .env.example \
   "$DGX:~/$APP_DIR/"
 
 echo "==> building & starting (detached, restart: always)"

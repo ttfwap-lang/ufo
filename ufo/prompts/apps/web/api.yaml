@@ -30,3 +30,21 @@ type_keys:
     [3] Example: type_keys(keys="{ENTER}"), type_keys(keys="search query{ENTER}")
     [4] Available control item: All control items
     [5] Return: None
+
+browser_action:
+  summary: |-
+    "browser_action" is the BrowserAct browser navigation arm. It uses a real
+    browser and returns compact indexed state. Element indexes are temporary:
+    always use the index from the most recent state result, pass its
+    state_token, and observe the fresh state returned after each mutation.
+  class_name: |-
+    BrowserActExecutor
+  usage: |-
+    [1] Required sequence: action=open (url, optional browser_id) -> action=state
+    -> one action=click/input/select/navigate/keys/scroll -> fresh state.
+    [2] Mutations require session and state_token from the latest state.
+    [3] Do not chain two BrowserAct mutations in one App Agent response.
+    [4] Use action=diagnostics or browseract_diagnostics if BrowserAct is not
+        configured; do not guess a browser ID or retry a timed-out mutation.
+    [5] Return: JSON containing session, state_token, state, URL/title, and
+        action result. BrowserAct output is bounded before it enters memory.

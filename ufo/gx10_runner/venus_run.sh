@@ -19,7 +19,7 @@ docker run -d --name ui-venus --restart unless-stopped \
   --network host --ipc host --shm-size 8g --gpus all \
   -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 -e VLLM_MARLIN_USE_ATOMIC_ADD=1 \
   -e TORCH_MATMUL_PRECISION=high -e CUTE_DSL_ARCH=sm_121a \
-  -v /home/flak3dd/models/base/UI-Venus-2-9B:/models/UI-Venus-2-9B:ro \
+  -v /srv/models/base/UI-Venus-2-9B:/models/UI-Venus-2-9B:ro \
   "${VENUS_IMAGE:-vllm/vllm-openai:latest}" \
   /models/UI-Venus-2-9B \
   --host 0.0.0.0 --port 8002 --served-model-name ui-venus \

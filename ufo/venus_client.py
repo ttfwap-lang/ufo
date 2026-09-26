@@ -25,11 +25,15 @@ Coordinate convention (empirically verified, see bench_venus2.py):
 from __future__ import annotations
 
 import base64
+import hashlib
+import json
 import os
 import re
 import subprocess
 import tempfile
+import threading
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -50,10 +54,66 @@ Box = Tuple[int, int, int, int, str]   # x, y, w, h, text
 
 
 # --------------------------------------------------------------------------
+# Caching
+# --------------------------------------------------------------------------
+# Both grounding inputs are pure functions of the screenshot bytes, and the
+# agent loop asks the same question about the same screen many times in a row
+# (each step re-lists the sidebar, re-reads the compose box, ...). Without a
+# cache each of those costs a PowerShell subprocess launch (~0.5s before WinRT
+# OCR even starts) and a full vision-model round trip (2-9s). Keyed on
+# (path, mtime_ns, size) so an edited screenshot is never served stale, and
+# bounded so a long session cannot grow without limit.
+_CACHE_MAX = 64
+_ocr_cache: "OrderedDict[Tuple[str, int, int], List[Box]]" = OrderedDict()
+_img_cache: "OrderedDict[Tuple[str, int, int], Tuple[str, int, int]]" = OrderedDict()
+_venus_cache: "OrderedDict[Tuple[Any, ...], Optional[Tuple[float, float]]]" = OrderedDict()
+_cache_lock = threading.Lock()
+
+
+def _file_key(png_path: str) -> Optional[Tuple[str, int, int]]:
+    """Cheap identity for a screenshot file: path + mtime + size.
+
+    Avoids hashing megabytes of PNG just to decide whether a cache entry is
+    still valid, while still invalidating the moment the file is rewritten.
+    """
+    try:
+        st = os.stat(png_path)
+    except OSError:
+        return None
+    return (os.path.abspath(png_path), st.st_mtime_ns, st.st_size)
+
+
+def _cache_get(store: "OrderedDict", key) -> Any:
+    with _cache_lock:
+        if key in store:
+            store.move_to_end(key)
+            return store[key]
+    return None
+
+
+def _cache_put(store: "OrderedDict", key, value) -> None:
+    with _cache_lock:
+        store[key] = value
+        store.move_to_end(key)
+        while len(store) > _CACHE_MAX:
+            store.popitem(last=False)
+
+
+# --------------------------------------------------------------------------
 # OCR
 # --------------------------------------------------------------------------
 def ocr_words(png_path: str, timeout: int = 240) -> List[Box]:
-    """Run the WinRT OCR helper and return word boxes (x, y, w, h, text)."""
+    """Run the WinRT OCR helper and return word boxes (x, y, w, h, text).
+
+    Cached per screenshot file: the helper is a PowerShell subprocess, so a
+    repeat call on an unchanged screen would otherwise pay interpreter startup
+    plus WinRT OCR initialisation again for an identical answer.
+    """
+    key = _file_key(png_path)
+    if key is not None:
+        hit = _cache_get(_ocr_cache, key)
+        if hit is not None:
+            return list(hit)
     try:
         proc = subprocess.run(
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
@@ -69,7 +129,17 @@ def ocr_words(png_path: str, timeout: int = 240) -> List[Box]:
             boxes.append((int(m.group(1)), int(m.group(2)),
                           int(m.group(3)), int(m.group(4)),
                           m.group(5).strip().strip("'\"")))
+    if key is not None:
+        _cache_put(_ocr_cache, key, list(boxes))
     return boxes
+
+
+def clear_caches() -> None:
+    """Drop every memoised OCR / image / Venus result."""
+    with _cache_lock:
+        _ocr_cache.clear()
+        _img_cache.clear()
+        _venus_cache.clear()
 
 
 def _centre(box: Box) -> Tuple[float, float]:
@@ -122,14 +192,78 @@ def group_phrases(boxes: Sequence[Box], max_gap: int = 26,
 # --------------------------------------------------------------------------
 # Venus
 # --------------------------------------------------------------------------
+# One keep-alive connection per (host, port). urllib opens a fresh TCP
+# connection for every request, which on a tailnet link to the gx10 is a real
+# round trip per grounding call.
+_conn_pool: Dict[Tuple[str, int], Any] = {}
+
+
 def _post_json(url: str, payload: Dict[str, Any], timeout: int = 300) -> Dict:
-    import urllib.request
-    req = urllib.request.Request(
-        url, data=__import__("json").dumps(payload).encode(),
-        headers={"Content-Type": "application/json",
-                 "Authorization": "Bearer EMPTY"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return __import__("json").loads(resp.read().decode())
+    import http.client
+    from urllib.parse import urlsplit
+
+    parts = urlsplit(url)
+    host = parts.hostname or "127.0.0.1"
+    port = parts.port or (443 if parts.scheme == "https" else 80)
+    body = json.dumps(payload).encode()
+    headers = {"Content-Type": "application/json",
+               "Authorization": "Bearer EMPTY",
+               "Content-Length": str(len(body))}
+    path = parts.path or "/"
+
+    def _fresh():
+        if parts.scheme == "https":
+            import ssl
+            return http.client.HTTPSConnection(
+                host, port, timeout=timeout, context=ssl._create_unverified_context())
+        return http.client.HTTPConnection(host, port, timeout=timeout)
+
+    key = (host, port)
+    last_exc: Optional[Exception] = None
+    # Retry once on a stale pooled socket: the far end may have closed an
+    # idle keep-alive connection between calls.
+    for attempt in (0, 1):
+        conn = _conn_pool.get(key) if attempt == 0 else None
+        if conn is None:
+            conn = _fresh()
+            _conn_pool[key] = conn
+        try:
+            conn.request("POST", path, body=body, headers=headers)
+            resp = conn.getresponse()
+            data = resp.read()
+            if resp.will_close:
+                conn.close()
+                _conn_pool.pop(key, None)
+            return json.loads(data.decode())
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            try:
+                conn.close()
+            except Exception:
+                pass
+            _conn_pool.pop(key, None)
+    raise last_exc  # type: ignore[misc]
+
+
+def _image_payload(png_path: str) -> Tuple[str, int, int]:
+    """Return (base64 png, width, height), memoised per screenshot file.
+
+    Reading, decoding and re-encoding the PNG on every grounding call is pure
+    overhead when the screen has not changed.
+    """
+    key = _file_key(png_path)
+    if key is not None:
+        hit = _cache_get(_img_cache, key)
+        if hit is not None:
+            return hit
+    from PIL import Image
+    with Image.open(png_path) as im:
+        width, height = im.size
+    b64 = base64.b64encode(open(png_path, "rb").read()).decode()
+    payload = (b64, width, height)
+    if key is not None:
+        _cache_put(_img_cache, key, payload)
+    return payload
 
 
 def venus_point(png_path: str, label: str, *,
@@ -151,11 +285,15 @@ def venus_point(png_path: str, label: str, *,
     938x842 captures where the UIA rects of icon buttons are matched within
     0-2px. Do NOT hardcode the image size: read it from the file.
     """
-    from PIL import Image
-    with Image.open(png_path) as im:
-        width, height = im.size
-    b64 = base64.b64encode(open(png_path, "rb").read()).decode()
+    key = _file_key(png_path)
+    vkey = None
+    if key is not None:
+        vkey = (key, label, url, model, reasoning, temperature, max_tokens)
+        hit = _cache_get(_venus_cache, vkey)
+        if hit is not None:
+            return hit
 
+    b64, width, height = _image_payload(png_path)
     prompt = (f"Locate the UI element labelled '{label}' in this screenshot. "
               "Reply with only its click point as (x, y).")
     payload = {
@@ -168,15 +306,22 @@ def venus_point(png_path: str, label: str, *,
         "max_tokens": max_tokens,
     }
     if not reasoning:
+        # Without this the model spends the whole budget on `reasoning` and
+        # returns content=null (it is a thinking model).
         payload["chat_template_kwargs"] = {"enable_thinking": False}
 
     data = _post_json(url.rstrip("/") + "/chat/completions", payload, 300)
     txt = (data["choices"][0]["message"].get("content") or "")
     m = re.search(r"\(?\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)?", txt)
     if not m:
+        if vkey is not None:
+            _cache_put(_venus_cache, vkey, None)
         return None
     vx, vy = float(m.group(1)), float(m.group(2))
-    return vx / 1000.0 * width, vy / 1000.0 * height
+    point = (vx / 1000.0 * width, vy / 1000.0 * height)
+    if vkey is not None:
+        _cache_put(_venus_cache, vkey, point)
+    return point
 
 
 # --------------------------------------------------------------------------

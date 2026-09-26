@@ -10,10 +10,12 @@ UI at "/" and adds a JSON API:
     POST /api/parse   {"image_b64": "...", "box_threshold": 0.05,
                        "iou_threshold": 0.1, "use_paddleocr": true,
                        "imgsz": 640}
-      -> {"width": W, "height": H,
-          "elements": [{"id": 3, "bbox": [x1,y1,x2,y2], "content": "..."}]}
+      -> {"width": W, "height": H, "count": N, "seconds": S,
+          "elements": [{"id": "0", "bbox_xywh": [x,y,w,h],
+                        "bbox_xyxy": [x1,y1,x2,y2],
+                        "cx": x, "cy": y, "content": "..."}]}
 
-    GET  /api/health  -> {"ok": true, "model": "...", "device": "cuda"}
+    GET  /api/health  -> {"ok": true, "model": "...", "device": "cpu"}
 
 Coordinates are returned in ABSOLUTE PIXELS of the submitted image (the
 library emits ratios; they are scaled here) so the caller can click directly.

@@ -246,11 +246,32 @@ check_venus() {
   fi
 
   # Not answering: only then does age become the useful signal.
-  if [ "$age" -lt 420 ]; then
-    ok "ui-venus still loading (${age}s elapsed)"
+  #
+  # The threshold is deliberately generous (15 min). A 17.5 GiB vLLM load on
+  # this box takes 5-6 min, and another agent is actively cycling model stacks,
+  # which restarts Venus underneath us. At 7 min the watchdog was restarting a
+  # model that was merely still loading, doubling the churn and making it less
+  # likely to ever finish. Being patient is strictly better here.
+  if [ "$age" -lt 900 ]; then
+    ok "ui-venus still loading (${age}s elapsed; load takes 5-6 min, patience threshold 900s)"
     return
   fi
-  warn "venus not answering on 127.0.0.1:8002 after ${age}s"
+
+  # Before acting, say WHY it is not answering. "Not answering after 900s" is
+  # unactionable; the vLLM free-memory abort is a specific, fixable condition
+  # (another model in the stack is holding the unified memory) and must not be
+  # mistaken for a hung process to be restarted.
+  local abort
+  abort=$(docker logs --tail 400 ui-venus 2>&1 \
+    | grep -iE 'free memory.*less than desired|out of memory|CUDA error' | tail -1)
+  if [ -n "$abort" ]; then
+    err "venus cannot start - vLLM reports: $(echo "$abort" | cut -c1-160)"
+    err "this is a MEMORY CONTENTION problem across the active stack, not a hang."
+    err "refusing to restart: a restart cannot fix it and would destroy the evidence."
+    return
+  fi
+
+  warn "venus not answering on 127.0.0.1:8002 after ${age}s with no memory error in the log"
   if [ -f "$LOG_DIR/.venus_rebuild_running" ]; then
     ok "a venus rebuild is in flight - not restarting on top of it"
     return

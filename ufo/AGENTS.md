@@ -97,6 +97,28 @@ The `UFO_ELEVATED` scheduled task is the **permanent, hidden UAC solution**:
   everything elevated goes through the daemon. Only re-registering
   (`setup_uac.py` elevated, once) could ever prompt again.
 - The daemon auto-restarts at every logon (permanent).
+- **MUST be a Scheduled Task. NEVER a `HKLM\...\Run` registry value.** A Run
+  value executes *as the logged-on user at that user's normal integrity* and
+  therefore cannot elevate. `setup_uac.py` v4 shipped a Run-key install on the
+  belief that "Task Scheduler ignores our tasks in this environment"; that
+  belief is false (the `UFO litellm` and `UFO gx10 tunnel` tasks both run
+  fine), and the result was a daemon reporting `is_user_an_admin: false` -
+  every "elevated" script ran unelevated while appearing to succeed. Installed
+  by `scripts/uac_install.ps1` (SYSTEM / ServiceAccount / Highest, at-logon,
+  conhost --headless + pythonw).
+- **Liveness is heartbeat FRESHNESS, never file existence.**
+  `uac_worker_alive.json` is rewritten every ~5s and outlives the process that
+  wrote it, so `os.path.exists()` reports a long-dead daemon as alive and
+  `uac_run.py` then waits out its full timeout on a command nobody will run.
+  Treat >20s old as dead.
+- `uac_run.py` sends **absolute** script paths: the daemon runs as SYSTEM with
+  its working directory at `%SystemRoot%\system32`.
+- Verify elevation, don't assume it:
+  `python uac_run.py _verify_elevation.py` must report `SYSTEM` / `LENOVO$`.
+  `HIGH` means the daemon regressed to a user-level process.
+- Note: `.venv\Scripts\pythonw.exe` is a launcher shim that spawns the base
+  interpreter as a child, so one daemon shows up as TWO pythonw.exe processes
+  (child's ParentProcessId == shim's PID). That is normal, not a duplicate.
 
 ---
 *Created 2026-09-23. These rules supersede convenience overrides.*

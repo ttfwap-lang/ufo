@@ -61,6 +61,7 @@
 
 **📖 [Galaxy Documentation →](./galaxy/README.md)**  
 **📖 [Galaxy Quick Start →](https://microsoft.github.io/UFO/getting_started/quick_start_galaxy/)** ⭐ **Online Docs**
+**🌐 [BrowserAct + Featherless navigation →](./docs/integrations/browseract_featherless.md)**
 
 </td>
 <td width="50%" valign="top">

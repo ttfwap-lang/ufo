@@ -96,7 +96,14 @@ GROUNDING_MODEL:
   MODEL: "ui-venus"
 
 # Omniparser
+#
+# DISABLED. It runs CPU-only on the GB10 (unified memory is fully reserved by
+# the two LLM pools) and costs ~34s per screenshot, which is unusable inside an
+# agent step and starves the agent LLM (:8000) and grounder (:8002) of host CPU.
+# UIA + HumanMouse + WinRT OCR + UI-Venus already cover the cases it handled, and
+# Venus grounds to ~1px. Set ENABLED: true only if the DGX has GPU headroom.
 OMNIPARSER:
+  ENABLED: false
   ENDPOINT: "http://127.0.0.1:7861"  # OmniParser V2 on the DGX via SSH tunnel (see scripts/gx10_up.ps1)
   BOX_THRESHOLD: 0.05
   IOU_THRESHOLD: 0.1
@@ -121,6 +128,28 @@ MCP_INSTRUCTIONS_PATH: "ufo/config/mcp_instructions"  # Path to MCP instructions
 MCP_TOOL_TIMEOUT: 30  # Timeout in seconds for MCP tool execution
 MCP_LOG_EXECUTION: False  # Whether to log MCP tool execution details
 
+# BrowserAct Agent CLI integration
+# The CLI is a separate Python 3.12 tool. Leave CLI_PATH empty to discover
+# `browser-act` on PATH, or set BROWSERACT_CLI_PATH in the process environment.
+# Browser creation/deletion, profile import, proxy changes, cookies, eval, and
+# CAPTCHA commands are intentionally not exposed by the UFO MCP wrapper.
+BROWSERACT:
+  ENABLED: true
+  CLI_PATH: ""
+  BROWSER_ID: ""  # optional; if empty, one configured browser may be selected
+  AUTO_SELECT_SINGLE_BROWSER: true
+  ALLOW_STEALTH_EXTRACT: false
+  ALLOW_REMOTE_ASSIST: true
+  ALLOW_PRIVATE_NETWORKS: false
+  ALLOW_ABOUT_BLANK: true
+  COMMAND_TIMEOUT_SECONDS: 300
+  MAX_INPUT_CHARS: 10000
+  MAX_OUTPUT_CHARS: 30000
+  MAX_STATE_CHARS: 30000
+  SESSION_IDLE_SECONDS: 900
+  ALLOWED_DOMAINS: []
+  REQUIRE_DOMAIN_ALLOWLIST: false
+
 # Enabled Third-Party Agents
 ENABLED_THIRD_PARTY_AGENTS: []
 
@@ -143,7 +172,9 @@ DLQ:
 VISION_FALLBACK:
   ENABLED: true
   RANK_1_PRIMARY: "reducto_agentic_ocr"
-  RANK_2_SECONDARY: "omniparser_v2"
+  # OmniParser is disabled (see OMNIPARSER.ENABLED above): ~34s/screenshot on
+  # CPU is unusable in-loop, so the cascade goes straight to the cloud VLM.
+  RANK_2_SECONDARY: "cloud_vlm"
   RANK_3_BACKUP: "cloud_vlm"
   CONFIDENCE_THRESHOLD: 0.85     # Below this, cascade from primary to secondary/backup
   CLOUD_VLM_AGENT: "BACKUP_AGENT"  # Which agent config to use for Cloud VLM fallback
