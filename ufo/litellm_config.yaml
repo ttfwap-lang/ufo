@@ -46,8 +46,15 @@ model_list:
   # it cannot interpolate a var into part of a string (unlike UFO's own
   # config_loader._expand_env_vars used for agents_dgx.yaml). So api_base here
   # is a literal and must be kept in sync if the DGX's address changes.
-  # gx10's Tailscale IP (100.111.170.95) is NOT reachable from this host
-  # (connections time out), so the tunnel's 127.0.0.1:8000 is used instead.
+  # So 127.0.0.1:8000 is not "the DGX's address" at all - it is the LOCAL END of
+  # the ssh tunnel, which is the point: it does not move when the box does, so
+  # this literal is stable while the box's address is not.
+  # (An earlier version of this note said the gx10's Tailscale IP was
+  # 100.111.170.95 and unreachable; both halves were wrong. 100.111.170.95 is the
+  # DGX Spark, a different machine - see docs/deployment/dgx-spark.md. The gx10 is
+  # 100.67.13.78 and IS reachable over Tailscale; what you cannot do is reach its
+  # model on that IP, because vLLM there binds 127.0.0.1 and refuses otherwise.
+  # The tunnel is how that gets solved, not a workaround for unreachable host.)
   - model_name: "ufo-dgx-model"
     litellm_params:
       model: "openai/qwen38-27b-turbo"

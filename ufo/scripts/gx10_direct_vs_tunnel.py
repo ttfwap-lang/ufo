@@ -17,11 +17,9 @@ from __future__ import annotations
 
 import argparse
 import http.client
-import json
 import statistics
 import sys
 import time
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 # box-side ufo_tunnel.py forwards -> the port we actually want
