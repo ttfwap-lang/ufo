@@ -39,6 +39,8 @@ running_pools() {
         | awk '/^--gpu-memory-utilization$/{getline; print; exit} /^--gpu-memory-utilization=/{sub(/.*=/,""); print; exit}')
     [ -n "$f" ] && echo "$c $f"
   done
+  return 0   # the loop's last test fails for a container without a pool; under the launchers'
+             # `set -eo pipefail` that non-zero status killed them silently before any output
 }
 
 guard_acquire() {

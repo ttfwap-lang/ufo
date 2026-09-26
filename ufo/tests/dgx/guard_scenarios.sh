@@ -45,7 +45,7 @@ setmem() { # setmem <avail_gb> <swap_used_mb> <some> <full>
 }
 run() { # run <pods> <cmd...> ; sets OUT, RC
   local pods="$1"; shift
-  OUT=$(PATH="$T/bin:$PATH" FAKE_PODS="$pods" GX10_PROC="$T/proc" GX10_LOCK="$T/lock" GX10_LOCK_WAIT=2 bash -c ". '$DGX/gx10_guard.sh'; $*" 2>&1); RC=$?
+  OUT=$(PATH="$T/bin:$PATH" FAKE_PODS="$pods" GX10_PROC="$T/proc" GX10_LOCK="$T/lock" GX10_LOCK_WAIT=2 bash -c "set -euo pipefail; . '$DGX/gx10_guard.sh'; $*" 2>&1); RC=$?
 }
 check() { if [ "$2" = "$3" ]; then echo "PASS $1"; else echo "FAIL $1 (want $2 got $3) :: $OUT"; fi; }
 
