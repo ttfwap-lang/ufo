@@ -670,9 +670,9 @@ async def action_health(_params) -> Dict[str, Any]:
     # report vision-model reachability too (it is part of the toolchain)
     vision = {}
     for label, url in (("venus", os.environ.get(
-            "VENUS_URL", "http://100.67.13.78:8002/v1").rstrip("/")),
+            "VENUS_URL", "http://100.67.13.78:18002/v1").rstrip("/")),
             ("omniparser", os.environ.get(
-            "OMNIPARSER_URL", "http://100.67.13.78:7861").rstrip("/"))):
+            "OMNIPARSER_URL", "http://127.0.0.1:7871").rstrip("/"))):
         try:
             import urllib.request
             with urllib.request.urlopen(url + "/api/health" if "omni" in label

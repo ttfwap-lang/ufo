@@ -493,11 +493,11 @@ def locate(png_path: str, label: str, *,
 # OmniParser V2 (YOLO icon detector + Florence-2 captioner) on gx10
 # --------------------------------------------------------------------------
 OMNIPARSER_URL = os.environ.get("OMNIPARSER_URL",
-                                "http://100.67.13.78:18061").rstrip("/")
-# The tunnel also republishes OmniParser on 18061 for the case where its unit
-# is running with CUDA_VISIBLE_DEVICES= (it then binds loopback only and its own
-# /api/health reports device=cpu). 18061 -> 127.0.0.1:7861 works either way, so
-# one URL is correct regardless of how the service is configured.
+                                "http://127.0.0.1:7871").rstrip("/")
+# OmniParser now runs LOCALLY (local_omniparser/service.py, GPU, 127.0.0.1:7871):
+# ~1.7 s per parse with OCR versus ~34 s on gx10's CPU, and no dependence on the
+# gx10 box or the tunnel being up. See docs/omniparser_placement.md. To use the
+# old gx10 instance instead, set OMNIPARSER_URL=http://100.67.13.78:18061.
 
 
 def omniparser_elements(png_path: str, *, url: str = OMNIPARSER_URL,

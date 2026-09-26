@@ -97,17 +97,18 @@ GROUNDING_MODEL:
 
 # Omniparser
 #
-# DISABLED. It runs CPU-only on the GB10 (unified memory is fully reserved by
-# the two LLM pools) and costs ~34s per screenshot, which is unusable inside an
-# agent step and starves the agent LLM (:8000) and grounder (:8002) of host CPU.
-# UIA + HumanMouse + WinRT OCR + UI-Venus already cover the cases it handled, and
-# Venus grounds to ~1px. Set ENABLED: true only if the DGX has GPU headroom.
+# Runs LOCALLY on the Windows host (local_omniparser/service.py, scheduled task
+# UFO-OmniParser-Local, RTX GPU, loopback only): ~1.7 s per parse with OCR, ~0.9 s
+# icons-only. It used to be disabled because the gx10 instance ran CPU-only at
+# ~34 s per screenshot and starved the LLM/grounding containers - that no longer
+# applies. Measurements and reasoning: docs/omniparser_placement.md.
+# Fail-soft: if the service is down the fallback rank is skipped, not fatal.
 OMNIPARSER:
-  ENABLED: false
-  ENDPOINT: "http://127.0.0.1:7861"  # OmniParser V2 on the DGX via SSH tunnel (see scripts/gx10_up.ps1)
+  ENABLED: true
+  ENDPOINT: "http://127.0.0.1:7871"  # NOT 7861: that local port is the tunnel to gx10's OmniParser
   BOX_THRESHOLD: 0.05
   IOU_THRESHOLD: 0.1
-  USE_PADDLEOCR: False  # PaddleOCR is not installed on the DGX (aarch64); EasyOCR is used
+  USE_PADDLEOCR: False  # ignored by the local service (it uses EasyOCR)
   IMGSZ: 640
 
 # Control Filtering Configuration
@@ -172,8 +173,8 @@ DLQ:
 VISION_FALLBACK:
   ENABLED: true
   RANK_1_PRIMARY: "reducto_agentic_ocr"
-  # OmniParser is disabled (see OMNIPARSER.ENABLED above): ~34s/screenshot on
-  # CPU is unusable in-loop, so the cascade goes straight to the cloud VLM.
+  # OmniParser (see OMNIPARSER above) is now local and fast enough to be used
+  # in-loop; the rank names below are unchanged and still pick the cloud VLM.
   RANK_2_SECONDARY: "cloud_vlm"
   RANK_3_BACKUP: "cloud_vlm"
   CONFIDENCE_THRESHOLD: 0.85     # Below this, cascade from primary to secondary/backup

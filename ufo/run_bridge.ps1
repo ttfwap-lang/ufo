@@ -60,7 +60,8 @@ Add-Content -Path $log -Value ("=== bridge start {0} wrapper={1} ===" -f (Get-Da
 # republishes models that are themselves bound to loopback.
 $env:VENUS_URL       = 'http://100.67.13.78:18002/v1'
 $env:VENUS_MODEL     = 'ui-venus'
-$env:OMNIPARSER_URL  = 'http://100.67.13.78:18061'
+# OmniParser is local now (UFO-OmniParser-Local task, GPU, loopback only).
+$env:OMNIPARSER_URL  = 'http://127.0.0.1:7871'
 $env:VLLM_URL        = 'http://100.67.13.78:18000/v1'
 Add-Content -Path $log -Value ("    VENUS_URL=$env:VENUS_URL OMNIPARSER_URL=$env:OMNIPARSER_URL")
 

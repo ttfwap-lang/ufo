@@ -1,0 +1,17 @@
+# Local OmniParser service. Install into a DEDICATED venv (.venv_omniparser):
+#   python -m venv .venv_omniparser
+#   .venv_omniparser\Scripts\python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+#   .venv_omniparser\Scripts\python -m pip install -r local_omniparser\requirements.txt
+# torch must be a CUDA 12.8+ build for Blackwell GPUs (compute capability 12.0);
+# the project venv's torch is CPU-only and is deliberately left alone.
+ultralytics
+transformers==4.51.0     # Florence-2 remote code is not compatible with newer releases
+accelerate
+einops
+timm
+huggingface_hub
+easyocr
+fastapi
+uvicorn
+pillow
+numpy

@@ -11,7 +11,7 @@ import sys
 import time
 import urllib.request
 
-OMNI = os.environ.get("OMNIPARSER_URL", "http://100.67.13.78:7861").rstrip("/")
+OMNI = os.environ.get("OMNIPARSER_URL", "http://127.0.0.1:7871").rstrip("/")
 
 CANDIDATES = [
     r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\astro_v_grid_aries.png",

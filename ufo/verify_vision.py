@@ -17,7 +17,7 @@ import urllib.request
 BASE = os.path.dirname(os.path.abspath(__file__))
 BRIDGE = "http://127.0.0.1:9301"
 VENUS = "http://100.67.13.78:18002/v1/models"
-OMNI = "http://100.67.13.78:18061/api/health"
+OMNI = "http://127.0.0.1:7871/api/health"  # local service, see local_omniparser/
 sys.path.insert(0, BASE)
 
 WAIT_S = int(os.environ.get("UFO_VISION_WAIT", "900"))

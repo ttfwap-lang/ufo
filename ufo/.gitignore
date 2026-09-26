@@ -184,3 +184,5 @@ diag_stacks.sh
 diag_e2e_failures.py
 list_elements.py
 # ---- tunnel + watchdog docs -------------------------------------------------
+.venv_omniparser/
+omniparser_local.log

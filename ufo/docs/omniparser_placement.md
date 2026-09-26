@@ -1,12 +1,13 @@
 # Where should OmniParser run? (measured 2026-09-26)
 
-**Verdict: the Lenovo, not gx10. And it is optional for the Telegram runner.**
+**Verdict: the Lenovo, not gx10. Installed there (2026-09-26); optional for the Telegram runner.**
 
 ## Evidence
 
 | Host / device | Latency | Memory | Source |
 |---|---|---|---|
-| Lenovo, RTX PRO 1000 Blackwell (CUDA 12.8) | **0.92 s** median (0.78-1.03), 82 elements | **899 MB** peak VRAM of 8 GB (0 used before) | measured, 5 runs after warm-up |
+| Lenovo GPU, **icons only** (detector + captions) | **0.9 s** median, 82 elements | **899 MB** peak VRAM of 8 GB | measured, 5 runs, standalone |
+| Lenovo GPU, **full service** (icons + EasyOCR + merge) | **1.7 s** at imgsz 640, 2.0 s at 1024 (135-140 elements) | ~1.3 GB VRAM total | measured through the HTTP service |
 | Lenovo, Core Ultra 9 386H CPU (fp32) | **3.0 s** (3.16, 2.88), 82 elements | ~1.3 GB RAM | measured, 2 runs |
 | gx10, CPU | ~34 s | contends with the LLM pools | `gx10_recover.py`, `system.yaml` |
 | gx10, GPU | ~7 s for 150 elements, **when it fit** | CUDA OOM once Qwen+Venus reserved the unified memory | `AGENT_PLAN.md` |
@@ -47,13 +48,40 @@ the `mcp_fallback_omniparser` tool, and the bridge's `multi` cross-check.
 Its real value is **enumerating every clickable region on an unfamiliar screen**
 (Mini App webviews, hostile canvases) without knowing what to ask Venus for.
 
-## If enabling it
+## Footprint
 
-1. Local service on `127.0.0.1` only, same `POST /api/parse` contract as
-   `gx10_runner/omniparser_api.py`, so no client changes.
-2. `OMNIPARSER.ENDPOINT: http://127.0.0.1:<port>`, `ENABLED: true` in
-   `config/ufo/system.yaml` (the old "unusable, 34 s" comments there describe
-   gx10-CPU and no longer apply to a Lenovo endpoint).
-3. Stop the gx10 `omniparser.service` so it stops competing for memory.
-4. Footprint of the trial: 4.8 GB scratch venv (torch + ultralytics) and the
-   1.3 GB weights in the HF cache. A permanent install needs the same.
+Dedicated venv `.venv_omniparser` (~5 GB: CUDA torch + ultralytics + EasyOCR),
+the 1.3 GB OmniParser weights and Florence-2 code in the HuggingFace cache, and
+~1.3 GB of VRAM while the service is up. The project venv and the system Python
+(both CPU-only torch) are untouched. To remove it:
+`powershell -File local_omniparser\install_task.ps1 -Remove`, then delete
+`.venv_omniparser`.
+
+## What was installed, and what the install taught
+
+`local_omniparser/service.py` on `127.0.0.1:7871` (NOT 7861: that local port is
+the tunnel to gx10), dedicated venv `.venv_omniparser` (CUDA 12.8 torch),
+scheduled task `UFO-OmniParser-Local` (`install_task.ps1`), log
+`local_omniparser/omniparser_local.log`. Same `POST /api/parse` contract as the
+gx10 service; verified through the repo's own `OmniParser._rest_parse` client.
+
+The first cut of the service took **4-7 s per call, not ~1 s**. Profiling (the
+service reports per-stage `timings`) found three separate causes:
+
+1. **Captioning 3-5 s instead of 0.8 s.** First use of CUDA in a *new thread*
+   costs ~5 s (fresh worker thread 5.85 s, second call 0.80 s), and any new
+   caption batch shape costs seconds again. FastAPI's threadpool hands requests
+   to arbitrary threads and icon counts differ per screenshot. Fix: one
+   dedicated worker thread that also runs the warm-up, and caption batches padded
+   to a constant size.
+2. **EasyOCR 3.98 s -> 1.28 s** with `batch_size=64` (identical 104 boxes; its
+   default recognises one box at a time). Shrinking the canvas did not help.
+3. A suspected cuDNN-flag side effect of EasyOCR was tested and **disproved**
+   (flags unchanged), so it was not "fixed".
+
+Task Scheduler "restart on failure" does **not** restart a killed process here
+(task returns to Ready, result 0xFFFFFFFF), so the task instead re-fires every
+2 minutes with `IgnoreNew`: ignored while the service lives, started if dead.
+
+Not done: gx10's own `omniparser.service` is still enabled there. gx10 was
+offline when this was installed; `gx10_recover.py` stops it on the next contact.
