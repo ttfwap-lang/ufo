@@ -1230,12 +1230,10 @@ class TelegramGUIController:
                     continue
 
                 await self._click_at_rect(chat_elem.rect)
-                await asyncio.sleep(0.8)
 
-                # Verify: Telegram retitles the window to "<chat name> - (n)"
-                await self._ensure_window_fresh()
-                title = (self._window.name or "") if self._window else ""
-                if self._title_matches_chat(title, chat_name):
+                # Verify: Telegram retitles the window to "<chat name> - (n)".
+                # Poll rather than sample once at +0.8s - see _await_title_match.
+                if await self._await_title_match(chat_name, budget=2.5):
                     return True
 
                 # Fallback verification: window state changed
@@ -1254,6 +1252,38 @@ class TelegramGUIController:
 
         # Last resort
         return await self._open_chat_by_keyboard(chat_name)
+
+    async def _await_title_match(self, chat_name: str, budget: float = 2.5,
+                                 interval: float = 0.2) -> bool:
+        """Poll until the window title says this chat is open, or the budget ends.
+
+        The retitle is asynchronous, so a single sample at a fixed delay after
+        the click or Enter loses a race it has no reason to lose. Observed
+        directly: Saved Messages was open in the window title AFTER open_chat()
+        had already returned False. Navigation had worked; verification sampled
+        too early. Because send_message() aborts when open_chat() reports False,
+        that false negative would have failed a message send against a chat that
+        was correctly open.
+
+        One sample can lose that race, a bounded poll cannot. The budget is
+        logged when it costs more than 100 ms, so it can be set from measurement
+        instead of a guess; a chat that really is absent still returns False,
+        on the same title criteria as before.
+        """
+        started = time.monotonic()
+        deadline = started + budget
+        while True:
+            await self._ensure_window_fresh()
+            title = (self._window.name or "") if self._window else ""
+            if self._title_matches_chat(title, chat_name):
+                waited_ms = (time.monotonic() - started) * 1000
+                if waited_ms > 100:
+                    print(f"[open_chat] '{chat_name}' title confirmed after "
+                          f"{waited_ms:.0f} ms (polled)")
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            await asyncio.sleep(interval)
 
     def _title_matches_chat(self, title: str, chat_name: str) -> bool:
         """True if the window title contains the chat name (active chat).
@@ -1401,10 +1431,9 @@ class TelegramGUIController:
 
             # Enter opens the first result; then prove it was the right one.
             await self._type_keys_safe(self.SHORTCUTS["send"])
-            await asyncio.sleep(0.8)
-            await self._ensure_window_fresh()
-            title = (self._window.name or "") if self._window else ""
-            if self._title_matches_chat(title, chat_name):
+            # Poll: this is the check that reported 'did not open it' for a chat
+            # that was open in the title seconds later.
+            if await self._await_title_match(chat_name, budget=2.5):
                 return True
 
             print(f"[open_chat] search for '{chat_name}' did not open it")
