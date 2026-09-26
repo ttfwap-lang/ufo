@@ -31,14 +31,18 @@ $prev = Join-Path $dir 'scan.prev.json'
 $log  = Join-Path $dir 'changes.log'
 $latest = Join-Path $dir 'CHANGES.md'
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
+. (Join-Path $PSScriptRoot 'scripts\fastwin.ps1')   # fast port/task queries
+if (-not (Get-Command Get-TaskQuick -ErrorAction SilentlyContinue)) {
+    # A missing helper must be an error, not a silently wrong 'bridge is down'.
+    throw 'scripts\fastwin.ps1 did not load (Get-TaskQuick missing)'
+}
 
 function Get-Sha([string]$p, [int]$n = 12) {
     try { return (Get-FileHash -Path $p -Algorithm SHA256).Hash.Substring(0, $n).ToLower() }
     catch { return $null }
 }
 function Get-PortState([int]$port) {
-    $c = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue |
-         Select-Object -First 1
+    $c = Get-ListenerQuick $port   # netstat: 39 ms vs 1,281 ms for Get-NetTCPConnection
     if (-not $c) { return @{ listening = $false } }
     return @{ listening = $true; pid = $c.OwningProcess; addr = $c.LocalAddress }
 }
@@ -118,11 +122,10 @@ function New-Snapshot {
 
     # scheduled tasks we own
     foreach ($t in @('UFO-Bridge-9301', 'UFO-Bridge-Watchdog')) {
-        $task = Get-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue
+        $task = Get-TaskQuick $t   # schtasks: ~65 ms vs ~3 s for Get-ScheduledTask(+Info)
         if ($task) {
-            $i = Get-ScheduledTaskInfo -TaskName $t
-            $s.tasks[$t] = [ordered]@{ state = [string]$task.State; last = $i.LastTaskResult
-                                       ran = $i.LastRunTime.ToString('o') }
+            $s.tasks[$t] = [ordered]@{ state = [string]$task.State; last = $task.LastTaskResult
+                                       ran = $(if ($task.LastRunTime) { $task.LastRunTime.ToString('o') } else { '' }) }
         }
     }
 

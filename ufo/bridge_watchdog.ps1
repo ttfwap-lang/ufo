@@ -29,6 +29,12 @@ $log  = Join-Path $logDir 'watchdog.log'
 $hb   = Join-Path $logDir 'heartbeat.json'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
+. (Join-Path $PSScriptRoot 'scripts\fastwin.ps1')   # fast port/task queries
+if (-not (Get-Command Get-TaskQuick -ErrorAction SilentlyContinue)) {
+    # A missing helper must be an error, not a silently wrong 'bridge is down'.
+    throw 'scripts\fastwin.ps1 did not load (Get-TaskQuick missing)'
+}
+
 function Write-WLog([string]$Level, [string]$Message) {
     $line = '{0}  {1,-6} {2}' -f (Get-Date).ToUniversalTime().ToString('o'), $Level, $Message
     Add-Content -Path $log -Value $line
@@ -54,8 +60,8 @@ function Get-HeartbeatAgeSec {
 }
 
 function Get-Listener {
-    Get-NetTCPConnection -State Listen -LocalPort 9301 -ErrorAction SilentlyContinue |
-        Select-Object -First 1
+    # netstat, not Get-NetTCPConnection (1,281 ms vs 39 ms; see scripts\fastwin.ps1)
+    Get-ListenerQuick 9301
 }
 
 function Start-Bridge {
@@ -90,7 +96,7 @@ function Restart-Bridge([string]$Why) {
 }
 
 # ---- decide ----------------------------------------------------------------
-$task = Get-ScheduledTask -TaskName $BridgeTask -ErrorAction SilentlyContinue
+$task = Get-TaskQuick $BridgeTask   # schtasks, not Get-ScheduledTask (125 ms vs ~3 s)
 if (-not $task) {
     Write-WLog ERROR "scheduled task '$BridgeTask' does not exist - run install_bridge_task.ps1"
     exit 1
@@ -120,8 +126,8 @@ if ($listener) {
 }
 
 # Nothing listening at all.
-$state = (Get-ScheduledTask -TaskName $BridgeTask).State
-$info  = Get-ScheduledTaskInfo -TaskName $BridgeTask
+$state = $task.State
+$info  = $task
 Write-WLog WARN "bridge down (task=$state lastResult=$($info.LastTaskResult))"
 Start-Bridge | Out-Null
 exit 0

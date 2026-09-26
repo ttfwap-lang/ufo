@@ -15,3 +15,13 @@ fastapi
 uvicorn
 pillow
 numpy
+# Preferred OCR: Windows.Media.Ocr in-process (~0.08 s vs EasyOCR ~1.2 s, identical
+# quality on UI text). Without these the service falls back to easyocr automatically.
+winrt-runtime
+winrt-Windows.Media.Ocr
+winrt-Windows.Graphics.Imaging
+winrt-Windows.Storage.Streams
+winrt-Windows.Foundation
+winrt-Windows.Foundation.Collections
+winrt-Windows.Globalization
+winrt-Windows.Storage

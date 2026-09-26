@@ -249,38 +249,18 @@ def _window_origin(c) -> tuple[int, int]:
 
 
 def _ocr_words(png_path: str):
-    """OCR a PNG and return [(x, y, text)] in bitmap coordinates.
+    """OCR a PNG and return [(x, y, w, h, text)] in bitmap coordinates.
 
-    The WinRT OCR helper occasionally returns nothing (busy shell, timeout),
-    so we retry a couple of times before giving up on this frame.
+    Delegates to venus_client.ocr_words (resident OCR service, PowerShell helper
+    as fallback). OCR occasionally returns nothing (busy shell, timeout), so we
+    retry a couple of times before giving up on this frame; empty results are
+    not cached there, so a retry really re-runs OCR. The click target is the word
+    CENTRE, not its top-left corner (a corner click can land outside a tight
+    link/button and silently do nothing).
     """
-    import re
-    import subprocess
-    base = os.path.dirname(os.path.abspath(__file__))
-    ocr_ps1 = os.path.join(base, "ocr_shot.ps1")
+    import venus_client
     for attempt in range(3):
-        try:
-            r = subprocess.run(
-                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                 "-File", ocr_ps1, png_path],
-                capture_output=True, timeout=240)
-            # PowerShell output is NOT guaranteed to be UTF-8 (the OCR text can
-            # contain stray bytes); decode defensively.
-            out = (r.stdout or b"").decode("utf-8", "replace")
-        except Exception as e:
-            print(f"[bridge] OCR attempt {attempt+1} failed: {e}", flush=True)
-            time.sleep(2)
-            continue
-        words = []
-        for line in out.splitlines():
-            m = re.match(r"WORD\s+\[\s*(\d+),\s*(\d+)\s+(\d+)x\s*(\d+)\]\s+(.*)", line)
-            if m:
-                # (x, y, w, h, text) - the click target is the word CENTRE,
-                # not its top-left corner (a corner click can land outside a
-                # tight link/button and silently do nothing).
-                words.append((int(m.group(1)), int(m.group(2)),
-                              int(m.group(3)), int(m.group(4)),
-                              m.group(5).strip()))
+        words = venus_client.ocr_words(png_path)
         if words:
             return words
         print(f"[bridge] OCR attempt {attempt+1} returned no words", flush=True)

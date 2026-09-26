@@ -102,34 +102,71 @@ def _cache_put(store: "OrderedDict", key, value) -> None:
 # --------------------------------------------------------------------------
 # OCR
 # --------------------------------------------------------------------------
-def ocr_words(png_path: str, timeout: int = 240) -> List[Box]:
-    """Run the WinRT OCR helper and return word boxes (x, y, w, h, text).
+_ocr_service_down_until = 0.0
 
-    Cached per screenshot file: the helper is a PowerShell subprocess, so a
-    repeat call on an unchanged screen would otherwise pay interpreter startup
-    plus WinRT OCR initialisation again for an identical answer.
+
+def _ocr_via_service(png_path: str, timeout: float = 8.0) -> Optional[List[Box]]:
+    """Word boxes from the resident OCR service, or None to fall back.
+
+    local_omniparser/service.py keeps the WinRT engine loaded, so this is ~150 ms
+    round trip versus 650-740 ms for spawning PowerShell (measured, identical
+    boxes and text). After a failure the service is skipped for 10 s so a dead
+    service costs one refused connection, not one per call.
+    """
+    global _ocr_service_down_until
+    if time.time() < _ocr_service_down_until:
+        return None
+    try:
+        import base64 as _b64
+        import json as _json
+        import urllib.request as _ur
+        with open(png_path, "rb") as fh:
+            body = _json.dumps({"image_b64": _b64.b64encode(fh.read()).decode()}).encode()
+        req = _ur.Request(OMNIPARSER_URL + "/api/ocr", data=body,
+                          headers={"Content-Type": "application/json"})
+        with _ur.urlopen(req, timeout=timeout) as r:
+            data = _json.loads(r.read().decode())
+        return [(int(x), int(y), int(w), int(h), str(t).strip().strip("'\""))
+                for x, y, w, h, t in data["words"]]
+    except Exception:  # noqa: BLE001 - any failure means "use the fallback"
+        _ocr_service_down_until = time.time() + 10.0
+        return None
+
+
+def ocr_words(png_path: str, timeout: int = 240) -> List[Box]:
+    """Word boxes (x, y, w, h, text) for a screenshot. THE OCR entry point.
+
+    The bridge and astro_collect used to carry their own copies of the
+    PowerShell call; they now come through here.
+
+    Order: cache -> resident OCR service -> the ocr_shot.ps1 subprocess.
+    Cached per screenshot file (path + mtime + size). Only NON-EMPTY results are
+    cached: OCR sometimes returns nothing on a busy shell, and callers retry on
+    an empty answer - caching it would hand every retry the same empty list.
     """
     key = _file_key(png_path)
     if key is not None:
         hit = _cache_get(_ocr_cache, key)
         if hit is not None:
             return list(hit)
-    try:
-        proc = subprocess.run(
-            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-             "-File", OCR_PS1, png_path],
-            capture_output=True, timeout=timeout)
-    except Exception:
-        return []
-    out = (proc.stdout or b"").decode("utf-8", "replace")
-    boxes: List[Box] = []
-    for line in out.splitlines():
-        m = re.match(r"WORD\s+\[\s*(\d+),\s*(\d+)\s+(\d+)x\s+(\d+)\]\s+(.*)", line)
-        if m:
-            boxes.append((int(m.group(1)), int(m.group(2)),
-                          int(m.group(3)), int(m.group(4)),
-                          m.group(5).strip().strip("'\"")))
-    if key is not None:
+    boxes = _ocr_via_service(png_path)
+    if boxes is None:
+        try:
+            proc = subprocess.run(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-File", OCR_PS1, png_path],
+                capture_output=True, timeout=timeout)
+        except Exception:
+            return []
+        out = (proc.stdout or b"").decode("utf-8", "replace")
+        boxes = []
+        for line in out.splitlines():
+            m = re.match(r"WORD\s+\[\s*(\d+),\s*(\d+)\s+(\d+)x\s+(\d+)\]\s+(.*)", line)
+            if m:
+                boxes.append((int(m.group(1)), int(m.group(2)),
+                              int(m.group(3)), int(m.group(4)),
+                              m.group(5).strip().strip("'\"")))
+    if key is not None and boxes:
         _cache_put(_ocr_cache, key, list(boxes))
     return boxes
 

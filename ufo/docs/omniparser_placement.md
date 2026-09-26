@@ -7,7 +7,8 @@
 | Host / device | Latency | Memory | Source |
 |---|---|---|---|
 | Lenovo GPU, **icons only** (detector + captions) | **0.9 s** median, 82 elements | **899 MB** peak VRAM of 8 GB | measured, 5 runs, standalone |
-| Lenovo GPU, **full service** (icons + EasyOCR + merge) | **1.7 s** at imgsz 640, 2.0 s at 1024 (135-140 elements) | ~1.3 GB VRAM total | measured through the HTTP service |
+| Lenovo GPU, **full service** (icons + WinRT OCR + merge) | **0.91 s** at imgsz 640, 1.02 s at 1024 (140-143 elements) | ~1.3 GB VRAM total | measured through the HTTP service |
+| same, with EasyOCR instead of WinRT (earlier build) | 1.73-1.96 s | | superseded, see docs/lenovo_performance.md |
 | Lenovo, Core Ultra 9 386H CPU (fp32) | **3.0 s** (3.16, 2.88), 82 elements | ~1.3 GB RAM | measured, 2 runs |
 | gx10, CPU | ~34 s | contends with the LLM pools | `gx10_recover.py`, `system.yaml` |
 | gx10, GPU | ~7 s for 150 elements, **when it fit** | CUDA OOM once Qwen+Venus reserved the unified memory | `AGENT_PLAN.md` |

@@ -70,32 +70,21 @@ OCR_PS1 = r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\ocr_shot.ps1"
 
 
 def ocr_words(png_path):
-    """Run the WinRT OCR helper.
+    """WinRT OCR via the shared implementation (resident service, PowerShell
+    fallback) - see venus_client.ocr_words.
 
     Returns (set_of_lowercase_words, full_text, boxes) where boxes is a list of
     (x, y, w, h, text). The boxes let us click a label by its real position
     instead of a stale hard-coded pixel.
     """
-    import subprocess
+    import venus_client
     try:
-        r = subprocess.run(
-            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-             "-File", OCR_PS1, png_path],
-            capture_output=True, timeout=240)
-        out = (r.stdout or b"").decode("utf-8", "replace")
+        boxes = venus_client.ocr_words(png_path)
     except Exception as e:
         print(f"  ocr failed: {e}", flush=True)
         return set(), "", []
-    words, boxes, lines = set(), [], []
-    for line in out.splitlines():
-        m = re.match(r"WORD\s+\[\s*(\d+),\s*(\d+)\s+(\d+)x\s*(\d+)\]\s+(.*)", line)
-        if m:
-            x, y, w, h = (int(m.group(i)) for i in (1, 2, 3, 4))
-            t = m.group(5).strip().strip("'\"")
-            words.add(t.lower())
-            boxes.append((x, y, w, h, t))
-            lines.append(t.lower())
-    return words, " ".join(lines), boxes
+    words = {t.lower() for _x, _y, _w, _h, t in boxes}
+    return words, " ".join(t.lower() for _x, _y, _w, _h, t in boxes), boxes
 
 
 def find_box(boxes, needle, exact=True, rightmost=False, y_min=None, y_max=None):

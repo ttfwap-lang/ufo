@@ -26,7 +26,7 @@ import sys
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("OMNIPARSER_PORT", "7871"))
@@ -91,8 +91,19 @@ captioner = AutoModelForCausalLM.from_pretrained(
     trust_remote_code=True).to(DEVICE).eval()
 
 OCR_NAME = "none"
-_ocr = None
-if os.environ.get("OMNIPARSER_OCR", "1") != "0":
+_ocr = None            # EasyOCR reader (fallback engine)
+_winrt = None          # winrt_ocr module (preferred engine)
+_want = os.environ.get("OMNIPARSER_OCR", "auto").strip().lower()   # auto|winrt|easyocr|none
+if _want in ("auto", "winrt"):
+    try:
+        import winrt_ocr as _winrt  # noqa: E402
+
+        _winrt._get_engine()          # fail now, not on the first request
+        OCR_NAME = "winrt"
+    except Exception as exc:  # noqa: BLE001 - fall back, and say so
+        _winrt = None
+        log(f"WinRT OCR unavailable ({type(exc).__name__}: {exc}); falling back")
+if _winrt is None and _want in ("auto", "easyocr"):
     try:
         import easyocr  # noqa: E402
 
@@ -103,10 +114,17 @@ if os.environ.get("OMNIPARSER_OCR", "1") != "0":
 
 # batch_size=64: EasyOCR's default recognises boxes one at a time; on a Telegram
 # capture that is 3.98 s vs 1.28 s batched, with identical output (104 boxes).
-def _ocr_boxes(image: Image.Image) -> List[Tuple[Tuple[int, int, int, int], str]]:
+def _ocr_boxes(image: Image.Image, raw: Optional[bytes] = None
+               ) -> List[Tuple[Tuple[int, int, int, int], str]]:
+    w, h = image.size
+    if _winrt is not None:
+        if raw is None:                       # only re-encode if we were not given bytes
+            buf = io.BytesIO()
+            image.save(buf, "PNG")
+            raw = buf.getvalue()
+        return [(clamp(b, w, h), t) for b, t in _winrt.ocr_phrases(raw)]
     if _ocr is None:
         return []
-    w, h = image.size
     out = []
     for pts, text, conf in _ocr.readtext(np.asarray(image), paragraph=False, batch_size=64):
         text = (text or "").strip()
@@ -141,7 +159,7 @@ def _caption(crops: List[Image.Image]) -> List[str]:
 
 def parse_image(image: Image.Image, box_threshold: float = 0.05,
                 iou_threshold: float = 0.1, imgsz: int = 640,
-                use_ocr: bool = True) -> Dict[str, Any]:
+                use_ocr: bool = True, raw: Optional[bytes] = None) -> Dict[str, Any]:
     image = image.convert("RGB")
     w, h = image.size
     tm: Dict[str, float] = {}
@@ -153,7 +171,7 @@ def parse_image(image: Image.Image, box_threshold: float = 0.05,
     icons = [b for b in icons if b[2] - b[0] >= 4 and b[3] - b[1] >= 4]
     tm["detect"] = time.time() - _t
     _t = time.time()
-    texts = _ocr_boxes(image) if use_ocr else []
+    texts = _ocr_boxes(image, raw) if use_ocr else []
     tm["ocr"] = time.time() - _t
 
     elements, to_caption = merge(icons, texts, w, h)
@@ -198,7 +216,8 @@ async def api_parse(payload: Dict[str, Any]) -> Any:
     if b64.startswith("data:") and "," in b64[:64]:
         b64 = b64.split(",", 1)[1]
     try:
-        image = Image.open(io.BytesIO(base64.b64decode(b64)))
+        raw = base64.b64decode(b64)
+        image = Image.open(io.BytesIO(raw))
         image.load()
     except Exception as exc:  # noqa: BLE001
         return JSONResponse({"error": f"bad image: {exc}"}, status_code=400)
@@ -210,7 +229,7 @@ async def api_parse(payload: Dict[str, Any]) -> Any:
             box_threshold=float(payload.get("box_threshold", 0.05)),
             iou_threshold=float(payload.get("iou_threshold", 0.1)),
             imgsz=int(payload.get("imgsz", 640)),
-            use_ocr=bool(payload.get("use_ocr", True)))
+            use_ocr=bool(payload.get("use_ocr", True)), raw=raw)
         out["seconds"] = round(time.time() - t, 2)
         return out
 
@@ -218,6 +237,37 @@ async def api_parse(payload: Dict[str, Any]) -> Any:
         return await asyncio.get_running_loop().run_in_executor(_pool, _job)
     except Exception as exc:  # noqa: BLE001 - report, never crash the service
         log(f"parse failed: {type(exc).__name__}: {exc}")
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+# Plain OCR (word boxes) for callers that do not need icon detection: the bridge
+# and venus_client used to spawn `powershell ocr_shot.ps1` per call (0.65-0.74 s).
+# Own pool: WinRT OCR is CPU/NPU work and must not queue behind a GPU parse.
+_ocr_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="omniparser-ocr")
+
+
+@app.post("/api/ocr")
+async def api_ocr(payload: Dict[str, Any]) -> Any:
+    if _winrt is None:
+        return JSONResponse({"error": "WinRT OCR not available on this host"}, status_code=503)
+    b64 = payload.get("image_b64") or ""
+    if b64.startswith("data:") and "," in b64[:64]:
+        b64 = b64.split(",", 1)[1]
+    try:
+        raw = base64.b64decode(b64)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({"error": f"bad image: {exc}"}, status_code=400)
+
+    def _job() -> Dict[str, Any]:
+        t = time.time()
+        words = _winrt.ocr_words(raw)
+        return {"words": [list(w) for w in words], "count": len(words),
+                "seconds": round(time.time() - t, 3)}
+
+    try:
+        return await asyncio.get_running_loop().run_in_executor(_ocr_pool, _job)
+    except Exception as exc:  # noqa: BLE001
+        log(f"ocr failed: {type(exc).__name__}: {exc}")
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
 
@@ -231,6 +281,10 @@ def _warm_up() -> None:
     if _ocr is not None:
         _ocr.readtext(np.full((240, 640, 3), 255, dtype=np.uint8), paragraph=False,
                       batch_size=64)
+    if _winrt is not None:
+        buf = io.BytesIO()
+        Image.new("RGB", (320, 120), "white").save(buf, "PNG")
+        _winrt.ocr_words(buf.getvalue())
     log(f"warm-up done in {time.time() - t:.1f}s")
 
 
