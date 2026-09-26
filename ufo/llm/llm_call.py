@@ -22,7 +22,9 @@ from pydantic import BaseModel, ValidationError
 from ufo.dlq.dead_letter_queue import record_dlq_event
 from ufo.llm import AgentType
 from ufo.llm.base import BaseService
+from ufo.llm import endpoint_health
 from ufo.llm.config_helper import BackendProfileError, get_agent_config
+from ufo.llm.endpoint_health import ENDPOINT_GATE, EndpointDown
 from ufo.llm.llm_result import LLMResult
 
 logger = logging.getLogger(__name__)
@@ -160,6 +162,8 @@ _RETRY_BACKOFF = [1.0, 2.0, 4.0]
 
 def _is_retryable_error(error: Exception) -> bool:
     """Check if an exception is retryable (429, 503, timeout, connection)."""
+    if isinstance(error, EndpointDown):
+        return False
     try:
         import openai
         if isinstance(error, (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError, openai.InternalServerError)):
@@ -190,16 +194,53 @@ def _is_retryable_error(error: Exception) -> bool:
         return True
     return False
 
-from tenacity import before_sleep_log, retry, retry_if_exception, stop_after_attempt, wait_exponential
+from tenacity import before_sleep_log, retry, retry_if_exception, stop_after_attempt, stop_any, wait_exponential
 
 
 def _is_retryable_for_tenacity(e: Exception) -> bool:
     return _is_retryable_error(e)
 
+
+def _stop_on_repeated_timeout(retry_state) -> bool:
+    """A request that already sat through the whole read timeout is not going to
+    be rescued by a third and fourth identical attempt: against a starved server
+    each retry is another full-length wait plus more queued load. Give a timeout
+    one retry (two attempts), everything else the full five."""
+    outcome = retry_state.outcome
+    exc = outcome.exception() if outcome is not None and outcome.failed else None
+    return retry_state.attempt_number >= 2 and endpoint_health.is_timeout_error(exc)
+
+
+def _gated_endpoint_key(service: BaseService) -> Optional[str]:
+    """host:port for a *local* endpoint (the shared gx10 / LiteLLM); None for
+    cloud services, which keep their own rate-limit handling."""
+    api_base = getattr(service, 'api_base', None)
+    if not isinstance(api_base, str):
+        return None
+    from ufo.llm.endpoint import is_local_endpoint
+    cfg = getattr(service, 'config_llm', None)
+    api_key = cfg.get('API_KEY') if isinstance(cfg, dict) else None
+    if not is_local_endpoint(api_base=api_base, api_key=api_key):
+        return None
+    return endpoint_health.endpoint_key(api_base)
+
+
+async def _note_endpoint_failure(service: BaseService, key: str, error: Exception) -> None:
+    """After a failure that looks like 'server not answering', ask the server a
+    trivial question. No answer within 3 s = it is hung, so open the gate now and
+    let every other agent/caller fail instantly rather than each sitting through
+    its own 120 s wait. An answer means it is merely slow: count it and go on."""
+    api_base = getattr(service, 'api_base', '')
+    cfg = getattr(service, 'config_llm', None)
+    api_key = cfg.get('API_KEY') if isinstance(cfg, dict) else None
+    alive = await asyncio.to_thread(endpoint_health.probe_sync, api_base, endpoint_health.PROBE_TIMEOUT, api_key)
+    ENDPOINT_GATE.record_failure(key, error, hard=not alive)
+
+
 @retry(
     retry=retry_if_exception(_is_retryable_for_tenacity),
     wait=wait_exponential(multiplier=1, min=2, max=60),
-    stop=stop_after_attempt(5),
+    stop=stop_any(stop_after_attempt(5), _stop_on_repeated_timeout),
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True
 )
@@ -207,8 +248,40 @@ async def _retry_with_backoff(service: BaseService, messages: list, n: int) -> L
     """
     Attempt service.chat_completion with retry on transient errors.
     Returns LLMResult on success, raises on exhaustion.
+
+    Local endpoints additionally go through ENDPOINT_GATE: an endpoint that has
+    been found unresponsive raises EndpointDown immediately (not retryable).
     """
-    return await service.chat_completion(messages, n=n)
+    key = _gated_endpoint_key(service)
+    if key:
+        ENDPOINT_GATE.check(key)
+    try:
+        result = await service.chat_completion(messages, n=n)
+    except Exception as e:
+        if key and endpoint_health.is_endpoint_failure(e):
+            await _note_endpoint_failure(service, key, e)
+            down = ENDPOINT_GATE.open_error(key)
+            if down is not None:
+                # Gate just opened: stop this ladder now (EndpointDown is not
+                # retryable) instead of sleeping and re-trying a hung box.
+                raise down from e
+        raise
+    if key:
+        ENDPOINT_GATE.record_success(key)
+    return result
+
+def _fallback_shares_endpoint(agent_config: dict, fallback_target: str, configs: Optional[dict]) -> bool:
+    """True when the fallback agent talks to the same host:port as the agent that
+    just failed, i.e. falling back cannot help (BACKUP_AGENT in agents_dgx.yaml
+    points at the same gx10 :8000 as HOST/APP)."""
+    try:
+        fb = configs.get(fallback_target) if configs else get_agent_config(fallback_target)
+    except Exception:
+        return False
+    a = endpoint_health.endpoint_key((agent_config or {}).get('API_BASE'))
+    b = endpoint_health.endpoint_key((fb or {}).get('API_BASE'))
+    return bool(a and a == b)
+
 _SCHEMA_VALIDATION_MAX_RETRIES = 2
 
 def _validate_response_schema(response: str, schema: Type[BaseModel]) -> Optional[str]:
@@ -414,8 +487,12 @@ async def get_completions(messages, agent: str=AgentType.APP, use_backup_engine:
             except Exception as cascade_err:
                 logger.warning(f"Exception-level refusal cascade failed: {cascade_err}")
 
-        _circuit_breaker.record_failure(agent_type)
-        if use_backup_engine and agent_type != fallback_target:
+        # An open endpoint gate is already tracked (and recovers in seconds)
+        # per endpoint; counting it against the agent breaker as well would
+        # park the agent on BACKUP for five minutes after the box is back.
+        if not isinstance(e, EndpointDown):
+            _circuit_breaker.record_failure(agent_type)
+        if use_backup_engine and agent_type != fallback_target and not (isinstance(e, EndpointDown) and _fallback_shares_endpoint(agent_config, fallback_target, configs)):
             logger.error(f'The API request of {agent_type} failed: {e}.')
             logger.warning(f'Switching to use fallback agent: {fallback_target}...')
             return await get_completions(messages, agent=fallback_target, use_backup_engine=False, n=n, configs=configs, response_schema=response_schema)

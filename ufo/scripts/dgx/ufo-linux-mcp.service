@@ -1,0 +1,20 @@
+[Unit]
+Description=UFO Linux MCP server (127.0.0.1:8010)
+PartOf=ufo-galaxy.target
+# The older ~/UFO install (ufo-server/ufo-mcp/ufo-client) uses the same ports.
+Conflicts=ufo-server.service ufo-mcp.service ufo-client.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ufo-galaxy
+EnvironmentFile=%h/ufo-galaxy/.secrets
+Environment=UFO_DGX_HOST=127.0.0.1 PYTHONUNBUFFERED=1
+UMask=0077
+ExecStart=%h/ufo-galaxy/.venv/bin/python -m ufo.client.mcp.http_servers.linux_mcp_server --host 127.0.0.1 --port 8010
+Restart=always
+RestartSec=5
+StandardOutput=append:%h/ufo-galaxy/logs/linux_mcp.log
+StandardError=inherit
+
+[Install]
+WantedBy=ufo-galaxy.target

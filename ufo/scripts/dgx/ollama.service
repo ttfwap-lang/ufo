@@ -1,0 +1,19 @@
+[Unit]
+Description=Ollama API server (optional alternate planner for UFO, 127.0.0.1 only)
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/bin/ollama serve
+# 127.0.0.1 only (reached through the SSH tunnel); it was 0.0.0.0, i.e. the whole LAN, no auth.
+Environment=OLLAMA_HOST=127.0.0.1:11434
+# A stray request must not pin a multi-GB model in unified memory: drop it after 2 min idle,
+# and never hold more than one model or serve more than 2 requests at once.
+Environment=OLLAMA_KEEP_ALIVE=2m
+Environment=OLLAMA_MAX_LOADED_MODELS=1
+Environment=OLLAMA_NUM_PARALLEL=2
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,24 @@
+[Unit]
+Description=UFO client registering the gx10 as Galaxy device dgx_gx10
+PartOf=ufo-galaxy.target
+# The older ~/UFO install (ufo-server/ufo-mcp/ufo-client) uses the same ports.
+Conflicts=ufo-server.service ufo-mcp.service ufo-client.service
+Requires=ufo-galaxy-server.service
+After=ufo-galaxy-server.service ufo-linux-mcp.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ufo-galaxy
+# UFO_WS_TOKEN is appended to the URL by the client, so it never appears in argv.
+EnvironmentFile=%h/ufo-galaxy/.secrets
+Environment=UFO_DGX_HOST=127.0.0.1 PYTHONUNBUFFERED=1
+UMask=0077
+ExecStartPre=/bin/sh -c 'for i in $$(seq 1 60); do ss -ltn | grep -q "127.0.0.1:5001 " && exit 0; sleep 1; done; echo "server not listening on 5001"; exit 1'
+ExecStart=%h/ufo-galaxy/.venv/bin/python -m ufo.client.client --ws --ws-server ws://127.0.0.1:5001/ws --client-id dgx_gx10 --platform linux --max-retries 20
+Restart=always
+RestartSec=10
+StandardOutput=append:%h/ufo-galaxy/logs/client.log
+StandardError=inherit
+
+[Install]
+WantedBy=ufo-galaxy.target

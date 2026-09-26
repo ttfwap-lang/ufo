@@ -1,0 +1,24 @@
+[Unit]
+Description=OmniParser V2 screen parser for UFO (REST API + Gradio UI on 0.0.0.0:7861)
+PartOf=ufo-galaxy.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/OmniParser
+Environment=PYTHONUNBUFFERED=1
+Environment=OMNIPARSER_BIND=0.0.0.0
+# The GB10's unified memory is fully reserved by the two LLM pools (llama.cpp
+# on :8000 and vLLM on :8002), so the detector/captioner cannot allocate on
+# CUDA and the service crash-loops with CUDA out of memory. They are small
+# (~1.3 GB) so run them on CPU instead. omniparser_api.py also falls back
+# cuda -> cpu automatically if this is left unset.
+Environment=OMNIPARSER_DEVICE=cpu
+Environment=OMNIPARSER_PORT=7861
+ExecStart=%h/OmniParser/.venv/bin/python omniparser_api.py
+Restart=always
+RestartSec=10
+StandardOutput=append:%h/OmniParser/logs/omniparser.log
+StandardError=inherit
+
+[Install]
+WantedBy=ufo-galaxy.target

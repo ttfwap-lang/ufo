@@ -1,0 +1,8 @@
+[Unit]
+Description=UFO Galaxy services on the gx10 (Linux MCP, server, device client)
+# OmniParser is deliberately NOT wanted here any more: it runs locally on the Windows GPU
+# (~1.7 s/parse) instead of on the gx10 CPU (~34 s/parse, the heaviest process on the box).
+Wants=ufo-linux-mcp.service ufo-galaxy-server.service ufo-galaxy-client.service
+
+[Install]
+WantedBy=default.target

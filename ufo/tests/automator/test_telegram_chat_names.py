@@ -34,6 +34,24 @@ DECORATED = [
     "myaccount",
     "Saved Messages, you can send messages",   # sidebar row
     "Saved Messages - (3)",                    # window title + unread
+    # The REAL window title read off a live Telegram window on 2026-09-26. It
+    # carries an en dash (U+2013), not a hyphen, and a U+200E LEFT-TO-RIGHT
+    # MARK at the front. NFKC removes neither, and canonical_chat_name() is what
+    # gets typed into the search box - so a leftover LRM makes the search match
+    # nothing, which is the exact failure this module exists to prevent.
+    "\u200eSaved Messages \u2013 (3166)",
+    "\u200eSaved Messages \u2013 (1)",
+    "\ufeffSaved Messages \u2013 (2)",          # stray BOM
+    "\u200bSaved\u200bMessages",
+]
+
+# Titles of OTHER chats, one per dash flavour, to prove the unread suffix is
+# stripped for everyone and not just for the self-chat.
+OTHER_TITLES = [
+    ("Cloud Chats \u2013 (12)", "Cloud Chats"),      # en dash
+    ("Cloud Chats \u2014 (12)", "Cloud Chats"),      # em dash
+    ("Work Group \u2212 (7)", "Work Group"),         # unicode minus
+    ("Telegram - (0)", "Telegram"),                  # ascii hyphen
 ]
 SIDEBAR = [
     "Saved Messages, ping 12",
@@ -103,6 +121,37 @@ def test_controller_exposes_the_constant():
     assert TelegramGUIController.SAVED_MESSAGES == SAVED_MESSAGES
 
 
+def test_canonical_output_is_safe_to_type():
+    """canonical_chat_name() is what gets TYPED into Telegram's search box.
+
+    Telegram matches that query as a substring of the real chat name, so any
+    invisible character surviving normalisation is a silent search miss. Every
+    code point in the result must be printable.
+    """
+    import unicodedata
+
+    for variant in RUN_ON + DECORATED:
+        out = canonical_chat_name(variant)
+        bad = [c for c in out if unicodedata.category(c) in ("Cf", "Cc", "Co", "Cn")]
+        assert not bad, f"{variant!r} -> {out!r} kept invisible chars {bad!r}"
+
+
+def test_real_window_title_canonicalises_exactly():
+    """Regression: the live title is '\\u200eSaved Messages \\u2013 (3166)'.
+
+    It used to return the title verbatim - en dash unmatched, LRM kept - which
+    meant open_chat() typed an unmatchable query.
+    """
+    live = "\u200eSaved Messages \u2013 (3166)"
+    assert canonical_chat_name(live) == SAVED_MESSAGES
+    assert chat_key(live) == chat_key(SAVED_MESSAGES)
+
+
+@pytest.mark.parametrize("title,expected", OTHER_TITLES)
+def test_unread_suffix_is_stripped_for_every_dash_flavour(title, expected):
+    assert canonical_chat_name(title) == expected
+
+
 def test_title_verification_survives_a_wrong_spelling():
     """open_chat() verifies via the retitled window; a spelling difference
     must not make verification fail and trigger pointless retries."""
@@ -111,3 +160,6 @@ def test_title_verification_survives_a_wrong_spelling():
     assert match(TelegramGUIController, "Saved Messages - (2)", "Saved Messages") is True
     assert match(TelegramGUIController, "Saved Messages - (2)", "Cloud Chats") is False
     assert match(TelegramGUIController, "", "Saved Messages") is False
+    # The real observed title, LRM and en dash included.
+    assert match(TelegramGUIController, "\u200eSaved Messages \u2013 (3166)",
+                 "SavedMessages") is True

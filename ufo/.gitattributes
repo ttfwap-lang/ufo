@@ -1,0 +1,6 @@
+# Files that run on the Linux gx10 (or under WSL/bash) must keep LF: with core.autocrlf=true
+# on Windows, git would check them out as CRLF and a "\r" in a shebang or a systemd unit
+# breaks them ("bash\r: No such file or directory").
+scripts/dgx/* text eol=lf
+gx10_runner/*.sh text eol=lf
+tests/dgx/*.sh text eol=lf

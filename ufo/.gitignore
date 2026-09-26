@@ -37,6 +37,16 @@ backup/*
 node_modules/*
 .poolside/
 
+# ...but DO track the gx10 deployment artifacts under scripts/: the systemd units, model
+# launchers, budget and guard that define what runs on the box, and the Windows-side tunnel
+# and host-resolution helpers. They were ignored by the blanket rule above, so they were never
+# under version control and the copies on the box, in gx10_runner/ and in docs drifted apart.
+!scripts/dgx/
+!scripts/gx10_*.ps1
+# fastwin.ps1: shared fast port/task helpers dot-sourced by the tracked watchers
+# (bridge_watchdog.ps1, ufo_scan_win.ps1) - they break on a clean clone without it.
+!scripts/fastwin.ps1
+
 # Don't ignore the example files
 !vectordb/docs/example/
 !vectordb/demonstration/example.yaml
@@ -186,6 +196,3 @@ list_elements.py
 # ---- tunnel + watchdog docs -------------------------------------------------
 .venv_omniparser/
 omniparser_local.log
-# fastwin.ps1: shared fast port/task helpers dot-sourced by the tracked watchers
-# (bridge_watchdog.ps1, ufo_scan_win.ps1) - they break on a clean clone without it.
-!scripts/fastwin.ps1

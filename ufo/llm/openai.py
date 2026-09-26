@@ -15,6 +15,7 @@ from openai import AzureOpenAI, OpenAI
 
 from ufo.llm import AgentType
 from ufo.llm.base import BaseService
+from ufo.llm import endpoint_health
 from ufo.llm.endpoint import is_local_endpoint
 from ufo.llm.llm_result import LLMResult
 from ufo.llm.response_schema import AppAgentResponse, EvaluationResponse, HostAgentResponse
@@ -91,7 +92,7 @@ class BaseOpenAIService(BaseService):
         assert api_provider in ['openai', 'aoai', 'azure_ad'], 'Invalid API Provider'
         self.use_responses = bool(self.config_llm.get('USE_RESPONSES', False))
         self.client: OpenAI = OpenAIService.get_openai_client(api_provider, api_base, self.max_retry, self.config['TIMEOUT'], self.config_llm.get('API_KEY', ''), self.config_llm.get('API_VERSION', ''), aad_api_scope_base=self.config_llm.get('AAD_API_SCOPE_BASE', ''), aad_tenant_id=self.config_llm.get('AAD_TENANT_ID', ''), use_responses=self.use_responses)
-        self.model = self.config_llm['API_MODEL']
+        self.model = endpoint_health.resolve_alias(api_base, self.config_llm['API_MODEL'])
         self.api_provider = api_provider
         self.api_base = api_base
         self.probe_key = f'{api_provider}:{api_base}:{self.model}'
@@ -183,7 +184,7 @@ class BaseOpenAIService(BaseService):
             base_params['extra_body'] = dict(extra_body)
         if stream:
             base_params.update({'stream': True, 'stream_options': {'include_usage': True}})
-        response = await asyncio.to_thread(self.client.chat.completions.create, **base_params)
+        response = await self._create_chat(base_params)
         if stream:
             collected_content = ['']
             prompt_tokens = 0
@@ -211,6 +212,40 @@ class BaseOpenAIService(BaseService):
                 raise RuntimeError(f"OpenAI API returned response with no choices or empty content for model '{self.model}'")
             responses = [response.choices[0].message.content]
             return LLMResult(responses=responses, cost=cost, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, model=self.model, api_type=self.api_type, agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, 'value', str(self.agent_type)))
+
+    async def _create_chat(self, params: Dict[str, Any]):
+        """chat.completions.create in a worker thread, with two protections for a
+        shared local server (the gx10):
+
+        * at most UFO_LLM_MAX_INFLIGHT (default 4) requests in flight per endpoint
+          per process, so surplus callers wait here instead of timing out in the
+          server's decode queue and being retried on top of it;
+        * a 404 (unknown model) is answered by asking /v1/models what is actually
+          served. The DGX has flipped between llama.cpp (qwen38-27b-turbo) and vLLM
+          (qwen-abliterated); a stale API_MODEL now heals instead of failing every
+          call until someone edits YAML.
+        """
+        api_base = getattr(self, 'api_base', None)
+        limiter = endpoint_health.inflight_limiter(api_base)
+
+        def call(p: Dict[str, Any]):
+            if limiter is None:
+                return self.client.chat.completions.create(**p)
+            with limiter:
+                return self.client.chat.completions.create(**p)
+
+        try:
+            return await asyncio.to_thread(call, params)
+        except openai.NotFoundError:
+            if not api_base:
+                raise
+            served = await asyncio.to_thread(endpoint_health.discover_model, api_base, self.model, self.config_llm.get('API_KEY'))
+            if not served or served == self.model:
+                raise
+            self.logger.warning("Model '%s' is not served at %s; the server reports '%s'. Using that (update API_MODEL to silence this).", self.model, api_base, served)
+            endpoint_health.remember_alias(api_base, self.model, served)
+            self.model = served
+            return await asyncio.to_thread(call, {**params, 'model': served})
 
     async def _responses_completion(self, messages: List[Dict[str, str]], temperature: Optional[float]=None, max_tokens: Optional[int]=None, top_p: Optional[float]=None) -> LLMResult:
         """
@@ -331,20 +366,24 @@ class BaseOpenAIService(BaseService):
         :param aad_tenant_id: The AAD tenant ID for the Azure OpenAI API.
         :return: The OpenAI client.
         """
-        http_client = httpx.Client(limits=httpx.Limits(max_keepalive_connections=200, max_connections=400), timeout=timeout)
+        # keepalive_expiry: httpx drops idle connections after 5 s by default, so
+        # every agent step (seconds apart) re-handshook through the SSH tunnel.
+        http_timeout = httpx.Timeout(timeout, connect=min(float(timeout), 10.0))
+        # Pool sized to the servers we talk to (1-8 decode slots), not 400.
+        http_client = httpx.Client(limits=httpx.Limits(max_keepalive_connections=32, max_connections=64, keepalive_expiry=300.0), timeout=http_timeout)
         if api_type == 'openai':
             assert api_key, 'OpenAI API key must be specified'
             assert api_base, 'OpenAI API base URL must be specified'
-            client = OpenAI(base_url=api_base, api_key=api_key, max_retries=0, timeout=timeout, http_client=http_client)
+            client = OpenAI(base_url=api_base, api_key=api_key, max_retries=0, timeout=http_timeout, http_client=http_client)
         else:
             assert api_version, 'Azure OpenAI API version must be specified'
             if api_type == 'aoai':
                 assert api_key, 'Azure OpenAI API key must be specified'
-                client = AzureOpenAI(max_retries=0, timeout=timeout, api_version=api_version, azure_endpoint=api_base, api_key=api_key, default_headers={'x-ms-enable-preview': 'true'} if use_responses else {}, http_client=http_client)
+                client = AzureOpenAI(max_retries=0, timeout=http_timeout, api_version=api_version, azure_endpoint=api_base, api_key=api_key, default_headers={'x-ms-enable-preview': 'true'} if use_responses else {}, http_client=http_client)
             else:
                 assert aad_api_scope_base and aad_tenant_id, 'AAD API scope base and tenant ID must be specified'
                 token_provider = OpenAIService.get_aad_token_provider(aad_api_scope_base=aad_api_scope_base, aad_tenant_id=aad_tenant_id)
-                client = AzureOpenAI(max_retries=0, timeout=timeout, api_version=api_version, azure_endpoint=api_base, azure_ad_token_provider=token_provider, default_headers={'x-ms-enable-preview': 'true'} if use_responses else {}, http_client=http_client)
+                client = AzureOpenAI(max_retries=0, timeout=http_timeout, api_version=api_version, azure_endpoint=api_base, azure_ad_token_provider=token_provider, default_headers={'x-ms-enable-preview': 'true'} if use_responses else {}, http_client=http_client)
         return client
 
     @functools.lru_cache()

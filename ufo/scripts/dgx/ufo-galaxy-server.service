@@ -1,0 +1,22 @@
+[Unit]
+Description=UFO server for the gx10 Galaxy device (127.0.0.1:5001)
+PartOf=ufo-galaxy.target
+# The older ~/UFO install (ufo-server/ufo-mcp/ufo-client) uses the same ports.
+Conflicts=ufo-server.service ufo-mcp.service ufo-client.service
+After=ufo-linux-mcp.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ufo-galaxy
+# UFO_WS_TOKEN (the API key) comes from the environment, not the command line.
+EnvironmentFile=%h/ufo-galaxy/.secrets
+Environment=UFO_DGX_HOST=127.0.0.1 PYTHONUNBUFFERED=1
+UMask=0077
+ExecStart=%h/ufo-galaxy/.venv/bin/python -m ufo.server.app --host 127.0.0.1 --port 5001 --platform linux
+Restart=always
+RestartSec=5
+StandardOutput=append:%h/ufo-galaxy/logs/server.log
+StandardError=inherit
+
+[Install]
+WantedBy=ufo-galaxy.target
