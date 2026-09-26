@@ -77,6 +77,32 @@ model_list:
       extra_body:
         chat_template_kwargs:
           enable_thinking: false
+  # The two smaller gx10 vLLMs. Both bind 127.0.0.1 on the box (like the brain),
+  # so they are reached through ufo-tunnel.service's TAILNET-ONLY forwards
+  # (100.67.13.78:18004/18005 -> 127.0.0.1:8004/8005; ufw allows 100.64.0.0/10
+  # only), the same way Venus is reached on :18002. See ufo-tunnel.service.
+  - model_name: "gx10-qwen35-9b"
+    litellm_params:
+      model: "openai/qwen35-9b-defiant"
+      api_base: "http://100.67.13.78:18004/v1"
+      api_key: "sk-local"
+      rpm: 10000
+      max_tokens: 2000
+      temperature: 0.0
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
+  - model_name: "gx10-qwen3-0.6b"
+    litellm_params:
+      model: "openai/qwen3-0.6b"
+      api_base: "http://100.67.13.78:18005/v1"
+      api_key: "sk-local"
+      rpm: 10000
+      max_tokens: 1000
+      temperature: 0.0
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
   - model_name: "claude-3-7-sonnet"
     litellm_params:
       model: "anthropic/claude-3-7-sonnet-latest"

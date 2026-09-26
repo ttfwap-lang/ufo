@@ -10,6 +10,13 @@ Type=simple
 #   18000 -> brain  (llama.cpp on 127.0.0.1:8000)
 #   18002 -> Venus  (vLLM on 127.0.0.1:8002)
 #   18061 -> OmniParser (0.0.0.0:7861, for symmetry/future loopback binds)
+#   100.67.13.78:8000 / 192.168.4.103:8000 -> brain on its usual port, for
+#            clients that expect :8000 on the tailnet / LAN address
+#   100.67.13.78:18004 -> qwen35-9b-defiant (vLLM on 127.0.0.1:8004)
+#   100.67.13.78:18005 -> qwen3-0.6b        (vLLM on 127.0.0.1:8005)
+#            The last two bind the TAILNET address only, not 0.0.0.0: the only
+#            consumer is the Windows host over Tailscale, so the LAN never sees
+#            them regardless of the firewall.
 #
 # This exists so the model containers never have to be relaunched with a
 # different --host just to be reachable. Another agent owns those launches;
@@ -18,7 +25,7 @@ Type=simple
 # "status=203/EXEC" on every start attempt, because systemd executes ExecStart
 # directly and the file had no shebang - the unit crash-looped silently while
 # `is-active` merely reported "activating".
-ExecStart=/usr/bin/python3 %h/ufo-watchdog/ufo_tunnel.py 18000 127.0.0.1 8000 18002 127.0.0.1 8002 18061 127.0.0.1 7861
+ExecStart=/usr/bin/python3 %h/ufo-watchdog/ufo_tunnel.py 18000 127.0.0.1 8000 18002 127.0.0.1 8002 18061 127.0.0.1 7861 100.67.13.78:8000 127.0.0.1 8000 192.168.4.103:8000 127.0.0.1 8000 100.67.13.78:18004 127.0.0.1 8004 100.67.13.78:18005 127.0.0.1 8005
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
