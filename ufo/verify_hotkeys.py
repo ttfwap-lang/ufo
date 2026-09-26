@@ -34,27 +34,24 @@ deadline = time.time() + 5
 while lock._hotkey_hwnd is None and time.time() < deadline:
     time.sleep(0.05)
 
+# Hotkey ids are 1..N in the order of lock._cancel_hotkeys (see _start_hotkeys).
+# Derived from the live preset, not hard-coded: when Ctrl+Shift+Q was added as
+# id1 the old fixed 1/2/3 labels silently tested the wrong keys and skipped ESC.
+_NAMES = {(0x0006, 0x51): "ctrl+shift+q", (0, 0x91): "scrolllock", (0, 0x7B): "f12", (0, 0x1B): "esc"}
 print("=" * 70)
-print("SIMPLER HOTKEYS - Scroll Lock(id1) F12(id2) ESC(id3) P(id100)")
+print("CANCEL HOTKEYS (id: key):", {i: _NAMES.get(tuple(k), str(k)) for i, k in enumerate(lock._cancel_hotkeys, start=1)}, "+ P(id100)")
 print("=" * 70)
-print("cancel_hotkeys:", lock._cancel_hotkeys)
 
-print("\n[1] id1 Scroll Lock -> CANCEL...")
-post_wm_hotkey(lock._hotkey_hwnd, 1)
-ok1 = wait_for(lambda: bool(stop_called))
-print("    cancel fired:", ok1, "| state:", lock._state)
-
-print("\n[2] id2 F12 -> CANCEL...")
-stop_called.clear(); lock._state = "locked"
-post_wm_hotkey(lock._hotkey_hwnd, 2)
-ok2 = wait_for(lambda: bool(stop_called))
-print("    cancel fired:", ok2, "| state:", lock._state)
-
-print("\n[3] id3 ESC backup -> CANCEL...")
-stop_called.clear(); lock._state = "locked"
-post_wm_hotkey(lock._hotkey_hwnd, 3)
-ok3 = wait_for(lambda: bool(stop_called))
-print("    cancel fired:", ok3, "| state:", lock._state)
+cancel_checks = {}
+for i, key in enumerate(lock._cancel_hotkeys, start=1):
+    name = _NAMES.get(tuple(key), str(key))
+    print(f"\n[cancel] id{i} {name} -> CANCEL...")
+    stop_called.clear(); lock._state = "locked"
+    post_wm_hotkey(lock._hotkey_hwnd, i)
+    cancel_checks[name] = wait_for(lambda: bool(stop_called))
+    print("    cancel fired:", cancel_checks[name], "| state:", lock._state)
+for required in ("ctrl+shift+q", "esc"):   # AGENTS.md RULE 1: primary + silent backup
+    cancel_checks.setdefault(required, False)
 
 print("\n[4] id100 P -> PAUSE...")
 pause_called.clear(); lock._state = "locked"
@@ -79,8 +76,8 @@ ok6 = not wait_for(lambda: bool(stop_called), timeout=0.7)
 print("    foreign id ignored:", ok6)
 
 lock._keep_running = False
-checks = {"scrolllock": ok1, "f12": ok2, "esc": ok3, "pause": ok4,
+checks = {**cancel_checks, "pause": ok4,
           "burst": ok5a and ok5b, "foreign": ok6}
 print("\n" + "=" * 70)
-print("RESULT:", "SIMPLE HOTKEYS VERIFIED" if all(checks.values()) else "FAIL " + str(checks))
+print("RESULT:", "CANCEL/PAUSE HOTKEYS VERIFIED" if all(checks.values()) else "FAIL " + str(checks))
 print("=" * 70)

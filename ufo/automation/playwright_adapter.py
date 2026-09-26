@@ -158,12 +158,19 @@ class PlaywrightDesktop:
         - screenshot(window=..., region=...) as telegram_gui does - raised
         TypeError the first time it drove a Chrome/Edge/Electron target
         (@runtime_checkable only checks names, not signatures). `window` is
-        ignored: the page is the window. A Rect passed positionally is still
+        honoured: a window Element from find_window carries its page as
+        .handle, so capturing it gives THAT page even after find_window has
+        switched self._page to another one. A Rect passed positionally is still
         read as the region, for older callers.
         """
         if isinstance(window, Rect) and region is None:
             window, region = None, window
-        if self._page is None:
+        page = getattr(window, "handle", None) if window is not None else None
+        if page is not None and hasattr(page, "screenshot"):
+            target = page
+        else:
+            target = self._page
+        if target is None:
             raise RuntimeError("PlaywrightDesktop.launch() must be called first")
 
         clip = None
@@ -174,7 +181,7 @@ class PlaywrightDesktop:
                 "width": region.width,
                 "height": region.height,
             }
-        return await self._page.screenshot(clip=clip)
+        return await target.screenshot(clip=clip)
 
     async def close(self) -> None:
         if self._browser is not None:

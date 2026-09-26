@@ -286,15 +286,15 @@ def test_playwright_screenshot_accepts_the_protocol_signature():
     assert asyncio.run(p.screenshot(r)) == b"png"                       # legacy positional
     assert seen[0] == seen[1] == {"x": 1, "y": 2, "width": 10, "height": 20}
 
-
-def test_set_text_that_did_not_stick_uses_the_fallback_and_skips_enter(monkeypatch):
+def _receiver(monkeypatch, read_back, enter=True):
+    """A ControlReceiver whose control reads back `read_back` (callable or str)."""
     from ufo.automator.ui_control import controller as ctl
 
     class Ctrl:
         iface_value = None
 
         def window_text(self):
-            return ""                                # the text never arrived
+            return read_back() if callable(read_back) else read_back
 
         def set_text(self, text):
             pass
@@ -309,10 +309,60 @@ def test_set_text_that_did_not_stick_uses_the_fallback_and_skips_enter(monkeypat
 
     r.atomic_execution = atomic
     monkeypatch.setattr(ctl.ufo_config.system, "input_text_api", "set_text", raising=False)
-    monkeypatch.setattr(ctl.ufo_config.system, "input_text_enter", True, raising=False)
+    monkeypatch.setattr(ctl.ufo_config.system, "input_text_enter", enter, raising=False)
     monkeypatch.setattr(ctl.ufo_config.system, "input_text_inter_key_pause", 0.0, raising=False)
+    monkeypatch.setattr(ctl.time, "sleep", lambda s: None)
+    return r, calls
+
+
+def test_set_text_that_did_not_stick_is_retyped_and_THEN_submitted(monkeypatch):
+    r, calls = _receiver(monkeypatch, "")            # the text never arrived
     r.set_edit_text({"text": "hello"})
     names = [c[0] for c in calls]
     assert names[0] == "set_text"
-    assert names[1] == "type_keys" and "hello" in (calls[1][1] or "")  # keystroke fallback ran
-    assert ("type_keys", "{ENTER}") not in calls                       # no Enter on an empty field
+    assert names[1] == "type_keys" and "hello" in (calls[1][1] or "")   # keystroke fallback ran
+    assert calls[-1] == ("type_keys", "{ENTER}")                        # and the message is sent
+    assert calls.count(("type_keys", "{ENTER}")) == 1
+
+
+def test_line_ending_differences_are_not_a_failure(monkeypatch):
+    """'a\\nb' stored as 'a\\r\\nb' must not trigger the retype (it would send
+    each line as its own message)."""
+    r, calls = _receiver(monkeypatch, "line one\r\nline two")
+    r.set_edit_text({"text": "line one\nline two"})
+    assert [c[0] for c in calls] == ["set_text", "type_keys"]           # set_text, then Enter only
+    assert calls[1] == ("type_keys", "{ENTER}")
+
+
+def test_asynchronously_updating_control_is_given_time(monkeypatch):
+    reads = iter(["", "", "hello"])                  # value appears on the 3rd read
+    r, calls = _receiver(monkeypatch, lambda: next(reads, "hello"))
+    r.set_edit_text({"text": "hello"})
+    assert [c[0] for c in calls] == ["set_text", "type_keys"] and calls[1][1] == "{ENTER}"
+
+
+def test_unreadable_control_is_not_treated_as_failure(monkeypatch):
+    def boom():
+        raise RuntimeError("cross-process read denied")
+
+    r, calls = _receiver(monkeypatch, boom)
+    r.set_edit_text({"text": "hello"})
+    assert [c[0] for c in calls] == ["set_text", "type_keys"] and calls[1][1] == "{ENTER}"
+
+
+def test_playwright_screenshot_captures_the_window_it_was_given():
+    from ufo.automation.desktop import Element
+    from ufo.automation.playwright_adapter import PlaywrightDesktop
+
+    class Page:
+        def __init__(self, tag):
+            self.tag = tag
+
+        async def screenshot(self, clip=None):
+            return self.tag
+
+    p = PlaywrightDesktop.__new__(PlaywrightDesktop)
+    a, b = Page(b"A"), Page(b"B")
+    p._page = b                                      # find_window('B') was called last
+    assert asyncio.run(p.screenshot(window=Element(handle=a, name="A"))) == b"A"
+    assert asyncio.run(p.screenshot()) == b"B"

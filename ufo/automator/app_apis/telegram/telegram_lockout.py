@@ -4,7 +4,7 @@ Displays a MODAL overlay:
 - The rest of the screen stays visible but slightly greyed out (dimmed)
 - A centered message card shows automation status / countdown
 - Clicks and keys are captured by the overlay (machine unusable)
-- ESC = STOP automation | P = PAUSE/RESUME (reliable global polling)
+- Ctrl+Shift+Q = STOP (also Scroll Lock / F12 / ESC) | P = PAUSE/RESUME (RegisterHotKey)
 
 While locked, the AI injects input into Telegram via short "input bursts":
 the overlay momentarily yields foreground so SendInput reaches Telegram,
@@ -41,7 +41,7 @@ class ScreenLockout:
         on_pause: Optional[Callable] = None,
         stop_key: Optional[object] = None,
         pause_key: Optional[int] = None,
-        stop_key_label: str = "Ctrl+Shift+Q (or ScrollLock/F12)",
+        stop_key_label: str = "Ctrl+Shift+Q",
         pause_key_label: str = "P",
         cancel_via_esc: bool = True,
     ):
@@ -66,8 +66,11 @@ class ScreenLockout:
         """
         self._on_stop = on_stop
         self._on_pause = on_pause
-        # Cancel hotkeys preset - SIMPLE single-key first (Scroll Lock = dead
-        # key, impossible to type by accident), F12 backup, ESC silent backup.
+        # Cancel hotkeys preset. ORDER MATTERS: hotkey ids are 1..N in this order
+        # (verify_hotkeys.py derives them from it). Ctrl+Shift+Q first - it is
+        # the key AGENTS.md RULE 1 names - then the single-key extras (Scroll
+        # Lock is a dead key, F12 a backup); ESC is appended below as the silent
+        # emergency cancel.
         MOD_CONTROL = 0x0002
         MOD_SHIFT = 0x0004
         if stop_key is None:

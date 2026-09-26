@@ -224,6 +224,57 @@ class ControlReceiver(ReceiverBasic):
         """
         return params.get('text', '')
 
+    def _submit_if_configured(self, method_name: str) -> None:
+        """Press Enter after text entry when input_text_enter is on - on EVERY
+        success path, fallbacks included (they used to skip it, leaving the
+        message typed but unsent while reporting success)."""
+        if ufo_config.system.input_text_enter and method_name in ['type_keys', 'set_text', 'set_edit_text', 'set_window_text']:
+            self.atomic_execution('type_keys', params={'keys': '{ENTER}'})
+
+    def _read_control_text(self) -> Optional[str]:
+        """Current text of the control, or None when it cannot be read."""
+        try:
+            if hasattr(self.control, 'iface_value') and self.control.iface_value:
+                return self.control.iface_value.CurrentValue
+            return self.control.window_text() if self.control is not None else None
+        except Exception:
+            return None
+
+    def _is_password_control(self) -> bool:
+        try:
+            return bool(self.control.element_info.element.CurrentIsPassword)
+        except Exception:
+            return False
+
+    def _text_landed(self, expected: str, attempts: int = 3, delay: float = 0.15) -> Optional[bool]:
+        """Did `expected` end up in the control? True / False / None (cannot tell).
+
+        Comparison ignores all whitespace, so a control that stores '\\n' as
+        '\\r\\n' or '\\r' still matches. A password field (reads back masked or
+        empty) and an unreadable control are 'cannot tell', never 'failed'. The
+        read is retried briefly for controls that update asynchronously. Only a
+        definite False may trigger the fallback: a false negative there retypes
+        the text with keystrokes, turning each newline into Enter.
+        """
+        if not expected or self._is_password_control():
+            return None
+
+        def squash(s: str) -> str:
+            return ''.join(s.split())
+
+        want = squash(expected)
+        if not want:
+            return None
+        for i in range(attempts):
+            got = self._read_control_text()
+            if got is None:
+                return None
+            if want in squash(got):
+                return True
+            if i < attempts - 1:
+                time.sleep(delay)
+        return False
+
     def set_edit_text(self, params: Dict[str, str]) -> str:
         """
         Set the edit text of the control element.
@@ -254,30 +305,27 @@ class ControlReceiver(ReceiverBasic):
             result = self.atomic_execution(method_name, args)
             if isinstance(result, str) and ("doesn't have a method named" in result or result.startswith('An error occurred')):
                 raise Exception(result)
-            if method_name in ['set_text', 'set_edit_text']:
-                expected_text = args.get('text', '')
-                try:
-                    win_text = self.control.iface_value.CurrentValue if hasattr(self.control, 'iface_value') and self.control.iface_value else self.control.window_text() if self.control is not None else ''
-                except Exception:
-                    win_text = None  # unreadable control: cannot verify, do not block
-                if expected_text and win_text is not None and expected_text not in win_text:
-                    # The call "succeeded" but the text is not there (custom,
-                    # read-only or disabled control). Raise so the except-block's
-                    # real fallbacks (ValuePattern, type_keys, pyautogui) run -
-                    # a warning here returned success and then pressed Enter on
-                    # an empty/stale field.
-                    raise Exception(f"expected_text not in control text after {method_name}")
-            if ufo_config.system.input_text_enter and method_name in ['type_keys', 'set_text', 'set_edit_text']:
-                self.atomic_execution('type_keys', params={'keys': '{ENTER}'})
+            if method_name in ['set_text', 'set_edit_text'] and self._text_landed(args.get('text', '')) is False:
+                # The call "succeeded" but the text is provably not there
+                # (custom, read-only or disabled control). Raise so the
+                # except-block's real fallbacks run, instead of reporting
+                # success and pressing Enter on an empty/stale field.
+                raise Exception(f'text not present in control after {method_name}')
+            self._submit_if_configured(method_name)
             return result
         except Exception as e:
             text_to_type = args.get('text', '')
             if method_name in ['set_text', 'set_edit_text', 'set_window_text']:
-                logger.warning(f"{self.control} doesn't have a method named {method_name}, trying UIA ValuePattern and fallback methods")
+                logger.warning(f'{method_name} on {self.control} did not set the text ({e}); trying UIA ValuePattern and keystroke fallbacks')
                 try:
                     if hasattr(self.control, 'iface_value') and self.control.iface_value:
                         self.control.iface_value.SetValue(text_to_type)
-                        return f'Successfully set text via UIA ValuePattern: {text_to_type}'
+                        # Same mechanism pywinauto's UIA set_text uses: verify it
+                        # rather than trusting it a second time.
+                        if self._text_landed(text_to_type) is not False:
+                            self._submit_if_configured(method_name)
+                            return f'Successfully set text via UIA ValuePattern: {text_to_type}'
+                        logger.warning('ValuePattern.SetValue was accepted but the text did not appear; typing instead')
                 except Exception as val_err:
                     logger.warning(f'ValuePattern.SetValue failed: {val_err}')
                 clear_text_keys = '^a{BACKSPACE}'
@@ -287,6 +335,7 @@ class ControlReceiver(ReceiverBasic):
                     type_keys_result = self.atomic_execution('type_keys', args)
                     if isinstance(type_keys_result, str) and type_keys_result.startswith('An error occurred'):
                         raise RuntimeError(type_keys_result)
+                    self._submit_if_configured(method_name)
                     return type_keys_result
                 except Exception:
                     try:
@@ -295,6 +344,7 @@ class ControlReceiver(ReceiverBasic):
                         pyautogui.hotkey('ctrl', 'a')
                         pyautogui.press('backspace')
                         pyautogui.write(str(text_to_type), interval=inter_key_pause)
+                        self._submit_if_configured(method_name)
                         return f'Typed text via fallback: {text_to_type}'
                     except Exception as fallback_error:
                         return f'An error occurred: {fallback_error}'
