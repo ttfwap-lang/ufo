@@ -9,7 +9,14 @@ from typing import Any, List, Optional, Tuple
 
 from ufo.automation.desktop import DesktopAutomation, Element, Rect
 from ufo.automation.factory import get_desktop_automation
-from ufo.automator.app_apis.telegram.telegram_privacy import PrivacyRedactor
+from ufo.automator.app_apis.telegram.telegram_privacy import PrivacyRedactor, REDACTED
+from ufo.automator.app_apis.telegram.chat_names import (
+    SAVED_MESSAGES,
+    canonical_chat_name,
+    chat_key,
+    is_saved_messages,
+    pick_best_match,
+)
 
 
 @dataclass
@@ -37,10 +44,16 @@ class Message:
 
 class TelegramGUIController:
     """Hybrid controller for Telegram Desktop using UIA + Keyboard + Visual."""
-    
+
     # Telegram Desktop window class name
     WINDOW_CLASS = "class MainWindow"
     PROCESS_NAME = "Telegram.exe"
+
+    # The self-chat is "Saved Messages" (two words). Never spelled run-together:
+    # Telegram's sidebar search is a substring match on the real name, so
+    # "SavedMessages" finds nothing. See chat_names.py - every chat name
+    # entering this controller is canonicalised through it.
+    SAVED_MESSAGES = SAVED_MESSAGES
     
     # Keyboard shortcuts
     SHORTCUTS = {
@@ -59,7 +72,12 @@ class TelegramGUIController:
         "contacts": "^o",              # Ctrl+O
         "calls": "^l",                 # Ctrl+L
     }
-    
+
+    # Characters pywinauto's send_keys parses as syntax (+ Shift, ^ Ctrl,
+    # % Alt, ~ Enter, () grouping, {} key names). Typed as free text they turn
+    # "50% off" into 5, 0, ALT+o, f, f - see _literal_keys.
+    _SEND_KEYS_SYNTAX = frozenset("+^%~(){}")
+
     def __init__(self, desktop: Optional[DesktopAutomation] = None):
         """Initialize the Telegram GUI controller.
         
@@ -591,7 +609,20 @@ class TelegramGUIController:
             print(f"[troubleshoot] failed: {e}")
             return None
 
-    def _type_keys_locked(self, keys: str) -> bool:
+    @classmethod
+    def _literal_keys(cls, text: str) -> str:
+        """Escape `text` so send_keys types it verbatim.
+
+        Without this, `%`/`+`/`^`/`~` become Alt/Shift/Ctrl/Enter chords and
+        `(`, `)`, `{`, `}` are consumed as grouping. Spaces are handled
+        separately by `with_spaces=True` (send_keys drops them by default, so
+        "Saved Messages" was typed as "SavedMessages").
+        """
+        return "".join(
+            "{%s}" % ch if ch in cls._SEND_KEYS_SYNTAX else ch for ch in text
+        )
+
+    def _type_keys_locked(self, keys: str, literal: bool = False) -> bool:
         """Type keys while the lockout overlay is active.
 
         The overlay stays TOPMOST (screen dimmed, user blocked). For each
@@ -612,7 +643,10 @@ class TelegramGUIController:
                 if not self._ensure_foreground():
                     return False
                 import pywinauto.keyboard as keyboard
-                keyboard.send_keys(keys)
+                if literal:
+                    keyboard.send_keys(self._literal_keys(keys), with_spaces=True)
+                else:
+                    keyboard.send_keys(keys)
                 return True
             finally:
                 # ALWAYS release the burst - otherwise the focus keeper
@@ -626,18 +660,38 @@ class TelegramGUIController:
                 pass
             return False
 
-    async def _type_keys_safe(self, keys: str) -> bool:
+    async def _type_text_safe(self, text: str) -> bool:
+        """Type FREE TEXT verbatim (chat names, messages), one line at a time.
+
+        `_type_keys_safe` takes send_keys *syntax* ("{ENTER}", "^a") and is for
+        shortcuts. Anything that is user/LLM text must come through here so
+        spaces survive and `% + ^ ~ ( ) { }` are typed as themselves. Newlines
+        become Shift+Enter (a plain Enter would send the message early).
+        """
+        lines = (text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        for i, line in enumerate(lines):
+            if line and not await self._type_keys_safe(line, literal=True):
+                return False
+            if i < len(lines) - 1:
+                if not await self._type_keys_safe(self.SHORTCUTS["new_line"]):
+                    return False
+        return True
+
+    async def _type_keys_safe(self, keys: str, literal: bool = False) -> bool:
         """Type keys ONLY into the Telegram window, respecting lockout mode.
 
         MANDATORY WARNING: the 5s on-top countdown must be shown before any
         input (even typing). While typing, the warning gate's input burst is
         active so the AI's own keys never trigger the cancel/pause hotkeys.
+
+        `keys` is send_keys syntax unless `literal=True`, in which case it is
+        plain text (see `_type_text_safe`, which is what callers should use).
         """
         import asyncio as _asyncio
 
         # Locked mode: overlay owns foreground -> burst injection
         if self.lockout_active and self._lockout is not None:
-            return await _asyncio.to_thread(self._type_keys_locked, keys)
+            return await _asyncio.to_thread(self._type_keys_locked, keys, literal)
 
         # Unlocked mode: MANDATORY warning gate first
         if not self._automation_warning_armed:
@@ -657,7 +711,12 @@ class TelegramGUIController:
                 return False
             try:
                 import pywinauto.keyboard as keyboard
-                await _asyncio.to_thread(keyboard.send_keys, keys)
+                if literal:
+                    await _asyncio.to_thread(
+                        keyboard.send_keys, self._literal_keys(keys),
+                        with_spaces=True)
+                else:
+                    await _asyncio.to_thread(keyboard.send_keys, keys)
                 return True
             except Exception as e:
                 print(f"Global type keys failed: {e}")
@@ -786,13 +845,16 @@ class TelegramGUIController:
             if not self._chat_list:
                 return None
 
-        normalized = name.strip().lower()
+        # Match on the spacing-agnostic key, so a caller that wrote
+        # "SavedMessages" still resolves the "Saved Messages" row.
+        target = chat_key(name)
 
         def _do_find():
             try:
                 list_spec = self._chat_list.handle  # WindowSpecification
                 items = list_spec.children(control_type="ListItem")
-                # First pass: exact prefix/name match
+                # First pass: exact match on the row's first token, which is
+                # the chat name before the ", <preview>" suffix.
                 for item in items:
                     try:
                         text = (item.window_text() or "").strip()
@@ -800,8 +862,8 @@ class TelegramGUIController:
                         continue
                     if not text:
                         continue
-                    first_token = text.split(",")[0].strip().lower()
-                    if first_token == normalized:
+                    first_token = text.split(",")[0].strip()
+                    if chat_key(first_token) == target:
                         return item
                 # Second pass: contains match
                 for item in items:
@@ -809,7 +871,7 @@ class TelegramGUIController:
                         text = (item.window_text() or "").strip()
                     except Exception:
                         continue
-                    if normalized in text.lower():
+                    if target in chat_key(text):
                         return item
                 return None
             except Exception:
@@ -877,7 +939,7 @@ class TelegramGUIController:
             chat_name = name.split(",")[0].strip() if name else ""
             return ChatItem(
                 name=chat_name[:100],
-                last_message_preview=PrivacyRedactor.REDACTED,
+                last_message_preview=REDACTED,
                 element=element
             )
         except Exception:
@@ -920,7 +982,16 @@ class TelegramGUIController:
                 items = list_spec.children(control_type="ListItem")
                 for item in items[:max_chats]:
                     try:
-                        text = (item.window_text() or "").strip()
+                        # Handle encoding issues with emojis/unicode in window_text
+                        raw_text = item.window_text()
+                        if raw_text is None:
+                            continue
+                        # Ensure text is properly decoded - window_text may return
+                        # bytes or str with encoding issues on Windows
+                        if isinstance(raw_text, bytes):
+                            text = raw_text.decode("utf-8", errors="replace").strip()
+                        else:
+                            text = str(raw_text).encode("utf-8", errors="replace").decode("utf-8").strip()
                     except Exception:
                         continue
                     if not text:
@@ -944,7 +1015,7 @@ class TelegramGUIController:
                         results.append(
                             ChatItem(
                                 name=chat_name,
-                                last_message_preview=PrivacyRedactor.REDACTED,
+                                last_message_preview=REDACTED,
                                 element=Element(
                                     handle=item,
                                     name=chat_name,
@@ -979,6 +1050,12 @@ class TelegramGUIController:
         """
         if not self._connected:
             await self.connect()
+
+        # Canonicalise once, at the boundary. Everything downstream - the
+        # sidebar walk, the title check, and the search box that needs the
+        # exact display spelling - then uses one consistent name, and
+        # "SavedMessages" can no longer silently find nothing.
+        chat_name = canonical_chat_name(chat_name) or chat_name
 
         # Snapshot the window state to verify the click actually changed UI
         before = await self._capture_window_state_hash()
@@ -1050,11 +1127,18 @@ class TelegramGUIController:
         return await self._open_chat_by_keyboard(chat_name)
 
     def _title_matches_chat(self, title: str, chat_name: str) -> bool:
-        """True if the window title contains the chat name (active chat)."""
+        """True if the window title contains the chat name (active chat).
+
+        Telegram retitles the window to "<chat name> - (n)" once the chat is
+        open. Compared on the spacing-agnostic key so the verification cannot
+        fail purely because of how the name was spelled by the caller.
+        """
         if not title or not chat_name:
             return False
-        t = title.lower()
-        n = chat_name.lower().strip()
+        t = chat_key(title)
+        n = chat_key(chat_name)
+        if not n:
+            return False
         return n in t or n.split("(")[0].strip() in t
 
     async def _click_at_rect(self, rect: Rect) -> bool:
@@ -1110,28 +1194,94 @@ class TelegramGUIController:
         except Exception:
             return None
     
+    async def _find_sidebar_search(self) -> Optional[Element]:
+        """Find the sidebar GLOBAL search field (top-left Ui::InputField "Search").
+
+        Resolved fresh each call. The message box is also a Ui::InputField
+        (named "Write a message..."), so the accessible name is what tells them
+        apart; of several candidates the top-most wins.
+        """
+        if not self._window:
+            return None
+
+        def _do_find():
+            try:
+                best = None
+                for ed in self._window.handle.descendants(control_type="Edit"):
+                    try:
+                        info = ed.element_info
+                        if "search" not in (info.name or "").lower():
+                            continue
+                        r = info.rectangle
+                        if r is None or r.right <= r.left or r.bottom <= r.top:
+                            continue
+                        if best is None or r.top < best[0].top:
+                            best = (r, ed, info.class_name or "")
+                    except Exception:
+                        continue
+                if best is None:
+                    return None
+                r, ed, cls = best
+                return Element(handle=ed, name="Search", class_name=cls,
+                               rect=Rect(left=r.left, top=r.top,
+                                         right=r.right, bottom=r.bottom))
+            except Exception:
+                return None
+
+        return await asyncio.to_thread(_do_find)
+
     async def _open_chat_by_keyboard(self, chat_name: str) -> bool:
-        """Fallback: open chat using Ctrl+F search + enter."""
+        """Fallback: open a chat through the sidebar GLOBAL search field.
+
+        RULE 5: the sidebar field, never Ctrl+F (that is message search scoped
+        to the open chat and "finds" nothing). The old version pressed Ctrl+F,
+        typed, pressed Enter and returned True unconditionally - if the focus
+        did not land in a search box the chat name was typed into the OPEN
+        chat's message box and Enter SENT it. So now: refuse to type unless the
+        field was found and clicked, and report success only when the window
+        title proves the chat opened. No Escape on success (Esc closes the
+        open chat in Telegram Desktop); Escape only to clean up a failure.
+        """
         if not self._window:
             return False
-        
+
+        # The name is typed into the box, so it MUST be the exact display
+        # spelling - Telegram matches the query as a substring of the real name.
+        chat_name = canonical_chat_name(chat_name) or chat_name
+
         try:
-            # Press Ctrl+F to focus search
-            await self._type_keys_safe(self.SHORTCUTS["search"])
+            field = await self._find_sidebar_search()
+            if field is None or field.rect is None:
+                print("[open_chat] sidebar Search field not found - refusing "
+                      "to type blind")
+                await self.troubleshoot_screenshot("search_field_missing")
+                return False
+
+            if not await self._click_at_rect(field.rect):
+                await self.troubleshoot_screenshot("search_click_failed")
+                return False
             await asyncio.sleep(0.3)
-            
-            # Type chat name
-            await self._type_keys_safe(chat_name)
-            await asyncio.sleep(0.5)
-            
-            # Press Enter to open first result
+
+            # Clear any stale query, then type the name verbatim.
+            if not (await self._type_keys_safe(self.SHORTCUTS["select_all"])
+                    and await self._type_keys_safe("{DEL}")
+                    and await self._type_text_safe(chat_name)):
+                await self._dismiss_overlays()
+                return False
+            await asyncio.sleep(0.6)
+
+            # Enter opens the first result; then prove it was the right one.
             await self._type_keys_safe(self.SHORTCUTS["send"])
-            await asyncio.sleep(0.5)
-            
-            # Escape to clear search
-            await self._type_keys_safe(self.SHORTCUTS["escape"])
-            
-            return True
+            await asyncio.sleep(0.8)
+            await self._ensure_window_fresh()
+            title = (self._window.name or "") if self._window else ""
+            if self._title_matches_chat(title, chat_name):
+                return True
+
+            print(f"[open_chat] search for '{chat_name}' did not open it")
+            await self.troubleshoot_screenshot("open_chat_search_failed")
+            await self._dismiss_overlays()
+            return False
         except Exception as e:
             print(f"Keyboard navigation failed: {e}")
             return False
@@ -1140,8 +1290,9 @@ class TelegramGUIController:
         """Search for chats.
         
         Args:
-            query: Search query.
-            
+            query: Search query. Canonicalised to Telegram's exact display
+                spelling, so "SavedMessages" searches "Saved Messages".
+                
         Returns:
             List of matching chats.
         """
@@ -1186,15 +1337,19 @@ class TelegramGUIController:
             # Method 2: Tab to focus input (most reliable)
             await self._type_keys_safe(self.SHORTCUTS["focus_input"])
             await asyncio.sleep(0.2)
-            
-            # Type the message
-            await self._type_keys_safe(text)
+
+            # Type the message verbatim (spaces and % + ^ ~ ( ) survive), and
+            # never press Enter, or report success, if the text did not go in
+            # (e.g. the countdown was cancelled).
+            if not await self._type_text_safe(text):
+                return False
             await asyncio.sleep(0.2)
-            
+
             # Press Enter to send
-            await self._type_keys_safe(self.SHORTCUTS["send"])
+            if not await self._type_keys_safe(self.SHORTCUTS["send"]):
+                return False
             await asyncio.sleep(0.3)
-            
+
             return True
         except Exception as e:
             print(f"Failed to send message: {e}")
@@ -1210,7 +1365,8 @@ class TelegramGUIController:
             await asyncio.sleep(0.2)
             
             for i, line in enumerate(lines):
-                await self._type_keys_safe(line)
+                if not await self._type_text_safe(line):
+                    return False
                 if i < len(lines) - 1:
                     await self._type_keys_safe(self.SHORTCUTS["new_line"])
                     await asyncio.sleep(0.1)

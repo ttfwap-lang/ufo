@@ -53,6 +53,13 @@ from ufo.automator.app_apis.telegram.telegram_human_mouse import (
     FASTEST_PEAK_PX_PER_S,
     TARGET_PEAK_PX_PER_S,
 )
+from ufo.automator.app_apis.telegram.chat_names import (
+    SAVED_MESSAGES,
+    canonical_chat_name,
+    chat_key,
+    is_saved_messages,
+    pick_best_match,
+)
 
 __all__ = [
     # GUI
@@ -90,4 +97,10 @@ __all__ = [
     # Conversation learning (privacy-first)
     "ConversationLearner",
     "load_bot_skill_with_conversation",
+    # Canonical chat names ("Saved Messages", never "SavedMessages")
+    "SAVED_MESSAGES",
+    "canonical_chat_name",
+    "chat_key",
+    "is_saved_messages",
+    "pick_best_match",
 ]

@@ -161,7 +161,7 @@ async def main():
             cx, cy = (rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2
             await c._click_at_rect(Rect(left=cx - 15, top=cy - 15, right=cx + 15, bottom=cy + 15))
             await asyncio.sleep(0.8)
-            await c._type_keys_safe(name)
+            await c._type_text_safe(name)
             await asyncio.sleep(2.0)
             await c._type_keys_safe("{ENTER}")
             await asyncio.sleep(2.0)
@@ -341,7 +341,7 @@ async def main():
             cx, cy = (rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2
             await c._click_at_rect(Rect(left=cx - 15, top=cy - 15, right=cx + 15, bottom=cy + 15))
             await asyncio.sleep(0.6)
-        await c._type_keys_safe(text)
+        await c._type_text_safe(text)
         await asyncio.sleep(0.8)
         await c._type_keys_safe(c.SHORTCUTS["send"])
         await asyncio.sleep(2.4)

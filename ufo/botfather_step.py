@@ -142,14 +142,22 @@ async def main():
         await snap(c)
 
     elif cmd == "seek":
+        # RULE 5: BotFather is found through the SIDEBAR GLOBAL SEARCH field,
+        # never Ctrl+F (message search scoped to the open chat -> false
+        # "No Results", and typing there can land in the message box).
         await c._type_keys_safe(c.SHORTCUTS["escape"])
         await asyncio.sleep(0.5)
-        await c._type_keys_safe(c.SHORTCUTS["search"])
-        await asyncio.sleep(0.4)
-        await c._type_keys_safe(c.SHORTCUTS["select_all"])
-        await asyncio.sleep(0.2)
-        await c._type_keys_safe(sys.argv[2] if len(sys.argv) > 2 else "BotFather")
-        await asyncio.sleep(1.2)
+        field = await c._find_sidebar_search()
+        if field is None or field.rect is None:
+            print("sidebar Search field not found - refusing to type blind")
+            await c.troubleshoot_screenshot("botfather_seek_no_field")
+        else:
+            await c._click_at_rect(field.rect)
+            await asyncio.sleep(0.4)
+            await c._type_keys_safe(c.SHORTCUTS["select_all"])
+            await asyncio.sleep(0.2)
+            await c._type_text_safe(sys.argv[2] if len(sys.argv) > 2 else "BotFather")
+            await asyncio.sleep(1.2)
         await snap(c)
 
     elif cmd == "focus":
@@ -257,7 +265,7 @@ async def main():
 
     elif cmd == "type":
         text = sys.argv[2]
-        ok = await c._type_keys_safe(text)
+        ok = await c._type_text_safe(text)
         await asyncio.sleep(0.4)
         await c._type_keys_safe(c.SHORTCUTS["send"])
         print("typed:", ok, repr(text)[:40])
@@ -286,7 +294,7 @@ async def main():
         # Tab to focus message input, type, send
         await c._type_keys_safe(c.SHORTCUTS["focus_input"])
         await asyncio.sleep(0.4)
-        ok = await c._type_keys_safe(text)
+        ok = await c._type_text_safe(text)
         await asyncio.sleep(0.3)
         await c._type_keys_safe(c.SHORTCUTS["send"])
         print("typed:", ok, repr(text)[:40])
