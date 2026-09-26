@@ -43,6 +43,12 @@ node_modules/*
 # under version control and the copies on the box, in gx10_runner/ and in docs drifted apart.
 !scripts/dgx/
 !scripts/gx10_*.ps1
+# ...and the gx10_*.py diagnostics. These are the tools that MEASURED the box
+# (end-to-end latency/throughput, the read-only survey, and the per-ssh-client
+# tunnel cost). A measurement that is not committed cannot be re-run when the
+# next person suspects the tunnel is slow again - which is exactly the wrong
+# time to be reconstructing it from a chat log.
+!scripts/gx10_*.py
 # fastwin.ps1: shared fast port/task helpers dot-sourced by the tracked watchers
 # (bridge_watchdog.ps1, ufo_scan_win.ps1) - they break on a clean clone without it.
 !scripts/fastwin.ps1

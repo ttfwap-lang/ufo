@@ -32,8 +32,18 @@ $mutex = New-Object System.Threading.Mutex($false, "Local\ufo-gx10-tunnel")
 if (-not $mutex.WaitOne(0)) { exit 0 }
 
 Write-Log "keepalive started (pid $PID)"
+# The system ssh.exe on this PC adds a fixed ~60 ms to every forwarded round
+# trip; the newer client Git ships adds ~2.4 ms. Get-Gx10SshExe has the full
+# bisect. Do not oversell it though - measured on REAL completions through both
+# clients the difference is 1%, 4% and -3% across 1, 8 and 64 output tokens,
+# i.e. noise. It is a per-request constant, so it is only visible on small
+# calls: /v1/models and health probes go 62 ms -> 2 ms. It matters for volume
+# and for latency-sensitive small calls, not for generation time.
+$sshExe = Get-Gx10SshExe
+Write-Log "ssh client: $sshExe"
 $backoff = 5
 $lastState = $null
+$lastHost = $null
 try {
     while ($true) {
         $missing = @(Get-MissingPorts)
@@ -42,14 +52,24 @@ try {
         # Find an address whose sshd actually answers before launching ssh at it.
         # (gx10.local is not always resolvable, and ssh at a starved sshd only adds
         # more half-open connections to it.) Log on state change, not every loop.
-        $target = Resolve-Gx10Target
+        #
+        # -ProbeAll compares every candidate and takes the fastest. The box has a
+        # wired NIC at ~2 ms and a Wi-Fi radio at ~68 ms and BOTH answer a banner,
+        # so "first that responds" can pin every forwarded port to the slow radio.
+        # It is safe to compare here because this branch only runs once something
+        # already answered; on a box that is down, -ProbeAll would only add
+        # stalled banner exchanges, which is the MaxStartups hazard.
+        $target = Resolve-Gx10Target -ProbeAll
         if (-not $target.Host) {
             if ($target.State -ne $lastState) { Write-Log "gx10 not reachable: $($target.State) [$($target.Detail)]"; $lastState = $target.State }
             Start-Sleep -Seconds $backoff
             $backoff = [Math]::Min($backoff * 2, 60)
             continue
         }
-        if ($lastState -ne 'ok') { Write-Log "gx10 reachable via $($target.Host) [$($target.Detail)]"; $lastState = 'ok' }
+        if ($lastState -ne 'ok' -or $target.Host -ne $lastHost) {
+            Write-Log "gx10 reachable via $($target.Host) ($($target.Ms)ms) [$($target.Detail)]"
+            $lastState = 'ok'; $lastHost = $target.Host
+        }
 
         $sshArgs = @("-N", "-o", "BatchMode=yes", "-o", "ExitOnForwardFailure=yes",
                      "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=4",
@@ -58,7 +78,7 @@ try {
         $sshArgs += "flak3dd@$($target.Host)"
         Write-Log "starting ssh for ports $($missing -join ',')"
         $started = Get-Date
-        $proc = Start-Process -FilePath "ssh.exe" -ArgumentList $sshArgs -NoNewWindow -PassThru
+        $proc = Start-Process -FilePath $sshExe -ArgumentList $sshArgs -NoNewWindow -PassThru
         $null = $proc.Handle  # keep the handle so ExitCode is available after exit
 
         # Watch: restart if ssh exits, or if a needed port stops listening

@@ -32,7 +32,7 @@ function Write-Log([string]$msg) {
 # piped to a native exe), no quoting hazards, and no `pgrep -f` self-match on the remote shell.
 function Invoke-Gx10Script($sshBase, [string]$script) {
     $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($script -replace "`r", "")))
-    & ssh.exe @sshBase "echo $b64 | base64 -d | bash" 2>&1 | Out-String
+    & (Get-Gx10SshExe) @sshBase "echo $b64 | base64 -d | bash" 2>&1 | Out-String
 }
 
 $START = @'
@@ -70,7 +70,7 @@ try {
                      "-i", $key, "flak3dd@$($t.Host)")
         if (-not $started) {
             # A banner is not proof the box can run a command; the upload has to work first.
-            & scp.exe -o BatchMode=yes -o ConnectTimeout=25 -i $key $bundle "flak3dd@$($t.Host):/tmp/gx10-dgx.tgz" 2>&1 | Out-Null
+            & (Get-Gx10ScpExe) -o BatchMode=yes -o ConnectTimeout=25 -i $key $bundle "flak3dd@$($t.Host):/tmp/gx10-dgx.tgz" 2>&1 | Out-Null
             if ($LASTEXITCODE -ne 0) { Write-Log "upload failed (rc=$LASTEXITCODE); box answered a banner but not the copy - retrying"; Start-Sleep -Seconds $backoff; continue }
             $out = Invoke-Gx10Script $sshBase $START
             if ($LASTEXITCODE -ne 0 -or $out -notmatch 'STARTED') { Write-Log "start failed (rc=$LASTEXITCODE): $($out.Trim())"; Start-Sleep -Seconds $backoff; continue }

@@ -57,7 +57,7 @@ function Invoke-Gx10Script($sshBase, [string]$script) {
     # to a native exe, corrupting the first remote line - verified), no quoting hazards, and the
     # remote shell's command line is just base64 so it can never contain the word omniparser.
     $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($script -replace "`r", "")))
-    & ssh.exe @sshBase "echo $b64 | base64 -d | bash" 2>&1 | Out-String
+    & (Get-Gx10SshExe) @sshBase "echo $b64 | base64 -d | bash" 2>&1 | Out-String
 }
 
 $DIAG = @'
