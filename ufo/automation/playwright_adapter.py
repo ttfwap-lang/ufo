@@ -188,6 +188,6 @@ class PlaywrightDesktop:
             await self._browser.close()
             self._browser = None
         if self._playwright_cm is not None:
-            await self._playwright_cm.__aexit__(None, None, None)
+            await self._playwright_cm.stop()
             self._playwright_cm = None
             self._playwright = None

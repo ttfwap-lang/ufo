@@ -30,15 +30,29 @@ from ufo.automator.puppeteer import ReceiverManager
 ufo_config = LazyUFOConfig()
 logger = logging.getLogger(__name__)
 _PLAYWRIGHT_CLIENT = None
+_PLAYWRIGHT_INSTANCE = None
+_PLAYWRIGHT_BROWSER = None
 
 def _get_playwright_cdp_page():
-    global _PLAYWRIGHT_CLIENT
+    global _PLAYWRIGHT_CLIENT, _PLAYWRIGHT_INSTANCE, _PLAYWRIGHT_BROWSER
     if _PLAYWRIGHT_CLIENT is None:
         from playwright.sync_api import sync_playwright
-        p = sync_playwright().start()
-        browser = p.chromium.connect_over_cdp('http://localhost:9222')
-        _PLAYWRIGHT_CLIENT = browser.contexts[0].pages[0]
+        _PLAYWRIGHT_INSTANCE = sync_playwright().start()
+        _PLAYWRIGHT_BROWSER = _PLAYWRIGHT_INSTANCE.chromium.connect_over_cdp('http://localhost:9222')
+        _PLAYWRIGHT_CLIENT = _PLAYWRIGHT_BROWSER.contexts[0].pages[0]
     return _PLAYWRIGHT_CLIENT
+
+def _cleanup_playwright():
+    """Close Playwright resources held by _get_playwright_cdp_page."""
+    global _PLAYWRIGHT_CLIENT, _PLAYWRIGHT_INSTANCE, _PLAYWRIGHT_BROWSER
+    if _PLAYWRIGHT_CLIENT is not None:
+        _PLAYWRIGHT_CLIENT = None
+    if _PLAYWRIGHT_BROWSER is not None:
+        _PLAYWRIGHT_BROWSER.close()
+        _PLAYWRIGHT_BROWSER = None
+    if _PLAYWRIGHT_INSTANCE is not None:
+        _PLAYWRIGHT_INSTANCE.stop()
+        _PLAYWRIGHT_INSTANCE = None
 if platform.system() == 'Windows':
     pyautogui.FAILSAFE = False
 _pywinauto_configured = False
@@ -99,8 +113,8 @@ class ControlReceiver(ReceiverBasic):
         except Exception as e:
             full_traceback = traceback.format_exc()
             message = f'An error occurred: {full_traceback}'
-            logger.warning(message)
-            result = message
+            logger.error(message)
+            raise
         return result
 
     def click_input(self, params: Dict[str, Union[str, bool]]) -> str:

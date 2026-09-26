@@ -269,3 +269,16 @@ class DistributedLockManager:
             return True
         except RuntimeError:
             return False
+
+    def release_all(self) -> int:
+        """Release all locally-held locks. Used by lifecycle on shutdown."""
+        released = 0
+        with self._local_lock_guard:
+            keys = list(self._fallback_keys)
+        for key in keys:
+            if self._release_local(key):
+                with self._local_lock_guard:
+                    self._fallback_keys.discard(key)
+                released += 1
+        logger.info(f'[DLM] Released {released} local locks via release_all.')
+        return released

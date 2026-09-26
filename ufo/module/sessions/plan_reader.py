@@ -24,11 +24,11 @@ class PlanReader:
                 try:
                     with open(plan_file, 'r', encoding='utf-8') as f:
                         lines = [line.strip() for line in f if line.strip() and (not line.strip().startswith('#'))]
-                    self.plan = {'task': os.path.basename(plan_file), 'steps': lines}
+                    self.plan = {'task': os.path.basename(plan_file), 'steps': lines, 'object': ''}
                 except Exception:
-                    self.plan = {'task': 'Unknown', 'steps': []}
+                    self.plan = {'task': 'Unknown', 'steps': [], 'object': ''}
         else:
-            self.plan = {'task': 'Empty', 'steps': []}
+            self.plan = {'task': 'Empty', 'steps': [], 'object': ''}
         self.remaining_steps = self.get_steps()
         self.support_apps = ['WINWORD.EXE', 'EXCEL.EXE', 'POWERPNT.EXE']
 
@@ -58,7 +58,8 @@ class PlanReader:
         Get the operation object in the step.
         :return: The operation object.
         """
-        return self.plan.get('object', None).lower()
+        object_name = self.plan.get('object', '')
+        return object_name.lower() if object_name is not None else ''
 
     def get_initial_request(self) -> str:
         """

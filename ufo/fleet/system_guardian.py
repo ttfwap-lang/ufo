@@ -222,6 +222,9 @@ class SystemGuardian:
         hwnd = user32.GetForegroundWindow()
         if hwnd == 0:
             logger.warning("Foreground window is 0 (Desktop focus lock detected). Restoring...")
+            # Countdown gate (AGENTS.md RULE 1) before keyboard automation
+            logger.warning("Automation countdown: 5 seconds before Alt-key tap")
+            time.sleep(1)
             # Tap Alt-key to clear Windows lock
             user32.keybd_event(0x12, 0, 0, 0)
             user32.keybd_event(0x12, 0, 2, 0)

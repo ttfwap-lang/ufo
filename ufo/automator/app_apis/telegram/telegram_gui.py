@@ -1653,7 +1653,17 @@ class TelegramGUIController:
         """Close the desktop automation connection."""
         if self._desktop:
             await self._desktop.close()
-            self._connected = False
+            self._desktop = None
+        # Release lockout resources
+        if self._warning_lockout is not None:
+            try:
+                await self._warning_lockout.release()
+            except Exception:
+                pass
+            self._warning_lockout = None
+        self._lockout = None
+        self._automation_warning_armed = False
+        self._connected = False
     
     @property
     def is_connected(self) -> bool:
