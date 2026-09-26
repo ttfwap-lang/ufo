@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # gx10_apply.sh - bring the gx10 to the intended state, in order, restarting only what differs.
+# "Differs" = concurrency (seqs), quantization, the legacy name alias. NOT the memory pool size: a
+# healthy model running a pool within policy (SparkDeck runs Venus at 0.24, the budget says 0.20) is
+# not restarted to save a few GB - that interrupts users for nothing. The free-memory policy governs.
 #   1. retire the llama.cpp Qwen 27B (gx10_retire_qwen27b.sh)          -> one Qwen on :8000
 #   2. install scripts/units + budget, enable gx10-memguard.timer      -> 5% floor / 10% target
 #   3. vLLM Qwen: recreate ONLY if its running flags differ from the budget (seqs, memory, aliases)
@@ -40,7 +43,6 @@ bash "$GUARD" --audit || true
 step "3/5 vLLM Qwen (seqs=$QWEN_SEQS, mem=$QWEN_GPU_MEM)"
 if docker ps --format '{{.Names}}' | grep -qx qwen-abliterated \
    && cmd_has qwen-abliterated --max-num-seqs "$QWEN_SEQS" \
-   && cmd_has qwen-abliterated --gpu-memory-utilization "$QWEN_GPU_MEM" \
    && alias_ok; then
   echo "already running with the intended settings - not restarting"
 elif [ "$DRY" = 1 ]; then echo "would recreate qwen-abliterated"
@@ -51,7 +53,7 @@ fi
 
 step "4/5 Venus (seqs=$VENUS_SEQS, mem=$VENUS_GPU_MEM${VENUS_QUANT:+, quant=$VENUS_QUANT})"
 if docker ps --format '{{.Names}}' | grep -qx ui-venus \
-   && cmd_has ui-venus --max-num-seqs "$VENUS_SEQS" && cmd_has ui-venus --gpu-memory-utilization "$VENUS_GPU_MEM" \
+   && cmd_has ui-venus --max-num-seqs "$VENUS_SEQS" \
    && { [ -z "${VENUS_QUANT:-}" ] || cmd_has ui-venus --quantization "$VENUS_QUANT"; }; then
   echo "already running with the intended settings - not restarting"
 elif [ "$DRY" = 1 ]; then echo "would recreate ui-venus"

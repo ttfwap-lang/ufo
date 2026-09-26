@@ -53,6 +53,7 @@ setmem 80 0 0.5 0.0
 run "" 'guard_acquire qwen-abliterated 0.35';                       check "fresh box, 0.35 fits"                      0 $RC
 run "ui-venus=0.20" 'guard_acquire qwen-abliterated 0.35';          check "0.35 + venus 0.20 = 0.55 <= 0.62"          0 $RC
 run "ui-venus=0.26" 'guard_acquire qwen-abliterated 0.56';          check "old rebalance 0.56+0.26 refused"           3 $RC
+run "ui-venus=0.24 qwen3-0.6b=0.05" 'guard_acquire qwen-abliterated 0.35'; check "box reality 0.24+0.05+0.35=0.64 with 66% free: allowed" 0 $RC
 run "ui-venus=0.20" 'guard_acquire qwen-abliterated 0.70';          check "SparkDeck 0.70+0.20 refused"               3 $RC
 echo "$OUT" | grep -q "REFUSED" && echo "PASS refusal names the reason" || echo "FAIL refusal message :: $OUT"
 setmem 110 0 0.5 0.0   # enough free memory that only the pool ceiling is in the way

@@ -18,7 +18,7 @@ _guard_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 for _f in "${GX10_BUDGET_FILE:-}" /srv/models/gx10_budget.env "$_guard_dir/gx10_budget.env"; do
   if [ -n "$_f" ] && [ -f "$_f" ]; then . "$_f"; GX10_BUDGET_SRC="$_f"; break; fi
 done
-: "${TOTAL_GB:=121}" "${MODEL_POOL_MAX:=0.62}" "${FREE_FLOOR_PCT:=5}" "${FREE_TARGET_PCT:=10}"
+: "${TOTAL_GB:=121}" "${MODEL_POOL_MAX:=0.70}" "${FREE_FLOOR_PCT:=5}" "${FREE_TARGET_PCT:=10}"
 GX10_BUDGET_SRC="${GX10_BUDGET_SRC:-built-in defaults}"
 
 _mem_kb()  { awk -v k="$1:" '$1==k{print $2}' "${GX10_PROC:-/proc}"/meminfo; }
