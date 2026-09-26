@@ -551,12 +551,19 @@ class TelegramGUIController:
             return False
         hwnd, title, cls, pid = found
 
+        # win32con must be imported here too: only win32gui was, so this raised
+        # NameError for MINIMIZED Telegram, and the `except: pass` below swallowed
+        # it. RULE 2's "restore if minimized" was therefore a silent no-op - the
+        # function reported its failure nowhere and carried on as if it had
+        # restored the window. Verified by running the original line in a scope
+        # with only win32gui imported: NameError, caught, skipped.
+        import win32con
         import win32gui
         if win32gui.IsIconic(hwnd) or not win32gui.IsWindowVisible(hwnd):
             try:
                 win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"force_telegram_top: ShowWindow restore failed: {e}")
 
         # In-process attempt
         ok = await asyncio.to_thread(self._ensure_foreground)
@@ -585,11 +592,92 @@ class TelegramGUIController:
 
     # ==================== RULE 3: VISUAL TROUBLESHOOTING ====================
 
+    @staticmethod
+    def _looks_blank(png: bytes) -> bool:
+        """True when a saved PNG has no visible content.
+
+        Why this exists: the window-targeted capture used by take_screenshot()
+        drives Telegram's HWND through PrintWindow, and on a GPU-composited
+        window that returns a WHITE image while reporting SUCCESS. take_screenshot
+        only retries when the call raises, so a blank never reaches its fallback
+        and the blank bytes get written to disk as if they were evidence.
+
+        Measured: the debug PNG for search_field_missing was 1073x1000 with
+        exactly TWO grey levels in it - 97.44% pure white with a ~6px black
+        frame - while a whole-desktop capture of the very same screen was 223 KB
+        with real content, on an unlocked session with Telegram running. A
+        screenshot that is silently blank is worse than no screenshot at all: it
+        LOOKS like an answer, so the investigation stops at the one moment Rule 3
+        was meant to keep it going.
+
+        The frame matters. Sampling the WHOLE image and testing "are 98% of
+        samples white" MISSES this file: the border drags the white fraction to
+        95.2%, so it reads as content when the interior is 100% blank. So the
+        sample is taken from the middle 80% only, where a capture that actually
+        rendered the UI must have something.
+
+        Two conditions, either of which makes a capture useless:
+          - the interior is near-uniform white (>=95% of samples), or
+          - the whole frame has no meaningful contrast (max-min < 10).
+        """
+        try:
+            from io import BytesIO
+            from PIL import Image
+
+            with Image.open(BytesIO(png)) as im:
+                g = im.convert("L")
+                w, h = g.size
+                if w < 4 or h < 4:
+                    return True
+                # interior only: skip 10% at each edge so a window frame,
+                # border or scrollbar cannot be mistaken for content
+                x0, x1 = int(w * 0.10), max(int(w * 0.10) + 1, int(w * 0.90))
+                y0, y1 = int(h * 0.10), max(int(h * 0.10) + 1, int(h * 0.90))
+                step_x, step_y = max(1, (x1 - x0) // 40), max(1, (y1 - y0) // 40)
+                vals = [g.getpixel((x, y))
+                        for x in range(x0, x1, step_x)
+                        for y in range(y0, y1, step_y)]
+                whole = [g.getpixel((x, y))
+                         for x in range(0, w, max(1, w // 40))
+                         for y in range(0, h, max(1, h // 40))]
+        except Exception:
+            # Cannot judge it, so do not discard bytes that may be real evidence.
+            return False
+        if not vals:
+            return True
+        near_white = sum(1 for v in vals if v >= 250) / len(vals)
+        contrast = (max(whole) - min(whole)) if whole else 0
+        return near_white > 0.95 or contrast < 10
+
+    @staticmethod
+    def _grab_desktop() -> bytes:
+        """Whole-desktop capture: reads what the compositor is actually showing.
+
+        Unlike PrintWindow on a single HWND, this does not ask a window to
+        repaint itself, so it cannot come back blank just because the window
+        uses GPU compositing. This is the fallback for a blank window capture.
+        """
+        try:
+            from io import BytesIO
+            from PIL import ImageGrab
+
+            buf = BytesIO()
+            ImageGrab.grab(all_screens=True).save(buf, format="PNG")
+            return buf.getvalue()
+        except Exception as e:
+            print(f"[troubleshoot] desktop fallback failed: {e}")
+            return b""
+
     async def troubleshoot_screenshot(self, label: str = "troubleshoot") -> Optional[str]:
         """GLOBAL RULE 3: capture a screenshot to diagnose any stuck state.
 
         Saves to ufo_skill_state/evidence/debug/<label>_<ts>.png and returns
         the path. Always called before blind retries.
+
+        A capture is only reported as evidence if it actually contains
+        something: a blank window capture is retried from the whole desktop,
+        and if that is blank too the path is still returned but logged as
+        BLANK rather than presented as an answer.
         """
         try:
             from datetime import datetime
@@ -597,13 +685,20 @@ class TelegramGUIController:
             shot = await self.take_screenshot()
             if not shot:
                 return None
+            blank = self._looks_blank(shot)
+            if blank:
+                desktop = self._grab_desktop()
+                if desktop and not self._looks_blank(desktop):
+                    shot, blank = desktop, False
             d = Path("ufo_skill_state/evidence/debug")
             d.mkdir(parents=True, exist_ok=True)
             ts = datetime.now().isoformat().replace(":", "-")
             path = d / f"{label}_{ts}.png"
             with open(path, "wb") as f:
                 f.write(shot)
-            print(f"[troubleshoot] screenshot -> {path}")
+            note = (" (BLANK - neither the window nor the desktop had content; "
+                    "this is NOT usable evidence)") if blank else ""
+            print(f"[troubleshoot] screenshot -> {path}{note}")
             return str(path)
         except Exception as e:
             print(f"[troubleshoot] failed: {e}")

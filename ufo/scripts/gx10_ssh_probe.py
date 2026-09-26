@@ -25,14 +25,12 @@ from __future__ import annotations
 import argparse
 import base64
 import http.client
-import json
 import os
 import socket
 import statistics
 import subprocess
 import sys
 import time
-import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KEY = os.path.expanduser("~/.ssh/id_ed25519_ufo_agent")
@@ -203,7 +201,7 @@ def _measure_all(clients: list[str], a) -> None:
         best = min(ok, key=lambda r: statistics.median(r[1]))
         worst = max(ok, key=lambda r: statistics.median(r[1]))
         bm, wm = statistics.median(best[1]), statistics.median(worst[1])
-        print(f"\n== verdict")
+        print("\n== verdict")
         print(f"   fastest: {best[0]}  ({bm:.2f} ms per forwarded round trip)")
         print(f"   slowest: {worst[0]}  ({wm:.2f} ms)")
         print(f"   the slow client adds a fixed {wm - bm:.1f} ms to EVERY forwarded "
