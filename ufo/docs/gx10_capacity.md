@@ -36,10 +36,13 @@ unauthenticated connection on it (`MaxStartups` 10).
 - `scripts/gx10_host.ps1` + `gx10_tunnel_keepalive.ps1`: tunnel picks the first address that shows an SSH banner (`gx10.local`, then `gx10-lan`/`gx10-tailscale` from `~/.ssh/config`); a wedged box is reported as `wedged` and left alone rather than ssh'd at. Verified live: during the outage it correctly reported `192.168.4.103=wedged`, and when the box returned `gx10.local` stayed wedged while the LAN address answered.
 
 ### Box (guard verified in WSL with fake `/proc` + docker; units/sysctl **not yet run on the box**)
-- `scripts/dgx/gx10_budget.env`: the only place sizes live. Qwen 0.35 (seqs 4), Venus 0.20 (seqs 4), pool ceiling 0.62 (75 GB), 24 GB reserve.
-- `scripts/dgx/gx10_guard.sh`: launch lock + refusal if pools exceed the ceiling or MemAvailable is short; runs *before* the old container is removed so a refused launch never kills a working model. `--audit` reports pools, MemAvailable, swap and kernel memory pressure (PSI; `full avg10 > 10%` = thrashing). 15 scenarios pass, including 0.56+0.26 and 0.70+0.20 being refused.
+- `scripts/dgx/gx10_budget.env`: the only place sizes live. Qwen 0.35 (seqs 4), Venus 0.20 (seqs 4), pool ceiling 0.62 (75 GB).
+- **Free-memory policy: 5% floor (enforced), 10% target (encouraged)** - `FREE_FLOOR_PCT` / `FREE_TARGET_PCT`:
+  - launch (`gx10_guard.sh`): a launch that would leave < 5% free is refused, not bypassable even with `GX10_FORCE`; < 10% warns (`GX10_STRICT=1` refuses); `--audit` warns < 10%, critical < 5%.
+  - runtime (`gx10_memguard.sh`, systemd timer every 30 s): < 10% releases cheap reclaimable memory (unload Ollama models, drop clean page cache, stop CPU OmniParser); < 5% additionally stops one container per 2 min from `SHED_CONTAINERS` (empty by default: no model is stopped unless you name it). earlyoom acts at the same 5% floor as the last line. Nothing is killed while free memory is above 5%.
+- `scripts/dgx/gx10_guard.sh`: launch lock + refusal if pools exceed the ceiling or MemAvailable is short; runs *before* the old container is removed so a refused launch never kills a working model. `--audit` reports pools, free %, swap and kernel memory pressure (PSI; `full avg10 > 10%` = thrashing). 37 scenarios pass (guard, floor/target, enforcer tiers), including 0.56+0.26 and 0.70+0.20 being refused.
 - `qwen_run.sh` / `venus_run.sh` use it; Qwen also answers to `qwen38-27b-turbo` (`QWEN_ALIASES`). `gx10_runner/venus_run.sh` and `rebalance_models.sh` are now thin, budget-driven forwards.
-- `protect_ssh.sh`: OOM shield for sshd/tailscaled/dockerd/containerd, `vm.min_free_kbytes` 2 GB, `vm.swappiness` 10, earlyoom if installed. `--dry-run` / `--status`.
+- `protect_ssh.sh`: OOM shield for sshd/tailscaled/dockerd/containerd, `vm.min_free_kbytes` 2 GB, `vm.swappiness` 10, earlyoom at the 5% floor if installed. `--dry-run` / `--status`.
 - `ollama.service`: 127.0.0.1, keep-alive 2 m, one loaded model. `ufo-galaxy.target`: no longer wants OmniParser.
 
 ## To apply on the box (needs a healthy sshd; restarts the model containers)

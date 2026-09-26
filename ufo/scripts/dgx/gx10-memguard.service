@@ -1,0 +1,9 @@
+[Unit]
+Description=gx10 free-memory guard (one pass: keep >= 5% free, encourage 10%)
+
+[Service]
+Type=oneshot
+ExecStart=%h/ufo-galaxy/gx10_memguard.sh
+# rc 1 (low) / 2 (floor) are findings, not unit failures
+SuccessExitStatus=1 2
+Nice=-5

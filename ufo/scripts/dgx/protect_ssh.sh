@@ -12,7 +12,7 @@
 #   1. OOM shield: the OOM killer never picks sshd/tailscaled/dockerd/containerd.
 #   2. Reclaim headroom: keep a free-memory floor and prefer dropping page cache over swapping
 #      anonymous memory, so allocations do not fall into slow direct reclaim.
-#   3. earlyoom (if installed): kills the biggest *non-protected* process at ~4% free instead of
+#   3. earlyoom (if installed): kills the biggest *non-protected* process at the 5% floor instead of
 #      letting the whole box thrash - vLLM restarts itself (--restart unless-stopped), a wedged
 #      box does not.
 set -euo pipefail
@@ -68,9 +68,16 @@ CONF
 
 # 3. earlyoom
 if command -v earlyoom >/dev/null 2>&1; then
-  put "$EARLYOOM" <<'CONF'
-# SIGTERM at 4% MemAvailable, SIGKILL at 2%. Never kill the things that keep the box reachable.
-EARLYOOM_ARGS="-m 4,2 -s 100 -r 60 --avoid '(^|/)(sshd|systemd|tailscaled|dockerd|containerd|containerd-shim.*)$'"
+  # Same soft floor as gx10_memguard.sh (FREE_FLOOR_PCT, default 5): SIGTERM at the floor, SIGKILL
+  # at 3/5 of it. gx10_memguard.sh releases cheap memory above the floor, so this only fires when
+  # that was not enough. Never kill the things that keep the box reachable.
+  floor=5
+  for f in /srv/models/gx10_budget.env "$(dirname "$0")/gx10_budget.env"; do
+    [ -f "$f" ] && { floor=$(. "$f" >/dev/null 2>&1; echo "${FREE_FLOOR_PCT:-5}"); break; }
+  done
+  kill9=$(awk -v f="$floor" 'BEGIN{printf "%d", f*3/5 < 1 ? 1 : f*3/5}')
+  put "$EARLYOOM" <<CONF
+EARLYOOM_ARGS="-m ${floor},${kill9} -s 100 -r 60 --avoid '(^|/)(sshd|systemd|tailscaled|dockerd|containerd|containerd-shim.*)\$'"
 CONF
   [ "$MODE" = dry ] || systemctl enable --now earlyoom >/dev/null 2>&1 || true
 else

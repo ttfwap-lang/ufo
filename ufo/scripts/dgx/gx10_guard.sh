@@ -18,7 +18,7 @@ _guard_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 for _f in "${GX10_BUDGET_FILE:-}" /srv/models/gx10_budget.env "$_guard_dir/gx10_budget.env"; do
   if [ -n "$_f" ] && [ -f "$_f" ]; then . "$_f"; GX10_BUDGET_SRC="$_f"; break; fi
 done
-: "${TOTAL_GB:=121}" "${MODEL_POOL_MAX:=0.62}" "${RESERVE_GB:=24}"
+: "${TOTAL_GB:=121}" "${MODEL_POOL_MAX:=0.62}" "${FREE_FLOOR_PCT:=5}" "${FREE_TARGET_PCT:=10}"
 GX10_BUDGET_SRC="${GX10_BUDGET_SRC:-built-in defaults}"
 
 _mem_kb()  { awk -v k="$1:" '$1==k{print $2}' "${GX10_PROC:-/proc}"/meminfo; }
@@ -26,6 +26,8 @@ avail_gb() { echo $(( $(_mem_kb MemAvailable) / 1048576 )); }
 swap_used_mb() { echo $(( ( $(_mem_kb SwapTotal) - $(_mem_kb SwapFree) ) / 1024 )); }
 # psi <some|full> -> avg10 (percent of the last 10 s some/all tasks stalled on memory)
 psi() { awk -v kind="$1" '$1==kind{for(i=2;i<=NF;i++){split($i,a,"=");if(a[1]=="avg10")print a[2]}}' "${GX10_PROC:-/proc}"/pressure/memory 2>/dev/null || echo 0; }
+# pct <gb> -> that many GB as a percent of TOTAL_GB (one decimal)
+pct() { awk -v g="$1" -v t="$TOTAL_GB" 'BEGIN{printf "%.1f", g*100/t}'; }
 _le() { awk -v a="$1" -v b="$2" 'BEGIN{exit !(a<=b)}'; }
 _gt() { awk -v a="$1" -v b="$2" 'BEGIN{exit !(a>b)}'; }
 
@@ -40,7 +42,7 @@ running_pools() {
 }
 
 guard_acquire() {
-  local name="$1" frac="$2" others sum need avail own
+  local name="$1" frac="$2" others sum avail own
   exec 9>"${GX10_LOCK:-/tmp/ufo-gx10-models.lock}"
   if ! flock -w "${GX10_LOCK_WAIT:-900}" 9; then
     echo "guard: another model launch held the lock for ${GX10_LOCK_WAIT:-900}s; refusing to pile on" >&2
@@ -56,14 +58,21 @@ guard_acquire() {
   # Free memory as the kernel sees it, plus what this container gives back when replaced.
   own=$(running_pools | awk -v n="$name" '$1==n{printf "%d", $2*'"$TOTAL_GB"'}')
   avail=$(( $(avail_gb) + ${own:-0} ))
-  need=$(awk -v f="$frac" -v t="$TOTAL_GB" -v r="$RESERVE_GB" 'BEGIN{printf "%d", f*t + r}')
-  if [ "$avail" -lt "$need" ]; then
-    echo "guard: REFUSED $name at $frac - needs ${need} GB (pool + ${RESERVE_GB} GB reserve) but only ${avail} GB is available" >&2
+  # Free memory after this launch, as a percent of the box. The FLOOR is never crossed; the
+  # TARGET is encouraged (warning, or a refusal with GX10_STRICT=1).
+  local proj projpct
+  proj=$(awk -v a="$avail" -v f="$frac" -v t="$TOTAL_GB" 'BEGIN{printf "%.1f", a - f*t}')
+  projpct=$(pct "$proj")
+  if _gt "$FREE_FLOOR_PCT" "$projpct"; then
+    echo "guard: REFUSED $name at $frac - would leave ${proj} GB free (${projpct}%), below the ${FREE_FLOOR_PCT}% floor (only ${avail} GB available now)" >&2
     echo "guard: something outside the vLLM pools (llama.cpp, Ollama, training) holds the memory; see: $0 --audit" >&2
-    [ "${GX10_FORCE:-0}" = 1 ] || exit 3
-    echo "guard: GX10_FORCE=1, continuing anyway" >&2
+    exit 3        # the floor is not bypassable, not even with GX10_FORCE=1
   fi
-  echo "guard: ok $name $frac (pools $others+$frac=$sum <= $MODEL_POOL_MAX; ${avail} GB available, ${need} needed)"
+  if _gt "$FREE_TARGET_PCT" "$projpct"; then
+    echo "guard: WARNING $name at $frac leaves ${proj} GB free (${projpct}%), under the ${FREE_TARGET_PCT}% target" >&2
+    if [ "${GX10_STRICT:-0}" = 1 ]; then echo "guard: REFUSED (GX10_STRICT=1)" >&2; exit 3; fi
+  fi
+  echo "guard: ok $name $frac (pools $others+$frac=$sum <= $MODEL_POOL_MAX; ${proj} GB = ${projpct}% free after)"
 }
 
 guard_audit() {
@@ -74,11 +83,13 @@ guard_audit() {
   echo "budget file       : $GX10_BUDGET_SRC"
   echo "vLLM pools        : ${sum} of max ${MODEL_POOL_MAX} ($(awk -v s="$sum" -v t="$TOTAL_GB" 'BEGIN{printf "%d", s*t}') GB of ${TOTAL_GB})"
   echo "$pools" | awk 'NF{printf "    %-24s %s\n", $1, $2}'
-  echo "MemAvailable      : ${avail} GB (reserve ${RESERVE_GB} GB)"
+  local fpct; fpct=$(pct "$avail")
+  echo "MemAvailable      : ${avail} GB = ${fpct}% free (floor ${FREE_FLOOR_PCT}%, target ${FREE_TARGET_PCT}%)"
   echo "swap in use       : ${swap} MB"
   echo "memory pressure   : some avg10=${some}%  full avg10=${full}%   (full > 10% = the box is thrashing)"
   if _gt "$sum" "$MODEL_POOL_MAX"; then echo "WARN: pools exceed the budget"; rc=1; fi
-  if [ "$avail" -lt "$RESERVE_GB" ]; then echo "WARN: MemAvailable below reserve"; rc=1; fi
+  if _gt "$FREE_TARGET_PCT" "$fpct"; then echo "WARN: free memory ${fpct}% is under the ${FREE_TARGET_PCT}% target"; rc=1; fi
+  if _gt "$FREE_FLOOR_PCT" "$fpct"; then echo "CRITICAL: free memory ${fpct}% is under the ${FREE_FLOOR_PCT}% floor"; rc=2; fi
   if _gt "$some" 20; then echo "WARN: sustained memory stalls (some avg10 > 20%)"; rc=1; fi
   if _gt "$full" 10 || [ "$swap" -gt 4096 ]; then echo "CRITICAL: thrashing (full avg10 > 10% or > 4 GB swapped)"; rc=2; fi
   [ "$rc" = 0 ] && echo "OK"

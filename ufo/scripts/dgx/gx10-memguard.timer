@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the gx10 free-memory guard every 30 s
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
