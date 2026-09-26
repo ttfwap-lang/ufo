@@ -11,8 +11,12 @@ install -m 755 "$SRC"/start_omniparser.sh "$HOME/OmniParser/start_omniparser.sh"
 # Model launchers + the shared memory budget/guard (one launcher, one budget; see gx10_budget.env).
 install -m 755 "$SRC"/qwen_run.sh "$SRC"/venus_run.sh "$SRC"/gx10_guard.sh "$SRC"/gx10_memguard.sh "$HOME/ufo-galaxy/"
 install -m 644 "$SRC"/gx10-memguard.service "$SRC"/gx10-memguard.timer "$UNITDIR"/
-# Keep an operator-edited budget: only install the default when there is none.
-[ -f "$HOME/ufo-galaxy/gx10_budget.env" ] || install -m 644 "$SRC"/gx10_budget.env "$HOME/ufo-galaxy/gx10_budget.env"
+# The repo's budget is the source of truth and must reach the box (an installer that kept the old
+# file left the first install's numbers in force). A differing previous copy is kept as a backup;
+# genuine per-box overrides belong in ~/ufo-galaxy/gx10_budget.local.env, which is never touched.
+B="$HOME/ufo-galaxy/gx10_budget.env"
+[ -f "$B" ] && ! cmp -s "$B" "$SRC/gx10_budget.env" && cp -p "$B" "$B.bak-$(date +%Y%m%d%H%M%S)"
+install -m 644 "$SRC"/gx10_budget.env "$B"
 loginctl enable-linger "$USER" 2>/dev/null || true
 systemctl --user daemon-reload
 # Stop the old nohup processes (bracket patterns so this script does not match itself).

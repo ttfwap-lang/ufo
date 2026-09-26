@@ -104,6 +104,14 @@ called "docker stop" && echo "FAIL second pass inside 120 s must not stop again"
 rm -f "$T/mg.state"; FAKE_PODS="ui-venus=0.20" SHED="ui-venus" mg --dry-run
 called "docker stop" && echo "FAIL --dry-run acted" || echo "PASS memguard: --dry-run changes nothing"
 
+# ---- per-box overrides: gx10_budget.local.env wins over the shipped budget
+LD="$(mktemp -d)"; cp "$DGX/gx10_guard.sh" "$DGX/gx10_budget.env" "$LD/"
+v=$(bash -c ". '$LD/gx10_guard.sh'; echo \$QWEN_SEQS"); check "shipped budget: QWEN_SEQS=8" 8 "$v"
+echo 'QWEN_SEQS="${QWEN_SEQS:-3}"' > "$LD/gx10_budget.local.env"   # same ${VAR:-x} form as the budget
+v=$(bash -c ". '$LD/gx10_guard.sh'; echo \$QWEN_SEQS"); check "local override wins: QWEN_SEQS=3" 3 "$v"
+v=$(QWEN_SEQS=5 bash -c ". '$LD/gx10_guard.sh'; echo \$QWEN_SEQS"); check "environment beats both: QWEN_SEQS=5" 5 "$v"
+rm -rf "$LD"
+
 # serialisation: second launcher must wait for the lock, then give up (GX10_LOCK_WAIT=2)
 setmem 80 0 0.5 0.0
 ( exec 9>"$T/lock"; flock 9; sleep 4 ) & sleep 0.5

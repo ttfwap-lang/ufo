@@ -16,7 +16,13 @@ set -u
 
 _guard_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 for _f in "${GX10_BUDGET_FILE:-}" /srv/models/gx10_budget.env "$_guard_dir/gx10_budget.env"; do
-  if [ -n "$_f" ] && [ -f "$_f" ]; then . "$_f"; GX10_BUDGET_SRC="$_f"; break; fi
+  if [ -n "$_f" ] && [ -f "$_f" ]; then
+    # per-box overrides live in gx10_budget.local.env next to it; sourced first so they win over the
+    # shipped defaults. Write them in the budget's own form, VAR="${VAR:-value}", so a value set in
+    # the environment for one call still beats both files.
+    _l="${_f%.env}.local.env"; [ -f "$_l" ] && . "$_l"
+    . "$_f"; GX10_BUDGET_SRC="$_f"; break
+  fi
 done
 : "${TOTAL_GB:=121}" "${MODEL_POOL_MAX:=0.70}" "${FREE_FLOOR_PCT:=5}" "${FREE_TARGET_PCT:=10}"
 GX10_BUDGET_SRC="${GX10_BUDGET_SRC:-built-in defaults}"
