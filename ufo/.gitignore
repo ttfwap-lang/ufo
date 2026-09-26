@@ -196,3 +196,7 @@ list_elements.py
 # ---- tunnel + watchdog docs -------------------------------------------------
 .venv_omniparser/
 omniparser_local.log
+
+# (last on purpose: a later rule wins) gx10_budget.env matches the *.env secrets rule but holds only sizes (no secrets): it is the one
+# budget every launcher sources, so it MUST be tracked (it was silently left out of the first commits).
+!scripts/dgx/gx10_budget.env

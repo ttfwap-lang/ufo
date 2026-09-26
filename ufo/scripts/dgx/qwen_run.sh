@@ -27,4 +27,4 @@ docker run -d --name qwen-abliterated --restart unless-stopped \
   --max-model-len "$MAXLEN" --max-num-batched-tokens 32768 --max-num-seqs "$SEQS" --trust-remote-code \
   --gpu-memory-utilization "$MEM" --reasoning-parser qwen3 --kv-cache-dtype fp8 --attention-backend flashinfer \
   --enable-prefix-caching --enable-auto-tool-choice --tool-call-parser qwen3_coder \
-  --speculative-config "{\"method\":\"mtp\",\"num_speculative_tokens\":3}" -tp 1
+  --speculative-config "{\"method\":\"mtp\",\"num_speculative_tokens\":3}" -tp 1 ${QWEN_EXTRA_ARGS:-}

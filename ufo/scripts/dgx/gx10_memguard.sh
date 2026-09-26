@@ -10,8 +10,9 @@
 #                                         - drop CLEAN page cache (loading weights fills it)
 #                                         - stop the CPU OmniParser if it is running
 #   tier floor  free < FLOOR            all of the above, then stop ONE container from
-#                                       SHED_CONTAINERS per pass (2 min apart); empty by default,
-#                                       so no model is stopped unless you named it. earlyoom
+#                                       SHED_CONTAINERS per pass (2 min apart); the default
+#                                       list is only the small auxiliary Qwens, never the primary
+#                                       Qwen or Venus. earlyoom
 #                                       (protect_ssh.sh) is the last line at the same floor.
 #
 #   gx10_memguard.sh [--dry-run]     exit 0 ok / 1 low / 2 floor. Every action is logged with why.

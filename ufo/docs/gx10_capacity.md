@@ -45,7 +45,16 @@ unauthenticated connection on it (`MaxStartups` 10).
 - `protect_ssh.sh`: OOM shield for sshd/tailscaled/dockerd/containerd, `vm.min_free_kbytes` 2 GB, `vm.swappiness` 10, earlyoom at the 5% floor if installed. `--dry-run` / `--status`.
 - `ollama.service`: 127.0.0.1, keep-alive 2 m, one loaded model. `ufo-galaxy.target`: no longer wants OmniParser.
 
+## One Qwen, concurrent, and what "max efficiency" means here
+- **Retired: the llama.cpp Qwen3.8-27B Q8 (`qwen38-27b-turbo`)** via `gx10_retire_qwen27b.sh` (stops it, `--restart=no`, removes its profile from SparkDeck stacks, backups kept). It is dense (all ~27 GB of weights read per token, ~10 tok/s at the GB10's ~273 GB/s), holds ~30 GB and its slots split one context. **Kept: vLLM Qwen3.6-35B-A3B** (3B active parameters, NVFP4 + MTP speculative decoding, continuous batching). It answers to `qwen38-27b-turbo` too, so no client changes.
+- **Concurrency:** `QWEN_SEQS` 1 -> 8, `VENUS_SEQS` 2 -> 8 (same memory pools: hybrid-attention KV is small). Client cap `UFO_LLM_MAX_INFLIGHT` 4 per process.
+- **Efficiency knobs that are opt-in, not default (cannot be validated while the box is down):** `VENUS_QUANT=fp8` (halves Venus weight reads, frees ~9 GB; run `bench_venus*.py` first, it can move click coordinates), `QWEN_EXTRA_ARGS` (e.g. `--async-scheduling`; an unsupported flag stops the container starting). Measure before/after with a load test; the gains stated here are from the arithmetic, not measurements.
+- Auxiliary Qwens (`qwen35-9b-defiant-q6`, `qwen3-0.6b`) are the first things `gx10_memguard.sh` sheds at the 5% floor.
+
 ## To apply on the box (needs a healthy sshd; restarts the model containers)
+**Automatic:** `powershell -File scripts\gx10_apply.ps1` waits for a usable sshd, ships `scripts/dgx`, and runs `gx10_apply.sh` detached on the box (retire the 27B, install, memguard timer, recreate Qwen/Venus only if their flags differ, protect_ssh if passwordless sudo). Logs: `%LOCALAPPDATA%\ufo\gx10_apply.log` and `~/ufo-galaxy/logs/apply.log`.
+
+Manual equivalent:
 ```
 scp scripts/dgx/* flak3dd@<gx10>:~/ufo-galaxy/dgx-new/ && ssh flak3dd@<gx10> 'bash ~/ufo-galaxy/dgx-new/install.sh'
 ssh flak3dd@<gx10> 'bash ~/ufo-galaxy/gx10_guard.sh --audit'

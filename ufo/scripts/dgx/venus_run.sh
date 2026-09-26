@@ -19,4 +19,4 @@ docker run -d --name ui-venus --restart unless-stopped \
   "${VENUS_IMAGE:-vllm/vllm-openai:latest}" \
   /models/UI-Venus-2-9B --host 127.0.0.1 --port 8002 --served-model-name ui-venus \
   --gpu-memory-utilization "$MEM" --max-model-len "${VENUS_MAX_LEN:-16384}" \
-  --max-num-seqs "${VENUS_SEQS:-4}" --limit-mm-per-prompt "{\"image\":1}" --reasoning-parser qwen3 --trust-remote-code
+  --max-num-seqs "${VENUS_SEQS:-8}" --limit-mm-per-prompt "{\"image\":1}" --reasoning-parser qwen3 --trust-remote-code ${VENUS_QUANT:+--quantization "$VENUS_QUANT"} ${VENUS_EXTRA_ARGS:-}
