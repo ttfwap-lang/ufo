@@ -52,6 +52,12 @@ node_modules/*
 # fastwin.ps1: shared fast port/task helpers dot-sourced by the tracked watchers
 # (bridge_watchdog.ps1, ufo_scan_win.ps1) - they break on a clean clone without it.
 !scripts/fastwin.ps1
+# verify_venus.py: asserts the gx10's grounding model actually INFERS, rather than
+# merely answering /v1/models. It is the check that caught enable_thinking needing
+# to travel in chat_template_kwargs for Qwen3-VL, which fails as a silently empty
+# completion rather than an error - the kind of thing that reaches production
+# unnoticed and is then very hard to see.
+!scripts/verify_venus.py
 
 # Don't ignore the example files
 !vectordb/docs/example/
