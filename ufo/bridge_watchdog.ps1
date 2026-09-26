@@ -95,6 +95,38 @@ function Restart-Bridge([string]$Why) {
     Start-Bridge | Out-Null
 }
 
+# ---- OmniParser: catch a FROZEN service, not just a dead one -----------------
+# UFO-OmniParser-Local re-fires every 2 min with IgnoreNew, which restarts a service
+# that has DIED. A process that is alive but not answering still counts as "running"
+# and is ignored indefinitely. One such stall was observed (health timed out for
+# >60 s, then answered again after a debugger attach); the cause was not found -
+# a trimmed working set and BelowNormal priority were both measured and ruled out.
+# Whatever the cause, restarting is the safe answer.
+$OmniHealthUrl = 'http://127.0.0.1:7871/api/health'
+$OmniTask      = 'UFO-OmniParser-Local'
+
+function Repair-OmniParser {
+    $l = Get-ListenerQuick 7871
+    if (-not $l) { return }                       # dead: the task's own repeat trigger starts it
+    try { $age = ((Get-Date) - (Get-Process -Id $l.OwningProcess -ErrorAction Stop).StartTime).TotalSeconds }
+    catch { return }
+    if ($age -lt 120) { return }                  # still loading models / warming up
+    foreach ($i in 1..2) {
+        try {
+            $r = Invoke-WebRequest -Uri $OmniHealthUrl -TimeoutSec 10 -UseBasicParsing
+            if ($r.StatusCode -eq 200) { return }
+        } catch { }
+        if ($i -eq 1) { Start-Sleep -Seconds 5 }
+    }
+    Write-WLog ACTION ("omniparser pid $($l.OwningProcess) (up $([int]$age)s) is listening on 7871 " +
+                       "but /api/health failed twice - restarting")
+    Stop-ScheduledTask -TaskName $OmniTask -ErrorAction SilentlyContinue
+    Stop-Process -Id $l.OwningProcess -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    Start-ScheduledTask -TaskName $OmniTask -ErrorAction SilentlyContinue
+}
+Repair-OmniParser
+
 # ---- decide ----------------------------------------------------------------
 $task = Get-TaskQuick $BridgeTask   # schtasks, not Get-ScheduledTask (125 ms vs ~3 s)
 if (-not $task) {

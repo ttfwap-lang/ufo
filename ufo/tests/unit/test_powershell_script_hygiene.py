@@ -48,3 +48,20 @@ def test_script_parses(rel):
     r = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
                        capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, f"{rel}: {r.stdout.strip()}"
+
+
+def _all_ps1():
+    skip = (".venv", "node_modules", ".git", "site-packages")
+    return sorted(
+        p for p in ROOT.rglob("*.ps1")
+        if not any(part.startswith(skip) or part in skip for part in p.parts)
+    )
+
+
+@pytest.mark.parametrize("path", _all_ps1(), ids=lambda p: str(p.relative_to(ROOT)))
+def test_no_control_characters_in_any_ps1(path):
+    """Not just the recurring watchers: EVERY script. A hand-picked list is how a
+    second form feed (in a doc-comment path) slipped through."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    bad = sorted({hex(ord(c)) for c in text if ord(c) < 32 and c not in (chr(9), chr(10), chr(13))})
+    assert not bad, f"{path.relative_to(ROOT)} contains control characters {bad}"

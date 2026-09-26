@@ -61,3 +61,24 @@ Bugs found on the way (all fixed, with tests):
    (6 services) and WorkspaceONE telemetry, Lenovo Vantage telemetry tasks, GoogleDriveFS,
    OneDrive, Edge/Chrome auto-launch. Not disabled: no measured cost, and some may be needed.
 6. The machine was found **unplugged at 10% battery**; it will shut down mid-run if left so.
+
+## Follow-up: a frozen OmniParser, and what was ruled out (same day)
+
+The local OmniParser stopped answering `/api/health` for >60 s while alive and listening
+(2 sockets in CloseWait, working set 22 MB, log silent). A `py-spy dump` showed every thread
+idle and it answered again straight afterwards, so the cause was not found. Measured and
+**ruled out**: working-set trim (forcing it to 3 MB costs +1.3 s once, then nothing);
+process priority (BelowNormal, the Task Scheduler default, vs Normal: 417-432 ms either way
+even with 32 busy processes on 16 threads). Left unchanged.
+
+What the incident did expose: "restart if dead" cannot heal "alive but frozen".
+`bridge_watchdog.ps1` now probes `/api/health` (2 tries, 10 s each, ignoring the first 120 s
+of a process's life) and restarts the task when it fails. Fault-injected with
+`local_omniparser/fault_inject_freeze.ps1`: the frozen process was detected and killed
+within ~2 min and a new one served again (normal restart 23 s; one cold start took ~5 min,
+imports 117 s + model load 188 s, with the machine under heavy load - not reproduced).
+
+Also found the same hour: the `run_bridge.ps1` wrapper for the bridge had been killed
+(bridge alive, heartbeat 1,177 s stale), so the watchdog could only warn. Cause unknown
+(another session's cleanup is possible). Restored by restarting the bridge; the watchdog
+still cannot recreate a missing wrapper without interrupting a possibly busy bridge.
