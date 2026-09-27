@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync --group core --group eval
+      - run: uv sync --extra core --extra eval
       - run: uv run pytest -q --ignore=tests/integration --ignore=tests/benchmark_harness.py --ignore=tests/load_test_harness.py
 
   # The two jobs below require a Windows ARM64 box and the DGX Spark itself to be
@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync --group core --group windows --group native-win32 --group eval
+      - run: uv sync --extra core --extra windows --extra native-win32 --extra eval
       - run: uv run playwright install
       - run: uv run pytest -q automation/tests/
 
@@ -40,5 +40,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync --group core --group dgx --group galaxy --group eval
+      - run: uv sync --extra core --extra dgx --extra galaxy --extra eval
       - run: uv run pytest -q tests/e2e_golden_path_dgx.py tests/e2e_galaxy_constellation.py

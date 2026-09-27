@@ -7,11 +7,11 @@ to ensure proper data flow and early detection of dependency issues.
 
 import logging
 from dataclasses import dataclass, field
-from typing import Set, List, Dict, Any, Optional
+from typing import Any
 
 from ufo.agents.processors.context.processing_context import (
-    ProcessingPhase,
     ProcessingContext,
+    ProcessingPhase,
 )
 
 
@@ -24,16 +24,16 @@ class StrategyDependency:
     what it provides as output, and which phases it depends on.
     """
 
-    required_fields: Set[str] = field(default_factory=set)
+    required_fields: set[str] = field(default_factory=set)
     """Fields that must be available before the strategy can execute."""
 
-    optional_fields: Set[str] = field(default_factory=set)
+    optional_fields: set[str] = field(default_factory=set)
     """Fields that are helpful but not required for strategy execution."""
 
-    provides_fields: Set[str] = field(default_factory=set)
+    provides_fields: set[str] = field(default_factory=set)
     """Fields that the strategy promises to provide in its result."""
 
-    depends_on_phases: Set[ProcessingPhase] = field(default_factory=set)
+    depends_on_phases: set[ProcessingPhase] = field(default_factory=set)
     """Processing phases that must complete successfully before this strategy runs."""
 
 
@@ -41,7 +41,7 @@ class DependencyValidationError(Exception):
     """Exception raised when strategy dependencies are not met."""
 
     def __init__(
-        self, message: str, missing_fields: List[str] = None, strategy_name: str = None
+        self, message: str, missing_fields: list[str] = None, strategy_name: str = None
     ):
         super().__init__(message)
         self.missing_fields = missing_fields or []
@@ -56,7 +56,7 @@ class StrategyDependencyValidator:
     at initialization time and during execution.
     """
 
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(self, logger: logging.Logger | None = None):
         self.logger = logger or logging.getLogger(__name__)
 
     def validate_execution_dependencies(
@@ -64,7 +64,7 @@ class StrategyDependencyValidator:
         strategy_name: str,
         dependencies: StrategyDependency,
         context: ProcessingContext,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Validate that all required dependencies are available in the context.
 
@@ -76,17 +76,17 @@ class StrategyDependencyValidator:
         missing_fields = []
 
         # Check required fields
-        for field in dependencies.required_fields:
-            value = context.get_local(field)
+        for fname in dependencies.required_fields:
+            value = context.get_local(fname)
             if value is None:
-                missing_fields.append(field)
+                missing_fields.append(fname)
 
         # Log optional fields that are missing
         missing_optional = []
-        for field in dependencies.optional_fields:
-            value = context.get_local(field)
+        for fname in dependencies.optional_fields:
+            value = context.get_local(fname)
             if value is None:
-                missing_optional.append(field)
+                missing_optional.append(fname)
 
         if missing_optional:
             self.logger.debug(
@@ -105,8 +105,8 @@ class StrategyDependencyValidator:
         return missing_fields
 
     def validate_strategy_chain(
-        self, strategies: Dict[ProcessingPhase, Any]
-    ) -> Dict[str, Any]:
+        self, strategies: dict[ProcessingPhase, Any]
+    ) -> dict[str, Any]:
         """
         Validate the complete strategy chain for dependency consistency.
 
@@ -197,7 +197,7 @@ class StrategyDependencyValidator:
 
         return report
 
-    def print_dependency_report(self, report: Dict[str, Any]) -> None:
+    def print_dependency_report(self, report: dict[str, Any]) -> None:
         """
         Print a detailed dependency validation report.
 
@@ -224,16 +224,16 @@ class StrategyDependencyValidator:
         print(f"\n处理阶段顺序: {' -> '.join(report['phase_order'])}")
 
         print("\n字段流向分析:")
-        for field, flow in report["field_flow"].items():
+        for fname, flow in report["field_flow"].items():
             providers = [f"{p['phase']}({p['strategy']})" for p in flow["providers"]]
             consumers = [f"{c['phase']}({c['strategy']})" for c in flow["consumers"]]
 
             if not providers:
-                print(f"  ⚠️  {field}: 无提供者 -> {', '.join(consumers)}")
+                print(f"  ⚠️  {fname}: 无提供者 -> {', '.join(consumers)}")
             elif not consumers:
-                print(f"  ℹ️  {field}: {', '.join(providers)} -> 无消费者")
+                print(f"  ℹ️  {fname}: {', '.join(providers)} -> 无消费者")
             else:
-                print(f"  ✅ {field}: {', '.join(providers)} -> {', '.join(consumers)}")
+                print(f"  ✅ {fname}: {', '.join(providers)} -> {', '.join(consumers)}")
 
         print("\n详细依赖图:")
         for phase, info in report["dependency_graph"].items():

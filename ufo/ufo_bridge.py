@@ -30,7 +30,7 @@ import time
 import traceback
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Dict
+from typing import Any
 from urllib.parse import urlparse
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -60,7 +60,7 @@ def load_token() -> str:
     if tok:
         return tok.strip()
     if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, "r", encoding="utf-8") as f:
+        with open(TOKEN_FILE, encoding="utf-8") as f:
             tok = f.read().strip()
             if tok:
                 return tok
@@ -83,8 +83,8 @@ TOKEN = load_token()
 # append-only dict leaks until the process is restarted. We keep the newest
 # MAX_JOBS entries and never evict a job that is still queued or running.
 MAX_JOBS = int(os.environ.get("UFO_BRIDGE_MAX_JOBS", "200"))
-JOBS: Dict[str, Dict[str, Any]] = {}
-JOB_QUEUE: "queue.Queue[str]" = queue.Queue()
+JOBS: dict[str, dict[str, Any]] = {}
+JOB_QUEUE: queue.Queue[str] = queue.Queue()
 _worker_started = False
 _worker_lock = threading.Lock()
 _jobs_lock = threading.Lock()
@@ -105,7 +105,7 @@ def _evict_old_jobs() -> None:
             JOBS.pop(job["job_id"], None)
 
 
-def _new_job(job_id: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
+def _new_job(job_id: str, action: str, params: dict[str, Any]) -> dict[str, Any]:
     job = {
         "job_id": job_id,
         "action": action,
@@ -131,7 +131,8 @@ TELEGRAM_EXE = os.path.join(
 
 def telegram_running() -> bool:
     try:
-        import win32gui, win32process
+        import win32gui
+        import win32process
         try:
             import psutil
         except Exception:
@@ -218,7 +219,8 @@ def _fit_window(c, x=63, y=50, w=1438, h=1000):
     resizes the window and every target shifts.
     """
     try:
-        import win32gui, win32con
+        import win32con
+        import win32gui
         hwnd = c.get_concrete_hwnd()
         if not hwnd:
             return False
@@ -268,7 +270,7 @@ def _ocr_words(png_path: str):
     return []
 
 
-async def action_collect_horoscope(params: Dict[str, Any]) -> Dict[str, Any]:
+async def action_collect_horoscope(params: dict[str, Any]) -> dict[str, Any]:
     """Collect general daily horoscopes for zodiac signs from a Telegram bot.
 
     The desktop work is delegated to the PROVEN interactive path
@@ -331,14 +333,14 @@ async def action_collect_horoscope(params: Dict[str, Any]) -> Dict[str, Any]:
             "collector_rc": proc.returncode}
 
 
-def _ocr_reports(shots: Dict[str, str]) -> Dict[str, Any]:
+def _ocr_reports(shots: dict[str, str]) -> dict[str, Any]:
     """Turn the evidence captures into per-sign text + ratings.
 
     OCR words are filtered to the chat pane and re-clustered into lines; the
     Love/Health/Career/Lunar scores are then read straight out of the card.
     """
     import re
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for sign, path in shots.items():
         try:
             words = [w for w in _ocr_words(path) if w[0] >= 700]  # chat pane
@@ -362,7 +364,7 @@ def _ocr_reports(shots: Dict[str, str]) -> Dict[str, Any]:
     return out
 
 
-async def action_list_actions(_params) -> Dict[str, Any]:
+async def action_list_actions(_params) -> dict[str, Any]:
     return {"actions": sorted(ACTIONS.keys())}
 
 
@@ -408,7 +410,7 @@ def _point_is_safe(png: str, x: float, y: float) -> tuple[bool, str]:
     return True, "ok"
 
 
-async def action_vision_locate(params: Dict[str, Any]) -> Dict[str, Any]:
+async def action_vision_locate(params: dict[str, Any]) -> dict[str, Any]:
     """Locate a labelled UI element with Venus+OCR fusion.
 
     params:
@@ -420,6 +422,7 @@ async def action_vision_locate(params: Dict[str, Any]) -> Dict[str, Any]:
                    controller (8s countdown applies, per AGENTS.md)
     """
     import re as _re
+
     import venus_client
 
     label = params.get("label", "")
@@ -524,7 +527,7 @@ def _strip_reasoning(text: str) -> str:
     return out.strip()
 
 
-async def action_vision_ask(params: Dict[str, Any]) -> Dict[str, Any]:
+async def action_vision_ask(params: dict[str, Any]) -> dict[str, Any]:
     """Ask Venus a free-form question about the current screen (state check).
 
     params:
@@ -581,7 +584,7 @@ async def action_vision_ask(params: Dict[str, Any]) -> Dict[str, Any]:
             await c.close()
 
 
-async def action_vision_elements(params: Dict[str, Any]) -> Dict[str, Any]:
+async def action_vision_elements(params: dict[str, Any]) -> dict[str, Any]:
     """OmniParser screen parse: every element with a box and an icon caption.
 
     Complements vision_locate: instead of answering one grounding question,
@@ -606,7 +609,7 @@ async def action_vision_elements(params: Dict[str, Any]) -> Dict[str, Any]:
             await c.close()
 
 
-async def action_vision_scan(params: Dict[str, Any]) -> Dict[str, Any]:
+async def action_vision_scan(params: dict[str, Any]) -> dict[str, Any]:
     """Inventory every UI element the vision+OCR stack can see right now.
 
     Returns OCR words plus Venus' free-form description of the screen, which
@@ -637,7 +640,7 @@ async def action_vision_scan(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 
-async def action_health(_params) -> Dict[str, Any]:
+async def action_health(_params) -> dict[str, Any]:
     import win32gui
     title = ""
     try:
@@ -711,7 +714,7 @@ def _worker_loop():
             _evict_old_jobs()
 
 
-def _job_snapshot(job_id: str) -> Optional[Dict[str, Any]]:
+def _job_snapshot(job_id: str) -> dict[str, Any] | None:
     """Return a shallow copy so a response can never observe a half-written
     job (the worker thread mutates the same dict while we serialise it)."""
     with _jobs_lock:
@@ -743,7 +746,7 @@ class Handler(BaseHTTPRequestHandler):
             return secrets.compare_digest(hdr[7:].strip(), TOKEN)
         return False
 
-    def _send(self, code: int, payload: Dict[str, Any]):
+    def _send(self, code: int, payload: dict[str, Any]):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")

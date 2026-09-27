@@ -36,6 +36,15 @@ core = [
     "fastmcp==3.4.7", "fastmcp-slim==3.4.7", "tabulate>=0.9",
     "faiss-cpu>=1.11", "sentence-transformers>=3.0",
     "langchain-community>=0.3", "langchain-huggingface>=0.1",
+    # Undeclared hard imports reconciled from requirements.txt (audit finding #4, 2026-09-27):
+    # cross-platform packages that were imported unconditionally but declared only in
+    # requirements.txt, so `uv sync --extra core` did not install them. pyautogui is NOT
+    # here - it fails to import on headless Linux CI - it is in native-win32 instead.
+    "pillow>=12.3", "psutil>=7.2", "numpy>=2.2", "anthropic>=1.0", "starlette>=1.6",
+    "beautifulsoup4>=4.15", "defusedxml>=0.7", "pypdf>=6.16", "networkx>=3.4",
+    "matplotlib>=3.10", "pandas>=2.3", "art>=6.5", "opencv-python>=5.0",
+    "langchain-core>=1.6", "langchain-text-splitters>=1.1", "google-genai>=2.17",
+    "msal>=1.37", "azure-identity>=1.25", "huggingface-hub>=1.28",
 ]
 windows = ["playwright>=1.48"]
 dgx = ["ollama>=0.4", "openai>=1.0", "httpx>=0.28"]
@@ -46,7 +55,7 @@ ml = [
     "chromadb>=1.0", "langchain>=0.3",
     "langgraph>=0.2", "fastembed>=0.4",
 ]
-native-win32 = ["pywinauto>=0.6.9", "uiautomation>=2.0", "comtypes>=1.4", "pywin32>=312"]
+native-win32 = ["pywinauto>=0.6.9", "uiautomation>=2.0", "comtypes>=1.4", "pywin32>=312", "PyAutoGUI>=0.9.54"]
 # all extra explicitly lists all packages (uv doesn't recursively expand extra refs)
 all = [
     "aiohttp>=3.10", "aiohappyeyeballs>=2.7", "anyio>=4.0",
@@ -64,6 +73,12 @@ all = [
     "fastmcp==3.4.7", "fastmcp-slim==3.4.7", "tabulate>=0.9",
     "faiss-cpu>=1.11", "sentence-transformers>=3.0",
     "langchain-community>=0.3", "langchain-huggingface>=0.1",
+    # audit #4 reconciliation (see core): cross-platform + pyautogui for the all-in-one extra
+    "pillow>=12.3", "psutil>=7.2", "numpy>=2.2", "anthropic>=1.0", "starlette>=1.6",
+    "beautifulsoup4>=4.15", "defusedxml>=0.7", "pypdf>=6.16", "networkx>=3.4",
+    "matplotlib>=3.10", "pandas>=2.3", "art>=6.5", "opencv-python>=5.0",
+    "langchain-core>=1.6", "langchain-text-splitters>=1.1", "google-genai>=2.17",
+    "msal>=1.37", "azure-identity>=1.25", "huggingface-hub>=1.28", "PyAutoGUI>=0.9.54",
     "playwright>=1.48",
     "ollama>=0.4", "openai>=1.0",
     "fastapi>=0.115", "uvicorn>=0.32",
