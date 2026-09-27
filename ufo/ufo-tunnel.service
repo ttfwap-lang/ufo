@@ -15,7 +15,10 @@ Type=simple
 #   100.67.13.78:18004 -> qwen38-27b-turbo (llama.cpp on 127.0.0.1:8004; the
 #            27B replaced qwen35-9b-defiant in this slot on 2026-09-27)
 #   100.67.13.78:18005 -> qwen3-0.6b        (vLLM on 127.0.0.1:8005)
-#            The last two bind the TAILNET address only, not 0.0.0.0: the only
+#   100.67.13.78:18006 -> qwen3-42b-coder   (llama.cpp on 127.0.0.1:8006, on demand)
+#   100.67.13.78:18007 -> tongyi-30b        (llama.cpp on 127.0.0.1:8007, on demand)
+#            18006/18007 answer only while scripts/dgx/gx10_model_swap.sh has them up.
+#            The 1800x tailnet entries bind the TAILNET address only, not 0.0.0.0: the only
 #            consumer is the Windows host over Tailscale, so the LAN never sees
 #            them regardless of the firewall.
 #
@@ -26,7 +29,7 @@ Type=simple
 # "status=203/EXEC" on every start attempt, because systemd executes ExecStart
 # directly and the file had no shebang - the unit crash-looped silently while
 # `is-active` merely reported "activating".
-ExecStart=/usr/bin/python3 %h/ufo-watchdog/ufo_tunnel.py 18000 127.0.0.1 8000 18002 127.0.0.1 8002 18061 127.0.0.1 7861 100.67.13.78:8000 127.0.0.1 8000 192.168.4.103:8000 127.0.0.1 8000 100.67.13.78:18004 127.0.0.1 8004 100.67.13.78:18005 127.0.0.1 8005
+ExecStart=/usr/bin/python3 %h/ufo-watchdog/ufo_tunnel.py 18000 127.0.0.1 8000 18002 127.0.0.1 8002 18061 127.0.0.1 7861 100.67.13.78:8000 127.0.0.1 8000 192.168.4.103:8000 127.0.0.1 8000 100.67.13.78:18004 127.0.0.1 8004 100.67.13.78:18005 127.0.0.1 8005 100.67.13.78:18006 127.0.0.1 8006 100.67.13.78:18007 127.0.0.1 8007
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1

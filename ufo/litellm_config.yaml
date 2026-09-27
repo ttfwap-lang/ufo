@@ -104,6 +104,31 @@ model_list:
         min_p: 0.0
         chat_template_kwargs:
           enable_thinking: false
+  # On-demand models (scripts/dgx/gx10_model_swap.sh 42b|tongyi|27b): only one of
+  # the 27B / 42B / Tongyi runs at a time, so these answer only while swapped in.
+  - model_name: "gx10-qwen3-42b"
+    litellm_params:
+      model: "openai/qwen3-42b-coder"
+      api_base: "http://100.67.13.78:18006/v1"
+      api_key: "sk-local"
+      rpm: 10000
+      max_tokens: 32768
+      temperature: 0.5
+      top_p: 0.95
+      extra_body:
+        top_k: 20
+        min_p: 0.05
+  - model_name: "gx10-tongyi-30b"
+    litellm_params:
+      model: "openai/tongyi-30b"
+      api_base: "http://100.67.13.78:18007/v1"
+      api_key: "sk-local"
+      rpm: 10000
+      max_tokens: 32768
+      temperature: 0.6
+      top_p: 0.95
+      extra_body:
+        top_k: 20
   - model_name: "gx10-qwen3-0.6b"
     litellm_params:
       model: "openai/qwen3-0.6b"
