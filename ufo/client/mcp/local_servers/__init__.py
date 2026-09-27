@@ -1,10 +1,9 @@
-import importlib.util
 import os
 import pkgutil
-import platform
+import importlib.util
 import sys
+import platform
 from pathlib import Path
-
 current_dir = os.path.dirname(__file__)
 WINDOWS_ONLY_SERVERS = {'ui_mcp_server', 'excel_wincom_mcp_server', 'ppt_wincom_mcp_server', 'word_wincom_mcp_server', 'pdf_reader_mcp_server'}
 

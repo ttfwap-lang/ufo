@@ -9,18 +9,21 @@ orchestration with LLM integration, dynamic task creation, and async execution.
 """
 
 from .enums import (
-    ConstellationState,
-    DependencyType,
-    DeviceType,
-    TaskPriority,
     TaskStatus,
+    DependencyType,
+    ConstellationState,
+    TaskPriority,
+    DeviceType,
 )
-from .orchestrator.constellation_manager import ConstellationManager
-from .orchestrator.orchestrator import TaskConstellationOrchestrator
-from .task_constellation import TaskConstellation
 from .task_star import TaskStar
+
 from .task_star_line import TaskStarLine
 
+from .task_constellation import TaskConstellation
+
+from .orchestrator.orchestrator import TaskConstellationOrchestrator
+
+from .orchestrator.constellation_manager import ConstellationManager
 
 def create_simple_constellation(task_descriptions, name="Simple Constellation", sequential=True):
     constellation = TaskConstellation(name=name)

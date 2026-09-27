@@ -102,6 +102,17 @@ exclude = [".git", "__pycache__", "*.egg-info", "logs"]
 select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM", "T20"]
 ignore = ["E501", "E402", "SIM102", "SIM103"]
 
+# __init__.py files and the galaxy_agent* compat shims re-export their package's
+# public API; those imports are intentional even when unused locally. Without this,
+# `ruff check --fix` strips them as F401 and breaks package/`from pkg import X`
+# imports (it did exactly that on 2026-09-27). Ruff's own recommended pattern.
+[tool.ruff.per-file-ignores]
+"**/__init__.py" = ["F401"]
+"**/galaxy_agent.py" = ["F401"]
+"**/galaxy_agent_state.py" = ["F401"]
+"**/galaxy_agent_states.py" = ["F401"]
+"**/constellation_factory.py" = ["F401"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"

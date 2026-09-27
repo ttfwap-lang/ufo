@@ -8,6 +8,7 @@ Provides extension points for customizing AIP behavior.
 """
 
 from .base import AIPExtension
+
 from .middleware import LoggingExtension, MetricsExtension
 
 __all__ = ["AIPExtension", "LoggingExtension", "MetricsExtension"]

@@ -5,10 +5,9 @@
 Backward compatibility module for galaxy_agent.
 """
 
+from unittest.mock import Mock
 
-from ufo.galaxy.agents.constellation_agent import ConstellationAgent
-from ufo.galaxy.agents.constellation_agent import ConstellationAgent as GalaxyAgent
-
+from ufo.galaxy.agents.constellation_agent import ConstellationAgent, ConstellationAgent as GalaxyAgent
 
 class MockGalaxyWeaverAgent:
     """Mock agent for testing backward compatibility."""

@@ -9,19 +9,19 @@ Modern, modular configuration system with type safety and backward compatibility
 
 from ufo.config.config_loader import (
     ConfigLoader,
-    LazyGalaxyConfig,
-    LazyUFOConfig,
-    clear_config_cache,
-    get_galaxy_config,
     get_ufo_config,
+    get_galaxy_config,
+    clear_config_cache,
+    LazyUFOConfig,
+    LazyGalaxyConfig,
 )
 
 get_config = get_ufo_config
 
 def get_offline_learner_indexer_config():
-    import json
     import logging
     import os
+    import json
     logger = logging.getLogger(__name__)
     file_path = "learner/records.json"
     if not os.path.exists(file_path):
@@ -30,7 +30,7 @@ def get_offline_learner_indexer_config():
         )
         return {}
     try:
-        with open(file_path, encoding="utf-8") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
             if not isinstance(data, dict):
                 logger.warning(
@@ -87,11 +87,11 @@ class Config:
 
 
 from ufo.config.config_schemas import (
-    AgentConfig,
-    GalaxyConfig,
-    RAGConfig,
-    SystemConfig,
     UFOConfig,
+    GalaxyConfig,
+    AgentConfig,
+    SystemConfig,
+    RAGConfig,
 )
 
 __all__ = [

@@ -14,7 +14,7 @@ def unzip_and_read_file(file_path: str) -> str:
     return: the content of the extracted file.
     """
     extracted_file = unzip_file(file_path)
-    with open(extracted_file, encoding='utf-8') as file:
+    with open(extracted_file, 'r', encoding='utf-8') as file:
         content = file.read()
     return content
 

@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from .app_apis import factory
 from .ui_control import controller
+from .app_apis import factory
 
 __all__ = ["controller", "factory"]

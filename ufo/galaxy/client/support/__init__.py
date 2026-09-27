@@ -9,8 +9,9 @@ This module provides support components for ConstellationClient:
 - ClientConfigManager: Configuration-based initialization
 """
 
-from .client_config_manager import ClientConfigManager
 from .status_manager import StatusManager
+
+from .client_config_manager import ClientConfigManager
 
 __all__ = [
     "StatusManager",

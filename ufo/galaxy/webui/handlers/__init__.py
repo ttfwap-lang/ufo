@@ -9,7 +9,6 @@ and requests, particularly WebSocket message handlers.
 """
 
 from ufo.galaxy.webui.handlers.websocket_handlers import WebSocketMessageHandler
-
 __all__ = [
     "WebSocketMessageHandler",
 ]

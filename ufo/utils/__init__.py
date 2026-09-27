@@ -1,6 +1,7 @@
 import base64
-import functools
 import importlib
+import functools
+from io import BytesIO
 import json
 import logging
 import mimetypes
@@ -8,12 +9,9 @@ import os
 import platform
 import re
 import uuid
-from io import BytesIO
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
-
-from colorama import Fore, Style, init
+from typing import Optional, Any, Dict, Tuple, TYPE_CHECKING
 from PIL import Image
-
+from colorama import Fore, Style, init
 if TYPE_CHECKING or platform.system() == 'Windows':
     from pywinauto.win32structures import RECT
 else:
@@ -43,7 +41,7 @@ def create_folder(folder_path: str) -> None:
         os.makedirs(folder_path)
 _UNSAFE_TASK_NAME_CHARS = re.compile('[^A-Za-z0-9._-]')
 
-def sanitize_task_name(task_name: str | None, fallback: str | None=None) -> str:
+def sanitize_task_name(task_name: Optional[str], fallback: Optional[str]=None) -> str:
     """
     Sanitize a user-supplied task name so it can be safely used as a single
     filesystem path component (e.g. for a log directory under ``logs/``).
@@ -70,7 +68,7 @@ def sanitize_task_name(task_name: str | None, fallback: str | None=None) -> str:
             return sanitized_fallback
     return str(uuid.uuid4())
 
-def is_safe_task_name(task_name: str | None) -> bool:
+def is_safe_task_name(task_name: Optional[str]) -> bool:
     """
     Return True if task_name is already a safe single path component: non-empty,
     only ``[A-Za-z0-9._-]`` and not starting with a dot (so no ``..``, hidden
@@ -152,7 +150,7 @@ def _normalize_keys(obj: Any) -> Any:
     else:
         return obj
 
-def json_parser(json_string: str) -> dict[str, Any]:
+def json_parser(json_string: str) -> Dict[str, Any]:
     """
     Parse json string to json object with regex extraction and key normalization.
     Handles common local LLM quirks: PascalCase keys, trailing commas, markdown
@@ -193,17 +191,17 @@ def json_parser(json_string: str) -> dict[str, Any]:
             recovered = _attempt_truncated_json_recovery(truncated_candidate)
             if recovered is not None:
                 return _normalize_keys(recovered)
-
+        
         try:
             parsed = json.loads(json_str_clean)
             return _normalize_keys(parsed)
         except json.JSONDecodeError:
             pass
-
+            
     # If all parsing fails, return a safe fallback or raise a specific error
     raise ValueError(f"Failed to parse JSON: {json_str_clean}")
 
-def _attempt_truncated_json_recovery(json_str: str) -> dict[str, Any] | None:
+def _attempt_truncated_json_recovery(json_str: str) -> Optional[Dict[str, Any]]:
     """
     Attempt to recover truncated JSON by closing unclosed braces and brackets.
     Common when local LLMs hit context window limits mid-output.
@@ -251,7 +249,7 @@ def is_json_serializable(obj: Any) -> bool:
     except TypeError:
         return False
 
-def revise_line_breaks(args: dict[str, Any]) -> dict[str, Any]:
+def revise_line_breaks(args: Dict[str, Any]) -> Dict[str, Any]:
     """
     Replace '\\n' with '
 ' in the arguments.
@@ -261,7 +259,7 @@ def revise_line_breaks(args: dict[str, Any]) -> dict[str, Any]:
     """
     if not args:
         return {}
-    for key in args:
+    for key in args.keys():
         if isinstance(args[key], str):
             args[key] = args[key].replace('\\n', '\n')
     return args
@@ -276,7 +274,7 @@ def LazyImport(module_name: str) -> Any:
     globals()[global_name] = importlib.import_module(module_name, __package__)
     return globals()[global_name]
 
-def find_desktop_path() -> str | None:
+def find_desktop_path() -> Optional[str]:
     """
     Find the desktop path of the user.
     """
@@ -312,7 +310,7 @@ def get_hugginface_embedding(model_name: str='sentence-transformers/all-mpnet-ba
     from langchain_huggingface import HuggingFaceEmbeddings
     return HuggingFaceEmbeddings(model_name=model_name)
 
-def coordinate_adjusted(window_rect: RECT, control_rect: RECT) -> tuple:
+def coordinate_adjusted(window_rect: RECT, control_rect: RECT) -> Tuple:
     """
     Adjust the coordinates of the control rectangle to the window rectangle.
     :param window_rect: The window rectangle.
@@ -322,7 +320,7 @@ def coordinate_adjusted(window_rect: RECT, control_rect: RECT) -> tuple:
     adjusted_rect = (control_rect.left - window_rect.left, control_rect.top - window_rect.top, control_rect.right - window_rect.left, control_rect.bottom - window_rect.top)
     return adjusted_rect
 
-def coordinate_adjusted_to_relative(window_rect: RECT, control_rect: RECT) -> tuple:
+def coordinate_adjusted_to_relative(window_rect: RECT, control_rect: RECT) -> Tuple:
     """
     Adjust the coordinates of the control rectangle to the window rectangle.
     :param window_rect: The window rectangle.
@@ -353,14 +351,14 @@ def decode_base64_image(base64_string: str) -> bytes:
         base64_string += '=' * padding_needed
     try:
         return base64.b64decode(base64_string)
-    except (binascii.Error, ValueError):
+    except (binascii.Error, ValueError) as e:
         try:
             return base64.b64decode(base64_string, validate=False)
         except Exception:
             return base64.b64decode(_empty_image_string.split(',')[1])
 _empty_image_string = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
-def encode_image_from_path(image_path: str, mime_type: str | None=None) -> str:
+def encode_image_from_path(image_path: str, mime_type: Optional[str]=None) -> str:
     """
     Encode an image file to base64 string.
     :param image_path: The path of the image file.
@@ -380,7 +378,7 @@ def encode_image_from_path(image_path: str, mime_type: str | None=None) -> str:
     image_url = f'data:{mime_type};base64,' + encoded_image
     return image_url
 
-def encode_image(image: Image.Image, mime_type: str | None=None) -> str:
+def encode_image(image: Image.Image, mime_type: Optional[str]=None) -> str:
     """
     Encode an image to base64 string.
     :param image: The image to encode.
@@ -419,7 +417,7 @@ def load_image(image_path: str) -> Image.Image:
         except Exception as e:
             logger.warning(f'Image {image_path} appears to be corrupted: {e}')
             return Image.new('RGB', (1, 1), color='white')
-    except Exception:
+    except Exception as e:
         import traceback
         logger.error(f'Error loading image from {image_path}: {traceback.format_exc()}')
         return Image.new('RGB', (1, 1), color='white')

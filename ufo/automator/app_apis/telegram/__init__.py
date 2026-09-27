@@ -8,57 +8,57 @@ Provides hybrid automation combining:
 - Skill learning and saving for bot operations
 """
 
+from ufo.automator.app_apis.telegram.telegram_gui import (
+    TelegramGUIController,
+    ChatItem,
+    Message,
+)
+from ufo.automator.app_apis.telegram.telegram_receiver import (
+    TelegramReceiver,
+)
+from ufo.automator.app_apis.telegram.telegram_memory import (
+    TelegramMemory,
+    ChatState,
+    GoalState,
+)
+from ufo.automator.app_apis.telegram.telegram_goals import (
+    GoalExecutor,
+    ExecutionConfig,
+)
+from ufo.automator.app_apis.telegram.telegram_skill import (
+    BotSkill,
+    InteractionPattern,
+    FailureMode,
+    ConversationLearner,
+    load_bot_skill_with_conversation,
+)
+from ufo.automator.app_apis.telegram.telegram_agent import (
+    AutonomousTelegramAgent,
+)
+from ufo.automator.app_apis.telegram.telegram_verifier import (
+    TelegramVerifier,
+    VerificationResult,
+)
+from ufo.automator.app_apis.telegram.telegram_lockout import (
+    ScreenLockout,
+)
+from ufo.automator.app_apis.telegram.telegram_privacy import (
+    PrivacyRedactor,
+    RedactionResult,
+    ERROR_KEYWORDS,
+)
+from ufo.automator.app_apis.telegram.telegram_human_mouse import (
+    HumanMouse,
+    MoveReport,
+    FASTEST_PEAK_PX_PER_S,
+    TARGET_PEAK_PX_PER_S,
+)
 from ufo.automator.app_apis.telegram.chat_names import (
     SAVED_MESSAGES,
     canonical_chat_name,
     chat_key,
     is_saved_messages,
     pick_best_match,
-)
-from ufo.automator.app_apis.telegram.telegram_agent import (
-    AutonomousTelegramAgent,
-)
-from ufo.automator.app_apis.telegram.telegram_goals import (
-    ExecutionConfig,
-    GoalExecutor,
-)
-from ufo.automator.app_apis.telegram.telegram_gui import (
-    ChatItem,
-    Message,
-    TelegramGUIController,
-)
-from ufo.automator.app_apis.telegram.telegram_human_mouse import (
-    FASTEST_PEAK_PX_PER_S,
-    TARGET_PEAK_PX_PER_S,
-    HumanMouse,
-    MoveReport,
-)
-from ufo.automator.app_apis.telegram.telegram_lockout import (
-    ScreenLockout,
-)
-from ufo.automator.app_apis.telegram.telegram_memory import (
-    ChatState,
-    GoalState,
-    TelegramMemory,
-)
-from ufo.automator.app_apis.telegram.telegram_privacy import (
-    ERROR_KEYWORDS,
-    PrivacyRedactor,
-    RedactionResult,
-)
-from ufo.automator.app_apis.telegram.telegram_receiver import (
-    TelegramReceiver,
-)
-from ufo.automator.app_apis.telegram.telegram_skill import (
-    BotSkill,
-    ConversationLearner,
-    FailureMode,
-    InteractionPattern,
-    load_bot_skill_with_conversation,
-)
-from ufo.automator.app_apis.telegram.telegram_verifier import (
-    TelegramVerifier,
-    VerificationResult,
 )
 
 __all__ = [

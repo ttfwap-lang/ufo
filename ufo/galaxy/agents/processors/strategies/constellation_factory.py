@@ -10,6 +10,11 @@ based on the weaving mode, following the Factory pattern for better modularity.
 
 
 from ufo.agents.processors.strategies.processing_strategy import BaseProcessingStrategy
+# Re-exported for callers/tests (e.g. tests/unit/test_refactoring.py); noqa keeps
+# ruff's F401 autofix from stripping it as "unused" within this module.
+from ufo.galaxy.agents.prompters.base_constellation_prompter import (  # noqa: F401
+    ConstellationPrompterFactory,
+)
 from ufo.galaxy.agents.processors.strategies.base_constellation_strategy import (
     ConstellationLLMInteractionStrategy,
     ConstellationMemoryUpdateStrategy,

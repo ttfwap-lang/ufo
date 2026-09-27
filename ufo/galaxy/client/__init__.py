@@ -29,13 +29,17 @@ Example Usage:
     # result = await galaxy.process_request("take a screenshot")
 """
 
-from .components import AgentProfile, DeviceStatus, TaskRequest
-from .config_loader import ConstellationConfig, DeviceConfig
 from .constellation_client import ConstellationClient
+
 from .device_manager import ConstellationDeviceManager
+
+from .components import AgentProfile, DeviceStatus, TaskRequest
+
+from .config_loader import ConstellationConfig, DeviceConfig
+
 from .support import (
-    ClientConfigManager,
     StatusManager,
+    ClientConfigManager,
 )
 
 __all__ = [

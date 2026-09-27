@@ -15,11 +15,16 @@ This package contains specialized observers for different aspects of Galaxy sess
 """
 
 from .agent_output_observer import AgentOutputObserver
+
 from .base_observer import ConstellationProgressObserver, SessionMetricsObserver
-from .constellation_sync_observer import ConstellationModificationSynchronizer
-from .constellation_visualization_handler import ConstellationVisualizationHandler
+
 from .dag_visualization_observer import DAGVisualizationObserver
+
 from .task_visualization_handler import TaskVisualizationHandler
+
+from .constellation_visualization_handler import ConstellationVisualizationHandler
+
+from .constellation_sync_observer import ConstellationModificationSynchronizer
 
 __all__ = [
     "AgentOutputObserver",
