@@ -14,24 +14,26 @@ import json
 import logging
 import os
 import platform
-import time
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any
+
 if TYPE_CHECKING or platform.system() == 'Windows':
     from pywinauto.controls.uiawrapper import UIAWrapper
 else:
     UIAWrapper = Any
 from rich.console import Console
+
 from ufo import utils
 from ufo.agents.agent.basic import BasicAgent
 from ufo.agents.agent.evaluation_agent import EvaluationAgent
 from ufo.agents.agent.host_agent import HostAgent
 from ufo.agents.states.basic import AgentState, AgentStatus
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.aip.messages import Command
+from ufo.config.config_loader import LazyUFOConfig
 from ufo.experience.summarizer import ExperienceSummarizer
 from ufo.module.context import Context, ContextNames
 from ufo.trajectory.parser import Trajectory
+
 ufo_config = LazyUFOConfig()
 console = Console()
 
@@ -132,7 +134,7 @@ class BaseRound(ABC):
                 await asyncio.sleep(ufo_config.system.sleep_time)
                 await self.capture_last_snapshot(sub_round_id=self.subtask_amount)
                 self.subtask_amount += 1
-        self.agent.blackboard.add_requests({'request_{i}'.format(i=self.id): self.request})
+        self.agent.blackboard.add_requests({f'request_{self.id}': self.request})
         await self.capture_last_snapshot()
         if self._should_evaluate:
             await self.evaluation()
@@ -239,7 +241,7 @@ class BaseRound(ABC):
         """
         total_cost = self.cost
         if isinstance(total_cost, float):
-            formatted_cost = '${:.2f}'.format(total_cost)
+            formatted_cost = f'${total_cost:.2f}'
             console.print(_safe_console_text(f'💰 Request total cost for current round is {formatted_cost}'), style='yellow')
 
     @property
@@ -251,7 +253,7 @@ class BaseRound(ABC):
         """
         return self._context.get(ContextNames.LOG_PATH)
 
-    async def capture_last_snapshot(self, sub_round_id: Optional[int]=None) -> None:
+    async def capture_last_snapshot(self, sub_round_id: int | None=None) -> None:
         """
         Capture the last snapshot of the application, including the screenshot and the XML file if configured.
         :param sub_round_id: The id of the sub-round, default is None.
@@ -353,7 +355,7 @@ class BaseRound(ABC):
         self._context.set(ContextNames.APPLICATION_WINDOW, app_window)
 
     @property
-    def application_window_info(self) -> Dict[str, str]:
+    def application_window_info(self) -> dict[str, str]:
         """
         Get the application window info of the session.
         return: The application window info of the session.
@@ -361,7 +363,7 @@ class BaseRound(ABC):
         return self._context.get(ContextNames.APPLICATION_WINDOW_INFO)
 
     @application_window_info.setter
-    def application_window_info(self, app_window_info: Dict[str, str]) -> None:
+    def application_window_info(self, app_window_info: dict[str, str]) -> None:
         """
         Set the application window info.
         :param app_window_info: The application window info.
@@ -395,16 +397,16 @@ class BaseSession(ABC):
             raise ValueError(f'Unsafe task name {task!r}: resolved log path {resolved_log_path!r} escapes logs root {logs_root!r}')
         self.log_path = candidate_log_path
         utils.create_folder(self.log_path)
-        self._rounds: Dict[int, BaseRound] = {}
+        self._rounds: dict[int, BaseRound] = {}
         self._context = Context()
         self._init_context()
         self._finish = False
         self._results = []
         self.logger = logging.getLogger(__name__)
-        self._host_agent: Optional[HostAgent] = None
+        self._host_agent: HostAgent | None = None
         self._init_agents()
 
-    async def run(self) -> List[Dict[str, str]]:
+    async def run(self) -> list[dict[str, str]]:
         """
         Run the session.
         :return: The result per session
@@ -434,7 +436,7 @@ class BaseSession(ABC):
         pass
 
     @abstractmethod
-    def create_new_round(self) -> Optional[BaseRound]:
+    def create_new_round(self) -> BaseRound | None:
         """
         Create a new round.
         """
@@ -529,7 +531,7 @@ class BaseSession(ABC):
         self.context.set(ContextNames.APPLICATION_WINDOW, app_window)
 
     @property
-    def application_window_info(self) -> Dict[str, str]:
+    def application_window_info(self) -> dict[str, str]:
         """
         Get the application window info of the session.
         return: The application window info of the session.
@@ -537,7 +539,7 @@ class BaseSession(ABC):
         return self.context.get(ContextNames.APPLICATION_WINDOW_INFO)
 
     @application_window_info.setter
-    def application_window_info(self, app_window_info: Dict[str, str]) -> None:
+    def application_window_info(self, app_window_info: dict[str, str]) -> None:
         """
         Set the application window info.
         :param app_window_info: The application window info.
@@ -569,7 +571,7 @@ class BaseSession(ABC):
         return len(self._rounds)
 
     @property
-    def rounds(self) -> Dict[int, BaseRound]:
+    def rounds(self) -> dict[int, BaseRound]:
         """
         Get the rounds of the session.
         return: The rounds of the session.
@@ -577,7 +579,7 @@ class BaseSession(ABC):
         return self._rounds
 
     @property
-    def host_agent(self) -> Optional[HostAgent]:
+    def host_agent(self) -> HostAgent | None:
         """
         Get the host agent of the session.
         May return None for sessions that don't use a host agent (e.g., Linux).
@@ -586,7 +588,7 @@ class BaseSession(ABC):
         return self._host_agent
 
     @property
-    def current_round(self) -> Optional[BaseRound]:
+    def current_round(self) -> BaseRound | None:
         """
         Get the current round of the session.
         return: The current round of the session, or None if no rounds exist.
@@ -597,7 +599,7 @@ class BaseSession(ABC):
             return self._rounds[self.total_rounds - 1]
 
     @property
-    def results(self) -> List[Dict[str, str]]:
+    def results(self) -> list[dict[str, str]]:
         """
         Get the evaluation results of the session.
         return: The evaluation results of the session.
@@ -605,7 +607,7 @@ class BaseSession(ABC):
         return self._results
 
     @results.setter
-    def results(self, value: List[Dict[str, str]]) -> None:
+    def results(self, value: list[dict[str, str]]) -> None:
         """
         Set the evaluation results of the session.
         :param value: The evaluation results of the session.
@@ -632,7 +634,7 @@ class BaseSession(ABC):
         Print the total cost of the session.
         """
         if isinstance(self.cost, float) and self.cost > 0:
-            formatted_cost = '${:.2f}'.format(self.cost)
+            formatted_cost = f'${self.cost:.2f}'
             console.print(_safe_console_text(f'💰 Total request cost of the session: {formatted_cost}'), style='yellow')
         else:
             console.print(_safe_console_text(f'ℹ️  Cost is not available for the model {ufo_config.host_agent.api_model} or {ufo_config.app_agent.api_model}.'), style='yellow')
@@ -683,7 +685,7 @@ class BaseSession(ABC):
         requests = self.request_to_evaluate()
         try:
             result, cost = await evaluator.evaluate(request=requests, log_path=self.log_path, eva_all_screenshots=ufo_config.system.eva_all_screenshots, context=self.context)
-        except Exception as e:
+        except Exception:
             result, cost = await evaluator.evaluate(request=requests, log_path=self.log_path, eva_all_screenshots=False, context=self.context)
         additional_info = {'level': 'session', 'request': requests, 'type': 'evaluation_result'}
         result.update(additional_info)
@@ -694,7 +696,7 @@ class BaseSession(ABC):
         self.logger.info(f"Evaluation result saved to {os.path.join(self.log_path, 'evaluation.log')}")
 
     @property
-    def results(self) -> List[Dict[str, str]]:
+    def results(self) -> list[dict[str, str]]:
         """
         Get the evaluation results of the session.
         return: The evaluation results of the session.
@@ -702,7 +704,7 @@ class BaseSession(ABC):
         return self._results
 
     @results.setter
-    def results(self, value: List[Dict[str, str]]):
+    def results(self, value: list[dict[str, str]]):
         """
         Set the evaluation results of the session.
         :param value: The evaluation results to set.

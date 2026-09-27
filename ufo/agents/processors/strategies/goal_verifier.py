@@ -11,8 +11,9 @@ import json
 import logging
 import os
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ _PROMPT = (
 
 @dataclass
 class GoalVerdict:
-    achieved: Optional[bool]
+    achieved: bool | None
     confidence: float
     reason: str
     missing: str = ""
@@ -43,8 +44,8 @@ class GoalVerdict:
         return self.achieved is False and self.confidence >= 0.6
 
 
-def build_messages(user_request: str, agent_summary: str, screenshot_url: Optional[str]) -> List[Dict[str, Any]]:
-    content: List[Dict[str, Any]] = [
+def build_messages(user_request: str, agent_summary: str, screenshot_url: str | None) -> list[dict[str, Any]]:
+    content: list[dict[str, Any]] = [
         {"type": "text", "text": f"USER REQUEST:\n{user_request}\n\nAGENT'S FINAL SUMMARY:\n{agent_summary or '(none)'}"}
     ]
     if screenshot_url:
@@ -77,8 +78,8 @@ def parse_verdict(text: str) -> GoalVerdict:
 async def verify_goal(
     user_request: str,
     agent_summary: str,
-    screenshot_url: Optional[str],
-    ask_model: Callable[[List[Dict[str, Any]]], Awaitable[str]],
+    screenshot_url: str | None,
+    ask_model: Callable[[list[dict[str, Any]]], Awaitable[str]],
 ) -> GoalVerdict:
     try:
         reply = await ask_model(build_messages(user_request, agent_summary, screenshot_url))

@@ -1,7 +1,6 @@
 """Diagnose screen capture from the daemon (SYSTEM) context."""
 import ctypes
 from ctypes import wintypes
-import os, sys, json
 
 user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32

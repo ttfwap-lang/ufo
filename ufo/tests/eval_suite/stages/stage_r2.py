@@ -5,7 +5,7 @@ Stage R2 Handler: Chrome Navigation.
 """
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from tests.eval_suite.verifiers import resolve_log_path, verify_process_running, verify_session_logs
 
@@ -17,7 +17,7 @@ DEFAULT_SECOND_URL = 'https://www.wikipedia.org'
 DEFAULT_REQUEST = f'Open Google Chrome, navigate to {DEFAULT_INITIAL_URL}, and then navigate to {DEFAULT_SECOND_URL}.'
 logger = logging.getLogger('EvalStage.R2')
 
-def verify_r2(task_log_dir: Optional[Union[str, Path]]=None, initial_url: str=DEFAULT_INITIAL_URL, second_url: str=DEFAULT_SECOND_URL, dry_run: bool=False, stage_data: Optional[Union[Dict[str, Any], str, Path]]=None, output_dir: Optional[Union[str, Path]]=None) -> Dict[str, Any]:
+def verify_r2(task_log_dir: str | Path | None=None, initial_url: str=DEFAULT_INITIAL_URL, second_url: str=DEFAULT_SECOND_URL, dry_run: bool=False, stage_data: dict[str, Any] | str | Path | None=None, output_dir: str | Path | None=None) -> dict[str, Any]:
     """
     Verify Stage R2 execution results.
 
@@ -63,7 +63,7 @@ def pre_cleanup() -> None:
     except Exception as e:
         logger.warning(f'[Stage R2 Pre-Cleanup] Could not pre-launch Chrome: {e}')
 
-def get_stage_config() -> Dict[str, Any]:
+def get_stage_config() -> dict[str, Any]:
     """
     Get stage configuration for Stage R2.
 

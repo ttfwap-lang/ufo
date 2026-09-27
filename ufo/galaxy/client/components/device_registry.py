@@ -10,7 +10,7 @@ Single responsibility: Device data management.
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .types import AgentProfile, DeviceStatus
 
@@ -22,18 +22,18 @@ class DeviceRegistry:
     """
 
     def __init__(self):
-        self._devices: Dict[str, AgentProfile] = {}
-        self._device_capabilities: Dict[str, Dict[str, Any]] = {}
-        self._active_tasks: Dict[str, set] = {}
+        self._devices: dict[str, AgentProfile] = {}
+        self._device_capabilities: dict[str, dict[str, Any]] = {}
+        self._active_tasks: dict[str, set] = {}
         self.logger = logging.getLogger(f"{__name__}.DeviceRegistry")
 
     def register_device(
         self,
         device_id: str,
         server_url: str,
-        os: Optional[str] = None,
-        capabilities: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        os: str | None = None,
+        capabilities: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
         max_retries: int = 5,
     ) -> AgentProfile:
         """
@@ -62,11 +62,11 @@ class DeviceRegistry:
         )
         return device_info
 
-    def get_device(self, device_id: str) -> Optional[AgentProfile]:
+    def get_device(self, device_id: str) -> AgentProfile | None:
         """Get device information by ID"""
         return self._devices.get(device_id)
 
-    def get_all_devices(self, connected: bool = False) -> Dict[str, AgentProfile]:
+    def get_all_devices(self, connected: bool = False) -> dict[str, AgentProfile]:
         """
         Get all registered devices
         :param connected: If True, return only connected devices
@@ -99,7 +99,7 @@ class DeviceRegistry:
             self._devices[device_id].current_task_id = task_id
             self.logger.info(f"🔄 Device {device_id} set to BUSY (task: {task_id})")
 
-    def set_device_idle(self, device_id: str, task_id: Optional[str] = None) -> None:
+    def set_device_idle(self, device_id: str, task_id: str | None = None) -> None:
         """
         Set device to IDLE status if all active tasks are finished.
 
@@ -128,7 +128,7 @@ class DeviceRegistry:
             return self._devices[device_id].status == DeviceStatus.BUSY
         return False
 
-    def get_current_task(self, device_id: str) -> Optional[str]:
+    def get_current_task(self, device_id: str) -> str | None:
         """
         Get the current task ID being executed on device.
 
@@ -158,7 +158,7 @@ class DeviceRegistry:
             self._devices[device_id].last_heartbeat = datetime.now(timezone.utc)
 
     def set_device_capabilities(
-        self, device_id: str, capabilities: Dict[str, Any]
+        self, device_id: str, capabilities: dict[str, Any]
     ) -> None:
         """Store device capabilities information"""
         self._device_capabilities[device_id] = capabilities
@@ -171,11 +171,11 @@ class DeviceRegistry:
             if "metadata" in capabilities:
                 device_info.metadata.update(capabilities["metadata"])
 
-    def get_device_capabilities(self, device_id: str) -> Dict[str, Any]:
+    def get_device_capabilities(self, device_id: str) -> dict[str, Any]:
         """Get device capabilities"""
         return self._device_capabilities.get(device_id, {})
 
-    def get_connected_devices(self) -> List[str]:
+    def get_connected_devices(self) -> list[str]:
         """Get list of connected device IDs"""
         return [
             device_id
@@ -196,7 +196,7 @@ class DeviceRegistry:
         return False
 
     def update_device_system_info(
-        self, device_id: str, system_info: Dict[str, Any]
+        self, device_id: str, system_info: dict[str, Any]
     ) -> bool:
         """
         Update AgentProfile with system information retrieved from server.
@@ -264,7 +264,7 @@ class DeviceRegistry:
 
         return True
 
-    def get_device_system_info(self, device_id: str) -> Optional[Dict[str, Any]]:
+    def get_device_system_info(self, device_id: str) -> dict[str, Any] | None:
         """
         Get device system information (hardware, OS, features).
 

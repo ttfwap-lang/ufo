@@ -1,12 +1,15 @@
+import json
 import logging
 import traceback
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
-import json
+from typing import TYPE_CHECKING
+
+from pydantic_core import to_jsonable_python
+
 from ufo.agents.processors.context.processing_context import ProcessingContext, ProcessingResult
 from ufo.agents.processors.core.processor_framework import ProcessingContext, ProcessingResult
 from ufo.module.context import ContextNames
-from pydantic_core import to_jsonable_python
+
 if TYPE_CHECKING:
     from ufo.agents.processors.core.processor_framework import ProcessorTemplate
     from ufo.module.basic import FileWriter
@@ -16,7 +19,7 @@ class ProcessorMiddleware(ABC):
     Processor middleware base class.
     """
 
-    def __init__(self, name: Optional[str]=None):
+    def __init__(self, name: str | None=None):
         """
         Initialize the middleware.
         :param name: Optional custom name for the middleware. If not provided, uses class name.
@@ -55,7 +58,7 @@ class EnhancedLoggingMiddleware(ProcessorMiddleware):
     Enhanced logging middleware that handles different types of errors appropriately.
     """
 
-    def __init__(self, log_level: int=logging.INFO, name: Optional[str]=None):
+    def __init__(self, log_level: int=logging.INFO, name: str | None=None):
         super().__init__(name)
         self.logger = logging.getLogger(f'{self.__class__.__name__}.{self.name}')
         self.log_level = log_level
@@ -75,7 +78,7 @@ class EnhancedLoggingMiddleware(ProcessorMiddleware):
                 self.logger.debug(f'Result data keys: {data_keys}')
         else:
             self.logger.warning(f'Processing completed with failure: {result.error}')
-        local_logger: 'FileWriter' = processor.processing_context.global_context.get(ContextNames.LOGGER)
+        local_logger: FileWriter = processor.processing_context.global_context.get(ContextNames.LOGGER)
         local_context = processor.processing_context.local_context
         local_context.total_time = result.execution_time
         phrase_time_cost = {}
@@ -93,6 +96,7 @@ class EnhancedLoggingMiddleware(ProcessorMiddleware):
             log_dir = processor.processing_context.get_local('log_path') or processor.processing_context.get_global(ContextNames.LOG_PATH) or ''
             if log_dir:
                 from datetime import datetime, timezone
+
                 from ufo.ufo_logging.enhanced_logger import EnhancedActionLogRecord, JSONLEventStreamWriter
                 ctx = processor.processing_context
                 verification_res = ctx.get_local('verification_result')

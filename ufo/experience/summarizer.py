@@ -1,13 +1,15 @@
 import os
-from typing import Tuple
+
 import yaml
-from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
+
 from ufo.experience.experience_parser import ExperienceLogLoader
 from ufo.llm import AgentType
 from ufo.llm.llm_call import get_completion
 from ufo.prompter.experience_prompter import ExperiencePrompter
 from ufo.utils import get_hugginface_embedding, json_parser
+
 
 class ExperienceSummarizer:
     """
@@ -39,7 +41,7 @@ class ExperienceSummarizer:
         experience_prompt = experience_prompter.prompt_construction(experience_system_prompt, experience_user_prompt)
         return experience_prompt
 
-    async def get_summary(self, prompt_message: list) -> Tuple[dict, float]:
+    async def get_summary(self, prompt_message: list) -> tuple[dict, float]:
         """
         Get the summary asynchronously.
         :param prompt_message: The prompt message.
@@ -62,7 +64,7 @@ class ExperienceSummarizer:
             summary['Tips'] = response_json.get('Tips', response_json.get('tips', ''))
         return (summary, cost)
 
-    async def get_summary_list(self, logs: list) -> Tuple[list, float]:
+    async def get_summary_list(self, logs: list) -> tuple[list, float]:
         """
         Get the summary list asynchronously.
         :param logs: The logs.
@@ -101,7 +103,7 @@ class ExperienceSummarizer:
             with open(yaml_path, 'w', encoding='utf-8'):
                 pass
             print(f'Created new YAML file: {yaml_path}')
-        with open(yaml_path, 'r', encoding='utf-8') as file:
+        with open(yaml_path, encoding='utf-8') as file:
             existing_data = yaml.safe_load(file)
         index = len(existing_data) if existing_data else 0
         existing_data = existing_data or {}

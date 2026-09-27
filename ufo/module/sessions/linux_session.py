@@ -7,10 +7,10 @@ This module provides session types for Linux platform that don't require a HostA
 """
 
 import logging
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
+from ufo.config.config_loader import LazyUFOConfig
 from ufo.module import interactor
 from ufo.module.basic import BaseRound
 from ufo.module.context import ContextNames
@@ -64,7 +64,7 @@ class LinuxSession(LinuxBaseSession):
         command_dispatcher = LocalCommandDispatcher(self, mcp_server_manager)
         self.context.attach_command_dispatcher(command_dispatcher)
 
-    def create_new_round(self) -> Optional[BaseRound]:
+    def create_new_round(self) -> BaseRound | None:
         """
         Create a new round for Linux session.
         Since there's no host agent, directly create app-level rounds.

@@ -5,9 +5,10 @@ loading a GPU model.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any
 
-Box = Tuple[int, int, int, int]
+Box = tuple[int, int, int, int]
 
 # An icon box swallows the OCR text inside it (its content becomes that text)
 # only if it is button-sized. A sidebar-sized "icon" containing thirty labels
@@ -30,8 +31,8 @@ def clamp(b: Box, w: int, h: int) -> Box:
     return (max(0, b[0]), max(0, b[1]), min(w, b[2]), min(h, b[3]))
 
 
-def merge(icons: Sequence[Box], texts: Sequence[Tuple[Box, str]],
-          w: int, h: int) -> Tuple[List[Dict[str, Any]], List[int]]:
+def merge(icons: Sequence[Box], texts: Sequence[tuple[Box, str]],
+          w: int, h: int) -> tuple[list[dict[str, Any]], list[int]]:
     """Return (elements, indices needing a caption).
 
     Rules, in order, per icon box:
@@ -42,9 +43,9 @@ def merge(icons: Sequence[Box], texts: Sequence[Tuple[Box, str]],
       3. Otherwise keep it as an icon to be captioned.
     Every OCR box not absorbed becomes a text element.
     """
-    elements: List[Dict[str, Any]] = []
+    elements: list[dict[str, Any]] = []
     absorbed = set()
-    to_caption: List[int] = []
+    to_caption: list[int] = []
     for b in icons:
         a = area(b)
         if a == 0 or any(inter(b, tb) >= INSIDE * a for tb, _ in texts):

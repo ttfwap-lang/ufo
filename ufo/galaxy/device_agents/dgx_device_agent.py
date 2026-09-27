@@ -29,7 +29,7 @@ today (see `tests/galaxy/device_agents/test_dgx_device_agent.py`).
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiohttp
 
@@ -77,8 +77,8 @@ class DGXDeviceAgent:
     def __init__(
         self,
         device_id: str = "dgx-spark-01",
-        capabilities: Optional[List[str]] = None,
-        dgx_host: Optional[str] = None,
+        capabilities: list[str] | None = None,
+        dgx_host: str | None = None,
         ollama_port: int = DEFAULT_OLLAMA_PORT,
         vllm_port: int = DEFAULT_VLLM_PORT,
         vision_model: str = DEFAULT_VISION_MODEL,
@@ -99,7 +99,7 @@ class DGXDeviceAgent:
         :param text_model: vLLM model name for text tasks
         """
         self.device_id = device_id
-        self.capabilities: List[str] = capabilities or [
+        self.capabilities: list[str] = capabilities or [
             "llm_inference",
             "vision",
             "qwen3",
@@ -115,13 +115,13 @@ class DGXDeviceAgent:
         self.logger = logging.getLogger(f"{__name__}.DGXDeviceAgent")
 
         # Populated by register(); None until a successful registration.
-        self._transport: Optional[WebSocketTransport] = None
-        self._registration_protocol: Optional[RegistrationProtocol] = None
-        self._task_protocol: Optional[TaskExecutionProtocol] = None
+        self._transport: WebSocketTransport | None = None
+        self._registration_protocol: RegistrationProtocol | None = None
+        self._task_protocol: TaskExecutionProtocol | None = None
         self.registered: bool = False
 
     @property
-    def dgx_host(self) -> Optional[str]:
+    def dgx_host(self) -> str | None:
         """
         Resolve the DGX host, preferring an explicit override (mainly for
         tests) and otherwise deferring to the shared
@@ -133,14 +133,14 @@ class DGXDeviceAgent:
         return get_dgx_host()
 
     @property
-    def ollama_base_url(self) -> Optional[str]:
+    def ollama_base_url(self) -> str | None:
         host = self.dgx_host
         if not host:
             return None
         return f"http://{host}:{self.ollama_port}"
 
     @property
-    def vllm_base_url(self) -> Optional[str]:
+    def vllm_base_url(self) -> str | None:
         host = self.dgx_host
         if not host:
             return None
@@ -150,7 +150,7 @@ class DGXDeviceAgent:
     # Registration
     # ------------------------------------------------------------------
 
-    async def register(self, galaxy_server_url: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+    async def register(self, galaxy_server_url: str, metadata: dict[str, Any] | None = None) -> bool:
         """
         Register this device agent with a Galaxy constellation server.
 
@@ -178,7 +178,7 @@ class DGXDeviceAgent:
             automatically)
         :return: True if registration succeeded, False otherwise
         """
-        merged_metadata: Dict[str, Any] = {
+        merged_metadata: dict[str, Any] = {
             "capabilities": self.capabilities,
             "dgx_host": self.dgx_host,
             "ollama_base_url": self.ollama_base_url,
@@ -233,7 +233,7 @@ class DGXDeviceAgent:
     # Task execution
     # ------------------------------------------------------------------
 
-    def _is_vision_task(self, task: Dict[str, Any]) -> bool:
+    def _is_vision_task(self, task: dict[str, Any]) -> bool:
         """Decide whether a task should be routed to the vision (Ollama) backend."""
         tags = set()
         for key in ("tags", "capabilities"):
@@ -247,7 +247,7 @@ class DGXDeviceAgent:
             return True
         return any(vt in task_name for vt in _VISION_TAGS)
 
-    async def execute_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_task(self, task: dict[str, Any]) -> dict[str, Any]:
         """
         Execute a task by proxying it to the appropriate DGX backend.
 
@@ -284,10 +284,10 @@ class DGXDeviceAgent:
             self.logger.error(f"Unexpected error executing task on DGX backend: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
-    async def _execute_vision_task(self, prompt: str, task: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_vision_task(self, prompt: str, task: dict[str, Any]) -> dict[str, Any]:
         """Proxy a vision task to Ollama's /api/generate endpoint."""
         url = f"{self.ollama_base_url}/api/generate"
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self.vision_model,
             "prompt": prompt,
             "stream": False,
@@ -296,10 +296,9 @@ class DGXDeviceAgent:
         if images:
             payload["images"] = images
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload) as resp:
-                resp.raise_for_status()
-                data = await resp.json()
+        async with aiohttp.ClientSession() as session, session.post(url, json=payload) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
 
         return {
             "success": True,
@@ -309,18 +308,17 @@ class DGXDeviceAgent:
             "raw": data,
         }
 
-    async def _execute_text_task(self, prompt: str, task: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_text_task(self, prompt: str, task: dict[str, Any]) -> dict[str, Any]:
         """Proxy a text task to vLLM's OpenAI-compatible /v1/chat/completions endpoint."""
         url = f"{self.vllm_base_url}/v1/chat/completions"
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self.text_model,
             "messages": [{"role": "user", "content": prompt}],
         }
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload) as resp:
-                resp.raise_for_status()
-                data = await resp.json()
+        async with aiohttp.ClientSession() as session, session.post(url, json=payload) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
 
         output = ""
         choices = data.get("choices") or []
@@ -339,7 +337,7 @@ class DGXDeviceAgent:
     # Health check
     # ------------------------------------------------------------------
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Probe both DGX backends for liveness.
 
@@ -377,7 +375,7 @@ class DGXDeviceAgent:
         }
 
     @staticmethod
-    async def _probe(url: str, timeout: float = 5.0) -> Dict[str, Any]:
+    async def _probe(url: str, timeout: float = 5.0) -> dict[str, Any]:
         """GET a URL and report whether it returned HTTP 200, without raising."""
         try:
             async with aiohttp.ClientSession() as session:

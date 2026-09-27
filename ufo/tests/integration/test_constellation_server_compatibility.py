@@ -7,12 +7,11 @@ Tests verify that:
 3. End-to-end message flows work correctly
 """
 
-import asyncio
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
-from datetime import datetime, timezone
 import json
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock
 
+import pytest
 from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
@@ -21,10 +20,10 @@ from ufo.aip.messages import (
     ServerMessageType,
     TaskStatus,
 )
-from ufo.aip.protocol.registration import RegistrationProtocol
-from ufo.aip.protocol.heartbeat import HeartbeatProtocol
-from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.aip.protocol.device_info import DeviceInfoProtocol
+from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+from ufo.aip.protocol.registration import RegistrationProtocol
+from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.aip.transport.websocket import WebSocketTransport
 
 

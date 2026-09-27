@@ -3,7 +3,7 @@
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ufo.llm import response_format_override
 from ufo.llm.llm_result import LLMResult
@@ -29,12 +29,12 @@ class OllamaService(BaseOpenAIService):
 
     async def chat_completion(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         n: int = 1,
         stream: bool = False,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        top_p: Optional[float] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
         **kwargs: Any,
     ) -> LLMResult:
         """
@@ -58,7 +58,7 @@ class OllamaService(BaseOpenAIService):
             **kwargs,
         )
 
-    def _response_format(self) -> Dict[str, Any]:
+    def _response_format(self) -> dict[str, Any]:
         """Constrain decoding to UFO's agent response shape.
 
         Plain ``json_object`` mode lets the model pick its own keys (e.g. a

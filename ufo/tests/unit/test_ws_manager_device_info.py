@@ -4,15 +4,15 @@ Unit Tests for WSManager Device Info Management
 Tests the server-side device information storage and retrieval.
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
-from fastapi import WebSocket
+from unittest.mock import Mock
 
-from ufo.server.services.ws_manager import WSManager, ClientInfo
+import pytest
+from fastapi import WebSocket
 from ufo.aip.messages import ClientType
+from ufo.server.services.ws_manager import WSManager
 
 
 class TestWSManagerAgentProfile:

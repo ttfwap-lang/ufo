@@ -5,10 +5,13 @@ Simplified client focused on device connection and basic task execution.
 Serves as a support component for the main GalaxyClient system.
 """
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from ufo.utils.redact import redact
+
 from .config_loader import ConstellationConfig, DeviceConfig
 from .device_manager import ConstellationDeviceManager
+
 
 class ConstellationClient:
     """
@@ -25,7 +28,7 @@ class ConstellationClient:
     is handled by the TaskConstellationOrchestrator system.
     """
 
-    def __init__(self, config: Optional[ConstellationConfig]=None, task_name: Optional[str]=None):
+    def __init__(self, config: ConstellationConfig | None=None, task_name: str | None=None):
         """
         Initialize the constellation client for device management.
 
@@ -38,7 +41,7 @@ class ConstellationClient:
         self.device_manager = ConstellationDeviceManager(task_name=self.config.task_name, heartbeat_interval=self.config.heartbeat_interval, reconnect_delay=self.config.reconnect_delay)
         self.logger = logging.getLogger(__name__)
 
-    async def initialize(self) -> Dict[str, bool]:
+    async def initialize(self) -> dict[str, bool]:
         """
         Initialize the constellation client and register devices from configuration.
 
@@ -67,7 +70,7 @@ class ConstellationClient:
         """
         return await self.device_manager.register_device(device_id=device_config.device_id, server_url=device_config.server_url, os=device_config.os, capabilities=device_config.capabilities, metadata=device_config.metadata, auto_connect=device_config.auto_connect)
 
-    async def register_device(self, device_id: str, server_url: str, capabilities: Optional[List[str]]=None, metadata: Optional[Dict[str, Any]]=None, auto_connect: bool=True) -> bool:
+    async def register_device(self, device_id: str, server_url: str, capabilities: list[str] | None=None, metadata: dict[str, Any] | None=None, auto_connect: bool=True) -> bool:
         """Register a device manually."""
         return await self.device_manager.register_device(device_id=device_id, server_url=server_url, capabilities=capabilities, metadata=metadata, auto_connect=auto_connect)
 
@@ -79,7 +82,7 @@ class ConstellationClient:
         """Disconnect from a specific device."""
         return await self.device_manager.disconnect_device(device_id)
 
-    async def connect_all_devices(self) -> Dict[str, bool]:
+    async def connect_all_devices(self) -> dict[str, bool]:
         """Connect to all registered devices."""
         return await self.device_manager.connect_all_devices()
 
@@ -87,7 +90,7 @@ class ConstellationClient:
         """Disconnect from all devices."""
         await self.device_manager.disconnect_all_devices()
 
-    async def ensure_devices_connected(self) -> Dict[str, bool]:
+    async def ensure_devices_connected(self) -> dict[str, bool]:
         """
         Ensure all registered devices are connected.
         Attempts to reconnect any disconnected devices.
@@ -96,22 +99,22 @@ class ConstellationClient:
         """
         return await self.device_manager.ensure_devices_connected()
 
-    def get_device_status(self, device_id: Optional[str]=None) -> Dict[str, Any]:
+    def get_device_status(self, device_id: str | None=None) -> dict[str, Any]:
         """Get device status information."""
         if device_id:
             return self.device_manager.get_device_status(device_id)
         else:
             return {device_id: self.device_manager.get_device_status(device_id) for device_id in self.device_manager.get_connected_devices()}
 
-    def get_connected_devices(self) -> List[str]:
+    def get_connected_devices(self) -> list[str]:
         """Get list of connected device IDs."""
         return self.device_manager.get_connected_devices()
 
-    def get_constellation_info(self) -> Dict[str, Any]:
+    def get_constellation_info(self) -> dict[str, Any]:
         """Get constellation information and status."""
         return {'constellation_id': self.config.task_name, 'connected_devices': len(self.device_manager.get_connected_devices()), 'total_devices': len(self.config.devices), 'configuration': {'heartbeat_interval': self.config.heartbeat_interval, 'reconnect_delay': self.config.reconnect_delay, 'max_concurrent_tasks': self.config.max_concurrent_tasks}}
 
-    def validate_config(self, config: Optional[ConstellationConfig]=None) -> Dict[str, Any]:
+    def validate_config(self, config: ConstellationConfig | None=None) -> dict[str, Any]:
         """Validate a constellation configuration."""
         target_config = config or self.config
         validation_result = {'valid': True, 'errors': [], 'warnings': []}
@@ -122,11 +125,11 @@ class ConstellationClient:
             validation_result['warnings'].append('No devices configured')
         return validation_result
 
-    def get_config_summary(self) -> Dict[str, Any]:
+    def get_config_summary(self) -> dict[str, Any]:
         """Get a summary of the current configuration."""
         return {'task_name': self.config.task_name, 'devices_count': len(self.config.devices), 'devices': [{'device_id': device.device_id, 'server_url': redact(device.server_url), 'capabilities': device.capabilities, 'auto_connect': device.auto_connect} for device in self.config.devices], 'settings': {'heartbeat_interval': self.config.heartbeat_interval, 'reconnect_delay': self.config.reconnect_delay, 'max_concurrent_tasks': self.config.max_concurrent_tasks}}
 
-    async def add_device_to_config(self, device_id: str, server_url: str, capabilities: Optional[List[str]]=None, metadata: Optional[Dict[str, Any]]=None, auto_connect: bool=True, register_immediately: bool=True) -> bool:
+    async def add_device_to_config(self, device_id: str, server_url: str, capabilities: list[str] | None=None, metadata: dict[str, Any] | None=None, auto_connect: bool=True, register_immediately: bool=True) -> bool:
         """Add a new device to the configuration and optionally register it."""
         device_config = DeviceConfig(device_id=device_id, server_url=server_url, capabilities=capabilities or [], metadata=metadata or {}, auto_connect=auto_connect)
         self.config.devices.append(device_config)
@@ -140,7 +143,7 @@ class ConstellationClient:
         await self.device_manager.shutdown()
         self.logger.info('✅ Constellation Client shutdown complete')
 
-async def create_constellation_client(config_file: Optional[str]=None, task_name: Optional[str]=None, devices: Optional[List[Dict[str, Any]]]=None) -> ConstellationClient:
+async def create_constellation_client(config_file: str | None=None, task_name: str | None=None, devices: list[dict[str, Any]] | None=None) -> ConstellationClient:
     """
     Create and initialize a modular constellation client.
 

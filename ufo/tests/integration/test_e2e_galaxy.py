@@ -18,9 +18,10 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime
-from typing import Dict, List, Any, Optional
 import traceback
+from datetime import datetime
+from typing import Any
+
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
@@ -28,11 +29,19 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
-from ufo.galaxy.constellation import TaskConstellationOrchestrator, TaskConstellation, TaskStar, TaskStarLine, LLMParser, TaskStatus, DependencyType, ConstellationState, DeviceType, TaskPriority, create_and_orchestrate_from_llm, create_simple_constellation
+from ufo.galaxy.client.config_loader import ConstellationConfig
 from ufo.galaxy.client.constellation_client import ConstellationClient
-from ufo.galaxy.client.config_loader import ConstellationConfig, DeviceConfig
+from ufo.galaxy.constellation import (
+    TaskConstellation,
+    TaskConstellationOrchestrator,
+    TaskPriority,
+    TaskStar,
+    TaskStarLine,
+    TaskStatus,
+    create_simple_constellation,
+)
 from ufo.galaxy.session import GalaxySession
-from ufo.galaxy.agents import ConstellationAgent
+
 
 class FakeState:
 
@@ -67,15 +76,15 @@ logger = logging.getLogger(__name__)
 class MockDeviceManager:
     """Mock device manager to match ConstellationDeviceManager interface."""
 
-    def __init__(self, connected_devices: Dict[str, Any]):
+    def __init__(self, connected_devices: dict[str, Any]):
         self.connected_devices = connected_devices
         self.device_registry = MockDeviceRegistry(connected_devices)
 
-    def get_connected_devices(self) -> List[str]:
+    def get_connected_devices(self) -> list[str]:
         """Get list of connected device IDs."""
         return [device_id for device_id, info in self.connected_devices.items() if info['status'] == 'connected']
 
-    async def assign_task_to_device(self, task_id: str, device_id: str, target_client_id: Optional[str]=None, task_description: str='', task_data: Dict[str, Any]=None, timeout: float=300.0) -> Dict[str, Any]:
+    async def assign_task_to_device(self, task_id: str, device_id: str, target_client_id: str | None=None, task_description: str='', task_data: dict[str, Any]=None, timeout: float=300.0) -> dict[str, Any]:
         """Mock task assignment that simulates device execution."""
         if device_id not in self.connected_devices:
             raise ValueError(f'Device {device_id} not found')
@@ -85,7 +94,7 @@ class MockDeviceManager:
 class MockDeviceRegistry:
     """Mock device registry."""
 
-    def __init__(self, connected_devices: Dict[str, Any]):
+    def __init__(self, connected_devices: dict[str, Any]):
         self.connected_devices = connected_devices
 
     def get_device_info(self, device_id: str):
@@ -106,15 +115,15 @@ class MockGalaxyConstellationClient:
         self.task_execution_log = []
         self.device_manager = MockDeviceManager(self.connected_devices)
 
-    def get_connected_devices(self) -> List[str]:
+    def get_connected_devices(self) -> list[str]:
         """Get list of connected device IDs."""
         return [device_id for device_id, info in self.connected_devices.items() if info['status'] == 'connected']
 
-    def get_device_status(self, device_id: str) -> Dict[str, Any]:
+    def get_device_status(self, device_id: str) -> dict[str, Any]:
         """Get device status information."""
         return self.connected_devices.get(device_id, {})
 
-    async def execute_task(self, request: str, device_id: str, task_name: str=None, metadata: Dict[str, Any]=None, timeout: float=300.0) -> Dict[str, Any]:
+    async def execute_task(self, request: str, device_id: str, task_name: str=None, metadata: dict[str, Any]=None, timeout: float=300.0) -> dict[str, Any]:
         """
         Execute task on device with realistic simulation.
         """
@@ -147,13 +156,13 @@ class E2EConstellationTester:
         self.test_results = {}
         self.performance_metrics = {}
 
-    def create_mock_llm_responses(self) -> Dict[str, str]:
+    def create_mock_llm_responses(self) -> dict[str, str]:
         """
         Create various mock LLM responses for different DAG structures.
         """
         return {'linear_workflow': '\n            Tasks:\n            1. init_project: Initialize new research project\n            2. gather_requirements: Gather project requirements from stakeholders  \n            3. create_timeline: Create project timeline and milestones\n            4. assign_resources: Assign team members and resources\n            5. finalize_plan: Review and finalize project plan\n            \n            Dependencies:\n            - init_project must complete before gather_requirements\n            - gather_requirements must complete before create_timeline\n            - create_timeline must complete before assign_resources\n            - assign_resources must complete before finalize_plan\n            ', 'parallel_workflow': '\n            Tasks:\n            1. data_collection: Collect market research data\n            2. web_scraping: Scrape competitor websites\n            3. survey_analysis: Analyze customer survey results\n            4. social_listening: Monitor social media mentions\n            5. report_synthesis: Synthesize all findings into report\n            \n            Dependencies:\n            - data_collection, web_scraping, survey_analysis, social_listening can run in parallel\n            - report_synthesis requires completion of all parallel tasks\n            ', 'diamond_workflow': '\n            Tasks:\n            1. start_analysis: Begin data analysis workflow\n            2. clean_data: Clean and preprocess raw data\n            3. feature_engineering: Create new features from data\n            4. model_training: Train machine learning model\n            5. model_validation: Validate model performance\n            6. generate_report: Generate final analysis report\n            \n            Dependencies:\n            - start_analysis triggers both clean_data and feature_engineering\n            - model_training requires both clean_data and feature_engineering\n            - model_validation requires model_training\n            - generate_report requires both model_training and model_validation\n            ', 'complex_branching': '\n            Tasks:\n            1. project_kickoff: Initialize complex project\n            2. research_phase: Conduct initial research\n            3. design_architecture: Design system architecture\n            4. develop_frontend: Develop user interface\n            5. develop_backend: Develop server logic\n            6. setup_database: Configure database systems\n            7. integration_testing: Test system integration\n            8. performance_testing: Test system performance\n            9. security_audit: Conduct security review\n            10. deployment_prep: Prepare for deployment\n            11. production_deploy: Deploy to production\n            \n            Dependencies:\n            - project_kickoff starts research_phase\n            - research_phase enables design_architecture\n            - design_architecture enables develop_frontend, develop_backend, setup_database in parallel\n            - integration_testing requires develop_frontend and develop_backend\n            - performance_testing requires integration_testing and setup_database\n            - security_audit requires develop_backend and setup_database\n            - deployment_prep requires performance_testing and security_audit\n            - production_deploy requires deployment_prep\n            ', 'conditional_workflow': '\n            Tasks:\n            1. evaluate_proposal: Review business proposal\n            2. budget_analysis: Analyze budget requirements\n            3. risk_assessment: Assess project risks\n            4. stakeholder_approval: Get stakeholder sign-off\n            5. project_execution: Execute approved project\n            6. alternative_plan: Create alternative approach\n            7. final_decision: Make final go/no-go decision\n            \n            Dependencies:\n            - evaluate_proposal enables budget_analysis and risk_assessment in parallel\n            - stakeholder_approval requires budget_analysis (if budget approved)\n            - project_execution requires stakeholder_approval (if approved)\n            - alternative_plan triggers if risk_assessment identifies high risk\n            - final_decision requires either project_execution or alternative_plan\n            '}
 
-    async def test_dag_structure(self, dag_name: str, llm_response: str) -> Dict[str, Any]:
+    async def test_dag_structure(self, dag_name: str, llm_response: str) -> dict[str, Any]:
         """
         Test a specific DAG structure.
         """
@@ -225,7 +234,7 @@ class E2EConstellationTester:
         except Exception as e:
             logger.warning(f'  - Could not determine execution order: {e}')
 
-    def _analyze_device_utilization(self) -> Dict[str, Any]:
+    def _analyze_device_utilization(self) -> dict[str, Any]:
         """Analyze device utilization during test execution."""
         utilization = {}
         for device_id, device_info in self.mock_client.connected_devices.items():
@@ -234,7 +243,7 @@ class E2EConstellationTester:
             utilization[device_id] = {'device_type': device_info.get('device_type'), 'tasks_executed': tasks_executed, 'total_execution_time': total_execution_time, 'final_load': device_info.get('load', 0), 'performance_score': device_info.get('performance_score', 0), 'capabilities': device_info.get('capabilities', [])}
         return utilization
 
-    def _analyze_dag_characteristics(self, constellation: TaskConstellation) -> Dict[str, Any]:
+    def _analyze_dag_characteristics(self, constellation: TaskConstellation) -> dict[str, Any]:
         """Analyze DAG characteristics for performance insights."""
         try:
             characteristics = {'task_count': constellation.task_count, 'dependency_count': constellation.dependency_count, 'max_parallel_tasks': len(constellation.get_ready_tasks()), 'critical_path_length': 0, 'branching_factor': 0, 'convergence_points': 0, 'dag_depth': 0}
@@ -258,7 +267,7 @@ class E2EConstellationTester:
             logger.warning(f'Could not analyze DAG characteristics: {e}')
             return {'error': str(e)}
 
-    async def test_dag_modifications(self, constellation: TaskConstellation) -> Dict[str, Any]:
+    async def test_dag_modifications(self, constellation: TaskConstellation) -> dict[str, Any]:
         """
         Test dynamic DAG modifications.
         """
@@ -301,7 +310,7 @@ class E2EConstellationTester:
             logger.error(f'❌ DAG modification test failed: {e}')
             return {'status': 'failed', 'error': str(e), 'partial_results': modification_results}
 
-    async def test_error_scenarios(self) -> Dict[str, Any]:
+    async def test_error_scenarios(self) -> dict[str, Any]:
         """
         Test error handling and recovery scenarios.
         """
@@ -354,7 +363,7 @@ class E2EConstellationTester:
             logger.error(f'❌ Error scenario testing failed: {e}')
             return {'status': 'failed', 'error': str(e), 'partial_results': error_test_results}
 
-    async def run_comprehensive_test_suite(self) -> Dict[str, Any]:
+    async def run_comprehensive_test_suite(self) -> dict[str, Any]:
         """
         Run the complete end-to-end test suite.
         """
@@ -411,7 +420,7 @@ class E2EConstellationTester:
             suite_results['total_execution_time'] = time.time() - suite_start_time
             return suite_results
 
-    def _generate_performance_summary(self, suite_results: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_performance_summary(self, suite_results: dict[str, Any]) -> dict[str, Any]:
         """Generate performance analysis summary."""
         dag_tests = suite_results.get('dag_structure_tests', {})
         if not dag_tests:
@@ -433,17 +442,17 @@ class E2EConstellationTester:
             return {'status': 'no_successful_tests'}
         return {'status': 'completed', 'test_count': len(dag_tests), 'successful_tests': len(execution_times), 'success_rate': len(execution_times) / len(dag_tests), 'performance_metrics': {'avg_execution_time': sum(execution_times) / len(execution_times), 'min_execution_time': min(execution_times), 'max_execution_time': max(execution_times), 'avg_task_count': sum(task_counts) / len(task_counts) if task_counts else 0, 'avg_dependency_count': sum(dependency_counts) / len(dependency_counts) if dependency_counts else 0, 'avg_task_success_rate': sum(success_rates) / len(success_rates) if success_rates else 0}, 'device_performance': self._analyze_overall_device_performance()}
 
-    def _analyze_overall_device_performance(self) -> Dict[str, Any]:
+    def _analyze_overall_device_performance(self) -> dict[str, Any]:
         """Analyze overall device performance across all tests."""
         return {'total_tasks_executed': len(self.mock_client.task_execution_log), 'device_utilization': self._analyze_device_utilization(), 'average_task_execution_time': sum([log['execution_time'] for log in self.mock_client.task_execution_log]) / len(self.mock_client.task_execution_log) if self.mock_client.task_execution_log else 0}
 
-    def _print_final_summary(self, suite_results: Dict[str, Any]):
+    def _print_final_summary(self, suite_results: dict[str, Any]):
         """Print comprehensive test suite summary."""
         logger.info('\n' + '🎯' * 30)
         logger.info('  COMPREHENSIVE TEST SUITE SUMMARY')
         logger.info('🎯' * 30)
         total_time = suite_results.get('total_execution_time', 0)
-        logger.info(f'\n📊 Overall Statistics:')
+        logger.info('\n📊 Overall Statistics:')
         logger.info(f'   - Total execution time: {total_time:.2f}s')
         logger.info(f"   - Test suite status: {suite_results.get('overall_status')}")
         dag_tests = suite_results.get('dag_structure_tests', {})
@@ -455,23 +464,23 @@ class E2EConstellationTester:
         perf_summary = suite_results.get('performance_summary', {})
         if perf_summary.get('status') == 'completed':
             metrics = perf_summary.get('performance_metrics', {})
-            logger.info(f'\n📈 Performance Metrics:')
+            logger.info('\n📈 Performance Metrics:')
             logger.info(f"   - Success rate: {perf_summary.get('success_rate', 0):.1%}")
             logger.info(f"   - Avg execution time: {metrics.get('avg_execution_time', 0):.2f}s")
             logger.info(f"   - Avg task count: {metrics.get('avg_task_count', 0):.1f}")
             logger.info(f"   - Avg dependency count: {metrics.get('avg_dependency_count', 0):.1f}")
         device_perf = perf_summary.get('device_performance', {})
-        logger.info(f'\n💻 Device Performance:')
+        logger.info('\n💻 Device Performance:')
         logger.info(f"   - Total tasks executed: {device_perf.get('total_tasks_executed', 0)}")
         logger.info(f"   - Avg task execution time: {device_perf.get('average_task_execution_time', 0):.2f}s")
         error_tests = suite_results.get('error_scenario_tests', {})
-        logger.info(f'\n⚠️ Error Scenario Tests:')
+        logger.info('\n⚠️ Error Scenario Tests:')
         if error_tests:
             for test_name, result in error_tests.items():
                 if isinstance(result, dict):
                     status = result.get('status', 'unknown')
                     logger.info(f'   - {test_name}: {status}')
-        logger.info(f'\n✅ Test suite completed successfully!')
+        logger.info('\n✅ Test suite completed successfully!')
         logger.info('🎯' * 30)
 
 class GalaxySessionTester:
@@ -482,7 +491,7 @@ class GalaxySessionTester:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    async def test_galaxy_session_lifecycle(self) -> Dict[str, Any]:
+    async def test_galaxy_session_lifecycle(self) -> dict[str, Any]:
         """Test complete GalaxySession lifecycle with GalaxyWeaverAgent."""
         self.logger.info('\n🌌 Testing GalaxySession Lifecycle...')
         results = {'test_name': 'galaxy_session_lifecycle', 'status': 'unknown', 'start_time': time.time(), 'tests': {}}
@@ -529,7 +538,7 @@ class GalaxySessionTester:
             traceback.print_exc()
         return results
 
-    async def test_weaver_agent_scenarios(self) -> Dict[str, Any]:
+    async def test_weaver_agent_scenarios(self) -> dict[str, Any]:
         """Test various GalaxyWeaverAgent scenarios."""
         self.logger.info('\n🤖 Testing GalaxyWeaverAgent Scenarios...')
         results = {'test_name': 'weaver_agent_scenarios', 'status': 'unknown', 'start_time': time.time(), 'scenarios': {}}
@@ -577,7 +586,7 @@ class GalaxySessionTester:
             traceback.print_exc()
         return results
 
-    async def test_session_agent_integration(self) -> Dict[str, Any]:
+    async def test_session_agent_integration(self) -> dict[str, Any]:
         """Test integration between GalaxySession and GalaxyWeaverAgent."""
         self.logger.info('\n🔗 Testing Session-Agent Integration...')
         results = {'test_name': 'session_agent_integration', 'status': 'unknown', 'start_time': time.time(), 'integration_tests': {}}
@@ -616,7 +625,7 @@ class GalaxySessionTester:
             traceback.print_exc()
         return results
 
-    async def test_dynamic_dag_execution_flow(self) -> Dict[str, Any]:
+    async def test_dynamic_dag_execution_flow(self) -> dict[str, Any]:
         """
         Test the complete dynamic DAG execution flow:
         1. Initial DAG execution
@@ -693,7 +702,7 @@ class GalaxySessionTester:
             results['execution_phases']['final_analysis'] = {'status': 'success', 'final_task_count': final_task_count, 'total_rounds': execution_round - 1, 'final_constellation_state': constellation.state.value if constellation else 'unknown', 'final_statistics': final_stats, 'agent_final_status': agent.state.__class__.__name__}
             initial_count = results['execution_phases']['initial_creation']['initial_task_count']
             total_added = final_task_count - initial_count
-            self.logger.info(f'🎯 Dynamic DAG Execution Summary:')
+            self.logger.info('🎯 Dynamic DAG Execution Summary:')
             self.logger.info(f'   - Initial tasks: {initial_count}')
             self.logger.info(f'   - Final tasks: {final_task_count}')
             self.logger.info(f'   - Tasks dynamically added: {total_added}')
@@ -712,7 +721,7 @@ class GalaxySessionTester:
             results['total_execution_time'] = time.time() - results['start_time']
         return results
 
-    async def run_galaxy_tests(self) -> Dict[str, Any]:
+    async def run_galaxy_tests(self) -> dict[str, Any]:
         """Run all Galaxy framework tests."""
         self.logger.info('\n🌌🌌🌌 GALAXY FRAMEWORK INTEGRATION TESTS 🌌🌌🌌')
         galaxy_results = {'galaxy_test_suite': 'complete', 'start_time': time.time(), 'tests': {}}
@@ -721,10 +730,10 @@ class GalaxySessionTester:
         galaxy_results['tests']['integration'] = await self.test_session_agent_integration()
         galaxy_results['tests']['dynamic_dag_execution'] = await self.test_dynamic_dag_execution_flow()
         total_time = time.time() - galaxy_results['start_time']
-        successful_tests = sum((1 for test in galaxy_results['tests'].values() if test.get('status') == 'success'))
+        successful_tests = sum(1 for test in galaxy_results['tests'].values() if test.get('status') == 'success')
         total_tests = len(galaxy_results['tests'])
         galaxy_results.update({'total_execution_time': total_time, 'successful_tests': successful_tests, 'total_tests': total_tests, 'success_rate': successful_tests / total_tests if total_tests > 0 else 0, 'overall_status': 'success' if successful_tests == total_tests else 'partial_success'})
-        self.logger.info(f'\n🌌 Galaxy Framework Test Summary:')
+        self.logger.info('\n🌌 Galaxy Framework Test Summary:')
         self.logger.info(f'   - Total tests: {total_tests}')
         self.logger.info(f'   - Successful: {successful_tests}')
         self.logger.info(f"   - Success rate: {galaxy_results['success_rate']:.1%}")
@@ -754,7 +763,7 @@ async def main():
         with open(results_file, 'w', encoding='utf-8') as f:
             json.dump(combined_results, f, indent=2, default=str)
         print(f'\n💾 Test results saved to: {results_file}')
-        print(f'\n🎯 OVERALL TEST SUITE SUMMARY:')
+        print('\n🎯 OVERALL TEST SUITE SUMMARY:')
         print(f"   - Constellation Tests: {('✅ SUCCESS' if combined_results['overall_summary']['constellation_success'] else '❌ FAILED')}")
         print(f"   - Galaxy Framework Tests: {('✅ SUCCESS' if combined_results['overall_summary']['galaxy_success'] else '❌ FAILED')}")
         print(f"   - Total Execution Time: {combined_results['overall_summary']['total_execution_time']:.2f}s")

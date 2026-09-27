@@ -84,7 +84,7 @@ def main() -> int:
                     # Re-check after taking the lock (another worker may have run it)
                     if not os.path.exists(CMD):
                         continue
-                    with open(CMD, "r", encoding="utf-8") as f:
+                    with open(CMD, encoding="utf-8") as f:
                         cmd = json.load(f)
                     result = {"id": cmd.get("id", 0), "ok": False}
                     try:

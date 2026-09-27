@@ -10,8 +10,6 @@ stay within allowed directories and don't traverse to sensitive locations.
 
 import os
 from pathlib import Path
-from typing import Optional
-
 
 # System-sensitive directories that should never be written to
 _SENSITIVE_DIRS_WINDOWS = [
@@ -63,7 +61,7 @@ def validate_path_not_sensitive(path_str: str) -> str:
 
 def validate_save_path(
     file_dir: str,
-    document_dir: Optional[str] = None,
+    document_dir: str | None = None,
 ) -> str:
     """
     Validate a directory path for file save operations.

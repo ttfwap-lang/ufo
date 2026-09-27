@@ -4,11 +4,12 @@
 import json
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from ufo import utils
 from ufo.agents.memory.memory import Memory, MemoryItem
 from ufo.config.config_loader import LazyUFOConfig
+
 ufo_config = LazyUFOConfig()
 
 
@@ -37,7 +38,7 @@ class Blackboard:
     Class for the blackboard, which stores the data and images which are visible to all the agents.
     """
 
-    def __init__(self, max_images: Optional[int] = 1) -> None:
+    def __init__(self, max_images: int | None = 1) -> None:
         """
         Initialize the blackboard.
         :param max_images: The maximum number of recent images to retain in memory (default: 1).
@@ -86,7 +87,7 @@ class Blackboard:
         return self._screenshots
 
     def add_data(
-        self, data: Union[MemoryItem, Dict[str, str], str], memory: Memory
+        self, data: MemoryItem | dict[str, str] | str, memory: Memory
     ) -> None:
         """
         Add the data to the a memory in the blackboard.
@@ -107,7 +108,7 @@ class Blackboard:
         else:
             print(f"Warning: Unsupported data type: {type(data)} when adding data.")
 
-    def add_questions(self, questions: Union[MemoryItem, Dict[str, str]]) -> None:
+    def add_questions(self, questions: MemoryItem | dict[str, str]) -> None:
         """
         Add the data to the blackboard.
         :param questions: The data to be added. It can be a dictionary or a MemoryItem or a string.
@@ -115,7 +116,7 @@ class Blackboard:
 
         self.add_data(questions, self.questions)
 
-    def add_requests(self, requests: Union[MemoryItem, Dict[str, str]]) -> None:
+    def add_requests(self, requests: MemoryItem | dict[str, str]) -> None:
         """
         Add the data to the blackboard.
         :param requests: The data to be added. It can be a dictionary or a MemoryItem or a string.
@@ -123,7 +124,7 @@ class Blackboard:
 
         self.add_data(requests, self.requests)
 
-    def add_trajectories(self, trajectories: Union[MemoryItem, Dict[str, str]]) -> None:
+    def add_trajectories(self, trajectories: MemoryItem | dict[str, str]) -> None:
         """
         Add the data to the blackboard.
         :param trajectories: The data to be added. It can be a dictionary or a MemoryItem or a string.
@@ -134,8 +135,8 @@ class Blackboard:
     def add_image(
         self,
         screenshot_path: str = "",
-        metadata: Optional[Dict[str, str]] = None,
-        max_images: Optional[int] = None,
+        metadata: dict[str, str] | None = None,
+        max_images: int | None = None,
     ) -> None:
         """
         Add the image to the blackboard and cap memory to max_images to prevent RAM bloat.
@@ -208,7 +209,7 @@ class Blackboard:
         for qa in qa_list:
             self.add_questions(qa)
 
-    def texts_to_prompt(self, memory: Memory, prefix: str) -> List[str]:
+    def texts_to_prompt(self, memory: Memory, prefix: str) -> list[str]:
         """
         Convert the data to a prompt.
         :return: The prompt.
@@ -221,8 +222,8 @@ class Blackboard:
         return user_content
 
     def screenshots_to_prompt(
-        self, max_images: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, max_images: int | None = None
+    ) -> list[dict[str, Any]]:
         """
         Convert the images to a prompt, capping to max_images.
         :param max_images: The maximum number of recent images to include in prompt (default: self.max_images or 1).
@@ -257,7 +258,7 @@ class Blackboard:
 
         return user_content
 
-    def blackboard_to_dict(self) -> Dict[str, List[Dict[str, str]]]:
+    def blackboard_to_dict(self) -> dict[str, list[dict[str, str]]]:
         """
         Convert the blackboard to a dictionary.
         :return: The blackboard in the dictionary format.
@@ -279,7 +280,7 @@ class Blackboard:
         return json.dumps(self.blackboard_to_dict())
 
     def blackboard_from_dict(
-        self, blackboard_dict: Dict[str, List[Dict[str, str]]]
+        self, blackboard_dict: dict[str, list[dict[str, str]]]
     ) -> None:
         """
         Convert the dictionary to the blackboard.
@@ -291,8 +292,8 @@ class Blackboard:
         self.screenshots.from_list_of_dicts(blackboard_dict.get("screenshots", []))
 
     def blackboard_to_prompt(
-        self, max_images: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, max_images: int | None = None
+    ) -> list[dict[str, Any]]:
         """
         Convert the blackboard to a prompt.
         :param max_images: The maximum number of recent screenshots to include.
@@ -342,7 +343,7 @@ class Blackboard:
         self.screenshots.clear()
 
     @staticmethod
-    def read_json_file(file_path: str, last_k=-1) -> Dict[str, str]:
+    def read_json_file(file_path: str, last_k=-1) -> dict[str, str]:
         """
         Read the json file.
         :param file_path: The path of the file.
@@ -355,7 +356,7 @@ class Blackboard:
         # Check if the file exists
         if os.path.exists(file_path):
             # Open the file and read the lines
-            with open(file_path, "r", encoding="utf-8") as file:
+            with open(file_path, encoding="utf-8") as file:
                 lines = file.readlines()
 
             # If last_k is not -1, only read the last k lines

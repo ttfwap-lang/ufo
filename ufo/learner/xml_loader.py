@@ -1,9 +1,12 @@
-from . import basic
-import os
 import logging
+import os
+
+import defusedxml.ElementTree as ET
 from langchain_community.document_loaders import UnstructuredXMLLoader
 from langchain_core.documents import Document
-import defusedxml.ElementTree as ET
+
+from . import basic
+
 logger = logging.getLogger(__name__)
 
 class XMLLoader(basic.BasicDocumentLoader):
@@ -63,7 +66,7 @@ class XMLLoader(basic.BasicDocumentLoader):
             metadata = self.get_microsoft_document_metadata(file + '.meta')
             title = metadata['title']
             summary = metadata['summary']
-            page_content = '{title} - {summary}'.format(title=title, summary=summary)
+            page_content = f'{title} - {summary}'
             metadata = {'title': title, 'summary': summary, 'text': text}
             document = Document(page_content=page_content, metadata=metadata)
             documents.append(document)

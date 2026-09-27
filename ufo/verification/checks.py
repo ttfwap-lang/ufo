@@ -9,10 +9,9 @@ Office is only read through an already-running instance (GetActiveObject).
 import logging
 import os
 import threading
-import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".html", ".htm", ".xml", ".lo
 @dataclass
 class CheckResult:
     name: str
-    passed: Optional[bool]
+    passed: bool | None
     detail: str
 
     def __str__(self) -> str:
@@ -40,7 +39,7 @@ def _contains(haystack: str, needle: str) -> bool:
 
 # ---------------------------------------------------------------- files
 
-def candidate_dirs() -> List[Path]:
+def candidate_dirs() -> list[Path]:
     home = Path.home()
     dirs = [home / "OneDrive" / "Desktop", home / "Desktop", home / "OneDrive" / "Documents",
             home / "Documents", home / "Downloads", home, Path.cwd()]
@@ -52,7 +51,7 @@ def candidate_dirs() -> List[Path]:
     return out
 
 
-def find_file(name_or_path: str) -> Optional[Path]:
+def find_file(name_or_path: str) -> Path | None:
     p = Path(os.path.expandvars(os.path.expanduser(name_or_path.strip())))
     if p.is_absolute():
         return p if p.is_file() else None
@@ -62,7 +61,7 @@ def find_file(name_or_path: str) -> Optional[Path]:
     return None
 
 
-def _read_text(path: Path) -> Optional[str]:
+def _read_text(path: Path) -> str | None:
     for enc in ("utf-8-sig", "utf-16", "mbcs", "latin-1"):
         try:
             return path.read_text(encoding=enc)
@@ -73,7 +72,7 @@ def _read_text(path: Path) -> Optional[str]:
     return None
 
 
-def check_file(name: str, contains: Optional[str] = None, since: Optional[float] = None) -> CheckResult:
+def check_file(name: str, contains: str | None = None, since: float | None = None) -> CheckResult:
     """File exists (in the path given, or on Desktop/Documents/Downloads/home),
     was written after ``since`` and, for text formats, contains ``contains``."""
     label = f"file '{name}'" + (f" contains '{contains}'" if contains else "")
@@ -94,7 +93,7 @@ def check_file(name: str, contains: Optional[str] = None, since: Optional[float]
 
 # ---------------------------------------------------------------- processes / windows
 
-def running_process_names() -> List[str]:
+def running_process_names() -> list[str]:
     import psutil
     names = []
     for proc in psutil.process_iter(["name"]):
@@ -116,9 +115,9 @@ def check_process(names: Iterable[str], label: str = "") -> CheckResult:
     return CheckResult(f"{label or targets[0]} running", bool(hit), ", ".join(hit) or "not running")
 
 
-def top_window_titles() -> List[str]:
+def top_window_titles() -> list[str]:
     import win32gui
-    titles: List[str] = []
+    titles: list[str] = []
 
     def cb(hwnd, _):
         if win32gui.IsWindowVisible(hwnd):
@@ -142,7 +141,7 @@ def check_window_title(text: str) -> CheckResult:
 
 # ---------------------------------------------------------------- reading app content
 
-def _run_with_timeout(fn: Callable[[], Optional[str]], timeout: float, com: bool = False) -> Optional[str]:
+def _run_with_timeout(fn: Callable[[], str | None], timeout: float, com: bool = False) -> str | None:
     """Run fn on a helper thread (optionally COM-initialised) with a timeout."""
     box: dict = {}
 
@@ -169,12 +168,12 @@ def _run_with_timeout(fn: Callable[[], Optional[str]], timeout: float, com: bool
     return box.get("value")
 
 
-def _uia_editor_texts(process_names: Iterable[str]) -> List[str]:
+def _uia_editor_texts(process_names: Iterable[str]) -> list[str]:
     import psutil
     from pywinauto import Desktop
 
     wanted = {n.lower() for n in process_names}
-    texts: List[str] = []
+    texts: list[str] = []
     for win in Desktop(backend="uia").windows():
         try:
             if psutil.Process(win.element_info.process_id).name().lower() not in wanted:
@@ -211,13 +210,13 @@ def check_editor_text(text: str, process_names: Iterable[str], label: str = "edi
 OFFICE_PROGIDS = {"word": "Word.Application", "excel": "Excel.Application", "powerpoint": "PowerPoint.Application"}
 
 
-def _office_text(app: str) -> Optional[str]:
+def _office_text(app: str) -> str | None:
     import win32com.client
     try:
         obj = win32com.client.GetActiveObject(OFFICE_PROGIDS[app])  # never starts Office
     except Exception:
         return None
-    parts: List[str] = []
+    parts: list[str] = []
     if app == "word":
         for doc in obj.Documents:
             parts.append(doc.Content.Text)

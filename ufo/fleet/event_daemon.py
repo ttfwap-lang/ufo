@@ -36,13 +36,15 @@ Usage:
     daemon.start()  # Blocks — runs until stop() is called
 """
 import logging
-import os
 import queue
 import signal
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 logger = logging.getLogger(__name__)
 
 class DaemonEvent(BaseModel):
@@ -51,7 +53,7 @@ class DaemonEvent(BaseModel):
     instructions: str = Field(..., description='The user intent / task description')
     is_irrevocable: bool = Field(default=False, description='If true, force DAG mode')
     source: str = Field(default='unknown', description='Where the event came from')
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     timestamp: float = Field(default_factory=time.time)
 
 class DaemonStats(BaseModel):
@@ -61,9 +63,9 @@ class DaemonStats(BaseModel):
     events_processed: int = 0
     events_failed: int = 0
     events_pending: int = 0
-    current_workflow: Optional[str] = None
+    current_workflow: str | None = None
 
-def _load_daemon_config() -> Dict[str, Any]:
+def _load_daemon_config() -> dict[str, Any]:
     """Load daemon config from system.yaml."""
     defaults = {'ENABLED': False, 'HEARTBEAT_INTERVAL_SECONDS': 60, 'MAX_CONCURRENT_WORKFLOWS': 1, 'WEBHOOK_PORT': 8765, 'ALLOWED_TRIGGER_TYPES': ['file_drop', 'webhook', 'scheduled', 'manual']}
     try:
@@ -95,17 +97,17 @@ class UFOEventDaemon:
         self._start_time: float = 0.0
         self._stats_processed = 0
         self._stats_failed = 0
-        self._current_workflow: Optional[str] = None
+        self._current_workflow: str | None = None
         self._stop_event = threading.Event()
-        self._heartbeat_thread: Optional[threading.Thread] = None
-        self._workflow_handler: Optional[Callable] = None
+        self._heartbeat_thread: threading.Thread | None = None
+        self._workflow_handler: Callable | None = None
         self._lock = threading.Lock()
 
     @property
     def is_running(self) -> bool:
         return self._is_running
 
-    def start(self, workflow_handler: Optional[Callable]=None) -> None:
+    def start(self, workflow_handler: Callable | None=None) -> None:
         """
         Start the daemon. Blocks until stop() is called.
 
@@ -133,7 +135,7 @@ class UFOEventDaemon:
             self._is_running = False
             logger.info('[Daemon] Event loop terminated.')
 
-    def start_background(self, workflow_handler: Optional[Callable]=None) -> threading.Thread:
+    def start_background(self, workflow_handler: Callable | None=None) -> threading.Thread:
         """
         Start the daemon in a background thread (non-blocking).
 
@@ -151,7 +153,7 @@ class UFOEventDaemon:
         self._stop_event.set()
         self._event_queue.put(None)
 
-    def submit_event(self, event: Dict[str, Any]) -> bool:
+    def submit_event(self, event: dict[str, Any]) -> bool:
         """
         Submit an event to the daemon's processing queue.
 
@@ -172,7 +174,7 @@ class UFOEventDaemon:
             logger.error(f'[Daemon] Failed to parse event: {e}')
             return False
 
-    def webhook_trigger(self, payload: Dict[str, Any]) -> bool:
+    def webhook_trigger(self, payload: dict[str, Any]) -> bool:
         """
         Endpoint for CI/CD or external systems to trigger the agent.
 

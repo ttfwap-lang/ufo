@@ -1,7 +1,10 @@
 """Measure the exact capture->screen mapping for the Telegram window."""
-import ctypes, sys
+import ctypes
+import sys
 from ctypes import wintypes
-import win32gui, win32process, win32con
+
+import win32gui
+import win32process
 
 try:
     ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
@@ -10,6 +13,7 @@ except Exception:
     print("dpi: (not set)")
 
 import psutil
+
 target = None
 def cb(h, _):
     global target
@@ -35,12 +39,12 @@ print(f"client rect : {cr}  size={cr[2]-cr[0]}x{cr[3]-cr[1]}")
 print(f"client origin on screen: ({pt.x},{pt.y})")
 print(f"frame offset: ({pt.x-wr[0]},{pt.y-wr[1]})")
 try:
-    import win32ui
     print("screen metrics:", user32.GetSystemMetrics(0), "x", user32.GetSystemMetrics(1))
 except Exception:
     pass
 
 from PIL import Image
+
 im = Image.open(r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\astro_state.png")
 print("capture size:", im.size)
 cw, ch = im.size

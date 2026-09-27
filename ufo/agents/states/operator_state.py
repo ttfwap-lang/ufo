@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, Optional, Type
+from typing import TYPE_CHECKING
 
 from ufo.agents.agent.basic import BasicAgent
 from ufo.agents.states.basic import AgentState, AgentStateManager
@@ -40,7 +40,7 @@ class OpenAIOperatorStatus(Enum):
 
 class OpenAIOperatorStateManager(AgentStateManager):
 
-    _state_mapping: Dict[str, Type[OpenAIOperatorState]] = {}
+    _state_mapping: dict[str, type[OpenAIOperatorState]] = {}
 
     @property
     def none_state(self) -> AgentState:
@@ -56,7 +56,7 @@ class OpenAIOperatorState(AgentState):
     """
 
     def handle(
-        self, agent: "OpenAIOperatorAgent", context: Optional["Context"] = None
+        self, agent: OpenAIOperatorAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -66,7 +66,7 @@ class OpenAIOperatorState(AgentState):
         pass
 
     @classmethod
-    def agent_class(cls) -> Type[OpenAIOperatorAgent]:
+    def agent_class(cls) -> type[OpenAIOperatorAgent]:
         """
         The agent class of the state.
         :return: The agent class.
@@ -77,7 +77,7 @@ class OpenAIOperatorState(AgentState):
 
         return OpenAIOperatorAgent
 
-    def next_agent(self, agent: "OpenAIOperatorAgent") -> BasicAgent:
+    def next_agent(self, agent: OpenAIOperatorAgent) -> BasicAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -85,7 +85,7 @@ class OpenAIOperatorState(AgentState):
         """
         return agent
 
-    def next_state(self, agent: "OpenAIOperatorAgent") -> OpenAIOperatorState:
+    def next_state(self, agent: OpenAIOperatorAgent) -> OpenAIOperatorState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -96,7 +96,7 @@ class OpenAIOperatorState(AgentState):
         state = OpenAIOperatorStateManager().get_state(status)
         return state
 
-    def archive_subtask(self, context: "Context") -> None:
+    def archive_subtask(self, context: Context) -> None:
         """
         Update the subtask of the agent.
         :param context: The context for the agent and session.
@@ -154,7 +154,7 @@ class FinishOpenAIOperatorState(OpenAIOperatorState):
     """
 
     def handle(
-        self, agent: "OpenAIOperatorAgent", context: Optional["Context"] = None
+        self, agent: OpenAIOperatorAgent, context: Context | None = None
     ) -> None:
         """
         :param agent: The agent for the current step.
@@ -163,7 +163,7 @@ class FinishOpenAIOperatorState(OpenAIOperatorState):
 
         self.archive_subtask(context)
 
-    def next_agent(self, agent: "OpenAIOperatorAgent") -> HostAgent:
+    def next_agent(self, agent: OpenAIOperatorAgent) -> HostAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -171,7 +171,7 @@ class FinishOpenAIOperatorState(OpenAIOperatorState):
         """
         return agent.host if agent.host else agent
 
-    def next_state(self, agent: "OpenAIOperatorAgent") -> HostAgentState:
+    def next_state(self, agent: OpenAIOperatorAgent) -> HostAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -208,7 +208,7 @@ class ContinueOpenAIOperatorState(OpenAIOperatorState):
     """
 
     def handle(
-        self, agent: "OpenAIOperatorAgent", context: Optional["Context"] = None
+        self, agent: OpenAIOperatorAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -240,7 +240,7 @@ class PendingOpenAIOperatorState(OpenAIOperatorState):
     """
 
     def handle(
-        self, agent: "OpenAIOperatorAgent", context: Optional["Context"] = None
+        self, agent: OpenAIOperatorAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -283,7 +283,7 @@ class ErrorOpenAIOperatorState(OpenAIOperatorState):
     """
 
     def handle(
-        self, agent: "OpenAIOperatorAgent", context: Optional["Context"] = None
+        self, agent: OpenAIOperatorAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -293,7 +293,7 @@ class ErrorOpenAIOperatorState(OpenAIOperatorState):
 
         self.archive_subtask(context)
 
-    def next_agent(self, agent: "OpenAIOperatorAgent") -> HostAgent:
+    def next_agent(self, agent: OpenAIOperatorAgent) -> HostAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -301,7 +301,7 @@ class ErrorOpenAIOperatorState(OpenAIOperatorState):
         """
         return agent.host
 
-    def next_state(self, agent: "OpenAIOperatorAgent") -> HostAgentState:
+    def next_state(self, agent: OpenAIOperatorAgent) -> HostAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -338,7 +338,7 @@ class NoneOpenAIOperatorState(OpenAIOperatorState):
     The class for the none app agent state.
     """
 
-    def next_agent(self, agent: "OpenAIOperatorAgent") -> HostAgent:
+    def next_agent(self, agent: OpenAIOperatorAgent) -> HostAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -346,7 +346,7 @@ class NoneOpenAIOperatorState(OpenAIOperatorState):
         """
         return agent.host
 
-    def next_state(self, agent: "OpenAIOperatorAgent") -> HostAgentState:
+    def next_state(self, agent: OpenAIOperatorAgent) -> HostAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.

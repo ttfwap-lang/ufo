@@ -4,22 +4,24 @@ Provides MCP server for PDF text extraction operations.
 """
 import platform
 import sys
+
 if platform.system() != 'Windows':
     import logging
     logging.warning(f'pdf_reader_mcp_server.py requires Windows platform. Current: {platform.system()}. Skipping module initialization.')
     sys.exit(0)
 import os
-import time
 import random
+import time
 from pathlib import Path
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated
+
 import pypdf
 from fastmcp import FastMCP
-from fastmcp.client import Client
 from pydantic import Field
 from ufo.automator.path_validator import validate_path_not_sensitive
 from ufo.client.mcp.mcp_registry import MCPRegistry
 from ufo.config import get_config
+
 configs = get_config()
 
 @MCPRegistry.register_factory_decorator('PDFReaderExecutor')
@@ -51,7 +53,7 @@ def create_pdf_reader_mcp_server(*args, **kwargs) -> FastMCP:
         except Exception as e:
             return f'Error reading PDF {pdf_path}: {str(e)}'
 
-    def _extract_text_from_pdf_batch(pdf_paths: List[str], simulate_human: bool=True) -> Dict[str, str]:
+    def _extract_text_from_pdf_batch(pdf_paths: list[str], simulate_human: bool=True) -> dict[str, str]:
         """
         Extract text from multiple PDF files with human simulation.
         :param pdf_paths: List of PDF file paths.
@@ -79,7 +81,7 @@ def create_pdf_reader_mcp_server(*args, **kwargs) -> FastMCP:
             print(f'\n🎉 Batch processing completed! Processed {total_files} files.')
         return results
 
-    def _get_pdf_files_in_directory(directory_path: str) -> List[str]:
+    def _get_pdf_files_in_directory(directory_path: str) -> list[str]:
         """
         Get all PDF files in the specified directory.
         :param directory_path: Path to the directory.
@@ -122,14 +124,14 @@ def create_pdf_reader_mcp_server(*args, **kwargs) -> FastMCP:
         return _extract_text_from_pdf(pdf_path, simulate_human)
 
     @mcp.tool(tags={'PDF'})
-    def list_pdfs_in_directory(directory_path: Annotated[str, Field(description='The directory path to scan for PDF files.')]) -> Annotated[List[str], Field(description='A list of PDF file paths found in the directory.')]:
+    def list_pdfs_in_directory(directory_path: Annotated[str, Field(description='The directory path to scan for PDF files.')]) -> Annotated[list[str], Field(description='A list of PDF file paths found in the directory.')]:
         """
         List all PDF files in the specified directory.
         Returns a list of full paths to PDF files found in the directory.
         """
         try:
             validate_path_not_sensitive(directory_path)
-        except Exception as ve:
+        except Exception:
             return []
         if not os.path.exists(directory_path):
             return []
@@ -138,7 +140,7 @@ def create_pdf_reader_mcp_server(*args, **kwargs) -> FastMCP:
         return _get_pdf_files_in_directory(directory_path)
 
     @mcp.tool(tags={'PDF'})
-    def extract_all_pdfs_text(directory_path: Annotated[str, Field(description='The directory path containing PDF files to extract text from.')], simulate_human: Annotated[bool, Field(description='Whether to simulate human-like behavior for each PDF. Default: True')]=True) -> Annotated[Dict[str, str], Field(description='A dictionary mapping PDF file paths to their extracted text content.')]:
+    def extract_all_pdfs_text(directory_path: Annotated[str, Field(description='The directory path containing PDF files to extract text from.')], simulate_human: Annotated[bool, Field(description='Whether to simulate human-like behavior for each PDF. Default: True')]=True) -> Annotated[dict[str, str], Field(description='A dictionary mapping PDF file paths to their extracted text content.')]:
         """
         Extract text content from all PDF files in the specified directory with human simulation.
         When simulate_human is True, the process will simulate a human reviewing each document:

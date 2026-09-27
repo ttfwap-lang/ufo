@@ -6,7 +6,7 @@ Provides reliable, bidirectional, full-duplex communication over a single TCP co
 Supports both text frames (for JSON messages) and binary frames (for efficient file transfer).
 """
 import logging
-from typing import Any, Optional, Union
+from typing import Any
 
 import websockets
 
@@ -66,8 +66,8 @@ class WebSocketTransport(Transport):
         self.ping_timeout = ping_timeout
         self.close_timeout = close_timeout
         self.max_size = max_size
-        self._ws: Optional[WebSocketClientProtocol] = None
-        self._adapter: Optional[WebSocketAdapter] = None
+        self._ws: WebSocketClientProtocol | None = None
+        self._adapter: WebSocketAdapter | None = None
         self.logger = logging.getLogger(f'{__name__}.WebSocketTransport')
         if websocket is not None:
             self._ws = websocket
@@ -141,11 +141,11 @@ class WebSocketTransport(Transport):
                 self.logger.debug(f'Cannot send (connection closed): {e}')
             else:
                 self.logger.warning(f'Connection error sending data: {e}')
-            raise IOError(f'Failed to send data: {e}') from e
+            raise OSError(f'Failed to send data: {e}') from e
         except Exception as e:
             self._state = TransportState.ERROR
             self.logger.error(f'Error sending data: {e}')
-            raise IOError(f'Failed to send data: {e}') from e
+            raise OSError(f'Failed to send data: {e}') from e
 
     async def receive(self) -> bytes:
         """
@@ -177,11 +177,11 @@ class WebSocketTransport(Transport):
                 self.logger.debug(f'Cannot receive (connection closed): {e}')
             else:
                 self.logger.warning(f'Connection error receiving data: {e}')
-            raise IOError(f'Failed to receive data: {e}') from e
+            raise OSError(f'Failed to receive data: {e}') from e
         except Exception as e:
             self._state = TransportState.ERROR
             self.logger.error(f'Error receiving data: {e}')
-            raise IOError(f'Failed to receive data: {e}') from e
+            raise OSError(f'Failed to receive data: {e}') from e
 
     async def close(self) -> None:
         """
@@ -251,11 +251,11 @@ class WebSocketTransport(Transport):
                 self.logger.debug(f'Cannot send binary (connection closed): {e}')
             else:
                 self.logger.warning(f'Connection error sending binary data: {e}')
-            raise IOError(f'Failed to send binary data: {e}') from e
+            raise OSError(f'Failed to send binary data: {e}') from e
         except Exception as e:
             self._state = TransportState.ERROR
             self.logger.error(f'Error sending binary data: {e}')
-            raise IOError(f'Failed to send binary data: {e}') from e
+            raise OSError(f'Failed to send binary data: {e}') from e
 
     async def receive_binary(self) -> bytes:
         """
@@ -297,13 +297,13 @@ class WebSocketTransport(Transport):
                 self.logger.debug(f'Cannot receive binary (connection closed): {e}')
             else:
                 self.logger.warning(f'Connection error receiving binary data: {e}')
-            raise IOError(f'Failed to receive binary data: {e}') from e
+            raise OSError(f'Failed to receive binary data: {e}') from e
         except Exception as e:
             self._state = TransportState.ERROR
             self.logger.error(f'Error receiving binary data: {e}')
-            raise IOError(f'Failed to receive binary data: {e}') from e
+            raise OSError(f'Failed to receive binary data: {e}') from e
 
-    async def receive_auto(self) -> Union[bytes, str]:
+    async def receive_auto(self) -> bytes | str:
         """
         Receive data and automatically detect frame type (text or binary).
 
@@ -346,14 +346,14 @@ class WebSocketTransport(Transport):
                 self.logger.debug(f'Cannot receive (connection closed): {e}')
             else:
                 self.logger.warning(f'Connection error receiving data: {e}')
-            raise IOError(f'Failed to receive data: {e}') from e
+            raise OSError(f'Failed to receive data: {e}') from e
         except Exception as e:
             self._state = TransportState.ERROR
             self.logger.error(f'Error receiving data: {e}')
-            raise IOError(f'Failed to receive data: {e}') from e
+            raise OSError(f'Failed to receive data: {e}') from e
 
     @property
-    def websocket(self) -> Optional[WebSocketClientProtocol]:
+    def websocket(self) -> WebSocketClientProtocol | None:
         """
         Get the underlying WebSocket connection.
 

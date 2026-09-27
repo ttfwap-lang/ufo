@@ -16,14 +16,14 @@ Total: 48 evaluation problems.
 """
 
 import asyncio
-from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
+
 import pytest
 
 from tests.eval_suite.eval_runner import EVAL_STAGES, EvaluationRunner
 
 
-def _build_schema(stage_id: str, prompt: str) -> Dict[str, Any]:
+def _build_schema(stage_id: str, prompt: str) -> dict[str, Any]:
     """Helper to build schema definition for a test problem."""
     return {
         "type": "object",
@@ -36,7 +36,7 @@ def _build_schema(stage_id: str, prompt: str) -> Dict[str, Any]:
     }
 
 
-def _build_verifier_contract(stage_id: str) -> Dict[str, Any]:
+def _build_verifier_contract(stage_id: str) -> dict[str, Any]:
     """Helper to build expected verifier contract key specification for a stage."""
     required_keys = ["verified", "stage_id", "dry_run"]
     if stage_id == "R1":
@@ -58,7 +58,7 @@ def _build_verifier_contract(stage_id: str) -> Dict[str, Any]:
 
 
 # Define all 48 evaluation problems across the 5 evaluation stages
-EVAL_48_PROBLEMS: List[Dict[str, Any]] = [
+EVAL_48_PROBLEMS: list[dict[str, Any]] = [
     # --- Stage R1: Notepad & Text Editing (10 problems) ---
     {
         "id": "R1_01",
@@ -519,7 +519,7 @@ def test_48_problems_count_and_distribution():
 
 
 @pytest.mark.parametrize("problem", EVAL_48_PROBLEMS, ids=[p["id"] for p in EVAL_48_PROBLEMS])
-def test_problem_definition_schema_and_bindings(problem: Dict[str, Any]):
+def test_problem_definition_schema_and_bindings(problem: dict[str, Any]):
     """Verify problem definition integrity, schema structure, and stage bindings."""
     assert problem["id"] is not None and len(problem["id"]) > 0
     assert problem["stage_id"] in ["R1", "R2", "R3", "R4", "R5"]
@@ -542,7 +542,7 @@ def test_problem_definition_schema_and_bindings(problem: Dict[str, Any]):
 
 
 @pytest.mark.parametrize("problem", EVAL_48_PROBLEMS, ids=[p["id"] for p in EVAL_48_PROBLEMS])
-def test_problem_dry_run_execution(problem: Dict[str, Any]):
+def test_problem_dry_run_execution(problem: dict[str, Any]):
     """Verify dry-run execution for each of the 48 problems via EvaluationRunner."""
     runner = EvaluationRunner(dry_run=True)
     res = asyncio.run(
@@ -561,7 +561,7 @@ def test_problem_dry_run_execution(problem: Dict[str, Any]):
 
 
 @pytest.mark.parametrize("problem", EVAL_48_PROBLEMS, ids=[p["id"] for p in EVAL_48_PROBLEMS])
-def test_problem_verifier_contract(problem: Dict[str, Any]):
+def test_problem_verifier_contract(problem: dict[str, Any]):
     """Verify stage verifier contracts return all required keys for each problem in dry_run mode."""
     stage_meta = EVAL_STAGES[problem["stage_id"]]
     verifier_fn = stage_meta.get("verifier")

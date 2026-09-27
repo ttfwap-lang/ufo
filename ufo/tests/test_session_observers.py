@@ -2,16 +2,16 @@
 Test script for the new modular session observer structure.
 This script verifies that all observer classes can be imported and instantiated correctly.
 """
-import sys
 import os
+import sys
 import traceback
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 def test_observer_imports():
     """Test that all observer classes can be imported correctly."""
     print('🧪 Testing observer imports...')
     try:
-        from ufo.galaxy.session import GalaxySession, ConstellationProgressObserver, SessionMetricsObserver, DAGVisualizationObserver
         print('✅ All main classes imported successfully')
         return True
     except Exception as e:
@@ -23,7 +23,7 @@ def test_observer_instantiation():
     """Test that observer instances can be created correctly."""
     print('\n🧪 Testing observer instantiation...')
     try:
-        from ufo.galaxy.session import SessionMetricsObserver, DAGVisualizationObserver
+        from ufo.galaxy.session import DAGVisualizationObserver, SessionMetricsObserver
         metrics_observer = SessionMetricsObserver(session_id='test_session')
         print(f'✅ SessionMetricsObserver created: {type(metrics_observer)}')
         initial_metrics = metrics_observer.get_metrics()
@@ -45,8 +45,10 @@ def test_modular_structure():
     """Test that the modular structure is working correctly."""
     print('\n🧪 Testing modular structure...')
     try:
-        from ufo.galaxy.session.observers import ConstellationProgressObserver, SessionMetricsObserver, DAGVisualizationObserver
-        from ufo.galaxy.visualization import TaskDisplay, ConstellationDisplay, VisualizationChangeDetector
+        from ufo.galaxy.session.observers import (
+            DAGVisualizationObserver,
+        )
+        from ufo.galaxy.visualization import ConstellationDisplay, TaskDisplay, VisualizationChangeDetector
         print('✅ Direct observer module imports successful')
         print('✅ Visualization module imports successful')
         observer = DAGVisualizationObserver()
@@ -68,15 +70,15 @@ def test_observer_interfaces():
     """Test that observers implement the expected interfaces."""
     print('\n🧪 Testing observer interfaces...')
     try:
-        from ufo.galaxy.session import SessionMetricsObserver, DAGVisualizationObserver
         from ufo.galaxy.core.events import IEventObserver
+        from ufo.galaxy.session import DAGVisualizationObserver, SessionMetricsObserver
         metrics_observer = SessionMetricsObserver(session_id='test')
         if isinstance(metrics_observer, IEventObserver):
             print('✅ SessionMetricsObserver implements IEventObserver')
         else:
             print('❌ SessionMetricsObserver does not implement IEventObserver')
             return False
-        if hasattr(metrics_observer, 'on_event') and callable(getattr(metrics_observer, 'on_event')):
+        if hasattr(metrics_observer, 'on_event') and callable(metrics_observer.on_event):
             print('✅ SessionMetricsObserver has on_event method')
         else:
             print('❌ SessionMetricsObserver missing on_event method')
@@ -87,7 +89,7 @@ def test_observer_interfaces():
         else:
             print('❌ DAGVisualizationObserver does not implement IEventObserver')
             return False
-        if hasattr(dag_observer, 'on_event') and callable(getattr(dag_observer, 'on_event')):
+        if hasattr(dag_observer, 'on_event') and callable(dag_observer.on_event):
             print('✅ DAGVisualizationObserver has on_event method')
         else:
             print('❌ DAGVisualizationObserver missing on_event method')

@@ -4,10 +4,17 @@ Fixes the Telegram window that is blocked by UIPI from the non-elevated
 agent: MoveWindow to a sane size, bring to foreground, verify, and write
 results to a file the non-elevated side can read.
 """
-import sys, time, json, ctypes
+import ctypes
+import json
+import sys
+import time
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-import win32gui, win32process, win32con, psutil
+import psutil
+import win32con
+import win32gui
+import win32process
 
 OUT = r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\elev_fix_result.json"
 

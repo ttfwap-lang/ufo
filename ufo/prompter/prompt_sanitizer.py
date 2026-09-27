@@ -13,6 +13,7 @@ rogue instructions through template placeholders.
 
 import logging
 import re
+
 from ufo.config import get_config
 
 logger = logging.getLogger(__name__)

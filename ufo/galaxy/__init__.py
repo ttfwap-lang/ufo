@@ -14,27 +14,26 @@ This package provides:
 """
 
 # Core constellation components
+# Agent components
+from .agents import ConstellationAgent
 from .constellation import (
-    TaskConstellationOrchestrator,
+    ConstellationManager,
+    ConstellationState,
+    DependencyType,
+    DeviceType,
     TaskConstellation,
+    TaskConstellationOrchestrator,
+    TaskPriority,
     TaskStar,
     TaskStarLine,
     TaskStatus,
-    DependencyType,
-    ConstellationState,
-    DeviceType,
-    TaskPriority,
-    ConstellationManager,
 )
-
-# Agent components
-from .agents import ConstellationAgent
-
-# Session components
-from .session import GalaxySession
 
 # Client entry points
 from .galaxy_client import GalaxyClient
+
+# Session components
+from .session import GalaxySession
 
 __all__ = [
     # Constellation

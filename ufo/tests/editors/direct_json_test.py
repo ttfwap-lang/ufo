@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Direct test script for JSON methods.
 Test by directly executing the individual files.
 """
 
-import sys
-import os
 import json
+import os
+import sys
 import tempfile
 
 # Add project root and constellation directory to path
@@ -42,10 +41,10 @@ def test_individual_files():
     # Test 2: Check if the JSON methods are present in the source code
     print("\nChecking for JSON methods in source code...")
 
-    with open(task_star_file, "r", encoding="utf-8") as f:
+    with open(task_star_file, encoding="utf-8") as f:
         task_star_content = f.read()
 
-    with open(task_star_line_file, "r", encoding="utf-8") as f:
+    with open(task_star_line_file, encoding="utf-8") as f:
         task_star_line_content = f.read()
 
     # Check TaskStar
@@ -136,11 +135,11 @@ def test_individual_files():
 
     # Test 4: Check JSON validity
     try:
-        with open(task_star_json_file, "r", encoding="utf-8") as f:
+        with open(task_star_json_file, encoding="utf-8") as f:
             parsed_task_star = json.load(f)
         print(f"✓ TaskStar JSON is valid with {len(parsed_task_star)} fields")
 
-        with open(task_star_line_json_file, "r", encoding="utf-8") as f:
+        with open(task_star_line_json_file, encoding="utf-8") as f:
             parsed_task_star_line = json.load(f)
         print(f"✓ TaskStarLine JSON is valid with {len(parsed_task_star_line)} fields")
 
@@ -169,10 +168,10 @@ def test_method_signatures():
     task_star_file = os.path.join(constellation_dir, "task_star.py")
     task_star_line_file = os.path.join(constellation_dir, "task_star_line.py")
 
-    with open(task_star_file, "r", encoding="utf-8") as f:
+    with open(task_star_file, encoding="utf-8") as f:
         task_star_content = f.read()
 
-    with open(task_star_line_file, "r", encoding="utf-8") as f:
+    with open(task_star_line_file, encoding="utf-8") as f:
         task_star_line_content = f.read()
 
     # Check TaskStar method signatures

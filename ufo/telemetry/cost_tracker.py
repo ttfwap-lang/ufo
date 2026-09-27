@@ -47,9 +47,10 @@ import logging
 import os
 import threading
 import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
+
 from pydantic import BaseModel, Field
+
 logger = logging.getLogger(__name__)
 
 class CallRecord(BaseModel):
@@ -73,7 +74,7 @@ class DailyBudgetState(BaseModel):
     budget_exceeded: bool = Field(default=False)
     warning_issued: bool = Field(default=False)
 
-def _load_prices() -> Dict[str, Dict[str, float]]:
+def _load_prices() -> dict[str, dict[str, float]]:
     """Load pricing from prices.yaml (via config loader) or return empty dict."""
     try:
         from ufo.config.config_loader import get_ufo_config
@@ -92,7 +93,7 @@ def _load_prices() -> Dict[str, Dict[str, float]]:
         import yaml
         prices_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'ufo', 'prices.yaml')
         if os.path.exists(prices_path):
-            with open(prices_path, 'r', encoding='utf-8') as f:
+            with open(prices_path, encoding='utf-8') as f:
                 data = yaml.safe_load(f)
                 if isinstance(data, dict):
                     return data.get('PRICES', {})
@@ -111,12 +112,12 @@ class CostTracker:
 
     def __init__(self) -> None:
         self._state = DailyBudgetState()
-        self._prices: Dict[str, Dict[str, float]] = {}
+        self._prices: dict[str, dict[str, float]] = {}
         self._enabled: bool = True
         self._warning_pct: float = 80.0
         self._log_every_call: bool = False
         self._persist_path: str = 'logs/telemetry'
-        self._call_history: List[CallRecord] = []
+        self._call_history: list[CallRecord] = []
         self._state_lock = threading.Lock()
         self._load_config()
 

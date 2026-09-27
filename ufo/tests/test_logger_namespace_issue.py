@@ -5,18 +5,18 @@
 Test to verify the logger namespace issue in real Galaxy session.
 """
 
-import asyncio
 import logging
-import pytest
 import time
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
-from ufo.galaxy.session.observers.base_observer import ConstellationProgressObserver
+import pytest
+
 from ufo.galaxy.agents.constellation_agent import ConstellationAgent
-from ufo.galaxy.core.events import TaskEvent, EventType
 from ufo.galaxy.constellation.orchestrator.orchestrator import (
     TaskConstellationOrchestrator,
 )
+from ufo.galaxy.core.events import EventType, TaskEvent
+from ufo.galaxy.session.observers.base_observer import ConstellationProgressObserver
 
 
 class TestLoggerNamespaceIssue:
@@ -50,7 +50,7 @@ class TestLoggerNamespaceIssue:
     ):
         """Simulate the exact logger configuration from the real test."""
 
-        print(f"\n=== SIMULATING REAL TEST LOGGER CONFIGURATION ===")
+        print("\n=== SIMULATING REAL TEST LOGGER CONFIGURATION ===")
 
         # Reset caplog to capture all logs
         caplog.set_level(logging.DEBUG)
@@ -77,7 +77,7 @@ class TestLoggerNamespaceIssue:
         console_handler.setFormatter(formatter)
         session_logger.addHandler(console_handler)
 
-        print(f"\nAfter setting up session logger:")
+        print("\nAfter setting up session logger:")
         print(f"Session logger level: {session_logger.level}")
         print(f"Session logger effective level: {session_logger.getEffectiveLevel()}")
         print(f"Observer logger effective level: {observer.logger.getEffectiveLevel()}")
@@ -98,7 +98,7 @@ class TestLoggerNamespaceIssue:
             if "Added task event for task" in record.message
         ]
 
-        print(f"\n=== CAPTURED LOGS ===")
+        print("\n=== CAPTURED LOGS ===")
         for i, record in enumerate(caplog.records):
             print(f"{i+1}. [{record.levelname}] {record.name} - {record.message}")
 
@@ -123,7 +123,7 @@ class TestLoggerNamespaceIssue:
     ):
         """Test the fix by properly configuring the agent logger."""
 
-        print(f"\n=== TESTING THE FIX ===")
+        print("\n=== TESTING THE FIX ===")
 
         caplog.set_level(logging.DEBUG)
         caplog.clear()
@@ -157,7 +157,7 @@ class TestLoggerNamespaceIssue:
         session_logger.addHandler(console_handler)
         agent_logger.addHandler(console_handler)
 
-        print(f"After fix:")
+        print("After fix:")
         print(f"Session logger effective level: {session_logger.getEffectiveLevel()}")
         print(f"Observer logger effective level: {observer.logger.getEffectiveLevel()}")
         print(
@@ -177,7 +177,7 @@ class TestLoggerNamespaceIssue:
             if "Added task event for task" in record.message
         ]
 
-        print(f"\n=== CAPTURED LOGS AFTER FIX ===")
+        print("\n=== CAPTURED LOGS AFTER FIX ===")
         for i, record in enumerate(caplog.records):
             print(f"{i+1}. [{record.levelname}] {record.name} - {record.message}")
 
@@ -196,7 +196,7 @@ class TestLoggerNamespaceIssue:
     def test_suggest_minimal_fix(self):
         """Suggest the minimal fix for the real test."""
 
-        print(f"\n=== SUGGESTED FIX FOR REAL TEST ===")
+        print("\n=== SUGGESTED FIX FOR REAL TEST ===")
         print("In test_real_galaxy_session_integration.py, after line 299:")
         print("session_logger.addHandler(console_handler)")
         print("")

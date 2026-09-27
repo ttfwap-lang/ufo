@@ -9,18 +9,18 @@ import sys
 if platform.system() != 'Windows':
     logging.warning(f'excel_wincom_mcp_server.py requires Windows platform. Current: {platform.system()}. Skipping module initialization.')
     sys.exit(0)
-from typing import Annotated, Any, Callable, List, Union
+from collections.abc import Callable
+from typing import Annotated, Any
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
-
 from ufo.automator.app_apis.excel.excelclient import ExcelWinCOMReceiver
 from ufo.automator.app_apis.office_com import OfficeComSession
 from ufo.client.mcp.mcp_registry import MCPRegistry
 
 logger = logging.getLogger(__name__)
-SheetName = Annotated[Union[str, int], Field(description='Sheet name, or 1-based sheet index.')]
+SheetName = Annotated[str | int, Field(description='Sheet name, or 1-based sheet index.')]
 
 
 @MCPRegistry.register_factory_decorator('ExcelCOMExecutor')
@@ -40,7 +40,7 @@ def create_excel_mcp_server(process_name: str = '', *args, **kwargs) -> FastMCP:
     mcp = FastMCP('UFO Excel COM MCP Server')
 
     @mcp.tool(tags={'AppAgent'})
-    def set_cell_values(sheet_name: SheetName, start_cell: Annotated[str, Field(description="Top-left cell, e.g. 'A1'.")], values: Annotated[List[List[Any]], Field(description='Rows of values, e.g. [["Name","Score"],["Ann",9]].')]) -> str:
+    def set_cell_values(sheet_name: SheetName, start_cell: Annotated[str, Field(description="Top-left cell, e.g. 'A1'.")], values: Annotated[list[list[Any]], Field(description='Rows of values, e.g. [["Name","Score"],["Ann",9]].')]) -> str:
         """Write a block of values into cells in one step (much faster and more reliable than typing into cells)."""
         return run(lambda r: r.set_cell_values(sheet_name, start_cell, values))
 
@@ -70,12 +70,12 @@ def create_excel_mcp_server(process_name: str = '', *args, **kwargs) -> FastMCP:
         return run(lambda r: r.table2markdown(sheet_name))
 
     @mcp.tool(tags={'AppAgent'})
-    def get_range_values(sheet_name: SheetName, start_row: Annotated[int, Field(description='The start row, starting from 1.')], start_col: Annotated[int, Field(description='The start column, starting from 1.')], end_row: Annotated[int, Field(description='The end row; -1 for the last used row.')] = -1, end_col: Annotated[int, Field(description='The end column; -1 for the last used column.')] = -1) -> List:
+    def get_range_values(sheet_name: SheetName, start_row: Annotated[int, Field(description='The start row, starting from 1.')], start_col: Annotated[int, Field(description='The start column, starting from 1.')], end_row: Annotated[int, Field(description='The end row; -1 for the last used row.')] = -1, end_col: Annotated[int, Field(description='The end column; -1 for the last used column.')] = -1) -> list:
         """Read the values of a range of cells."""
         return run(lambda r: r.get_range_values(sheet_name, start_row, start_col, end_row, end_col))
 
     @mcp.tool(tags={'AppAgent'})
-    def insert_excel_table(table: Annotated[List[List[Any]], Field(description='The table content: a list of rows of strings or numbers.')], sheet_name: Annotated[str, Field(description='The name of the sheet to insert the table.')], start_row: Annotated[int, Field(description='The start row, starting from 1.')], start_col: Annotated[int, Field(description='The start column, starting from 1.')]) -> str:
+    def insert_excel_table(table: Annotated[list[list[Any]], Field(description='The table content: a list of rows of strings or numbers.')], sheet_name: Annotated[str, Field(description='The name of the sheet to insert the table.')], start_row: Annotated[int, Field(description='The start row, starting from 1.')], start_col: Annotated[int, Field(description='The start column, starting from 1.')]) -> str:
         """Insert a table into the sheet at a row/column position."""
         return run(lambda r: r.insert_excel_table(sheet_name, table, start_row, start_col))
 
@@ -85,7 +85,7 @@ def create_excel_mcp_server(process_name: str = '', *args, **kwargs) -> FastMCP:
         return run(lambda r: r.select_table_range(sheet_name, start_row, start_col, end_row, end_col))
 
     @mcp.tool(tags={'AppAgent'})
-    def reorder_columns(sheet_name: Annotated[str, Field(description='The name of the sheet.')], desired_order: Annotated[List[str], Field(description='The column header names in the new order.')]) -> str:
+    def reorder_columns(sheet_name: Annotated[str, Field(description='The name of the sheet.')], desired_order: Annotated[list[str], Field(description='The column header names in the new order.')]) -> str:
         """Reorder the columns of a sheet by header name."""
         return run(lambda r: r.reorder_columns(sheet_name, desired_order))
 

@@ -3,12 +3,13 @@ Minimal functional test for JSON methods.
 This creates minimal versions of the classes to test JSON functionality.
 """
 import json
-import tempfile
 import os
+import tempfile
+import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
-import uuid
+from typing import Any
+
 
 class TaskStatus(str, Enum):
     PENDING = 'pending'
@@ -40,10 +41,10 @@ class MinimalTaskStar:
         self.created_at = datetime.now(timezone.utc)
         self.updated_at = self.created_at
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {'task_id': self.task_id, 'name': self.name, 'description': self.description, 'status': self.status.value, 'priority': self.priority.value, 'created_at': self.created_at.isoformat(), 'updated_at': self.updated_at.isoformat()}
 
-    def to_json(self, save_path: Optional[str]=None) -> str:
+    def to_json(self, save_path: str | None=None) -> str:
         import json
         task_dict = self.to_dict()
         json_str = json.dumps(task_dict, indent=2, ensure_ascii=False)
@@ -53,14 +54,14 @@ class MinimalTaskStar:
         return json_str
 
     @classmethod
-    def from_json(cls, json_data: Optional[str]=None, file_path: Optional[str]=None):
+    def from_json(cls, json_data: str | None=None, file_path: str | None=None):
         import json
         if json_data is None and file_path is None:
             raise ValueError('Either json_data or file_path must be provided')
         if json_data is not None and file_path is not None:
             raise ValueError('Only one of json_data or file_path should be provided')
         if file_path:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 data = json.load(f)
         else:
             data = json.loads(json_data)
@@ -86,10 +87,10 @@ class MinimalTaskStarLine:
         self.created_at = datetime.now(timezone.utc)
         self.updated_at = self.created_at
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {'line_id': self.line_id, 'from_task_id': self.from_task_id, 'to_task_id': self.to_task_id, 'dependency_type': self.dependency_type.value, 'created_at': self.created_at.isoformat(), 'updated_at': self.updated_at.isoformat()}
 
-    def to_json(self, save_path: Optional[str]=None) -> str:
+    def to_json(self, save_path: str | None=None) -> str:
         import json
         line_dict = self.to_dict()
         json_str = json.dumps(line_dict, indent=2, ensure_ascii=False)
@@ -99,14 +100,14 @@ class MinimalTaskStarLine:
         return json_str
 
     @classmethod
-    def from_json(cls, json_data: Optional[str]=None, file_path: Optional[str]=None):
+    def from_json(cls, json_data: str | None=None, file_path: str | None=None):
         import json
         if json_data is None and file_path is None:
             raise ValueError('Either json_data or file_path must be provided')
         if json_data is not None and file_path is not None:
             raise ValueError('Only one of json_data or file_path should be provided')
         if file_path:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 data = json.load(f)
         else:
             data = json.loads(json_data)
@@ -127,7 +128,7 @@ def test_minimal_task_star():
     print('=' * 60)
     try:
         task = MinimalTaskStar(name='Test Task', description='A test task for JSON operations')
-        print(f'Created TaskStar:')
+        print('Created TaskStar:')
         print(f'  ID: {task.task_id}')
         print(f'  Name: {task.name}')
         print(f'  Status: {task.status}')
@@ -138,7 +139,7 @@ def test_minimal_task_star():
         print(f'✓ Valid JSON with {len(parsed)} fields')
         print('\n2. Testing from_json() with string...')
         restored_task = MinimalTaskStar.from_json(json_data=json_str)
-        print(f'✓ Task restored from JSON string')
+        print('✓ Task restored from JSON string')
         print(f'✓ Original ID: {task.task_id}')
         print(f'✓ Restored ID: {restored_task.task_id}')
         print(f'✓ Names match: {task.name == restored_task.name}')
@@ -148,7 +149,7 @@ def test_minimal_task_star():
         task.to_json(save_path=temp_file)
         print(f'✓ Saved to file: {temp_file}')
         file_task = MinimalTaskStar.from_json(file_path=temp_file)
-        print(f'✓ Loaded from file')
+        print('✓ Loaded from file')
         print(f'✓ File task matches: {file_task.task_id == task.task_id}')
         os.unlink(temp_file)
         print('✓ Temporary file cleaned up')
@@ -166,7 +167,7 @@ def test_minimal_task_star_line():
     print('=' * 60)
     try:
         line = MinimalTaskStarLine(from_task_id='task_001', to_task_id='task_002')
-        print(f'Created TaskStarLine:')
+        print('Created TaskStarLine:')
         print(f'  ID: {line.line_id}')
         print(f'  From: {line.from_task_id}')
         print(f'  To: {line.to_task_id}')
@@ -178,7 +179,7 @@ def test_minimal_task_star_line():
         print(f'✓ Valid JSON with {len(parsed)} fields')
         print('\n2. Testing from_json() with string...')
         restored_line = MinimalTaskStarLine.from_json(json_data=json_str)
-        print(f'✓ Line restored from JSON string')
+        print('✓ Line restored from JSON string')
         print(f'✓ Original ID: {line.line_id}')
         print(f'✓ Restored ID: {restored_line.line_id}')
         print(f'✓ From tasks match: {line.from_task_id == restored_line.from_task_id}')
@@ -189,7 +190,7 @@ def test_minimal_task_star_line():
         line.to_json(save_path=temp_file)
         print(f'✓ Saved to file: {temp_file}')
         file_line = MinimalTaskStarLine.from_json(file_path=temp_file)
-        print(f'✓ Loaded from file')
+        print('✓ Loaded from file')
         print(f'✓ File line matches: {file_line.line_id == line.line_id}')
         os.unlink(temp_file)
         print('✓ Temporary file cleaned up')

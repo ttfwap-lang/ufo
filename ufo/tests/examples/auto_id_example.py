@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Example demonstrating automatic ID assignment in BaseModel schemas.
@@ -8,17 +7,17 @@ This example shows how constellation_id, task_id, and line_id are automatically
 generated when not provided, and how uniqueness is enforced within constellation contexts.
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+
 from ufo.galaxy.agents.schema import (
-    TaskStarSchema,
-    TaskStarLineSchema,
     TaskConstellationSchema,
+    TaskStarLineSchema,
+    TaskStarSchema,
 )
-import json
 
 
 def example_basic_auto_id():
@@ -35,7 +34,7 @@ def example_basic_auto_id():
         name="数据分析任务", description="分析处理后的数据并生成报告"
     )
 
-    print(f"✅ 自动生成的任务 ID:")
+    print("✅ 自动生成的任务 ID:")
     print(f"   - 任务1: {task1.task_id}")
     print(f"   - 任务2: {task2.task_id}")
     print(f"   - 任务3: {task3.task_id}")
@@ -53,7 +52,7 @@ def example_basic_auto_id():
         dependency_type="UNCONDITIONAL",
     )
 
-    print(f"\n✅ 自动生成的依赖 ID:")
+    print("\n✅ 自动生成的依赖 ID:")
     print(f"   - 依赖1: {dep1.line_id}")
     print(f"   - 依赖2: {dep2.line_id}")
 
@@ -87,7 +86,7 @@ def example_mixed_ids():
         description="这个任务使用自动生成的 ID",
     )
 
-    print(f"✅ 混合 ID 模式:")
+    print("✅ 混合 ID 模式:")
     print(f"   - 手动任务 ID: {manual_task.task_id}")
     print(f"   - 自动任务 ID: {auto_task.task_id}")
 
@@ -196,7 +195,7 @@ def example_error_handling():
         description="第二个任务（重复ID）",
     )
 
-    print(f"✅ 创建了两个任务:")
+    print("✅ 创建了两个任务:")
     print(f"   - 任务1 ID: {task1.task_id}")
     print(f"   - 任务2 ID: {task2.task_id}")
 
@@ -227,7 +226,7 @@ def example_error_handling():
         },
     )
 
-    print(f"✅ 正确创建星座，任务 ID:")
+    print("✅ 正确创建星座，任务 ID:")
     print(f"   - 任务1: {correct_task1.task_id}")
     print(f"   - 任务2: {correct_task2.task_id}")
 
@@ -252,7 +251,7 @@ def example_json_serialization():
     # 序列化为 JSON
     json_data = constellation.model_dump_json(indent=2)
 
-    print(f"✅ 序列化为 JSON:")
+    print("✅ 序列化为 JSON:")
     print(f"   - 星座 ID: {constellation.constellation_id}")
     print(f"   - 任务数量: {len(constellation.tasks)}")
     print(f"   - JSON 大小: {len(json_data)} 字符")
@@ -260,7 +259,7 @@ def example_json_serialization():
     # 从 JSON 恢复
     loaded_constellation = TaskConstellationSchema.model_validate_json(json_data)
 
-    print(f"✅ 从 JSON 恢复:")
+    print("✅ 从 JSON 恢复:")
     print(f"   - 星座 ID: {loaded_constellation.constellation_id}")
     print(f"   - 任务数量: {len(loaded_constellation.tasks)}")
 
@@ -294,10 +293,10 @@ def main():
     print("   • 重复 ID 检测和错误处理")
     print("   • 完全兼容 JSON 序列化/反序列化")
 
-    print(f"\n📊 统计信息:")
-    print(f"   • 总共创建了 5 个示例星座")
-    print(f"   • 演示了自动 ID 分配的各种场景")
-    print(f"   • 验证了错误处理和唯一性检查")
+    print("\n📊 统计信息:")
+    print("   • 总共创建了 5 个示例星座")
+    print("   • 演示了自动 ID 分配的各种场景")
+    print("   • 验证了错误处理和唯一性检查")
 
 
 if __name__ == "__main__":

@@ -3,12 +3,12 @@ Test Suite for UFO Cloud-First Transition, System Guardian,
 Continuous Learner, and UI-TARS Visual Computer Use Bridge.
 """
 
-import os
-import sys
 import json
+import sys
 import tempfile
-import pytest
 from pathlib import Path
+
+import pytest
 
 # Ensure repo root is on sys.path
 UFO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -16,7 +16,6 @@ if str(UFO_ROOT) not in sys.path:
     sys.path.insert(0, str(UFO_ROOT))
 
 import yaml
-from ufo.config.config_loader import get_ufo_config
 from ufo.automator.ui_tars_bridge import UITarsBridge
 from ufo.fleet.system_guardian import SystemGuardian
 from ufo.learner.continuous_learner import ContinuousLearner
@@ -34,7 +33,7 @@ class TestCloudFirstTransition:
         profiles = sorted((UFO_ROOT / "config" / "ufo").glob("agents*.yaml"))
         assert profiles, "no agent profiles found"
         for path in profiles:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 config = yaml.safe_load(f) or {}
             for agent in ("HOST_AGENT", "APP_AGENT"):
                 block = config.get(agent)
@@ -45,7 +44,7 @@ class TestCloudFirstTransition:
     def test_litellm_config_models(self):
         litellm_path = UFO_ROOT / "litellm_config.yaml"
         assert litellm_path.exists(), "litellm_config.yaml must exist"
-        
+
         content = litellm_path.read_text(encoding="utf-8")
         assert "claude-3-7-sonnet" in content
         assert "deepseek-r1" in content
@@ -110,7 +109,7 @@ class TestSystemGuardian:
 
     def test_guardian_diagnostics(self):
         guardian = SystemGuardian(ufo_root=str(UFO_ROOT))
-        
+
         # Test clean stale temp files
         cleaned = guardian.scrub_stale_temp_files(max_age_hours=24.0)
         assert isinstance(cleaned, int)

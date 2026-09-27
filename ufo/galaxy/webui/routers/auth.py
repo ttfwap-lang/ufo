@@ -9,12 +9,12 @@ API key (displayed in the server console) and receive a session token,
 without exposing the API key in HTML responses.
 """
 
-import secrets
-from typing import Dict, Any
+from typing import Any
 
 from fastapi import APIRouter, Depends
 
 from ufo.galaxy.webui.dependencies import verify_api_key
+
 router = APIRouter(tags=["auth"])
 
 
@@ -22,7 +22,7 @@ router = APIRouter(tags=["auth"])
     "/api/authenticate",
     dependencies=[Depends(verify_api_key)],
 )
-async def authenticate() -> Dict[str, Any]:
+async def authenticate() -> dict[str, Any]:
     """
     Authenticate with the API key and receive a confirmation.
 

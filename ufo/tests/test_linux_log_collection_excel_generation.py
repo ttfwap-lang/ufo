@@ -8,13 +8,9 @@ This test module demonstrates collecting logs from two Linux servers and generat
 It includes mock AgentProfile objects for testing cross-platform operations in a constellation environment.
 """
 
-import pytest
-import asyncio
 from datetime import datetime, timezone
-from typing import Dict, List, Any
-from unittest.mock import Mock, AsyncMock, patch
-import tempfile
-import os
+
+import pytest
 
 from ufo.galaxy.client.components.types import AgentProfile, DeviceStatus
 
@@ -140,7 +136,7 @@ class TestLinuxLogCollectionExcelGeneration:
         mock_linux_server_1: AgentProfile,
         mock_linux_server_2: AgentProfile,
         mock_windows_workstation: AgentProfile,
-    ) -> Dict[str, AgentProfile]:
+    ) -> dict[str, AgentProfile]:
         """Create a constellation of devices for testing."""
         return {
             "linux_server_001": mock_linux_server_1,
@@ -177,7 +173,7 @@ class TestLinuxLogCollectionExcelGeneration:
         assert mock_windows_workstation.status == DeviceStatus.CONNECTED
 
     def test_device_capabilities_for_log_collection_scenario(
-        self, device_constellation: Dict[str, AgentProfile]
+        self, device_constellation: dict[str, AgentProfile]
     ):
         """Test that devices have the required capabilities for the log collection scenario."""
         linux_servers = [
@@ -208,7 +204,7 @@ class TestLinuxLogCollectionExcelGeneration:
 
     @pytest.mark.asyncio
     async def test_mock_log_collection_from_linux_servers(
-        self, device_constellation: Dict[str, AgentProfile]
+        self, device_constellation: dict[str, AgentProfile]
     ):
         """Test mock log collection process from Linux servers."""
         linux_servers = [
@@ -258,7 +254,7 @@ class TestLinuxLogCollectionExcelGeneration:
 
     @pytest.mark.asyncio
     async def test_mock_excel_generation_on_windows(
-        self, device_constellation: Dict[str, AgentProfile]
+        self, device_constellation: dict[str, AgentProfile]
     ):
         """Test mock Excel generation process on Windows workstation."""
         windows_device = next(
@@ -334,7 +330,7 @@ class TestLinuxLogCollectionExcelGeneration:
 
     @pytest.mark.asyncio
     async def test_complete_log_collection_and_excel_workflow(
-        self, device_constellation: Dict[str, AgentProfile]
+        self, device_constellation: dict[str, AgentProfile]
     ):
         """Test the complete workflow from log collection to Excel generation."""
         # Step 1: Identify available devices
@@ -404,7 +400,7 @@ class TestLinuxLogCollectionExcelGeneration:
         assert excel_generation_result["charts_generated"] > 0
 
     def test_device_metadata_validation(
-        self, device_constellation: Dict[str, AgentProfile]
+        self, device_constellation: dict[str, AgentProfile]
     ):
         """Test that all devices have proper metadata for the log collection scenario."""
         for device_id, device in device_constellation.items():
@@ -430,7 +426,7 @@ class TestLinuxLogCollectionExcelGeneration:
 
     @pytest.mark.asyncio
     async def test_error_handling_scenarios(
-        self, device_constellation: Dict[str, AgentProfile]
+        self, device_constellation: dict[str, AgentProfile]
     ):
         """Test error handling scenarios in the log collection workflow."""
         # Test scenario: One Linux server fails
@@ -480,7 +476,7 @@ class TestLinuxLogCollectionExcelGeneration:
         assert partial_report["status"] == "completed_with_warnings"
 
     def test_device_formatting_for_prompt(
-        self, device_constellation: Dict[str, AgentProfile]
+        self, device_constellation: dict[str, AgentProfile]
     ):
         """Test device formatting for LLM prompt usage."""
         # This simulates how devices would be formatted for constellation prompts

@@ -1,20 +1,23 @@
 from __future__ import annotations
+
 import logging
 import os
 import re
 import shlex
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, FrozenSet, List, Optional, Type
+from typing import Any
+
 from ufo.automator.basic import CommandBasic, ReceiverBasic
+
 logger = logging.getLogger(__name__)
-ALLOWED_SHELL_COMMANDS: FrozenSet[str] = frozenset({'Get-ChildItem', 'Get-Content', 'Get-Item', 'Get-Location', 'Get-Process', 'Get-Service', 'Set-Location', 'Select-Object', 'Select-String', 'Where-Object', 'Sort-Object', 'Format-Table', 'Format-List', 'Out-String', 'Write-Output', 'Test-Path', 'Measure-Object', 'ConvertTo-Json', 'ConvertFrom-Json', 'dir', 'type', 'find', 'findstr', 'where', 'echo', 'hostname'})
-MAX_ALLOW_LIST: FrozenSet[str] = ALLOWED_SHELL_COMMANDS
-_DANGEROUS_PATTERNS: List[re.Pattern] = [re.compile('Invoke-Expression|IEX\\b', re.IGNORECASE), re.compile('Invoke-WebRequest|IWR\\b|Invoke-RestMethod|IRM\\b', re.IGNORECASE), re.compile('Start-Process\\b', re.IGNORECASE), re.compile('New-Object\\s+.*Net\\.WebClient', re.IGNORECASE), re.compile('DownloadString|DownloadFile', re.IGNORECASE), re.compile('\\bAdd-Type\\b', re.IGNORECASE), re.compile('\\b(cmd|powershell|pwsh)(\\.exe)?\\s+[/-]', re.IGNORECASE), re.compile('[|;&`]\\s*(bash|sh|cmd|powershell|pwsh)', re.IGNORECASE), re.compile('::'), re.compile('\\bNew-Object\\b', re.IGNORECASE), re.compile('\\.Invoke\\b', re.IGNORECASE), re.compile('[&.]\\s*[({]', re.IGNORECASE), re.compile('\\bNew-Service\\b|\\bsc\\.exe\\b', re.IGNORECASE), re.compile('\\breg(\\.exe)?\\s+(add|delete|import)', re.IGNORECASE), re.compile('\\bschtasks(\\.exe)?\\b', re.IGNORECASE), re.compile('\\bnet\\s+(user|localgroup)\\b', re.IGNORECASE), re.compile('\\bSet-ExecutionPolicy\\b', re.IGNORECASE), re.compile('\\bRemove-Item\\b.*-Recurse', re.IGNORECASE), re.compile('\\brm\\s+-rf\\b', re.IGNORECASE), re.compile('[`$]\\(', re.IGNORECASE), re.compile(';'), re.compile('&&|\\|\\|'), re.compile('[\\r\\n\\x00]'), re.compile('\\b(HKLM|HKCU|HKCR|HKU|HKCC|Registry|Cert|WSMan|Variable|Function|Alias|Env)\\s*::?', re.IGNORECASE), re.compile('\\bHKEY_[A-Z_]+', re.IGNORECASE), re.compile('\\$env:', re.IGNORECASE), re.compile('\\$(HOME|PROFILE|PSHome|PSScriptRoot)\\b', re.IGNORECASE), re.compile('%[A-Za-z_][A-Za-z0-9_]*%')]
-_SENSITIVE_ENV_PATTERNS: List[re.Pattern] = [re.compile('(SECRET|TOKEN|PASSWORD|CREDENTIAL|KEY|PRIVATE)', re.IGNORECASE), re.compile('^(AWS_|AZURE_|GCP_|GOOGLE_)', re.IGNORECASE), re.compile('^(DATABASE_URL|DB_PASS|OPENAI_API_KEY)', re.IGNORECASE), re.compile('^(SSH_AUTH_SOCK|GPG_)', re.IGNORECASE), re.compile('^LD_', re.IGNORECASE), re.compile('^DYLD_', re.IGNORECASE), re.compile('^PYTHON', re.IGNORECASE), re.compile('^NODE_OPTIONS$', re.IGNORECASE), re.compile('^NODE_PATH$', re.IGNORECASE), re.compile('^(RUBYLIB|RUBYOPT|PERL5LIB|PERL5OPT|CLASSPATH)$', re.IGNORECASE), re.compile('^PATH$', re.IGNORECASE), re.compile('^(COMSPEC|SHELL|PATHEXT)$', re.IGNORECASE), re.compile('^(HOME|USERPROFILE|XDG_CONFIG_HOME|XDG_DATA_HOME)$', re.IGNORECASE), re.compile('(^|_)PROXY$', re.IGNORECASE), re.compile('^NO_PROXY$', re.IGNORECASE), re.compile('^(REQUESTS_CA_BUNDLE|CURL_CA_BUNDLE|SSL_CERT_FILE|SSL_CERT_DIR)$', re.IGNORECASE), re.compile('^(NODE_EXTRA_CA_CERTS|GRPC_DEFAULT_SSL_ROOTS_FILE_PATH)$', re.IGNORECASE), re.compile('^(ENV|BASH_ENV|ZDOTDIR|INPUTRC)$', re.IGNORECASE)]
+ALLOWED_SHELL_COMMANDS: frozenset[str] = frozenset({'Get-ChildItem', 'Get-Content', 'Get-Item', 'Get-Location', 'Get-Process', 'Get-Service', 'Set-Location', 'Select-Object', 'Select-String', 'Where-Object', 'Sort-Object', 'Format-Table', 'Format-List', 'Out-String', 'Write-Output', 'Test-Path', 'Measure-Object', 'ConvertTo-Json', 'ConvertFrom-Json', 'dir', 'type', 'find', 'findstr', 'where', 'echo', 'hostname'})
+MAX_ALLOW_LIST: frozenset[str] = ALLOWED_SHELL_COMMANDS
+_DANGEROUS_PATTERNS: list[re.Pattern] = [re.compile('Invoke-Expression|IEX\\b', re.IGNORECASE), re.compile('Invoke-WebRequest|IWR\\b|Invoke-RestMethod|IRM\\b', re.IGNORECASE), re.compile('Start-Process\\b', re.IGNORECASE), re.compile('New-Object\\s+.*Net\\.WebClient', re.IGNORECASE), re.compile('DownloadString|DownloadFile', re.IGNORECASE), re.compile('\\bAdd-Type\\b', re.IGNORECASE), re.compile('\\b(cmd|powershell|pwsh)(\\.exe)?\\s+[/-]', re.IGNORECASE), re.compile('[|;&`]\\s*(bash|sh|cmd|powershell|pwsh)', re.IGNORECASE), re.compile('::'), re.compile('\\bNew-Object\\b', re.IGNORECASE), re.compile('\\.Invoke\\b', re.IGNORECASE), re.compile('[&.]\\s*[({]', re.IGNORECASE), re.compile('\\bNew-Service\\b|\\bsc\\.exe\\b', re.IGNORECASE), re.compile('\\breg(\\.exe)?\\s+(add|delete|import)', re.IGNORECASE), re.compile('\\bschtasks(\\.exe)?\\b', re.IGNORECASE), re.compile('\\bnet\\s+(user|localgroup)\\b', re.IGNORECASE), re.compile('\\bSet-ExecutionPolicy\\b', re.IGNORECASE), re.compile('\\bRemove-Item\\b.*-Recurse', re.IGNORECASE), re.compile('\\brm\\s+-rf\\b', re.IGNORECASE), re.compile('[`$]\\(', re.IGNORECASE), re.compile(';'), re.compile('&&|\\|\\|'), re.compile('[\\r\\n\\x00]'), re.compile('\\b(HKLM|HKCU|HKCR|HKU|HKCC|Registry|Cert|WSMan|Variable|Function|Alias|Env)\\s*::?', re.IGNORECASE), re.compile('\\bHKEY_[A-Z_]+', re.IGNORECASE), re.compile('\\$env:', re.IGNORECASE), re.compile('\\$(HOME|PROFILE|PSHome|PSScriptRoot)\\b', re.IGNORECASE), re.compile('%[A-Za-z_][A-Za-z0-9_]*%')]
+_SENSITIVE_ENV_PATTERNS: list[re.Pattern] = [re.compile('(SECRET|TOKEN|PASSWORD|CREDENTIAL|KEY|PRIVATE)', re.IGNORECASE), re.compile('^(AWS_|AZURE_|GCP_|GOOGLE_)', re.IGNORECASE), re.compile('^(DATABASE_URL|DB_PASS|OPENAI_API_KEY)', re.IGNORECASE), re.compile('^(SSH_AUTH_SOCK|GPG_)', re.IGNORECASE), re.compile('^LD_', re.IGNORECASE), re.compile('^DYLD_', re.IGNORECASE), re.compile('^PYTHON', re.IGNORECASE), re.compile('^NODE_OPTIONS$', re.IGNORECASE), re.compile('^NODE_PATH$', re.IGNORECASE), re.compile('^(RUBYLIB|RUBYOPT|PERL5LIB|PERL5OPT|CLASSPATH)$', re.IGNORECASE), re.compile('^PATH$', re.IGNORECASE), re.compile('^(COMSPEC|SHELL|PATHEXT)$', re.IGNORECASE), re.compile('^(HOME|USERPROFILE|XDG_CONFIG_HOME|XDG_DATA_HOME)$', re.IGNORECASE), re.compile('(^|_)PROXY$', re.IGNORECASE), re.compile('^NO_PROXY$', re.IGNORECASE), re.compile('^(REQUESTS_CA_BUNDLE|CURL_CA_BUNDLE|SSL_CERT_FILE|SSL_CERT_DIR)$', re.IGNORECASE), re.compile('^(NODE_EXTRA_CA_CERTS|GRPC_DEFAULT_SSL_ROOTS_FILE_PATH)$', re.IGNORECASE), re.compile('^(ENV|BASH_ENV|ZDOTDIR|INPUTRC)$', re.IGNORECASE)]
 _MAX_READ_BYTES: int = 10 * 1024 * 1024
 
-def _extract_base_command(command_str: str) -> Optional[str]:
+def _extract_base_command(command_str: str) -> str | None:
     """Extract the first token (base command) from a command string."""
     stripped = command_str.strip()
     if not stripped:
@@ -69,7 +72,7 @@ _PATH_SEPARATOR_RE = re.compile('[\\\\/]')
 _ABS_DRIVE_PATH_RE = re.compile('^[A-Za-z]:[\\\\/]')
 _UNC_PATH_RE = re.compile('^(\\\\\\\\|//)')
 
-def _validate_command_paths(command_str: str, base_directory: str) -> Optional[str]:
+def _validate_command_paths(command_str: str, base_directory: str) -> str | None:
     """
     Inspect every argument token in *command_str* and reject any that would
     escape *base_directory*.
@@ -113,7 +116,7 @@ def _validate_command_paths(command_str: str, base_directory: str) -> Optional[s
         if token.startswith('~'):
             return f"Argument '{raw}' references a home directory"
         normalised = token.replace('\\', '/')
-        if any((seg == '..' for seg in normalised.split('/'))):
+        if any(seg == '..' for seg in normalised.split('/')):
             return f"Argument '{raw}' contains a path-traversal segment"
         if token.startswith('/'):
             return f"Argument '{raw}' is an absolute path outside the base directory '{base}'"
@@ -132,9 +135,9 @@ class ShellReceiver(ReceiverBasic):
     """
     The base class for shell command execution with security hardening.
     """
-    _command_registry: Dict[str, Type[ShellCommand]] = {}
+    _command_registry: dict[str, type[ShellCommand]] = {}
 
-    def __init__(self, base_directory: Optional[str]=None) -> None:
+    def __init__(self, base_directory: str | None=None) -> None:
         """
         Initialize the shell client.
         :param base_directory: The root directory that all filesystem
@@ -143,7 +146,7 @@ class ShellReceiver(ReceiverBasic):
         self.base_directory = os.path.abspath(base_directory or os.getcwd())
         self.current_directory = self.base_directory
 
-    def run_shell(self, params: Dict[str, Any]) -> Any:
+    def run_shell(self, params: dict[str, Any]) -> Any:
         """
         Run an allow-listed command.  The command string is validated against
         ``ALLOWED_SHELL_COMMANDS`` and scanned for dangerous patterns before
@@ -172,7 +175,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Command execution failed: {str(e)}', 'command': command}
 
-    def execute_command(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def execute_command(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Execute a command with advanced options.
         The command is validated against the allow-list.
@@ -204,7 +207,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Command execution failed: {str(e)}', 'command': str(command)}
 
-    def change_directory(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def change_directory(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Change the current working directory (confined to base_directory).
         """
@@ -220,7 +223,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to change directory: {str(e)}'}
 
-    def get_current_directory(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_current_directory(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Get the current working directory.
         """
@@ -231,7 +234,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to get current directory: {str(e)}'}
 
-    def list_files(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def list_files(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         List files and directories in a path (confined to base_directory).
         """
@@ -258,7 +261,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to list files: {str(e)}'}
 
-    def create_directory(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def create_directory(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Create a new directory (confined to base_directory).
         """
@@ -278,7 +281,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to create directory: {str(e)}'}
 
-    def remove_file(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def remove_file(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Remove a file or directory.
         """
@@ -304,7 +307,7 @@ class ShellReceiver(ReceiverBasic):
         except OSError as e:
             return {'error': f'Failed to remove: {str(e)}'}
 
-    def copy_file(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def copy_file(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Copy a file (confined to base_directory). Directory copy is disabled.
         """
@@ -323,7 +326,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to copy: {str(e)}'}
 
-    def move_file(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def move_file(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Move or rename a file or directory (confined to base_directory).
         """
@@ -340,7 +343,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to move: {str(e)}'}
 
-    def read_file(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def read_file(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Read the contents of a text file (confined to base_directory, size-limited).
         """
@@ -351,7 +354,7 @@ class ShellReceiver(ReceiverBasic):
             file_size = os.path.getsize(safe_path)
             if file_size > _MAX_READ_BYTES:
                 return {'error': f'File too large ({file_size} bytes). Maximum allowed is {_MAX_READ_BYTES} bytes.'}
-            with open(safe_path, 'r', encoding=encoding) as file:
+            with open(safe_path, encoding=encoding) as file:
                 content = file.read()
             return {'file_path': safe_path, 'content': content, 'encoding': encoding}
         except ValueError as ve:
@@ -359,7 +362,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to read file: {str(e)}'}
 
-    def write_file(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def write_file(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Write content to a text file (confined to base_directory).
         """
@@ -378,7 +381,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to write file: {str(e)}'}
 
-    def check_file_exists(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def check_file_exists(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Check if a file or directory exists (confined to base_directory).
         """
@@ -390,7 +393,7 @@ class ShellReceiver(ReceiverBasic):
         except ValueError as ve:
             return {'error': str(ve)}
 
-    def get_file_info(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_file_info(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Get information about a file or directory (confined to base_directory).
         """
@@ -406,7 +409,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to get file info: {str(e)}'}
 
-    def find_files(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def find_files(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Find files matching a pattern (confined to base_directory).
         """
@@ -432,7 +435,7 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to find files: {str(e)}'}
 
-    def get_environment_variable(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_environment_variable(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Get the value of a non-sensitive environment variable.
         """
@@ -443,7 +446,7 @@ class ShellReceiver(ReceiverBasic):
         value = os.environ.get(name)
         return {'variable_name': name, 'value': value, 'exists': value is not None}
 
-    def set_environment_variable(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def set_environment_variable(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Set an environment variable.
         Sensitive variables (secrets, tokens, keys) are blocked.
@@ -459,13 +462,14 @@ class ShellReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to set environment variable: {str(e)}'}
 
-    def get_system_info(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_system_info(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Get system information.
         """
         info_type = params.get('info_type', 'all')
         try:
             import platform
+
             import psutil
             info = {}
             if info_type in ['os', 'all']:
@@ -492,7 +496,7 @@ class ShellCommand(CommandBasic):
     The base class for Web commands.
     """
 
-    def __init__(self, receiver: ShellReceiver, params: Dict[str, Any]) -> None:
+    def __init__(self, receiver: ShellReceiver, params: dict[str, Any]) -> None:
         """
         Initialize the Web command.
         :param receiver: The receiver of the command.

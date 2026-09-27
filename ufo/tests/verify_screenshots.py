@@ -9,12 +9,14 @@ Verification criteria per screenshot:
   c) Pixel RGB stddev > 5.0 (using PIL.ImageStat)
   d) Non-empty image content (file size > 0 bytes and readable)
 """
-import sys
-import os
 import argparse
+import os
+import sys
 from pathlib import Path
-from typing import List, Tuple, Dict, Any
+from typing import Any
+
 from PIL import Image, ImageStat
+
 
 def is_diagnostic_warning_frame(img: Image.Image) -> bool:
     """
@@ -46,7 +48,7 @@ def is_diagnostic_warning_frame(img: Image.Image) -> bool:
         pass
     return False
 
-def is_valid_step_image(image_path: str, min_stddev: float=5.0) -> Tuple[bool, str]:
+def is_valid_step_image(image_path: str, min_stddev: float=5.0) -> tuple[bool, str]:
     """
     Validate a single PNG screenshot image file.
     Returns (is_valid, status_message).
@@ -74,13 +76,13 @@ def is_valid_step_image(image_path: str, min_stddev: float=5.0) -> Tuple[bool, s
     except Exception as e:
         return (False, f'Corrupted image or read failure: {e}')
 
-def scan_and_verify_screenshots(target_dir: str, pattern: str='*.png', min_stddev: float=5.0) -> Dict[str, Any]:
+def scan_and_verify_screenshots(target_dir: str, pattern: str='*.png', min_stddev: float=5.0) -> dict[str, Any]:
     """
     Scan a directory (recursively) for PNG screenshots and verify each one.
     Returns a summary dict containing pass/fail metrics and details.
     """
     target_path = Path(target_dir).resolve()
-    results: Dict[str, Any] = {'target_dir': str(target_path), 'total_scanned': 0, 'passed': 0, 'failed': 0, 'details': []}
+    results: dict[str, Any] = {'target_dir': str(target_path), 'total_scanned': 0, 'passed': 0, 'failed': 0, 'details': []}
     if not target_path.exists():
         print(f"Error: Target directory '{target_path}' does not exist.")
         return results
@@ -113,7 +115,7 @@ def verify_task_screenshots(log_dir: str, min_stddev: float=5.0) -> bool:
         return False
     return results['failed'] == 0
 
-def print_summary_report(results: Dict[str, Any]) -> None:
+def print_summary_report(results: dict[str, Any]) -> None:
     """
     Print a structured, readable summary report of verification results.
     """

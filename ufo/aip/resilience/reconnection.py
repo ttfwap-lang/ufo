@@ -6,8 +6,10 @@ transient network failures and connection interruptions.
 """
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from enum import Enum
-from typing import TYPE_CHECKING, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from ufo.aip.endpoints.base import AIPEndpoint
 
@@ -46,9 +48,9 @@ class ReconnectionStrategy:
         self.policy = policy
         self.logger = logging.getLogger(f'{__name__}.ReconnectionStrategy')
         self._retry_count = 0
-        self._reconnection_task: Optional[asyncio.Task] = None
+        self._reconnection_task: asyncio.Task | None = None
 
-    async def handle_disconnection(self, endpoint: 'AIPEndpoint', device_id: str, on_reconnect: Optional[Callable[[], Awaitable[None]]]=None) -> None:
+    async def handle_disconnection(self, endpoint: 'AIPEndpoint', device_id: str, on_reconnect: Callable[[], Awaitable[None]] | None=None) -> None:
         """
         Handle device disconnection with automatic reconnection.
 

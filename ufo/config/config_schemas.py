@@ -8,7 +8,7 @@ Hybrid design: Fixed typed fields + dynamic field support.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -30,17 +30,17 @@ class AgentConfig:
     api_model: str = "gpt-4.1-20250414"
 
     # Azure AD fields
-    aad_tenant_id: Optional[str] = None
-    aad_api_scope: Optional[str] = None
-    aad_api_scope_base: Optional[str] = None
-    api_deployment_id: Optional[str] = None
+    aad_tenant_id: str | None = None
+    aad_api_scope: str | None = None
+    aad_api_scope_base: str | None = None
+    api_deployment_id: str | None = None
 
     # Prompt paths
-    prompt: Optional[str] = None
-    example_prompt: Optional[str] = None
+    prompt: str | None = None
+    example_prompt: str | None = None
 
     # ========== Dynamic Fields (Auto-populated from YAML) ==========
-    _extras: Dict[str, Any] = field(default_factory=dict, repr=False)
+    _extras: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def __getattr__(self, name: str) -> Any:
         """Support dynamic attribute access for extra fields without infinite recursion."""
@@ -93,7 +93,7 @@ class AgentConfig:
         except KeyError:
             return default
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert AgentConfig to dictionary with uppercase keys plus extras.
         """
@@ -119,7 +119,7 @@ class AgentConfig:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AgentConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "AgentConfig":
         """
         Create AgentConfig from dictionary.
 
@@ -177,7 +177,7 @@ class RAGConfig:
     demonstration_retrieved_topk: int = 5
 
     # ========== Dynamic Fields ==========
-    _extras: Dict[str, Any] = field(default_factory=dict, repr=False)
+    _extras: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def __getattr__(self, name: str) -> Any:
         if name.startswith("_"):
@@ -225,7 +225,7 @@ class RAGConfig:
             return default
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RAGConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "RAGConfig":
         """Create RAGConfig with known fields + extras"""
         known_mappings = {
             "RAG_OFFLINE_DOCS": "offline_docs",
@@ -271,7 +271,7 @@ class SystemConfig:
     timeout: int = 60
 
     # ========== Control Backend ==========
-    control_backend: List[str] = field(default_factory=lambda: ["uia"])
+    control_backend: list[str] = field(default_factory=lambda: ["uia"])
     iou_threshold_for_merge: float = 0.1
 
     # ========== Execution Limits ==========
@@ -288,7 +288,7 @@ class SystemConfig:
 
     # ========== Safety ==========
     safe_guard: bool = True
-    control_list: List[str] = field(
+    control_list: list[str] = field(
         default_factory=lambda: [
             "Button",
             "Edit",
@@ -309,7 +309,7 @@ class SystemConfig:
     )
 
     # ========== History ==========
-    history_keys: List[str] = field(
+    history_keys: list[str] = field(
         default_factory=lambda: [
             "step",
             "subtask",
@@ -319,7 +319,7 @@ class SystemConfig:
     )
 
     # ========== Annotation ==========
-    annotation_colors: Dict[str, str] = field(default_factory=dict)
+    annotation_colors: dict[str, str] = field(default_factory=dict)
     highlight_bbox: bool = True
     annotation_font_size: int = 22
 
@@ -349,7 +349,7 @@ class SystemConfig:
 
     # ========== Task Management ==========
     task_status: bool = True
-    task_status_file: Optional[str] = None
+    task_status_file: str | None = None
     save_experience: str = "always_not"
 
     # ========== Evaluation ==========
@@ -364,13 +364,13 @@ class SystemConfig:
     qa_pair_num: int = 20
 
     # ========== Omniparser ==========
-    omniparser: Dict[str, Any] = field(default_factory=dict)
+    omniparser: dict[str, Any] = field(default_factory=dict)
 
     # ========== BrowserAct ==========
     # Settings for the constrained BrowserAct MCP executor.  Values are
     # intentionally generic so a fresh checkout can use PATH discovery and
     # an operator can select a browser without rewriting source code.
-    browseract: Dict[str, Any] = field(
+    browseract: dict[str, Any] = field(
         default_factory=lambda: {
             "ENABLED": True,
             "CLI_PATH": "",
@@ -391,7 +391,7 @@ class SystemConfig:
     )
 
     # ========== Control Filtering ==========
-    control_filter_type: List[str] = field(default_factory=list)
+    control_filter_type: list[str] = field(default_factory=list)
     control_filter_top_k_plan: int = 2
     control_filter_top_k_semantic: int = 15
     control_filter_top_k_icon: int = 15
@@ -405,7 +405,7 @@ class SystemConfig:
     # ========== MCP (Model Context Protocol) ==========
     use_mcp: bool = True
     mcp_servers_config: str = "config/ufo/mcp.yaml"
-    mcp_preferred_apps: List[str] = field(default_factory=list)
+    mcp_preferred_apps: list[str] = field(default_factory=list)
     mcp_fallback_to_ui: bool = True
     mcp_instructions_path: str = "ufo/config/mcp_instructions"
     mcp_tool_timeout: int = 30
@@ -428,7 +428,7 @@ class SystemConfig:
     )
 
     # ========== API and App-specific Prompts ==========
-    app_api_prompt_address: Dict[str, str] = field(default_factory=dict)
+    app_api_prompt_address: dict[str, str] = field(default_factory=dict)
     word_api_prompt: str = "ufo/prompts/apps/word/api.yaml"
     excel_api_prompt: str = "ufo/prompts/apps/excel/api.yaml"
 
@@ -447,17 +447,17 @@ class SystemConfig:
     )
 
     # ========== Third-Party Agents ==========
-    enabled_third_party_agents: List[str] = field(default_factory=list)
-    third_party_agent_config: Dict[str, Any] = field(default_factory=dict)
+    enabled_third_party_agents: list[str] = field(default_factory=list)
+    third_party_agent_config: dict[str, Any] = field(default_factory=dict)
 
     # ========== Output ==========
     output_presenter: str = "rich"
 
     # ========== Prices (from legacy config) ==========
-    prices: Dict[str, Any] = field(default_factory=dict)
+    prices: dict[str, Any] = field(default_factory=dict)
 
     # ========== Dynamic Fields ==========
-    _extras: Dict[str, Any] = field(default_factory=dict, repr=False)
+    _extras: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def __getattr__(self, name: str) -> Any:
         if name.startswith("_"):
@@ -496,7 +496,7 @@ class SystemConfig:
         except KeyError:
             return default
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert SystemConfig to dictionary with uppercase keys plus extras."""
         known_reverse = {
             "max_tokens": "MAX_TOKENS",
@@ -588,7 +588,7 @@ class SystemConfig:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SystemConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "SystemConfig":
         """Create SystemConfig with known fields + extras"""
         known_mappings = {
             # LLM Parameters
@@ -738,7 +738,7 @@ class UFOConfig:
     system: SystemConfig
 
     # ========== Raw Dictionary (Backward Compatible) ==========
-    _raw: Dict[str, Any] = field(default_factory=dict, repr=False)
+    _raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -792,7 +792,7 @@ class UFOConfig:
         """Get all raw config values"""
         return self._raw.values()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert UFOConfig back to dictionary format.
         Returns the merged config dictionary for backward compatibility.
@@ -809,7 +809,7 @@ class UFOConfig:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "UFOConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "UFOConfig":
         """Create UFOConfig from merged configuration dictionary"""
         return cls(
             host_agent=AgentConfig.from_dict(data.get("HOST_AGENT", {})),
@@ -839,7 +839,7 @@ class ConstellationRuntimeConfig:
     log_to_markdown: bool = True
 
     # ========== Dynamic Fields ==========
-    _extras: Dict[str, Any] = field(default_factory=dict, repr=False)
+    _extras: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def __getattr__(self, name: str) -> Any:
         if name.startswith("_"):
@@ -879,7 +879,7 @@ class ConstellationRuntimeConfig:
             return default
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ConstellationRuntimeConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "ConstellationRuntimeConfig":
         """Create ConstellationRuntimeConfig from dictionary"""
         known_mappings = {
             "CONSTELLATION_ID": "constellation_id",
@@ -926,7 +926,7 @@ class GalaxyAgentConfig:
         raise KeyError(key)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "GalaxyAgentConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "GalaxyAgentConfig":
         """Create GalaxyAgentConfig from dictionary"""
         return cls(
             constellation_agent=AgentConfig.from_dict(
@@ -958,7 +958,7 @@ class GalaxyConfig:
         return self.agent
 
     # ========== Raw Dictionary (Backward Compatible) ==========
-    _raw: Dict[str, Any] = field(default_factory=dict, repr=False)
+    _raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def __getattr__(self, name: str) -> Any:
         """Support dynamic attribute access"""
@@ -997,7 +997,7 @@ class GalaxyConfig:
         return self._raw.items()
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "GalaxyConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "GalaxyConfig":
         """Create GalaxyConfig from merged configuration dictionary"""
         return cls(
             agent=GalaxyAgentConfig.from_dict(data),

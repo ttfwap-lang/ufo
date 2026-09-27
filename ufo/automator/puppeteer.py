@@ -1,13 +1,15 @@
 import os
 import platform
 from collections import deque
-from typing import TYPE_CHECKING, Any, Deque, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any
+
 if TYPE_CHECKING or platform.system() == 'Windows':
     from pywinauto.controls.uiawrapper import UIAWrapper
 else:
     UIAWrapper = Any
 from ufo.automator.app_apis.basic import WinCOMReceiverBasic
 from ufo.automator.basic import CommandBasic, ReceiverBasic, ReceiverFactory
+
 if TYPE_CHECKING:
     from ufo.automator.ui_control.controller import ControlReceiver
 
@@ -24,10 +26,10 @@ class AppPuppeteer:
         """
         self._process_name = process_name
         self._app_root_name = app_root_name
-        self.command_queue: Deque[CommandBasic] = deque()
+        self.command_queue: deque[CommandBasic] = deque()
         self.receiver_manager = ReceiverManager()
 
-    def create_command(self, command_name: str, params: Dict[str, Any], *args, **kwargs) -> Optional[CommandBasic]:
+    def create_command(self, command_name: str, params: dict[str, Any], *args, **kwargs) -> CommandBasic | None:
         """
         Create the command.
         :param command_name: The command name.
@@ -53,7 +55,7 @@ class AppPuppeteer:
         except Exception:
             return ''
 
-    def execute_command(self, command_name: str, params: Dict[str, Any], *args, **kwargs) -> str:
+    def execute_command(self, command_name: str, params: dict[str, Any], *args, **kwargs) -> str:
         """
         Execute the command.
         :param command_name: The command name.
@@ -63,7 +65,7 @@ class AppPuppeteer:
         command = self.create_command(command_name, params, *args, **kwargs)
         return command.execute()
 
-    def execute_all_commands(self) -> List[Any]:
+    def execute_all_commands(self) -> list[Any]:
         """
         Execute all the commands in the command queue.
         :return: The execution results.
@@ -74,7 +76,7 @@ class AppPuppeteer:
             results.append(command.execute())
         return results
 
-    def add_command(self, command_name: str, params: Dict[str, Any], *args, **kwargs) -> None:
+    def add_command(self, command_name: str, params: dict[str, Any], *args, **kwargs) -> None:
         """
         Add the command to the command queue.
         :param command_name: The command name.
@@ -140,7 +142,7 @@ class AppPuppeteer:
             com_receiver.close()
 
     @staticmethod
-    def get_command_string(command_name: str, params: Dict[str, str]) -> str:
+    def get_command_string(command_name: str, params: dict[str, str]) -> str:
         """
         Generate a function call string.
         :param command_name: The function name.
@@ -154,15 +156,15 @@ class ReceiverManager:
     """
     The class for the receiver manager.
     """
-    _receiver_factory_registry: Dict[str, Dict[str, Union[str, ReceiverFactory]]] = {}
+    _receiver_factory_registry: dict[str, dict[str, str | ReceiverFactory]] = {}
 
     def __init__(self):
         """
         Initialize the receiver manager.
         """
         self.receiver_registry = {}
-        self.ui_control_receiver: Optional[ControlReceiver] = None
-        self._receiver_list: List[ReceiverBasic] = []
+        self.ui_control_receiver: ControlReceiver | None = None
+        self._receiver_list: list[ReceiverBasic] = []
 
     def create_ui_control_receiver(self, control: UIAWrapper, application: UIAWrapper) -> 'ControlReceiver':
         """
@@ -213,7 +215,7 @@ class ReceiverManager:
         return receiver
 
     @property
-    def receiver_list(self) -> List[ReceiverBasic]:
+    def receiver_list(self) -> list[ReceiverBasic]:
         """
         Get the receiver list.
         :return: The receiver list.
@@ -221,7 +223,7 @@ class ReceiverManager:
         return self._receiver_list
 
     @property
-    def receiver_factory_registry(self) -> Dict[str, Dict[str, Union[str, ReceiverFactory]]]:
+    def receiver_factory_registry(self) -> dict[str, dict[str, str | ReceiverFactory]]:
         """
         Get the receiver factory registry.
         :return: The receiver factory registry.
@@ -240,7 +242,7 @@ class ReceiverManager:
         return None
 
     @classmethod
-    def register(cls, receiver_factory_class: Type[ReceiverFactory]) -> Type[ReceiverFactory]:
+    def register(cls, receiver_factory_class: type[ReceiverFactory]) -> type[ReceiverFactory]:
         """
         Decorator to register the receiver factory class to the receiver manager.
         :param receiver_factory_class: The receiver factory class to be registered.

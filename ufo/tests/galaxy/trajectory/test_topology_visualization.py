@@ -1,4 +1,5 @@
 import pytest
+
 pytest.importorskip('matplotlib')
 """Test topology graph generation with task status colors.
 
@@ -17,16 +18,15 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 import matplotlib
+
 matplotlib.use('Agg')  # Use non-interactive backend
-import matplotlib.pyplot as plt
-import networkx as nx
 
 from ufo.galaxy.trajectory.galaxy_parser import GalaxyTrajectory
 
 
 def test_topology_visualization(tmp_path=Path("test_output")):
     """Test topology graph generation with different task statuses."""
-    
+
     # Sample data with different task statuses
     tasks = {
         "task_1": {"status": "completed", "description": "Task 1"},
@@ -46,7 +46,7 @@ def test_topology_visualization(tmp_path=Path("test_output")):
     # We'll use a fake path since we're only testing the visualization method
     temp_trajectory = GalaxyTrajectory.__new__(GalaxyTrajectory)
     temp_trajectory.folder_path = Path(tmp_path)
-    
+
     # Generate the topology image
     image_path = temp_trajectory._generate_topology_image(
         dependencies=dependencies,
@@ -55,18 +55,18 @@ def test_topology_visualization(tmp_path=Path("test_output")):
         step_number=0,
         state="test"
     )
-    
+
     # Verify image was created
     output_image = Path(tmp_path) / "topology_images" / image_path.split('/')[-1]
     assert output_image.exists(), f"Image should be created at {output_image}"
-    
+
     # Check file size is reasonable (should be around 50-60KB)
     file_size_kb = output_image.stat().st_size / 1024
     assert 30 < file_size_kb < 100, f"File size {file_size_kb:.2f}KB seems unusual"
-    
+
     print(f"[OK] Test topology image saved to {output_image}")
     print(f"Image size: {file_size_kb:.2f} KB")
-    
+
     return output_image
 
 

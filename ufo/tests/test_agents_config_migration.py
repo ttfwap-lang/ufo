@@ -4,10 +4,12 @@ This test compares config values accessed through the old Config class vs the ne
 """
 import sys
 from pathlib import Path
+
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
-from ufo.config.config_loader import get_ufo_config, get_galaxy_config
 from ufo.config import Config
+from ufo.config.config_loader import get_ufo_config
+
 
 def test_system_config_fields():
     """Test that all commonly used system config fields match between old and new systems"""

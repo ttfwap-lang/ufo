@@ -17,24 +17,31 @@ import os
 import time
 import traceback
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
 from ufo import utils
 from ufo.agents.memory.memory import MemoryItem
 from ufo.agents.processors.context.app_agent_processing_context import AppAgentProcessorContext
-from ufo.agents.processors.context.processing_context import BasicProcessorContext, ProcessingContext, ProcessingPhase, ProcessingResult
+from ufo.agents.processors.context.processing_context import (
+    BasicProcessorContext,
+    ProcessingContext,
+    ProcessingPhase,
+    ProcessingResult,
+)
 from ufo.agents.processors.core.strategy_dependency import depends_on, provides
 from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
 from ufo.agents.processors.schemas.log_schema import AppAgentRequestLog, ControlInfoRecorder
 from ufo.agents.processors.schemas.response_schema import AppAgentResponse
 from ufo.agents.processors.schemas.target import TargetInfo, TargetKind, TargetRegistry
 from ufo.agents.processors.strategies.processing_strategy import BaseProcessingStrategy
+from ufo.aip.messages import Command, Result, ResultStatus
 from ufo.automator.ui_control.grounding.omniparser import OmniparserGrounding
 from ufo.automator.ui_control.screenshot import PhotographerFacade
 from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
-from ufo.aip.messages import Command, Result, ResultStatus
 from ufo.llm import AgentType
 from ufo.module.context import ContextNames
 from ufo.module.dispatcher import BasicCommandDispatcher
+
 ufo_config = LazyUFOConfig()
 if TYPE_CHECKING:
     from ufo.agents.agent.app_agent import AppAgent
@@ -121,7 +128,7 @@ class AppScreenshotCaptureStrategy(BaseProcessingStrategy):
                         raw_tree = None
                         if os.path.exists(ui_tree_path):
                             try:
-                                with open(ui_tree_path, 'r', encoding='utf-8') as f:
+                                with open(ui_tree_path, encoding='utf-8') as f:
                                     raw_tree = json.load(f)
                             except Exception:
                                 raw_tree = None
@@ -185,16 +192,16 @@ class AppScreenshotCaptureStrategy(BaseProcessingStrategy):
                 raise ValueError('Command dispatcher not available')
             result = await command_dispatcher.execute_commands([Command(tool_name='get_app_window_info', parameters={'field_list': ControlInfoRecorder.recording_fields}, tool_type='data_collection')])
             if result and result[0].result:
-                app_window_info: Dict[str, Any] = result[0].result
+                app_window_info: dict[str, Any] = result[0].result
                 self.logger.info(f'Application window information: {app_window_info}')
                 application_window_target_info = TargetInfo(kind=TargetKind.WINDOW, name=app_window_info.get('control_text'), type=app_window_info.get('control_type'), rect=app_window_info.get('control_rect'))
                 return application_window_target_info
             else:
-                self.logger.error(f'Application window info is empty')
+                self.logger.error('Application window info is empty')
         except Exception as e:
             self.logger.warning(f'Failed to get application window info: {str(e)}')
 
-    async def _capture_ui_tree(self, save_path: str, command_dispatcher: BasicCommandDispatcher) -> Dict[str, Any]:
+    async def _capture_ui_tree(self, save_path: str, command_dispatcher: BasicCommandDispatcher) -> dict[str, Any]:
         """
         Capture UI tree.
         :param save_path: The log path for saving UI tree
@@ -282,7 +289,7 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
         else:
             self.grounding_service = None
 
-    def _init_omniparser_service(self) -> Optional[OmniparserGrounding]:
+    def _init_omniparser_service(self) -> OmniparserGrounding | None:
         """
         Initialized for the OmniParser service.
         """
@@ -350,7 +357,7 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
             self.logger.error(error_msg)
             return self.handle_error(e, ProcessingPhase.DATA_COLLECTION, context)
 
-    def _create_annotation_dict(self, control_info_list: List[TargetInfo]) -> Dict[str, TargetInfo]:
+    def _create_annotation_dict(self, control_info_list: list[TargetInfo]) -> dict[str, TargetInfo]:
         """
         Create a dict of control base on their id.
         :param control_info_list: The list of control information
@@ -358,7 +365,7 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
         """
         return {control_info.id: control_info for control_info in control_info_list}
 
-    async def _collect_uia_controls(self, command_dispatcher: BasicCommandDispatcher) -> List[TargetInfo]:
+    async def _collect_uia_controls(self, command_dispatcher: BasicCommandDispatcher) -> list[TargetInfo]:
         """
         Collect UIA controls from the application window.
         :param command_dispatcher: Command dispatcher for executing commands
@@ -378,7 +385,7 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
             self.logger.warning(f'UIA control collection failed: {str(e)}')
             return []
 
-    async def _collect_grounding_controls(self, clean_screenshot_path: str, application_window_info: TargetInfo) -> List[TargetInfo]:
+    async def _collect_grounding_controls(self, clean_screenshot_path: str, application_window_info: TargetInfo) -> list[TargetInfo]:
         """
         Collect controls using grounding service.
         :param clean_screenshot_path: Path to the clean screenshot
@@ -395,7 +402,7 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
             self.logger.warning(f'Grounding control collection failed: {str(e)}')
             return []
 
-    async def _collect_merged_control_list(self, api_control_list: List[TargetInfo], grounding_control_list: List[TargetInfo], command_dispatcher: BasicCommandDispatcher) -> List[TargetInfo]:
+    async def _collect_merged_control_list(self, api_control_list: list[TargetInfo], grounding_control_list: list[TargetInfo], command_dispatcher: BasicCommandDispatcher) -> list[TargetInfo]:
         """
         Collect merged control list from UIA and grounding sources (using optimized approach).
         :param api_control_list: The list of API controls
@@ -421,7 +428,7 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
             self.logger.warning(f'Control collection failed: {str(e)}')
             return []
 
-    def _find_added_controls(self, api_control_list: List[TargetInfo], merged_control_list: List[TargetInfo]) -> List[TargetInfo]:
+    def _find_added_controls(self, api_control_list: list[TargetInfo], merged_control_list: list[TargetInfo]) -> list[TargetInfo]:
         """
         Find controls that are in merged_control_list but not in api_control_list.
         :param api_control_list: The original API control list
@@ -432,7 +439,7 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
         added_controls = [control for control in merged_control_list if control.id not in api_control_ids]
         return added_controls
 
-    async def _send_add_control_list_command(self, command_dispatcher: BasicCommandDispatcher, added_controls: List[TargetInfo]) -> None:
+    async def _send_add_control_list_command(self, command_dispatcher: BasicCommandDispatcher, added_controls: list[TargetInfo]) -> None:
         """
         Send command to add new controls that were found after merging.
         :param command_dispatcher: Command dispatcher for executing commands
@@ -451,7 +458,7 @@ class AppControlInfoStrategy(BaseProcessingStrategy):
         except Exception as e:
             self.logger.warning(f'Failed to send add control list command: {str(e)}')
 
-    def _save_annotated_screenshot(self, application_window_info: TargetInfo, clean_screenshot_path: str, target_list: List[TargetInfo], save_path: str) -> str:
+    def _save_annotated_screenshot(self, application_window_info: TargetInfo, clean_screenshot_path: str, target_list: list[TargetInfo], save_path: str) -> str:
         """
         Save annotated screenshot using photographer with optimized TargetRegistry approach.
         :param clean_screenshot_path: Path to the clean screenshot
@@ -499,7 +506,7 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
         try:
             target_registry: TargetRegistry = context.get_local('target_registry')
             if target_registry:
-                control_info: List[Dict[str, Any]] = target_registry.to_list(keep_keys=['id', 'name', 'type'])
+                control_info: list[dict[str, Any]] = target_registry.to_list(keep_keys=['id', 'name', 'type'])
                 valid_control_ids = {str(c.get('id', '')) for c in control_info if c.get('id')}
             else:
                 self.logger.warning('Target registry is not available.')
@@ -527,7 +534,7 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
             knowledge_retrieved = self._knowledge_retrieval(agent, subtask)
             self.logger.info('Building App Agent prompt with control information')
             base_prompt_message = await self._build_app_prompt(agent=agent, control_info=control_info, image_string_list=image_string_list, knowledge_retrieved=knowledge_retrieved, request=request, subtask=subtask, plan=plan, prev_subtask=prev_subtask, host_message=host_message, application_process_name=application_process_name, session_step=session_step, request_logger=request_logger)
-            
+
             # Self-Correction Loop
             max_self_corrections = 3
             correction_attempts = 0
@@ -538,10 +545,10 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                 self.logger.info(f'Getting LLM response for App Agent (attempt {correction_attempts + 1})')
                 response_text, llm_cost = await self._get_llm_response(agent, prompt_message)
                 total_llm_cost += llm_cost
-                
+
                 self.logger.info('Parsing App Agent response')
                 parsed_response = self._parse_app_response(agent, response_text)
-                
+
                 # Validation Logic
                 hallucination_errors = []
                 actions = parsed_response.action
@@ -551,7 +558,7 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                     parsed_response.action = actions
                 if not isinstance(actions, list):
                     actions = [actions] if actions else []
-                    
+
                 from ufo.agents.processors.strategies.response_checks import app_response_problems, feedback_text
                 hallucination_errors.extend(
                     app_response_problems(actions, getattr(parsed_response, 'status', None), valid_control_ids, self._valid_tool_names(agent, context))
@@ -569,14 +576,14 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
                                     hallucination_errors.append(f"Value '{val}' is outside valid balance ranges.")
                             except ValueError:
                                 pass
-                
+
                 if not hallucination_errors:
                     break
-                    
+
                 correction_attempts += 1
                 error_feedback = feedback_text(hallucination_errors)
                 self.logger.warning(f"Hallucination detected: {error_feedback}. Re-prompting.")
-                
+
                 # Append error feedback to prompt
                 if isinstance(prompt_message, list) and len(prompt_message) > 0:
                     last_msg = prompt_message[-1]
@@ -629,7 +636,7 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
             image_string_list += [screenshot_url, screenshot_annotated_url]
         return image_string_list
 
-    def _get_prev_plan(self, agent: 'AppAgent') -> List[str]:
+    def _get_prev_plan(self, agent: 'AppAgent') -> list[str]:
         """
         Get the previous plan from the agent's memory.
         :param agent: The AppAgent instance
@@ -656,7 +663,7 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
         offline_docs, online_docs = agent.external_knowledge_prompt_helper(subtask, ufo_config.rag.offline_docs_retrieved_topk, ufo_config.rag.online_retrieved_topk)
         return {'experience_examples': experience_examples, 'demonstration_examples': demonstration_examples, 'offline_docs': offline_docs, 'online_docs': online_docs}
 
-    async def _build_app_prompt(self, agent: 'AppAgent', control_info: List[Dict[str, Any]], image_string_list: List[str], knowledge_retrieved: Dict[str, str], request: str, subtask: str, plan: List[str], prev_subtask: List[str], application_process_name: str, host_message: str, session_step: int, request_logger) -> List[Dict]:
+    async def _build_app_prompt(self, agent: 'AppAgent', control_info: list[dict[str, Any]], image_string_list: list[str], knowledge_retrieved: dict[str, str], request: str, subtask: str, plan: list[str], prev_subtask: list[str], application_process_name: str, host_message: str, session_step: int, request_logger) -> list[dict]:
         """
         Build comprehensive prompt for App Agent.
         :param agent: The AppAgent instance
@@ -685,7 +692,7 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
         except Exception as e:
             raise Exception(f'Failed to build app prompt: {str(e)}')
 
-    def _get_last_success_actions(self, agent: 'AppAgent') -> List[Dict]:
+    def _get_last_success_actions(self, agent: 'AppAgent') -> list[dict]:
         """
         Get last successful actions from agent memory.
         :param agent: The AppAgent instance
@@ -702,7 +709,7 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
             self.logger.warning(f'Failed to get last success actions: {str(e)}')
             return []
 
-    def _log_request_data(self, session_step: int, plan: List[str], prev_subtask: List[str], request: str, control_info: List[TargetInfo], image_list: List[str], subtask: str, host_message: str, last_success_actions: List[Dict], application_process_name: str, include_last_screenshot: bool, prompt_message: List[Dict], request_logger: 'FileWriter') -> None:
+    def _log_request_data(self, session_step: int, plan: list[str], prev_subtask: list[str], request: str, control_info: list[TargetInfo], image_list: list[str], subtask: str, host_message: str, last_success_actions: list[dict], application_process_name: str, include_last_screenshot: bool, prompt_message: list[dict], request_logger: 'FileWriter') -> None:
         """
         Log request data for debugging.
         :param session_step: Current session step
@@ -728,7 +735,7 @@ class AppLLMInteractionStrategy(BaseProcessingStrategy):
         except Exception as e:
             self.logger.warning(f'Failed to log request data: {str(e)}')
 
-    async def _get_llm_response(self, agent: 'AppAgent', prompt_message: List[Dict[str, Any]]) -> tuple[str, float]:
+    async def _get_llm_response(self, agent: 'AppAgent', prompt_message: list[dict[str, Any]]) -> tuple[str, float]:
         """
         Get response from LLM with retry logic.
         :param agent: The AppAgent instance
@@ -999,15 +1006,16 @@ class AppActionExecutionStrategy(BaseProcessingStrategy):
                         clean_screenshot_path = context.get_local('clean_screenshot_path')
                         import os
                         if clean_screenshot_path and os.path.exists(clean_screenshot_path):
-                            from PIL import Image, ImageChops, ImageStat
                             import math
+
                             import pyautogui
+                            from PIL import Image, ImageChops, ImageStat
                             img_original = Image.open(clean_screenshot_path).convert('L')
                             original_crop = img_original.crop((left, top, right, bottom))
                             live_screenshot = pyautogui.screenshot(region=(left, top, width, height)).convert('L')
                             diff = ImageChops.difference(original_crop, live_screenshot)
                             stat = ImageStat.Stat(diff)
-                            rms = math.sqrt(sum((s ** 2 for s in stat.mean)) / max(len(stat.mean), 1))
+                            rms = math.sqrt(sum(s ** 2 for s in stat.mean) / max(len(stat.mean), 1))
                             diff_percentage = rms / 255.0 * 100
                             self.logger.info(f'Visual Fallback Diff for {control_id}: {diff_percentage:.2f}%')
                             if diff_percentage < 5.0:
@@ -1034,7 +1042,7 @@ class AppActionExecutionStrategy(BaseProcessingStrategy):
                 pass
             return ProcessingResult(success=True, data={'execution_result': [failed_result], 'action_info': action_info, 'selected_control_screenshot_path': context.get_local('clean_screenshot_path', ''), 'control_log': action_info.get_target_info() if action_info else [], 'status': 'CONTINUE'}, phase=ProcessingPhase.ACTION_EXECUTION)
 
-    async def _execute_app_action(self, command_dispatcher: BasicCommandDispatcher, actions: ActionCommandInfo | List[ActionCommandInfo]) -> List[Result]:
+    async def _execute_app_action(self, command_dispatcher: BasicCommandDispatcher, actions: ActionCommandInfo | list[ActionCommandInfo]) -> list[Result]:
         """
         Execute the specific action from the response.
         :param command_dispatcher: Command dispatcher for executing commands
@@ -1052,7 +1060,7 @@ class AppActionExecutionStrategy(BaseProcessingStrategy):
             return Result(status=ResultStatus.SKIPPED, result=None, error=reason)
 
         # One result per action, in order, so action info and results stay aligned.
-        results: List[Result] = []
+        results: list[Result] = []
         stop_reason = ''
         executed = 0
         browseract_seen = False
@@ -1115,7 +1123,7 @@ class AppActionExecutionStrategy(BaseProcessingStrategy):
         """
         return Command(tool_name=action.function, parameters=action.arguments or {}, tool_type='action')
 
-    def _create_action_info(self, annotation_dict: Dict[str, TargetInfo], actions: ActionCommandInfo | List[ActionCommandInfo], execution_results: List[Result]) -> List[ActionCommandInfo]:
+    def _create_action_info(self, annotation_dict: dict[str, TargetInfo], actions: ActionCommandInfo | list[ActionCommandInfo], execution_results: list[Result]) -> list[ActionCommandInfo]:
         """
         Create action information for memory tracking.
         :param control_info: List of filtered controls
@@ -1144,7 +1152,7 @@ class AppActionExecutionStrategy(BaseProcessingStrategy):
         except Exception as e:
             self.logger.warning(f'Failed to create action info: {str(e)}')
 
-    def _save_annotated_screenshot(self, application_window_info: TargetInfo, clean_screenshot_path: str, target_list: List[TargetInfo], save_path: str) -> str:
+    def _save_annotated_screenshot(self, application_window_info: TargetInfo, clean_screenshot_path: str, target_list: list[TargetInfo], save_path: str) -> str:
         """
         Save annotated screenshot using photographer with optimized TargetRegistry approach.
         :param clean_screenshot_path: Path to the clean screenshot
@@ -1216,7 +1224,7 @@ class AppMemoryUpdateStrategy(BaseProcessingStrategy):
             self.logger.error(error_msg)
             return self.handle_error(e, ProcessingPhase.MEMORY_UPDATE, context)
 
-    def _get_all_success_actions(self, agent: 'AppAgent') -> List[Dict[str, Any]]:
+    def _get_all_success_actions(self, agent: 'AppAgent') -> list[dict[str, Any]]:
         """
         Get the previous action.
         :return: The previous action of the agent.
@@ -1247,8 +1255,8 @@ class AppMemoryUpdateStrategy(BaseProcessingStrategy):
                 if str(item_dict.get('action')) != current_action_str:
                     return False
             self.logger.warning('Agent has proposed the exact same action 3 times in a row! Checking visual stagnation...')
-            import os
             import math
+            import os
             try:
                 from PIL import Image, ImageChops, ImageStat
             except ImportError:
@@ -1271,7 +1279,7 @@ class AppMemoryUpdateStrategy(BaseProcessingStrategy):
                     img_prev = img_prev.resize(img_current.size)
                 diff = ImageChops.difference(img_current, img_prev)
                 stat = ImageStat.Stat(diff)
-                rms = math.sqrt(sum((s ** 2 for s in stat.mean)) / len(stat.mean))
+                rms = math.sqrt(sum(s ** 2 for s in stat.mean) / len(stat.mean))
                 diff_percentage = rms / 255.0 * 100
                 self.logger.info(f'Visual difference between step {session_step} and step {prev_step}: {diff_percentage:.2f}%')
                 if diff_percentage > 2.0:

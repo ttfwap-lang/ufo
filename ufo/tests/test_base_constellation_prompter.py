@@ -8,23 +8,15 @@ This module tests the formatting functions used to convert complex objects
 into LLM-friendly string representations.
 """
 
-import pytest
 from datetime import datetime, timezone
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
+
+import pytest
 
 from ufo.galaxy.agents.prompters.base_constellation_prompter import (
     BaseConstellationPrompter,
 )
 from ufo.galaxy.client.components.types import AgentProfile, DeviceStatus
-from ufo.galaxy.constellation.task_constellation import TaskConstellation
-from ufo.galaxy.constellation.task_star import TaskStar
-from ufo.galaxy.constellation.task_star_line import TaskStarLine
-from ufo.galaxy.constellation.enums import (
-    TaskStatus,
-    ConstellationState,
-    DependencyType,
-    TaskPriority,
-)
 
 
 class TestBaseConstellationPrompter:

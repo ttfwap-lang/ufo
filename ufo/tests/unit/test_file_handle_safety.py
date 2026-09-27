@@ -11,10 +11,8 @@ Verifies that:
 """
 
 import json
-import os
-import tempfile
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 
 class TestCreateSessionsInBatchFileHandles:
@@ -30,7 +28,7 @@ class TestCreateSessionsInBatchFileHandles:
             json.dump(task_done, f, indent=4)
 
         # Read it back
-        with open(str(status_file), "r", encoding="utf-8") as f:
+        with open(str(status_file), encoding="utf-8") as f:
             loaded = json.load(f)
 
         assert loaded == task_done
@@ -47,7 +45,7 @@ class TestCreateSessionsInBatchFileHandles:
             json.dump(initial_data, f, indent=4)
 
         # Read with context manager (mimicking hardened code)
-        with open(str(status_file), "r", encoding="utf-8") as f:
+        with open(str(status_file), encoding="utf-8") as f:
             loaded = json.load(f)
 
         assert loaded["task_1"] is True
@@ -62,17 +60,15 @@ class TestCreateSessionsInBatchFileHandles:
             f.write("{invalid json content")
 
         # The hardened code wraps in try/except
-        with pytest.raises(json.JSONDecodeError):
-            with open(str(status_file), "r", encoding="utf-8") as f:
-                json.load(f)
+        with pytest.raises(json.JSONDecodeError), open(str(status_file), encoding="utf-8") as f:
+            json.load(f)
 
     def test_handles_missing_file_gracefully(self, tmp_path):
         """Missing status file should raise FileNotFoundError (caught by caller)."""
         missing_file = tmp_path / "nonexistent.json"
 
-        with pytest.raises(FileNotFoundError):
-            with open(str(missing_file), "r", encoding="utf-8") as f:
-                json.load(f)
+        with pytest.raises(FileNotFoundError), open(str(missing_file), encoding="utf-8") as f:
+            json.load(f)
 
 
 class TestRecordTaskDoneFileHandles:
@@ -89,7 +85,7 @@ class TestRecordTaskDoneFileHandles:
 
         # Simulate record_task_done for task_alpha
         try:
-            with open(str(status_file), "r", encoding="utf-8") as f:
+            with open(str(status_file), encoding="utf-8") as f:
                 task_done = json.load(f)
             task_done["task_alpha"] = True
             with open(str(status_file), "w", encoding="utf-8") as f:
@@ -98,7 +94,7 @@ class TestRecordTaskDoneFileHandles:
             pytest.fail("record_task_done pattern should not raise")
 
         # Verify final state
-        with open(str(status_file), "r", encoding="utf-8") as f:
+        with open(str(status_file), encoding="utf-8") as f:
             final = json.load(f)
 
         assert final["task_alpha"] is True
@@ -115,14 +111,14 @@ class TestRecordTaskDoneFileHandles:
 
         # Simulate 50 rapid record_task_done calls
         for i in range(50):
-            with open(str(status_file), "r", encoding="utf-8") as f:
+            with open(str(status_file), encoding="utf-8") as f:
                 task_done = json.load(f)
             task_done[f"task_{i}"] = True
             with open(str(status_file), "w", encoding="utf-8") as f:
                 json.dump(task_done, f, indent=4)
 
         # All should be marked done
-        with open(str(status_file), "r", encoding="utf-8") as f:
+        with open(str(status_file), encoding="utf-8") as f:
             final = json.load(f)
 
         for i in range(50):
@@ -136,7 +132,7 @@ class TestRecordTaskDoneFileHandles:
         with open(str(status_file), "w", encoding="utf-8") as f:
             json.dump(tasks, f, indent=4, ensure_ascii=False)
 
-        with open(str(status_file), "r", encoding="utf-8") as f:
+        with open(str(status_file), encoding="utf-8") as f:
             loaded = json.load(f)
 
         assert "タスク_日本語" in loaded

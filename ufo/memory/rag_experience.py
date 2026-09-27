@@ -28,14 +28,14 @@ Usage:
             completed_dag_json=graph.model_dump_json(),
         )
 """
-import json
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
-def _load_memory_config() -> Dict[str, Any]:
+def _load_memory_config() -> dict[str, Any]:
     """Load experience memory config from system.yaml."""
     defaults = {'ENABLED': False, 'DB_PATH': 'memory/chroma_db', 'SIMILARITY_THRESHOLD': 0.3, 'STRICT_MODE': True}
     try:
@@ -67,7 +67,7 @@ class ExperienceMemory:
       - chromadb package is not installed
     """
 
-    def __init__(self, db_path: Optional[str]=None) -> None:
+    def __init__(self, db_path: str | None=None) -> None:
         self._config = _load_memory_config()
         self._db_path = db_path or self._config['DB_PATH']
         self._threshold = self._config['SIMILARITY_THRESHOLD']
@@ -104,7 +104,7 @@ class ExperienceMemory:
         """Check if the DB is actually initialized and queryable."""
         return self._available and self._collection is not None
 
-    def recall_similar_task(self, user_intent: str, n_results: int=1) -> Optional[str]:
+    def recall_similar_task(self, user_intent: str, n_results: int=1) -> str | None:
         """
         Query the vector DB for past successful workflows matching the intent.
 
@@ -129,7 +129,7 @@ class ExperienceMemory:
             logger.warning(f'Experience memory query failed: {e}')
             return None
 
-    def recall_top_k(self, user_intent: str, k: int=5) -> List[Dict[str, Any]]:
+    def recall_top_k(self, user_intent: str, k: int=5) -> list[dict[str, Any]]:
         """
         Return top-k similar past workflows with distances.
 
@@ -150,7 +150,7 @@ class ExperienceMemory:
             logger.warning(f'Experience memory top-k query failed: {e}')
             return []
 
-    def save_successful_run(self, user_intent: str, completed_dag_json: str, metadata: Optional[Dict[str, Any]]=None) -> bool:
+    def save_successful_run(self, user_intent: str, completed_dag_json: str, metadata: dict[str, Any] | None=None) -> bool:
         """
         Save a successfully completed DAG execution for future recall.
 

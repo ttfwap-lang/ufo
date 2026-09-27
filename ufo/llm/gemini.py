@@ -4,7 +4,7 @@ import functools
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from google import genai
 from google.genai import errors, types
@@ -22,7 +22,7 @@ class GeminiService(BaseService):
     A service class for Gemini models.
     """
 
-    def __init__(self, config: Dict[str, Any], agent_type: str):
+    def __init__(self, config: dict[str, Any], agent_type: str):
         """
         Initialize the Gemini service.
         :param config: The configuration.
@@ -38,7 +38,7 @@ class GeminiService(BaseService):
         self.agent_type = agent_type
         self.json_schema_enabled = self.config_llm.get('JSON_SCHEMA', False)
 
-    async def chat_completion(self, messages: List[Dict[str, str]], n: int=1, temperature: Optional[float]=None, max_tokens: Optional[int]=None, top_p: Optional[float]=None, **kwargs: Any) -> LLMResult:
+    async def chat_completion(self, messages: list[dict[str, str]], n: int=1, temperature: float | None=None, max_tokens: int | None=None, top_p: float | None=None, **kwargs: Any) -> LLMResult:
         """
         Generates completions for a given list of messages asynchronously.
         :param messages: The list of messages to generate completions for.
@@ -54,15 +54,15 @@ class GeminiService(BaseService):
         max_tokens = max_tokens if max_tokens is not None else self.config['MAX_TOKENS']
         processed_messages = self.process_messages(messages)
         model_lower = self.model.lower()
-        is_computer_use_model = any((tag in model_lower for tag in ('computer-use', 'computer_use', 'computeruse', 'cua', 'computer')))
+        is_computer_use_model = any(tag in model_lower for tag in ('computer-use', 'computer_use', 'computeruse', 'cua', 'computer'))
         use_computer_use = is_computer_use_model
-        genai_config_args: Dict[str, Any] = {'max_output_tokens': max_tokens, 'temperature': temperature, 'top_p': top_p}
+        genai_config_args: dict[str, Any] = {'max_output_tokens': max_tokens, 'temperature': temperature, 'top_p': top_p}
         if use_computer_use:
             genai_config_args['tools'] = [types.Tool(computer_use=types.ComputerUse(environment=types.Environment.ENVIRONMENT_DESKTOP))]
         else:
             genai_config_args['response_mime_type'] = 'application/json'
             if self.json_schema_enabled:
-                response_format = {AgentType.HOST: HostAgentResponse, AgentType.APP: AppAgentResponse, AgentType.EVALUATION: EvaluationResponse}.get(self.agent_type, None)
+                response_format = {AgentType.HOST: HostAgentResponse, AgentType.APP: AppAgentResponse, AgentType.EVALUATION: EvaluationResponse}.get(self.agent_type)
                 if response_format:
                     genai_config_args['response_schema'] = response_format
         genai_config = GenerateContentConfig(**genai_config_args)
@@ -74,12 +74,12 @@ class GeminiService(BaseService):
             response = await asyncio.to_thread(self.client.models.generate_content, model=self.model, contents=processed_messages, config=genai_config)
         except Exception as e:
             err_str = str(e).upper()
-            is_client_error = isinstance(e, (errors.ClientError, errors.APIError)) or getattr(e, 'code', None) in (400, 403, 404) or any((code_str in err_str for code_str in ('400', '403', '404', 'INVALID_ARGUMENT', 'FORBIDDEN', 'INVALID_OPTION', 'UNKNOWN_OPTION', 'UNSUPPORTED', 'NOT_FOUND', 'PERMISSION_DENIED')))
+            is_client_error = isinstance(e, (errors.ClientError, errors.APIError)) or getattr(e, 'code', None) in (400, 403, 404) or any(code_str in err_str for code_str in ('400', '403', '404', 'INVALID_ARGUMENT', 'FORBIDDEN', 'INVALID_OPTION', 'UNKNOWN_OPTION', 'UNSUPPORTED', 'NOT_FOUND', 'PERMISSION_DENIED'))
             if use_computer_use and is_client_error:
                 logger.warning(f"ClientError ({getattr(e, 'code', 'N/A')}) encountered with computer_use tools: {e}. Stripping tools parameter, restoring application/json response mode, and retrying...")
-                fallback_config_args: Dict[str, Any] = {'max_output_tokens': max_tokens, 'temperature': temperature, 'top_p': top_p, 'response_mime_type': 'application/json'}
+                fallback_config_args: dict[str, Any] = {'max_output_tokens': max_tokens, 'temperature': temperature, 'top_p': top_p, 'response_mime_type': 'application/json'}
                 if self.json_schema_enabled:
-                    response_format = {AgentType.HOST: HostAgentResponse, AgentType.APP: AppAgentResponse, AgentType.EVALUATION: EvaluationResponse}.get(self.agent_type, None)
+                    response_format = {AgentType.HOST: HostAgentResponse, AgentType.APP: AppAgentResponse, AgentType.EVALUATION: EvaluationResponse}.get(self.agent_type)
                     if response_format:
                         fallback_config_args['response_schema'] = response_format
                 fallback_config = GenerateContentConfig(**fallback_config_args)
@@ -94,11 +94,11 @@ class GeminiService(BaseService):
             completion_tokens = getattr(usage, 'candidates_token_count', 0) or 0
         cost = self.get_cost_estimator(self.api_type, self.model, self.prices, prompt_tokens, completion_tokens)
         responses = self.get_text_from_all_candidates(response)
-        if not responses or all((r is None for r in responses)):
+        if not responses or all(r is None for r in responses):
             raise RuntimeError(f"Gemini API returned no valid candidates for model '{self.model}'")
         return LLMResult(responses=responses, cost=cost, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, model=self.model, api_type=self.api_type, agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, 'value', str(self.agent_type)))
 
-    def process_messages(self, messages: List[Dict[str, str]]) -> List[str]:
+    def process_messages(self, messages: list[dict[str, str]]) -> list[str]:
         """
         Process the given messages and extract prompts from them.
         :param messages: The messages to process.
@@ -121,7 +121,7 @@ class GeminiService(BaseService):
                         prompt_contents.append(Part.from_bytes(data=prompt['data'], mime_type=prompt['mime_type']))
         return prompt_contents
 
-    def base64_to_blob(self, base64_str: str) -> Dict[str, str]:
+    def base64_to_blob(self, base64_str: str) -> dict[str, str]:
         """
         Converts a base64 encoded image string to MIME type and binary data.
         :param base64_str: The base64 encoded image string.
@@ -136,7 +136,7 @@ class GeminiService(BaseService):
             raise ValueError('Invalid data URL format.')
         return {'mime_type': mime_type, 'data': base64.b64decode(base64_string)}
 
-    def get_text_from_all_candidates(self, response: GenerateContentResponse) -> List[Optional[str]]:
+    def get_text_from_all_candidates(self, response: GenerateContentResponse) -> list[str | None]:
         """
         Extracts the concatenated text content from each candidate in the response,
         including function_call parts returned by computer-use models.
@@ -155,7 +155,7 @@ class GeminiService(BaseService):
         for i, candidate in enumerate(response.candidates):
             candidate_text: str = ''
             any_content_found: bool = False
-            non_text_parts_found: List[str] = []
+            non_text_parts_found: list[str] = []
             if not candidate or not candidate.content or (not candidate.content.parts):
                 logger.warning(f"Candidate {i} has no content or parts. Finish Reason: {getattr(candidate, 'finish_reason', 'N/A')}")
                 all_texts.append(None)
@@ -191,7 +191,7 @@ class GeminiService(BaseService):
             all_texts.append(candidate_text if any_content_found else None)
         return all_texts
 
-    @functools.lru_cache()
+    @functools.lru_cache
     @staticmethod
     def get_gemini_client(api_key: str) -> genai.Client:
         """

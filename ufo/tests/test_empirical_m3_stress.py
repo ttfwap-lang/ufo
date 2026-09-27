@@ -10,10 +10,7 @@ Tests:
 3. verify_file_on_desktop with home directory fallback under UTF-8 BOM.
 """
 
-import os
 from pathlib import Path
-import tempfile
-import pytest
 
 from tests.eval_suite.verifiers import get_desktop_dir, verify_file_on_desktop
 

@@ -5,11 +5,14 @@ Wraps the existing UFO server WebSocket handler with AIP protocol abstractions.
 This maintains backward compatibility while providing the AIP interface.
 """
 import logging
-from typing import Any, Optional
+from typing import Any
+
 from fastapi import WebSocket
+
 from ufo.aip.endpoints.base import AIPEndpoint
 from ufo.aip.protocol import AIPProtocol
 from ufo.aip.resilience import ReconnectionStrategy
+
 
 class DeviceServerEndpoint(AIPEndpoint):
     """
@@ -19,7 +22,7 @@ class DeviceServerEndpoint(AIPEndpoint):
     while maintaining full backward compatibility with existing implementations.
     """
 
-    def __init__(self, ws_manager: Any, session_manager: Any, local: bool=False, protocol: Optional[AIPProtocol]=None, reconnection_strategy: Optional[ReconnectionStrategy]=None):
+    def __init__(self, ws_manager: Any, session_manager: Any, local: bool=False, protocol: AIPProtocol | None=None, reconnection_strategy: ReconnectionStrategy | None=None):
         """
         Initialize device server endpoint.
 

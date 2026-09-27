@@ -10,15 +10,13 @@ import ctypes
 import logging
 import os
 import re
-import subprocess
 import sys
 import time
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
-
 from ufo.client.mcp.mcp_registry import MCPRegistry
 
 logger = logging.getLogger(__name__)
@@ -36,9 +34,9 @@ def _win32():
     return win32con, win32gui, win32process
 
 
-def _visible_windows() -> List[Dict[str, Any]]:
+def _visible_windows() -> list[dict[str, Any]]:
     _, win32gui, win32process = _win32()
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
 
     def cb(hwnd, _):
         if not win32gui.IsWindowVisible(hwnd):
@@ -58,7 +56,7 @@ def _visible_windows() -> List[Dict[str, Any]]:
     return out
 
 
-def _find(title: str) -> Dict[str, Any]:
+def _find(title: str) -> dict[str, Any]:
     needle = title.strip().lower()
     if not needle:
         raise ToolError("title must not be empty.")
@@ -100,7 +98,7 @@ def create_system_toolkit_mcp_server(*args, **kwargs) -> FastMCP:
         return f"Clipboard set ({len(text)} characters)."
 
     @mcp.tool()
-    def list_windows() -> List[Dict[str, Any]]:
+    def list_windows() -> list[dict[str, Any]]:
         """List visible top-level windows: title, pid, rect [left, top, right, bottom], minimized."""
         return [{k: v for k, v in w.items() if k != "hwnd"} for w in _visible_windows()]
 
@@ -108,10 +106,10 @@ def create_system_toolkit_mcp_server(*args, **kwargs) -> FastMCP:
     def window_control(
         title: Annotated[str, Field(description="Window title, or a unique part of it (case-insensitive).")],
         action: Annotated[str, Field(description="One of: focus, minimize, maximize, restore, close, move_resize.")],
-        x: Annotated[Optional[int], Field(description="Left edge in pixels (move_resize only).")] = None,
-        y: Annotated[Optional[int], Field(description="Top edge in pixels (move_resize only).")] = None,
-        width: Annotated[Optional[int], Field(description="Width in pixels (move_resize only).")] = None,
-        height: Annotated[Optional[int], Field(description="Height in pixels (move_resize only).")] = None,
+        x: Annotated[int | None, Field(description="Left edge in pixels (move_resize only).")] = None,
+        y: Annotated[int | None, Field(description="Top edge in pixels (move_resize only).")] = None,
+        width: Annotated[int | None, Field(description="Width in pixels (move_resize only).")] = None,
+        height: Annotated[int | None, Field(description="Height in pixels (move_resize only).")] = None,
     ) -> str:
         """Focus, minimize, maximize, restore, close or move/resize a window found by title."""
         win32con, win32gui, _ = _win32()
@@ -176,10 +174,10 @@ def create_system_toolkit_mcp_server(*args, **kwargs) -> FastMCP:
         return f"Opened {path}"
 
     @mcp.tool()
-    def get_system_info() -> Dict[str, Any]:
+    def get_system_info() -> dict[str, Any]:
         """Screen size, OS version, current time, foreground window and battery state."""
         import platform
-        info: Dict[str, Any] = {
+        info: dict[str, Any] = {
             "os": platform.platform(),
             "time": time.strftime("%Y-%m-%d %H:%M:%S"),
             "screen": [ctypes.windll.user32.GetSystemMetrics(0), ctypes.windll.user32.GetSystemMetrics(1)],

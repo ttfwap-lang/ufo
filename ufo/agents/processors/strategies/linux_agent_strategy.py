@@ -1,12 +1,17 @@
 import traceback
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING
+
 from ufo.agents.processors.app_agent_processor import AppAgentLoggingMiddleware
-from ufo.agents.processors.context.processing_context import ProcessingContext, ProcessingResult, ProcessingPhase
+from ufo.agents.processors.context.processing_context import ProcessingContext, ProcessingPhase, ProcessingResult
 from ufo.agents.processors.core.strategy_dependency import depends_on, provides
-from ufo.agents.processors.schemas.actions import ListActionCommandInfo, ActionCommandInfo
-from ufo.agents.processors.strategies.app_agent_processing_strategy import AppActionExecutionStrategy, AppLLMInteractionStrategy
+from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
+from ufo.agents.processors.strategies.app_agent_processing_strategy import (
+    AppActionExecutionStrategy,
+    AppLLMInteractionStrategy,
+)
 from ufo.aip.messages import Result
 from ufo.llm.response_schema import AppAgentResponse
+
 if TYPE_CHECKING:
     from ufo.agents.agent.customized_agent import LinuxAgent
 
@@ -96,7 +101,7 @@ class LinuxActionExecutionStrategy(AppActionExecutionStrategy):
             self.logger.error(error_msg)
             return self.handle_error(e, ProcessingPhase.ACTION_EXECUTION, context)
 
-    def _create_action_info(self, actions: ActionCommandInfo | List[ActionCommandInfo], execution_results: List[Result]) -> List[ActionCommandInfo]:
+    def _create_action_info(self, actions: ActionCommandInfo | list[ActionCommandInfo], execution_results: list[Result]) -> list[ActionCommandInfo]:
         """
         Create action information for memory tracking.
         :param control_info: List of filtered controls

@@ -2,13 +2,14 @@
 Constellation result formatter for beautiful and structured display.
 """
 from datetime import datetime
-from typing import Dict, Any, Optional
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich.layout import Layout
+from typing import Any
+
 from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
+
 
 class ConstellationFormatter:
     """Formatter for displaying constellation execution results in a structured way."""
@@ -38,7 +39,7 @@ class ConstellationFormatter:
         except Exception:
             return timestamp
 
-    def create_overview_table(self, data: Dict[str, Any]) -> Table:
+    def create_overview_table(self, data: dict[str, Any]) -> Table:
         """Create overview information table."""
         table = Table(title='📊 Constellation Overview', box=box.ROUNDED, show_header=False, title_style='bold cyan')
         table.add_column('Property', style='bold yellow', width=25)
@@ -56,7 +57,7 @@ class ConstellationFormatter:
         table.add_row('Execution Duration', self.format_duration(data.get('execution_duration', 0)))
         return table
 
-    def create_statistics_table(self, stats: Dict[str, Any]) -> Table:
+    def create_statistics_table(self, stats: dict[str, Any]) -> Table:
         """Create detailed statistics table."""
         table = Table(title='📈 Performance Metrics', box=box.ROUNDED, title_style='bold magenta')
         table.add_column('Metric', style='bold cyan', width=30)
@@ -83,7 +84,7 @@ class ConstellationFormatter:
             table.add_row('Max Width (Parallelism)', str(stats['max_width']))
         return table
 
-    def create_critical_path_panel(self, stats: Dict[str, Any]) -> Optional[Panel]:
+    def create_critical_path_panel(self, stats: dict[str, Any]) -> Panel | None:
         """Create critical path information panel."""
         critical_tasks = stats.get('critical_path_tasks', [])
         if not critical_tasks:
@@ -94,7 +95,7 @@ class ConstellationFormatter:
             content.append(f'  • {task}\n', style='cyan')
         return Panel(content, title='Critical Path Analysis', border_style='yellow', box=box.ROUNDED)
 
-    def display_constellation_result(self, constellation_data: Dict[str, Any]):
+    def display_constellation_result(self, constellation_data: dict[str, Any]):
         """
         Display constellation execution result in a beautiful structured format.
 
@@ -120,7 +121,7 @@ class ConstellationFormatter:
             self.console.print(summary)
         self.console.print('\n')
 
-def format_constellation_result(result_data: Dict[str, Any]):
+def format_constellation_result(result_data: dict[str, Any]):
     """
     Utility function to format and display constellation result.
 

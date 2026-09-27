@@ -6,9 +6,11 @@ import logging
 import os
 import sys
 from unittest.mock import MagicMock
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-from ufo.galaxy.session.galaxy_session import GalaxySession
 from ufo.galaxy.client.constellation_client import ConstellationClient
+from ufo.galaxy.session.galaxy_session import GalaxySession
+
 
 async def test_galaxy_session_workflow():
     """Test GalaxySession with a complete workflow."""

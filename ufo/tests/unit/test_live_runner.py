@@ -1,9 +1,7 @@
 """Live showcase runner: task loading, verifiers on generated files, and cleanup safety."""
-import zipfile
 from unittest import mock
 
 import pytest
-
 from ufo.tests.eval_suite.live import run_live
 
 

@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
-from ufo.agents.processors.strategies.app_agent_processing_strategy import REPEATED_FAILURE_LIMIT, _record_and_check_repeated_failure as check
+from ufo.agents.processors.strategies.app_agent_processing_strategy import REPEATED_FAILURE_LIMIT
+from ufo.agents.processors.strategies.app_agent_processing_strategy import _record_and_check_repeated_failure as check
 
 A = SimpleNamespace(function="execute_command", arguments={"command": "df -h"})
 FAIL = [SimpleNamespace(status="ResultStatus.FAILURE")]

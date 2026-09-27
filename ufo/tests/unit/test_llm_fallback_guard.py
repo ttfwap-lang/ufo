@@ -9,9 +9,7 @@ import asyncio
 import logging
 
 import pytest
-
 from ufo import __main__ as ufo_main
-
 
 _real_sleep = asyncio.sleep
 

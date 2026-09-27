@@ -29,7 +29,8 @@ Usage:
 """
 import logging
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
 def _get_node_status():
@@ -43,10 +44,10 @@ class ExecutionResult:
 
     def __init__(self) -> None:
         self.status: str = 'PENDING'
-        self.error: Optional[str] = None
-        self.coordinates: Optional[Tuple[int, int]] = None
+        self.error: str | None = None
+        self.coordinates: tuple[int, int] | None = None
         self.plugin_used: bool = False
-        self.vision_stage: Optional[str] = None
+        self.vision_stage: str | None = None
         self.settlement_passed: bool = False
         self.redacted: bool = False
 
@@ -93,7 +94,7 @@ class AppAgentExecutor:
         except ImportError:
             logger.debug('State verifier not available — skipping.')
 
-    def execute_node(self, node: Any, screenshot_path: Optional[str]=None, uia_tree: Optional[Dict[str, Any]]=None, application_window: Any=None, user_intent: str='') -> 'ExecutionResult':
+    def execute_node(self, node: Any, screenshot_path: str | None=None, uia_tree: dict[str, Any] | None=None, application_window: Any=None, user_intent: str='') -> 'ExecutionResult':
         """
         Execute a single DAG node through the full security + grounding pipeline.
 
@@ -160,7 +161,7 @@ class AppAgentExecutor:
         logger.info(f"[Executor] Node '{node_id}' completed successfully. Settlement: {('PASS' if result.settlement_passed else 'SKIP')}")
         return result
 
-    def _step_security_gate(self, node: Any, action_type: str, target_app: str, payload: str, screenshot_path: Optional[str], user_intent: str) -> bool:
+    def _step_security_gate(self, node: Any, action_type: str, target_app: str, payload: str, screenshot_path: str | None, user_intent: str) -> bool:
         """
         Step 1: Security gate check.
         Returns True if execution should be BLOCKED (always False in trusted mode).
@@ -174,7 +175,7 @@ class AppAgentExecutor:
             return False
         return self._vault.inject_credential(username_key=credential_key)
 
-    def _step_plugin_check(self, target_app: str, action_type: str, payload: str) -> Optional[bool]:
+    def _step_plugin_check(self, target_app: str, action_type: str, payload: str) -> bool | None:
         """
         Step 3: Check if an API plugin can bypass GUI.
         Returns True if plugin succeeded, False if failed, None if no plugin.
@@ -193,7 +194,7 @@ class AppAgentExecutor:
         else:
             return False
 
-    def _step_resolve_coordinates(self, node: Any, action_type: str, uia_tree: Optional[Dict[str, Any]], screenshot_path: Optional[str], application_window: Any, result: 'ExecutionResult') -> Optional[Tuple[int, int]]:
+    def _step_resolve_coordinates(self, node: Any, action_type: str, uia_tree: dict[str, Any] | None, screenshot_path: str | None, application_window: Any, result: 'ExecutionResult') -> tuple[int, int] | None:
         """
         Step 4: Resolve target coordinates via UIA tree or vision fallback.
         For non-spatial actions (hotkey, wait), returns None.
@@ -236,7 +237,7 @@ class AppAgentExecutor:
         logger.warning('[Executor] Could not resolve target coordinates.')
         return None
 
-    def _step_physical_execution(self, action_type: str, payload: str, coordinates: Optional[Tuple[int, int]], target_app: str) -> bool:
+    def _step_physical_execution(self, action_type: str, payload: str, coordinates: tuple[int, int] | None, target_app: str) -> bool:
         """
         Step 5: Execute the physical OS action via PyAutoGUI.
         """
@@ -298,7 +299,7 @@ class AppAgentExecutor:
             return True
 
     @staticmethod
-    def _resolve_from_uia(target_control: Dict[str, Any], uia_tree: Dict[str, Any]) -> Optional[Tuple[int, int]]:
+    def _resolve_from_uia(target_control: dict[str, Any], uia_tree: dict[str, Any]) -> tuple[int, int] | None:
         """
         Find the target control in the UIA tree and return its center coordinates.
         Matches by automation_id, name, or control_type.
@@ -307,13 +308,9 @@ class AppAgentExecutor:
         target_aid = target_control.get('automation_id', '')
         target_type = target_control.get('control_type', '')
 
-        def _search(node: Dict[str, Any]) -> Optional[Tuple[int, int]]:
+        def _search(node: dict[str, Any]) -> tuple[int, int] | None:
             match = False
-            if target_aid and node.get('automation_id') == target_aid:
-                match = True
-            elif target_name and target_name.lower() in node.get('name', '').lower():
-                match = True
-            elif target_type and node.get('control_type') == target_type and target_name and (target_name.lower() in node.get('name', '').lower()):
+            if target_aid and node.get('automation_id') == target_aid or target_name and target_name.lower() in node.get('name', '').lower() or target_type and node.get('control_type') == target_type and target_name and (target_name.lower() in node.get('name', '').lower()):
                 match = True
             if match:
                 bbox = node.get('bounding_box', [])

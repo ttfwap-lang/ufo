@@ -27,6 +27,7 @@ with open(img_path, "rb") as f:
     b64 = base64.b64encode(f.read()).decode()
 
 from PIL import Image
+
 with Image.open(img_path) as im:
     W, H = im.size
 print(f"image: {img_path} ({W}x{H})")

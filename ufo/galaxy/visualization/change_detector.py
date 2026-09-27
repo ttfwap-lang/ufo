@@ -8,7 +8,7 @@ This module provides comprehensive change detection for visualization observers,
 including task and dependency modifications, additions, and removals.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from ..constellation.task_constellation import TaskConstellation
@@ -29,7 +29,7 @@ class VisualizationChangeDetector:
     def calculate_constellation_changes(
         old_constellation: Optional["TaskConstellation"],
         new_constellation: "TaskConstellation",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Calculate detailed changes between old and new constellation by comparing their structure.
 
@@ -123,7 +123,7 @@ class VisualizationChangeDetector:
         return changes
 
     @staticmethod
-    def _determine_modification_type(changes: Dict[str, Any]) -> str:
+    def _determine_modification_type(changes: dict[str, Any]) -> str:
         """
         Determine the overall type of modification based on detected changes.
 
@@ -215,7 +215,7 @@ class VisualizationChangeDetector:
         return False
 
     @staticmethod
-    def format_change_summary(changes: Dict[str, Any]) -> Dict[str, str]:
+    def format_change_summary(changes: dict[str, Any]) -> dict[str, str]:
         """
         Format change information into human-readable summary.
 

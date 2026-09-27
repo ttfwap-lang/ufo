@@ -7,22 +7,22 @@ import json
 import logging
 import os
 import platform
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
+from ufo.config.config_loader import LazyUFOConfig
 from ufo.module.basic import BaseSession
+from ufo.module.sessions.service_session import ServiceSession
 from ufo.module.sessions.session import (
     FollowerSession,
     FromFileSession,
     OpenAIOperatorSession,
     Session,
 )
-from ufo.module.sessions.service_session import ServiceSession
 
 if TYPE_CHECKING:
     from ufo.aip.protocol.task_execution import TaskExecutionProtocol
-from ufo.module.sessions.linux_session import LinuxSession, LinuxServiceSession
-from ufo.module.sessions.mobile_session import MobileSession, MobileServiceSession
+from ufo.module.sessions.linux_session import LinuxServiceSession, LinuxSession
+from ufo.module.sessions.mobile_session import MobileServiceSession, MobileSession
 
 ufo_config = LazyUFOConfig()
 
@@ -39,7 +39,7 @@ class SessionPool:
     The manager for the UFO clients.
     """
 
-    def __init__(self, session_list: List[BaseSession]) -> None:
+    def __init__(self, session_list: list[BaseSession]) -> None:
         """
         Initialize a batch UFO client.
         """
@@ -69,7 +69,7 @@ class SessionPool:
                 )
 
     @property
-    def session_list(self) -> List[BaseSession]:
+    def session_list(self) -> list[BaseSession]:
         """
         Get the session list.
         :return: The session list.
@@ -83,7 +83,7 @@ class SessionPool:
         """
         self._session_list.append(session)
 
-    def next_session(self) -> Optional[BaseSession]:
+    def next_session(self) -> BaseSession | None:
         """
         Get the next session.
         :return: The next session, or None if no sessions remain.
@@ -107,9 +107,9 @@ class SessionFactory:
         mode: str,
         plan: str,
         request: str = "",
-        platform_override: Optional[str] = None,
+        platform_override: str | None = None,
         **kwargs,
-    ) -> List[BaseSession]:
+    ) -> list[BaseSession]:
         """
         Create a session based on platform and mode.
         :param task: The name of current task.
@@ -137,7 +137,7 @@ class SessionFactory:
 
     def _create_windows_session(
         self, task: str, mode: str, plan: str, request: str = "", **kwargs
-    ) -> List[BaseSession]:
+    ) -> list[BaseSession]:
         """
         Create Windows-specific sessions.
         :param task: The name of current task.
@@ -174,7 +174,7 @@ class SessionFactory:
 
             self.logger.info(f"Creating a Windows follower session for mode: {mode}")
             if self.is_folder(plan):
-                self.logger.info(f"Got a folder for plan, creating sessions in batch.")
+                self.logger.info("Got a folder for plan, creating sessions in batch.")
                 return self.create_follower_session_in_batch(task, plan)
             else:
                 return [
@@ -185,7 +185,7 @@ class SessionFactory:
                 f"Creating a batch normal Windows session for mode: {mode}"
             )
             if self.is_folder(plan):
-                self.logger.info(f"Got a folder for plan, creating sessions in batch.")
+                self.logger.info("Got a folder for plan, creating sessions in batch.")
                 return self.create_sessions_in_batch(task, plan)
             else:
                 return [
@@ -203,7 +203,7 @@ class SessionFactory:
 
     def _create_linux_session(
         self, task: str, mode: str, plan: str, request: str = "", **kwargs
-    ) -> List[BaseSession]:
+    ) -> list[BaseSession]:
         """
         Create Linux-specific sessions.
         :param task: The name of current task.
@@ -249,7 +249,7 @@ class SessionFactory:
 
     def _create_mobile_session(
         self, task: str, mode: str, plan: str, request: str = "", **kwargs
-    ) -> List[BaseSession]:
+    ) -> list[BaseSession]:
         """
         Create Mobile Android-specific sessions.
         :param task: The name of current task.
@@ -298,7 +298,7 @@ class SessionFactory:
         id: str,
         request: str,
         task_protocol: Optional["TaskExecutionProtocol"] = None,
-        platform_override: Optional[str] = None,
+        platform_override: str | None = None,
     ) -> BaseSession:
         """
         Convenient method to create a service session for any platform.
@@ -347,7 +347,7 @@ class SessionFactory:
 
     def create_follower_session_in_batch(
         self, task: str, plan: str
-    ) -> List[BaseSession]:
+    ) -> list[BaseSession]:
         """
         Create a follower session.
         :param task: The name of current task.
@@ -368,7 +368,7 @@ class SessionFactory:
 
         return sessions
 
-    def create_sessions_in_batch(self, task: str, plan: str) -> List[BaseSession]:
+    def create_sessions_in_batch(self, task: str, plan: str) -> list[BaseSession]:
         """
         Create a follower session.
         :param task: The name of current task.
@@ -384,11 +384,11 @@ class SessionFactory:
                 os.path.dirname(plan), "tasks_status.json"
             )
             if not os.path.exists(file_path):
-                self.task_done = {f: False for f in file_names}
+                self.task_done = dict.fromkeys(file_names, False)
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(self.task_done, f, indent=4)
             else:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     self.task_done = json.load(f)
                 is_done_files = [f for f in file_names if self.task_done.get(f, False)]
 
@@ -415,7 +415,7 @@ class SessionFactory:
         return os.path.isdir(path)
 
     @staticmethod
-    def get_plan_files(path: str) -> List[str]:
+    def get_plan_files(path: str) -> list[str]:
         """
         Get the plan files in the folder. The plan file should have the extension ".json".
         :param path: The path of the folder.

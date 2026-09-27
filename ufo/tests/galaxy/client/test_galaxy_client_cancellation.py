@@ -10,18 +10,19 @@ and idempotency of shutdown operations.
 """
 
 import asyncio
-import pytest
-import pytest_asyncio
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+import pytest_asyncio
 
 # Add project root to path
 UFO_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(UFO_ROOT))
 
-from ufo.galaxy.galaxy_client import GalaxyClient
 from ufo.galaxy.client.constellation_client import ConstellationClient
+from ufo.galaxy.galaxy_client import GalaxyClient
 from ufo.galaxy.session.galaxy_session import GalaxySession
 
 

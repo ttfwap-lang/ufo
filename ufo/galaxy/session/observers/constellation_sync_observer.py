@@ -22,9 +22,12 @@ Example:
 """
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING
+
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
+
 from ...core.events import ConstellationEvent, Event, EventType, IEventObserver, TaskEvent
+
 if TYPE_CHECKING:
     from ...constellation.orchestrator.orchestrator import TaskConstellationOrchestrator
 
@@ -41,7 +44,7 @@ class ConstellationModificationSynchronizer(IEventObserver):
     before executing newly ready tasks.
     """
 
-    def __init__(self, orchestrator: 'TaskConstellationOrchestrator', logger: Optional[logging.Logger]=None):
+    def __init__(self, orchestrator: 'TaskConstellationOrchestrator', logger: logging.Logger | None=None):
         """
         Initialize ConstellationModificationSynchronizer.
 
@@ -50,9 +53,9 @@ class ConstellationModificationSynchronizer(IEventObserver):
         """
         self.orchestrator = orchestrator
         self.logger = logger or logging.getLogger(__name__)
-        self._pending_modifications: Dict[str, asyncio.Future] = {}
-        self._current_constellation_id: Optional[str] = None
-        self._current_constellation: Optional['TaskConstellation'] = None
+        self._pending_modifications: dict[str, asyncio.Future] = {}
+        self._current_constellation_id: str | None = None
+        self._current_constellation: TaskConstellation | None = None
         self._modification_timeout = 600.0
         self._stats = {'total_modifications': 0, 'completed_modifications': 0, 'timeout_modifications': 0}
 
@@ -155,7 +158,7 @@ class ConstellationModificationSynchronizer(IEventObserver):
         except Exception as e:
             self.logger.error(f'Unexpected error in auto-complete timeout handler: {e}', exc_info=True)
 
-    async def wait_for_pending_modifications(self, timeout: Optional[float]=None) -> bool:
+    async def wait_for_pending_modifications(self, timeout: float | None=None) -> bool:
         """
         Wait for all pending modifications to complete.
 
@@ -191,7 +194,7 @@ class ConstellationModificationSynchronizer(IEventObserver):
             self._pending_modifications.clear()
             return False
 
-    def get_current_constellation(self) -> Optional[TaskConstellation]:
+    def get_current_constellation(self) -> TaskConstellation | None:
         """
         Get the ID of the constellation currently being modified.
 
@@ -223,7 +226,7 @@ class ConstellationModificationSynchronizer(IEventObserver):
         """
         return list(self._pending_modifications.keys())
 
-    def get_statistics(self) -> Dict[str, int]:
+    def get_statistics(self) -> dict[str, int]:
         """
         Get synchronization statistics.
 

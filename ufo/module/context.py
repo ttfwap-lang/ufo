@@ -1,12 +1,12 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import logging
+import platform
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-import logging
-import platform
-from typing import Any, Dict, List, Optional, Type, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # Conditional import for Windows-specific packages
 if TYPE_CHECKING or platform.system() == "Windows":
@@ -16,7 +16,6 @@ else:
 
 from ufo.module.dispatcher import BasicCommandDispatcher
 from ufo.utils import is_json_serializable
-
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +134,7 @@ class ContextNames(Enum):
             return None
 
     @property
-    def type(self) -> Type:
+    def type(self) -> type:
         """
         Get the type of the context name.
         :return: The type of the context name.
@@ -198,10 +197,10 @@ class Context:
     The context class that maintains the context for the session and agent.
     """
 
-    _context: Dict[str, Any] = field(
+    _context: dict[str, Any] = field(
         default_factory=lambda: {name.name: name.default_value for name in ContextNames}
     )
-    command_dispatcher: Optional[BasicCommandDispatcher] = None
+    command_dispatcher: BasicCommandDispatcher | None = None
 
     def get(self, key: ContextNames) -> Any:
         """
@@ -241,7 +240,7 @@ class Context:
             ContextNames.CURRENT_ROUND_SUBTASK_AMOUNT, self.current_round_subtask_amount
         )
 
-    def update_dict(self, key: ContextNames, value: Dict[str, Any]) -> None:
+    def update_dict(self, key: ContextNames, value: dict[str, Any]) -> None:
         """
         Add a dictionary to a context key. The value and the context key should be dictionaries.
         :param key: The context key to update.
@@ -259,7 +258,7 @@ class Context:
             raise KeyError(f"Key '{key.name}' is not a valid context name.")
 
     @property
-    def current_round_cost(self) -> Optional[float]:
+    def current_round_cost(self) -> float | None:
         """
         Get the current round cost.
         """
@@ -268,7 +267,7 @@ class Context:
         )
 
     @current_round_cost.setter
-    def current_round_cost(self, value: Optional[float]) -> None:
+    def current_round_cost(self, value: float | None) -> None:
         """
         Set the current round cost.
         :param value: The value to set.
@@ -312,14 +311,14 @@ class Context:
         current_round_id = self._context.get(ContextNames.CURRENT_ROUND_ID.name)
         self._context[ContextNames.ROUND_SUBTASK_AMOUNT.name][current_round_id] = value
 
-    def add_to_structural_logs(self, data: Dict[str, Any]) -> None:
+    def add_to_structural_logs(self, data: dict[str, Any]) -> None:
         """
         Add data to the structural logs.
         :param data: The data to add to the structural logs.
         """
 
-        round_key = data.get("Round", None)
-        subtask_key = data.get("SubtaskIndex", None)
+        round_key = data.get("Round")
+        subtask_key = data.get("SubtaskIndex")
 
         if round_key is None or subtask_key is None:
             return
@@ -330,8 +329,8 @@ class Context:
         )
 
     def filter_structural_logs(
-        self, round_key: int, subtask_key: int, keys: Union[str, List[str]]
-    ) -> Union[List[Any], List[Dict[str, Any]]]:
+        self, round_key: int, subtask_key: int, keys: str | list[str]
+    ) -> list[Any] | list[dict[str, Any]]:
         """
         Filter the structural logs.
         :param round_key: The round key.
@@ -349,9 +348,9 @@ class Context:
         elif isinstance(keys, list):
             return [{key: log[key] for key in keys} for log in structural_logs]
         else:
-            raise TypeError(f"Keys should be a string or a list of strings.")
+            raise TypeError("Keys should be a string or a list of strings.")
 
-    def to_dict(self, ensure_serializable: bool = False) -> Dict[str, Any]:
+    def to_dict(self, ensure_serializable: bool = False) -> dict[str, Any]:
         """
         Convert the context to a dictionary.
         :param ensure_serializable: Ensure the context is serializable.
@@ -375,7 +374,7 @@ class Context:
 
         return context_dict
 
-    def from_dict(self, context_dict: Dict[str, Any]) -> None:
+    def from_dict(self, context_dict: dict[str, Any]) -> None:
         """
         Load the context from a dictionary.
         :param context_dict: The dictionary of the context.

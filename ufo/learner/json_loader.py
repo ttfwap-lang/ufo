@@ -3,7 +3,6 @@
 
 import json
 import logging
-from typing import Dict, List
 
 from langchain_core.documents import Document
 
@@ -27,13 +26,13 @@ class JsonLoader(basic.BasicDocumentLoader):
         self.directory = directory
 
     @staticmethod
-    def load_json_document(file: str) -> Dict:
+    def load_json_document(file: str) -> dict:
         """
         Load the JSON document from the given file path.
         :param file: The file path to load the JSON document from.
         :return: The JSON document.
         """
-        with open(file, "r", encoding="utf-8") as f:
+        with open(file, encoding="utf-8") as f:
             try:
                 document = json.load(f)
             except json.JSONDecodeError:

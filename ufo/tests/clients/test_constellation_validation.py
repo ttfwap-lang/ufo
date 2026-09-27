@@ -3,12 +3,14 @@
 """
 import asyncio
 import logging
-from unittest.mock import AsyncMock, MagicMock
-from ufo.aip.messages import ClientMessage, ClientMessageType, TaskStatus
-from ufo.server.ws.handler import UFOWebSocketHandler
-from ufo.server.services.ws_manager import WSManager
-from ufo.server.services.session_manager import SessionManager
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock
+
+from ufo.aip.messages import ClientMessage, ClientMessageType, TaskStatus
+from ufo.server.services.session_manager import SessionManager
+from ufo.server.services.ws_manager import WSManager
+from ufo.server.ws.handler import UFOWebSocketHandler
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,7 @@ class MockWebSocketConstellationInvalid:
         self.messages_sent.append(message)
 import pytest
 
+
 @pytest.mark.asyncio
 async def test_constellation_validation():
     """测试星座客户端验证功能"""
@@ -78,7 +81,7 @@ async def test_constellation_validation():
         mock_constellation_invalid = MockWebSocketConstellationInvalid()
         try:
             client_id, client_type = await handler.connect(mock_constellation_invalid)
-            print(f'❌ 无效星座客户端注册成功了（这不应该发生）')
+            print('❌ 无效星座客户端注册成功了（这不应该发生）')
         except ValueError as e:
             print(f'✅ 无效星座客户端被正确拒绝: {e}')
             print(f'   连接是否关闭: {mock_constellation_invalid.closed}')

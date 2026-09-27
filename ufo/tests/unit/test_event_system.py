@@ -20,24 +20,23 @@ functionality to ensure proper        # Create generic event (not TaskEvent or C
 """
 
 import asyncio
-import pytest
 import time
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock
 
+import pytest
+from ufo.galaxy.constellation.enums import TaskStatus
 from ufo.galaxy.core.events import (
-    EventBus,
-    Event,
-    TaskEvent,
     ConstellationEvent,
+    Event,
+    EventBus,
     EventType,
-    IEventObserver,
+    TaskEvent,
     get_event_bus,
 )
 from ufo.galaxy.session.observers import (
     ConstellationProgressObserver,
     SessionMetricsObserver,
 )
-from ufo.galaxy.constellation.enums import TaskStatus
 
 
 class TestEventBus:

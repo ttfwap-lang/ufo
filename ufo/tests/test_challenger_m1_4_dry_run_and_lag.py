@@ -9,9 +9,6 @@ Target:
 """
 
 import asyncio
-import inspect
-import json
-import os
 import sys
 import time
 from pathlib import Path
@@ -50,7 +47,7 @@ async def test_dry_run_zero_pre_cleanup_calls(tmp_path):
 
     with patch.dict(EVAL_STAGES, patched_stages, clear=True):
         runner = EvaluationRunner(output_dir=str(tmp_path), dry_run=True)
-        
+
         # Run individual stages
         for stage_id in ["R1", "R2", "R3", "R4", "R5"]:
             res = await runner.run_stage(stage_id)
@@ -74,17 +71,17 @@ async def test_dry_run_desktop_file_and_process_isolation(tmp_path):
     desktop_dir = get_desktop_dir()
     sentinel_filename = "ufo_test_dry_run_sentinel.txt"
     sentinel_path = desktop_dir / sentinel_filename
-    
+
     # Write sentinel file on Desktop
     sentinel_path.write_text("SENTINEL_CONTENT_DO_NOT_DELETE", encoding="utf-8")
-    
+
     try:
         runner = EvaluationRunner(output_dir=str(tmp_path), dry_run=True)
 
         # Spy on subprocess.Popen / subprocess.run to verify zero processes spawned
         with patch("subprocess.Popen") as mock_popen, patch("subprocess.run") as mock_run:
             res = await runner.run_stage("R1")
-            
+
             assert res["status"] == "SUCCESS (DRY_RUN)"
             assert sentinel_path.exists(), "Desktop sentinel file was deleted during dry run!"
             assert sentinel_path.read_text(encoding="utf-8") == "SENTINEL_CONTENT_DO_NOT_DELETE"
@@ -115,7 +112,7 @@ async def test_non_dry_run_pre_cleanup_event_loop_offloading(tmp_path):
 
     with patch.dict(EVAL_STAGES, {"R1": patched_r1}):
         runner = EvaluationRunner(output_dir=str(tmp_path), dry_run=False)
-        
+
         latencies = []
         stop_monitor = False
 
@@ -135,14 +132,14 @@ async def test_non_dry_run_pre_cleanup_event_loop_offloading(tmp_path):
         with patch("ufo.module.session_pool.SessionFactory") as mock_factory, \
              patch("ufo.module.session_pool.SessionPool") as mock_pool:
             mock_pool.return_value.run_all = MagicMock(side_effect=lambda: asyncio.sleep(0.01))
-            
+
             await runner.run_stage("R1")
 
         stop_monitor = True
         await monitor_task
 
         assert cleanup_executed is True, "Pre-cleanup function was not executed in live mode!"
-        
+
         max_latency = max(latencies) if latencies else 0.0
         print(f"\n[Empirical Check] Max event loop latency during 500ms sync pre_cleanup: {max_latency * 1000:.2f}ms")
 

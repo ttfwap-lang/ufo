@@ -9,20 +9,29 @@ and TaskConstellationOrchestrator.
 import asyncio
 import logging
 import time
-from typing import Any, Dict, Optional
-from ufo.config.config_loader import LazyGalaxyConfig, get_galaxy_config
+from typing import Any
+
 from ufo import utils
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
+from ufo.config.config_loader import LazyGalaxyConfig
 from ufo.module.basic import BaseRound, BaseSession
 from ufo.module.context import Context, ContextNames
 from ufo.module.dispatcher import LocalCommandDispatcher
+
 from ..agents.constellation_agent import ConstellationAgent
 from ..client.constellation_client import ConstellationClient
 from ..constellation import TaskConstellation, TaskConstellationOrchestrator
 from ..constellation.enums import ConstellationState
 from ..core.events import get_event_bus
 from ..trajectory.galaxy_parser import GalaxyTrajectory
-from .observers import AgentOutputObserver, ConstellationModificationSynchronizer, ConstellationProgressObserver, DAGVisualizationObserver, SessionMetricsObserver
+from .observers import (
+    AgentOutputObserver,
+    ConstellationModificationSynchronizer,
+    ConstellationProgressObserver,
+    DAGVisualizationObserver,
+    SessionMetricsObserver,
+)
+
 galaxy_config = LazyGalaxyConfig()
 
 class GalaxyRound(BaseRound):
@@ -30,7 +39,7 @@ class GalaxyRound(BaseRound):
     A round in GalaxySession that manages constellation execution.
     """
 
-    def __init__(self, request: str, agent: ConstellationAgent, context: Context, should_evaluate: bool, id: int, orchestrator: Optional[Any]=None, session: Optional[Any]=None):
+    def __init__(self, request: str, agent: ConstellationAgent, context: Context, should_evaluate: bool, id: int, orchestrator: Any | None=None, session: Any | None=None):
         """
         Initialize GalaxyRound with orchestrator support.
 
@@ -45,7 +54,7 @@ class GalaxyRound(BaseRound):
         super().__init__(request, agent, context, should_evaluate, id)
         if orchestrator and hasattr(agent, 'orchestrator'):
             agent.orchestrator = orchestrator
-        self._execution_start_time: Optional[float] = None
+        self._execution_start_time: float | None = None
         self._agent = agent
         self._orchestrator = orchestrator
         self._constellation = None
@@ -112,7 +121,7 @@ class GalaxyRound(BaseRound):
         self._is_finished = True
 
     @property
-    def constellation(self) -> Optional[TaskConstellation]:
+    def constellation(self) -> TaskConstellation | None:
         """
         Get the current constellation.
 
@@ -123,7 +132,7 @@ class GalaxyRound(BaseRound):
         return getattr(self, '_constellation', None)
 
     @property
-    def task_results(self) -> Dict[str, Any]:
+    def task_results(self) -> dict[str, Any]:
         """
         Get task results.
         """
@@ -137,7 +146,7 @@ class GalaxySession(BaseSession):
     using Constellation for DAG management and TaskConstellationOrchestrator for execution.
     """
 
-    def __init__(self, task: str, should_evaluate: bool, id: str, client: Optional[ConstellationClient]=None, initial_request: str=''):
+    def __init__(self, task: str, should_evaluate: bool, id: str, client: ConstellationClient | None=None, initial_request: str=''):
         """
         Initialize GalaxySession.
 
@@ -151,13 +160,13 @@ class GalaxySession(BaseSession):
         self._should_evaluate = should_evaluate
         self._id = id
         self.task = task
-        safe_task_name = ''.join((c for c in task if c.isalnum() or c in (' ', '-', '_'))).rstrip()
+        safe_task_name = ''.join(c for c in task if c.isalnum() or c in (' ', '-', '_')).rstrip()
         safe_task_name = safe_task_name[:50]
         if not safe_task_name:
             safe_task_name = f'galaxy_session_{id}'
         self.log_path = f'logs/galaxy/{safe_task_name}_{self.session_id}/'
         utils.create_folder(self.log_path)
-        self._rounds: Dict[int, BaseRound] = {}
+        self._rounds: dict[int, BaseRound] = {}
         self._context = Context()
         self._client = client
         self.logger = logging.getLogger(__name__)
@@ -168,12 +177,12 @@ class GalaxySession(BaseSession):
         self._orchestrator = TaskConstellationOrchestrator(device_manager=client.device_manager, enable_logging=True)
         self._init_agents()
         self._initial_request = initial_request
-        self._current_constellation: Optional[TaskConstellation] = None
-        self._session_start_time: Optional[float] = None
-        self._session_results: Dict[str, Any] = {}
+        self._current_constellation: TaskConstellation | None = None
+        self._session_start_time: float | None = None
+        self._session_results: dict[str, Any] = {}
         self._event_bus = get_event_bus()
         self._observers = []
-        self._modification_synchronizer: Optional[ConstellationModificationSynchronizer] = None
+        self._modification_synchronizer: ConstellationModificationSynchronizer | None = None
         self._setup_observers()
 
     def _init_context(self) -> None:
@@ -295,7 +304,7 @@ class GalaxySession(BaseSession):
             return True
         return False
 
-    def create_new_round(self) -> Optional[GalaxyRound]:
+    def create_new_round(self) -> GalaxyRound | None:
         """
         Create a new GalaxyRound.
 
@@ -404,7 +413,7 @@ class GalaxySession(BaseSession):
         self.logger.info(f'Cleaned up {len(self._observers)} observers from event bus')
 
     @property
-    def current_constellation(self) -> Optional[TaskConstellation]:
+    def current_constellation(self) -> TaskConstellation | None:
         """
         Get the current constellation.
 
@@ -431,7 +440,7 @@ class GalaxySession(BaseSession):
         return self._orchestrator
 
     @property
-    def session_results(self) -> Dict[str, Any]:
+    def session_results(self) -> dict[str, Any]:
         """
         Get session results.
 

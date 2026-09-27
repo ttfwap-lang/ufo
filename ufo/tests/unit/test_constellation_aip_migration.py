@@ -9,10 +9,10 @@ Tests verify that AIP migration maintains:
 """
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, Mock
 
+import pytest
 from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
@@ -25,10 +25,9 @@ from ufo.aip.protocol.heartbeat import HeartbeatProtocol
 from ufo.aip.protocol.registration import RegistrationProtocol
 from ufo.aip.transport.websocket import WebSocketTransport
 from ufo.galaxy.client.components.connection_manager import WebSocketConnectionManager
+from ufo.galaxy.client.components.device_registry import DeviceRegistry
 from ufo.galaxy.client.components.heartbeat_manager import HeartbeatManager
 from ufo.galaxy.client.components.message_processor import MessageProcessor
-from ufo.galaxy.client.components.device_registry import DeviceRegistry
-from ufo.galaxy.client.components.types import AgentProfile, TaskRequest
 
 
 class TestConnectionManagerAIPMigration:

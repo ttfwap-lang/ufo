@@ -14,7 +14,7 @@ driving a given target.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @dataclass(frozen=True)
@@ -46,17 +46,17 @@ class Element:
     """
 
     handle: Any
-    name: Optional[str] = None
-    class_name: Optional[str] = None
-    rect: Optional[Rect] = None
-    automation_id: Optional[str] = None
+    name: str | None = None
+    class_name: str | None = None
+    rect: Rect | None = None
+    automation_id: str | None = None
 
 
 @runtime_checkable
 class DesktopAutomation(Protocol):
     """Protocol implemented by every desktop automation backend."""
 
-    async def launch(self, app: str, args: Optional[list] = None) -> int:
+    async def launch(self, app: str, args: list | None = None) -> int:
         """Launch an application, returning its process id."""
         ...
 
@@ -73,7 +73,7 @@ class DesktopAutomation(Protocol):
         ...
 
     async def find_window(
-        self, title_re: str = ".*", class_name: Optional[str] = None
+        self, title_re: str = ".*", class_name: str | None = None
     ) -> Element:
         """Find a top-level window by title regex (and optional class name)."""
         ...
@@ -94,7 +94,7 @@ class DesktopAutomation(Protocol):
         """Return the text content of the given element."""
         ...
 
-    async def screenshot(self, window: Optional[Element] = None, region: Optional[Rect] = None) -> bytes:
+    async def screenshot(self, window: Element | None = None, region: Rect | None = None) -> bytes:
         """Capture a screenshot of a window, optionally limited to ``region``. Returns PNG bytes."""
         ...
 

@@ -1,12 +1,13 @@
-import json
-import logging
-import os
 import ast
 import copy
 import hashlib
+import json
+import logging
+import os
 import platform
 from collections import OrderedDict
-from typing import Any, Dict, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
 if TYPE_CHECKING or platform.system() == 'Windows':
     from pywinauto.controls.uiawrapper import UIAWrapper
     from pywinauto.win32structures import RECT
@@ -15,10 +16,11 @@ else:
     RECT = Any
 from ufo.agents.processors.schemas.target import TargetInfo, TargetKind
 from ufo.automator.ui_control.grounding.basic import BasicGrounding
+
 logger = logging.getLogger(__name__)
 
 _PREDICT_CACHE_SIZE = 64
-_PREDICT_CACHE: 'OrderedDict[tuple, List[Dict[str, Any]]]' = OrderedDict()
+_PREDICT_CACHE: 'OrderedDict[tuple, list[dict[str, Any]]]' = OrderedDict()
 
 class OmniparserGrounding(BasicGrounding):
     """
@@ -26,7 +28,7 @@ class OmniparserGrounding(BasicGrounding):
     """
     _filter_interactivity = True
 
-    def predict(self, image_path: str, box_threshold: float=0.05, iou_threshold: float=0.1, use_paddleocr: bool=True, imgsz: int=640, api_name: str='/process') -> List[Dict[str, Any]]:
+    def predict(self, image_path: str, box_threshold: float=0.05, iou_threshold: float=0.1, use_paddleocr: bool=True, imgsz: int=640, api_name: str='/process') -> list[dict[str, Any]]:
         """
         Predict the grounding for the given image.
         :param image_path: The path to the image.
@@ -77,7 +79,7 @@ class OmniparserGrounding(BasicGrounding):
             _PREDICT_CACHE.popitem(last=False)
         return list_of_grounding_results
 
-    def parse_results(self, results: List[Dict[str, Any]], application_window: UIAWrapper=None) -> List[Dict[str, Any]]:
+    def parse_results(self, results: list[dict[str, Any]], application_window: UIAWrapper=None) -> list[dict[str, Any]]:
         """
         Parse the grounding results string into a list of control elements infomation dictionaries.
         :param results: The list of grounding results dictionaries from the grounding model.
@@ -131,7 +133,7 @@ class OmniparserGrounding(BasicGrounding):
         else:
             return (0, 0, 0, 0)
 
-    def _calculate_absolute_coordinates(self, control_info: Dict[str, Any], app_left: int, app_top: int, app_width: int, app_height: int) -> Dict[str, Any]:
+    def _calculate_absolute_coordinates(self, control_info: dict[str, Any], app_left: int, app_top: int, app_width: int, app_height: int) -> dict[str, Any]:
         """
         Calculate absolute coordinates for a control based on relative bbox and application window.
         :param control_info: Control information dictionary with bbox
@@ -160,7 +162,7 @@ class OmniparserGrounding(BasicGrounding):
         multiplier = scale_factor / 100.0
         return {'control_type': control_info.get('type', 'Button'), 'name': control_info.get('content', ''), 'x0': int(control_left * multiplier), 'y0': int(control_top * multiplier), 'x1': int(control_right * multiplier), 'y1': int(control_bottom * multiplier)}
 
-    def screen_parsing(self, screenshot_path: str, application_window_info: TargetInfo=None, box_threshold: float=0.05, iou_threshold: float=0.1, use_paddleocr: bool=True, imgsz: int=640) -> List[TargetInfo]:
+    def screen_parsing(self, screenshot_path: str, application_window_info: TargetInfo=None, box_threshold: float=0.05, iou_threshold: float=0.1, use_paddleocr: bool=True, imgsz: int=640) -> list[TargetInfo]:
         """
         Parse the grounding results using TargetInfo for application window information.
         :param application_window_info: The application window TargetInfo.

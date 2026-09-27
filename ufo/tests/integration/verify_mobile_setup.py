@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 
+
 def find_adb():
     """Auto-detect ADB path"""
     common_paths = ['C:\\Users\\{}\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe'.format(os.environ.get('USERNAME', '')), '/usr/bin/adb', '/usr/local/bin/adb']
@@ -54,7 +55,7 @@ def check_device(adb_path):
     try:
         result = subprocess.run([adb_path, 'devices'], capture_output=True, text=True, timeout=5)
         if result.returncode != 0:
-            print(f'   ❌ ADB devices command failed')
+            print('   ❌ ADB devices command failed')
             return False
         lines = result.stdout.strip().split('\n')
         devices = [line for line in lines if '\tdevice' in line]
@@ -87,7 +88,7 @@ def check_device_info(adb_path):
         android_version = result.stdout.strip() if result.returncode == 0 else 'Unknown'
         result = subprocess.run([adb_path, 'shell', 'wm', 'size'], capture_output=True, text=True, timeout=5)
         screen_size = result.stdout.strip() if result.returncode == 0 else 'Unknown'
-        print(f'   ✅ Device Information:')
+        print('   ✅ Device Information:')
         print(f'      Model: {model}')
         print(f'      Android Version: {android_version}')
         print(f'      Screen Size: {screen_size}')
@@ -109,7 +110,7 @@ def check_python_packages():
             print(f'   ❌ {package} NOT installed')
             missing.append(package)
     if missing:
-        print(f'\n   Please install missing packages:')
+        print('\n   Please install missing packages:')
         print(f"   pip install {' '.join(missing)}")
         return False
     return True

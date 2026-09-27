@@ -4,7 +4,10 @@ Chosen cancel keys: Scroll Lock (0x91, dead key, single press), F12 (0x7B)
 backup, ESC silent backup. Pause: P. Verification: registration + WM_HOTKEY
 pipeline + burst suppression + foreign-id immunity.
 """
-import sys, time, ctypes
+import ctypes
+import sys
+import time
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, "C:\\Users\\lnxzf\\Desktop\\projects\\ufo")
 from ufo.automator.app_apis.telegram import ScreenLockout

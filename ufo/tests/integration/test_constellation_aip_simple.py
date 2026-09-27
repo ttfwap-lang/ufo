@@ -6,10 +6,10 @@ AIP protocols after migration.
 """
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime, timezone
+from unittest.mock import Mock
 
+import pytest
 from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
@@ -158,8 +158,8 @@ async def test_websocket_transport_adapter():
 @pytest.mark.asyncio
 async def test_heartbeat_manager_creates_protocol():
     """Test that HeartbeatManager creates HeartbeatProtocol instances."""
-    from ufo.galaxy.client.components.heartbeat_manager import HeartbeatManager
     from ufo.galaxy.client.components.device_registry import DeviceRegistry
+    from ufo.galaxy.client.components.heartbeat_manager import HeartbeatManager
 
     # Create mock connection manager
     connection_manager = Mock()

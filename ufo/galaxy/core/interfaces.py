@@ -9,7 +9,7 @@ Each interface has a single, well-defined responsibility.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .types import (
     AsyncErrorCallback,
@@ -50,7 +50,7 @@ class ITask(ABC):
 
     @abstractmethod
     async def execute(
-        self, context: Optional[ProcessingContext] = None
+        self, context: ProcessingContext | None = None
     ) -> ExecutionResult:
         """
         Execute the task.
@@ -78,7 +78,7 @@ class ITaskFactory(ABC):
         self,
         name: str,
         description: str,
-        config: Optional[TaskConfiguration] = None,
+        config: TaskConfiguration | None = None,
         **kwargs
     ) -> ITask:
         """
@@ -126,7 +126,7 @@ class IDependency(ABC):
         pass
 
     @abstractmethod
-    def is_satisfied(self, completed_tasks: List[TaskId]) -> bool:
+    def is_satisfied(self, completed_tasks: list[TaskId]) -> bool:
         """
         Check if this dependency is satisfied.
 
@@ -142,10 +142,10 @@ class IDependencyResolver(ABC):
     @abstractmethod
     def get_ready_tasks(
         self,
-        all_tasks: List[ITask],
-        dependencies: List[IDependency],
-        completed_tasks: List[TaskId],
-    ) -> List[ITask]:
+        all_tasks: list[ITask],
+        dependencies: list[IDependency],
+        completed_tasks: list[TaskId],
+    ) -> list[ITask]:
         """
         Get tasks that are ready to execute.
 
@@ -158,7 +158,7 @@ class IDependencyResolver(ABC):
 
     @abstractmethod
     def validate_dependencies(
-        self, tasks: List[ITask], dependencies: List[IDependency]
+        self, tasks: list[ITask], dependencies: list[IDependency]
     ) -> bool:
         """
         Validate that dependencies form a valid DAG.
@@ -188,13 +188,13 @@ class IConstellation(ABC):
 
     @property
     @abstractmethod
-    def tasks(self) -> Dict[TaskId, ITask]:
+    def tasks(self) -> dict[TaskId, ITask]:
         """Get all tasks in the constellation."""
         pass
 
     @property
     @abstractmethod
-    def dependencies(self) -> List[IDependency]:
+    def dependencies(self) -> list[IDependency]:
         """Get all dependencies in the constellation."""
         pass
 
@@ -218,8 +218,8 @@ class IConstellation(ABC):
 
     @abstractmethod
     def get_ready_tasks(
-        self, completed_tasks: Optional[List[TaskId]] = None
-    ) -> List[ITask]:
+        self, completed_tasks: list[TaskId] | None = None
+    ) -> list[ITask]:
         """
         Get tasks that are ready to execute.
 
@@ -279,7 +279,7 @@ class ITaskExecutor(ABC):
 
     @abstractmethod
     async def execute_task(
-        self, task: ITask, context: Optional[ProcessingContext] = None
+        self, task: ITask, context: ProcessingContext | None = None
     ) -> ExecutionResult:
         """
         Execute a single task.
@@ -308,9 +308,9 @@ class IConstellationExecutor(ABC):
     async def execute_constellation(
         self,
         constellation: IConstellation,
-        config: Optional[ConstellationConfiguration] = None,
-        progress_callback: Optional[AsyncProgressCallback] = None,
-        error_callback: Optional[AsyncErrorCallback] = None,
+        config: ConstellationConfiguration | None = None,
+        progress_callback: AsyncProgressCallback | None = None,
+        error_callback: AsyncErrorCallback | None = None,
     ) -> ConstellationResult:
         """
         Execute a constellation.
@@ -372,7 +372,7 @@ class IDevice(ABC):
 
     @property
     @abstractmethod
-    def capabilities(self) -> List[str]:
+    def capabilities(self) -> list[str]:
         """Get the device capabilities."""
         pass
 
@@ -435,7 +435,7 @@ class IDeviceRegistry(ABC):
         pass
 
     @abstractmethod
-    async def get_device(self, device_id: DeviceId) -> Optional[IDevice]:
+    async def get_device(self, device_id: DeviceId) -> IDevice | None:
         """
         Get a device by ID.
 
@@ -446,8 +446,8 @@ class IDeviceRegistry(ABC):
 
     @abstractmethod
     async def get_available_devices(
-        self, capabilities: Optional[List[str]] = None
-    ) -> List[IDevice]:
+        self, capabilities: list[str] | None = None
+    ) -> list[IDevice]:
         """
         Get available devices, optionally filtered by capabilities.
 
@@ -464,9 +464,9 @@ class IDeviceSelector(ABC):
     async def select_device(
         self,
         task: ITask,
-        available_devices: List[IDevice],
-        context: Optional[ProcessingContext] = None,
-    ) -> Optional[IDevice]:
+        available_devices: list[IDevice],
+        context: ProcessingContext | None = None,
+    ) -> IDevice | None:
         """
         Select the best device for a task.
 
@@ -484,7 +484,7 @@ class IRequestProcessor(ABC):
 
     @abstractmethod
     async def process_creation(
-        self, context: Optional[ProcessingContext] = None
+        self, context: ProcessingContext | None = None
     ) -> "IConstellation":
         """
         Process a user request into a constellation.
@@ -501,7 +501,7 @@ class IResultProcessor(ABC):
     @abstractmethod
     async def process_editing(
         self,
-        context: Optional[ProcessingContext] = None,
+        context: ProcessingContext | None = None,
     ) -> "IConstellation":
         """
         Process a task result and potentially update the constellation.
@@ -533,7 +533,7 @@ class IConstellationUpdater(ABC):
         self,
         result: ExecutionResult,
         constellation: IConstellation,
-        context: Optional[ProcessingContext] = None,
+        context: ProcessingContext | None = None,
     ) -> IConstellation:
         """
         Update constellation based on task result.
@@ -555,7 +555,7 @@ class ISessionManager(ABC):
         self,
         session_id: SessionId,
         initial_request: str,
-        context: Optional[ProcessingContext] = None,
+        context: ProcessingContext | None = None,
     ) -> "ISession":
         """
         Create a new session.
@@ -614,7 +614,7 @@ class ISession(ABC):
         pass
 
     @abstractmethod
-    async def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """
         Get current session status.
 
@@ -646,7 +646,7 @@ class IMetricsCollector(ABC):
         pass
 
     @abstractmethod
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """
         Get collected metrics.
 
@@ -662,8 +662,8 @@ class IEventLogger(ABC):
     def log_event(
         self,
         event_type: str,
-        event_data: Dict[str, Any],
-        context: Optional[ProcessingContext] = None,
+        event_data: dict[str, Any],
+        context: ProcessingContext | None = None,
     ) -> None:
         """
         Log an event.
@@ -676,8 +676,8 @@ class IEventLogger(ABC):
 
     @abstractmethod
     def get_events(
-        self, event_type: Optional[str] = None, limit: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, event_type: str | None = None, limit: int | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get logged events.
 

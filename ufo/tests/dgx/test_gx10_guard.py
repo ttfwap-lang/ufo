@@ -1,6 +1,5 @@
 """Runs the tests/dgx/*_scenarios.sh drivers (fake /proc, docker, curl; real bash/awk/flock) against
 scripts/dgx: guard + memguard, retire-qwen27b, apply. Needs a Linux userland: native, or WSL."""
-import os
 import re
 import shutil
 import subprocess

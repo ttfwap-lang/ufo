@@ -6,14 +6,16 @@ Constellation Editor with:
 2. Command registry with decorators (命令注册器和装饰器)
 3. Automatic validation with rollback (自动验证和撤回)
 """
-import sys
 import os
+import sys
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 ufo_path = os.path.dirname(current_dir)
 sys.path.insert(0, ufo_path)
-from ufo.galaxy.constellation.editor.constellation_editor import ConstellationEditor
 from ufo.galaxy.constellation.editor.command_registry import command_registry
+from ufo.galaxy.constellation.editor.constellation_editor import ConstellationEditor
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
+
 
 def demo_serializable_parameters():
     """演示可序列化参数功能"""
@@ -134,7 +136,7 @@ def main():
         print('  3. ✓ 自动验证和撤回机制')
         print('  4. ✓ 完整的撤销/重做支持')
         print('  5. ✓ 批量操作和文件操作')
-        print(f'\n注册器统计:')
+        print('\n注册器统计:')
         print(f'  - 注册命令数: {len(command_registry.list_commands())}')
         print(f'  - 命令类别数: {len(command_registry.get_categories())}')
         return 0

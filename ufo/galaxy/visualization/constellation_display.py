@@ -9,17 +9,12 @@ visualizations with rich console output, including structure changes,
 statistics, and state transitions.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, Optional
-
+from typing import TYPE_CHECKING, Any
 
 from rich.columns import Columns
-
 from rich.console import Console, Group
-
 from rich.panel import Panel
-
 from rich.table import Table
-
 from rich.text import Text
 
 if TYPE_CHECKING:
@@ -37,7 +32,7 @@ class ConstellationDisplay:
     with consistent Rich formatting across different contexts.
     """
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Console | None = None):
         """
         Initialize ConstellationDisplay.
 
@@ -48,7 +43,7 @@ class ConstellationDisplay:
     def display_constellation_started(
         self,
         constellation: "TaskConstellation",
-        additional_info: Optional[Dict[str, Any]] = None,
+        additional_info: dict[str, Any] | None = None,
     ) -> None:
         """
         Display constellation start notification.
@@ -72,8 +67,8 @@ class ConstellationDisplay:
     def display_constellation_completed(
         self,
         constellation: "TaskConstellation",
-        execution_time: Optional[float] = None,
-        additional_info: Optional[Dict[str, Any]] = None,
+        execution_time: float | None = None,
+        additional_info: dict[str, Any] | None = None,
     ) -> None:
         """
         Display constellation completion notification with enhanced formatting.
@@ -140,8 +135,8 @@ class ConstellationDisplay:
     def display_constellation_failed(
         self,
         constellation: "TaskConstellation",
-        error: Optional[Exception] = None,
-        additional_info: Optional[Dict[str, Any]] = None,
+        error: Exception | None = None,
+        additional_info: dict[str, Any] | None = None,
     ) -> None:
         """
         Display constellation failure notification.
@@ -171,8 +166,8 @@ class ConstellationDisplay:
     def display_constellation_modified(
         self,
         constellation: "TaskConstellation",
-        changes: Dict[str, Any],
-        additional_info: Optional[Dict[str, Any]] = None,
+        changes: dict[str, Any],
+        additional_info: dict[str, Any] | None = None,
     ) -> None:
         """
         Display constellation modification notification with change details.
@@ -184,7 +179,7 @@ class ConstellationDisplay:
         # Create modification message
         mod_text = Text()
         mod_text.append("🔄 ", style="bold blue")
-        mod_text.append(f"Constellation Modified: ", style="bold blue")
+        mod_text.append("Constellation Modified: ", style="bold blue")
         mod_text.append(f"{constellation.name}", style="bold yellow")
         mod_text.append(f" ({constellation.constellation_id[:8]}...)", style="dim")
 
@@ -225,7 +220,7 @@ class ConstellationDisplay:
         self,
         constellation: "TaskConstellation",
         title: str,
-        additional_info: Optional[Dict[str, Any]] = None,
+        additional_info: dict[str, Any] | None = None,
     ) -> Panel:
         """
         Create basic constellation information panel.
@@ -300,7 +295,7 @@ class ConstellationDisplay:
         )
 
     def _add_change_details_to_table(
-        self, table: Table, changes: Dict[str, Any]
+        self, table: Table, changes: dict[str, Any]
     ) -> None:
         """
         Add change details to a Rich table.
@@ -386,7 +381,7 @@ class ConstellationDisplay:
 
     def _get_constellation_statistics(
         self, constellation: "TaskConstellation"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Extract and normalize constellation statistics.
 
@@ -437,7 +432,7 @@ class ConstellationDisplay:
         except AttributeError:
             return 0
 
-    def _calculate_success_rate(self, status_counts: Dict[str, int]) -> Optional[float]:
+    def _calculate_success_rate(self, status_counts: dict[str, int]) -> float | None:
         """
         Calculate success rate from status counts.
 
@@ -452,7 +447,7 @@ class ConstellationDisplay:
 
     def _calculate_basic_statistics(
         self, constellation: "TaskConstellation"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Calculate basic statistics directly from constellation.
 

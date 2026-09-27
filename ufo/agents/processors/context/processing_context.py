@@ -11,11 +11,12 @@ The design follows composition over inheritance principles and provides
 type-safe context management with clear separation of concerns.
 """
 
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, TypeVar
-from abc import ABC, abstractmethod
+from typing import Any, TypeVar
+
 from ufo.agents.processors.schemas.target import TargetRegistry
 from ufo.module.context import Context, ContextNames
 from ufo.module.dispatcher import BasicCommandDispatcher
@@ -42,9 +43,9 @@ class ProcessingResult:
     """
 
     success: bool
-    data: Dict[str, Any]
-    error: Optional[str] = None
-    phase: Optional[ProcessingPhase] = None
+    data: dict[str, Any]
+    error: str | None = None
+    phase: ProcessingPhase | None = None
     execution_time: float = 0.0
 
 
@@ -57,17 +58,17 @@ class ProcessorContextProtocol(ABC):
     """
 
     @abstractmethod
-    def to_dict(self, selective: bool) -> Dict[str, Any]:
+    def to_dict(self, selective: bool) -> dict[str, Any]:
         """Convert context to dictionary for framework compatibility."""
         pass
 
     @abstractmethod
-    def update_from_dict(self, data: Dict[str, Any]) -> None:
+    def update_from_dict(self, data: dict[str, Any]) -> None:
         """Update context from dictionary data."""
         pass
 
     @abstractmethod
-    def get_context_summary(self) -> Dict[str, Any]:
+    def get_context_summary(self) -> dict[str, Any]:
         """Get a summary of context data for logging/debugging."""
         pass
 
@@ -88,33 +89,33 @@ class BasicProcessorContext(ProcessorContextProtocol):
     round_step: int = 0
     round_num: int = 0
     cost: float = 0.0
-    status: Optional[str] = None
+    status: str | None = None
     target_registry: TargetRegistry = field(default_factory=TargetRegistry)
-    command_dispatcher: Optional[BasicCommandDispatcher] = None
+    command_dispatcher: BasicCommandDispatcher | None = None
 
-    action: List[Dict[str, Any]] = field(default_factory=list)
+    action: list[dict[str, Any]] = field(default_factory=list)
     action_representation: str = ""
     results: str = ""
-    function_call: Optional[Any] = None
-    arguments: Dict[str, Any] = field(default_factory=dict)
+    function_call: Any | None = None
+    arguments: dict[str, Any] = field(default_factory=dict)
     action_type: str = ""
 
     # Request and response data
     request: str = ""
-    parsed_response: Optional[Any] = None
+    parsed_response: Any | None = None
 
     # Performance and error tracking
-    execution_times: Dict[str, float] = field(default_factory=dict)
+    execution_times: dict[str, float] = field(default_factory=dict)
     total_time: float = 0.0
     error_count: int = 0
-    last_error: Optional[str] = None
+    last_error: str | None = None
     llm_cost: float = 0.0
-    result: Optional[Any] = None
+    result: Any | None = None
 
     # Generic data storage for extensibility
-    custom_data: Dict[str, Any] = field(default_factory=dict)
+    custom_data: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self, selective: bool = True) -> Dict[str, Any]:
+    def to_dict(self, selective: bool = True) -> dict[str, Any]:
         """
         Convert context to dictionary for framework compatibility.
         :return: Dictionary representation of context data
@@ -131,14 +132,14 @@ class BasicProcessorContext(ProcessorContextProtocol):
         return asdict(self)
 
     @property
-    def selected_keys(self) -> List[str]:
+    def selected_keys(self) -> list[str]:
         """
         The list of selective keys to dict.
         """
 
         return []
 
-    def update_from_dict(self, data: Dict[str, Any]) -> None:
+    def update_from_dict(self, data: dict[str, Any]) -> None:
         """
         Update context from dictionary data.
         :param data: Dictionary containing context updates
@@ -149,7 +150,7 @@ class BasicProcessorContext(ProcessorContextProtocol):
             else:
                 self.custom_data[key] = value
 
-    def get_context_summary(self) -> Dict[str, Any]:
+    def get_context_summary(self) -> dict[str, Any]:
         """
         Get a summary of context data for logging/debugging.
         :return: Summary dictionary with key context information
@@ -253,13 +254,11 @@ class ProcessingContext:
             setattr(self.local_context, key, value)
         else:
             # Store in custom_data
-            if not hasattr(self.local_context, "custom_data"):
-                self.local_context.custom_data = {}
-            elif not isinstance(self.local_context.custom_data, dict):
+            if not hasattr(self.local_context, "custom_data") or not isinstance(self.local_context.custom_data, dict):
                 self.local_context.custom_data = {}
             self.local_context.custom_data[key] = value
 
-    def update_local(self, data: Dict[str, Any]) -> None:
+    def update_local(self, data: dict[str, Any]) -> None:
         """
         Backward compatibility: Batch update local data
         :param data: Dictionary of data to update
@@ -268,7 +267,7 @@ class ProcessingContext:
             self.set_local(key, value)
 
     @property
-    def local_data(self) -> Dict[str, Any]:
+    def local_data(self) -> dict[str, Any]:
         """
         Backward compatibility: Provide dictionary view
         :return: Dictionary representation of local context
@@ -366,7 +365,7 @@ class ProcessingContext:
         """Store processing phase result"""
         self.phase_results[phase] = result
 
-    def get_phase_result(self, phase: ProcessingPhase) -> Optional[ProcessingResult]:
+    def get_phase_result(self, phase: ProcessingPhase) -> ProcessingResult | None:
         """Get result of specific processing phase"""
         return self.phase_results.get(phase)
 
@@ -374,7 +373,7 @@ class ProcessingContext:
         """Get all phase results as ordered dictionary"""
         return self.phase_results.copy()
 
-    def get_phase_results_summary(self) -> Dict[str, Any]:
+    def get_phase_results_summary(self) -> dict[str, Any]:
         """Get summary of all phase results"""
         summary = {}
         for phase, result in self.phase_results.items():
@@ -388,11 +387,11 @@ class ProcessingContext:
 
     def get_phase_results_in_order(
         self,
-    ) -> List[tuple[ProcessingPhase, ProcessingResult]]:
+    ) -> list[tuple[ProcessingPhase, ProcessingResult]]:
         """Get phase results as list of tuples in order they were set"""
         return list(self.phase_results.items())
 
-    def get_phase_execution_order(self) -> List[ProcessingPhase]:
+    def get_phase_execution_order(self) -> list[ProcessingPhase]:
         """Get phases in execution order"""
         return list(self.phase_results.keys())
 
@@ -400,17 +399,17 @@ class ProcessingContext:
         """Check if specific phase has completed"""
         return phase in self.phase_results
 
-    def get_successful_phases(self) -> List[ProcessingPhase]:
+    def get_successful_phases(self) -> list[ProcessingPhase]:
         """Get list of successfully completed phases"""
         return [phase for phase, result in self.phase_results.items() if result.success]
 
-    def get_failed_phases(self) -> List[ProcessingPhase]:
+    def get_failed_phases(self) -> list[ProcessingPhase]:
         """Get list of failed phases"""
         return [
             phase for phase, result in self.phase_results.items() if not result.success
         ]
 
-    def get_context_summary(self) -> Dict[str, Any]:
+    def get_context_summary(self) -> dict[str, Any]:
         """
         Get context summary for logging/debugging
         :return: Context summary dictionary
@@ -428,7 +427,7 @@ class ProcessingContext:
             "failed_phases": len(self.get_failed_phases()),
         }
 
-    def add_action_to_history(self, action_info: Dict[str, Any]) -> None:
+    def add_action_to_history(self, action_info: dict[str, Any]) -> None:
         """
         Add action to history and update success tracking.
         :param action_info: Action information to add

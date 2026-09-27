@@ -3,8 +3,9 @@ Command History Management
 
 Manages command execution history with undo/redo capabilities.
 """
-from typing import List, Optional
+
 from .command_interface import CommandUndoError, IUndoableCommand
+
 
 class CommandHistory:
     """
@@ -20,7 +21,7 @@ class CommandHistory:
 
         :param max_history_size: Maximum number of commands to keep in history
         """
-        self._history: List[IUndoableCommand] = []
+        self._history: list[IUndoableCommand] = []
         self._current_index: int = -1
         self._max_history_size: int = max_history_size
 
@@ -55,7 +56,7 @@ class CommandHistory:
         next_index = self._current_index + 1
         return next_index < len(self._history) and self._history[next_index].can_execute()
 
-    def undo(self) -> Optional[IUndoableCommand]:
+    def undo(self) -> IUndoableCommand | None:
         """
         Undo the last command.
 
@@ -72,7 +73,7 @@ class CommandHistory:
         except Exception as e:
             raise CommandUndoError(command, str(e), e)
 
-    def redo(self) -> Optional[IUndoableCommand]:
+    def redo(self) -> IUndoableCommand | None:
         """
         Redo the next command.
 
@@ -96,7 +97,7 @@ class CommandHistory:
         self._history.clear()
         self._current_index = -1
 
-    def get_history(self) -> List[IUndoableCommand]:
+    def get_history(self) -> list[IUndoableCommand]:
         """
         Get a copy of the command history.
 
@@ -104,7 +105,7 @@ class CommandHistory:
         """
         return self._history.copy()
 
-    def get_current_command(self) -> Optional[IUndoableCommand]:
+    def get_current_command(self) -> IUndoableCommand | None:
         """
         Get the current command (last executed).
 
@@ -114,7 +115,7 @@ class CommandHistory:
             return self._history[self._current_index]
         return None
 
-    def get_undo_description(self) -> Optional[str]:
+    def get_undo_description(self) -> str | None:
         """
         Get description of the command that would be undone.
 
@@ -124,7 +125,7 @@ class CommandHistory:
             return f'Undo: {self._history[self._current_index].description}'
         return None
 
-    def get_redo_description(self) -> Optional[str]:
+    def get_redo_description(self) -> str | None:
         """
         Get description of the command that would be redone.
 

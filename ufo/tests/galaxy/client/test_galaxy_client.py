@@ -10,13 +10,12 @@ and batch modes.
 """
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, mock_open
 from pathlib import Path
-import json
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from ufo.galaxy.galaxy_client import GalaxyClient
+import pytest
 from ufo.galaxy.client.constellation_client import ConstellationClient
+from ufo.galaxy.galaxy_client import GalaxyClient
 from ufo.galaxy.session.galaxy_session import GalaxySession
 
 

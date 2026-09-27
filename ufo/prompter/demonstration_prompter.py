@@ -2,11 +2,10 @@
 # Licensed under the MIT License.
 
 import json
-from typing import Dict, List
 
-from ufo.record_processor.parser.demonstration_record import DemonstrationRecord
 from ufo.prompter.basic import BasicPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
+from ufo.record_processor.parser.demonstration_record import DemonstrationRecord
 
 
 class DemonstrationPrompter(BasicPrompter):
@@ -57,7 +56,7 @@ class DemonstrationPrompter(BasicPrompter):
 
     def user_content_construction(
         self, demo_record: DemonstrationRecord
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """
         Construct the prompt for the user demonstration record with following contents:
         1. Initial Application Screenshot if it is visual mode
@@ -78,7 +77,7 @@ class DemonstrationPrompter(BasicPrompter):
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": getattr(demo_record, "step_0")["screenshot"]
+                        "url": demo_record.step_0["screenshot"]
                     },
                 }
             )
@@ -119,9 +118,7 @@ class DemonstrationPrompter(BasicPrompter):
 
         # Construct the prompt for APIs
         api_list = [
-            "- The action type are limited to {actions}.".format(
-                actions=list(self.api_prompt_template.keys())
-            )
+            f"- The action type are limited to {list(self.api_prompt_template.keys())}."
         ]
 
         # Construct the prompt for each API

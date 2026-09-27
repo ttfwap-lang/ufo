@@ -3,9 +3,11 @@ Command Invoker
 
 Handles command execution with history management and validation.
 """
-from typing import Any, List, Optional
+from typing import Any
+
 from .command_history import CommandHistory
 from .command_interface import CommandExecutionError, ICommand, IUndoableCommand
+
 
 class CommandInvoker:
     """
@@ -46,7 +48,7 @@ class CommandInvoker:
         except Exception as e:
             raise CommandExecutionError(command, str(e), e)
 
-    def undo(self) -> Optional[IUndoableCommand]:
+    def undo(self) -> IUndoableCommand | None:
         """
         Undo the last command.
 
@@ -56,7 +58,7 @@ class CommandInvoker:
             return None
         return self._history.undo()
 
-    def redo(self) -> Optional[IUndoableCommand]:
+    def redo(self) -> IUndoableCommand | None:
         """
         Redo the next command.
 
@@ -87,7 +89,7 @@ class CommandInvoker:
         if self._history:
             self._history.clear()
 
-    def get_history(self) -> List[IUndoableCommand]:
+    def get_history(self) -> list[IUndoableCommand]:
         """
         Get the command history.
 
@@ -97,7 +99,7 @@ class CommandInvoker:
             return self._history.get_history()
         return []
 
-    def get_undo_description(self) -> Optional[str]:
+    def get_undo_description(self) -> str | None:
         """
         Get description of the command that would be undone.
 
@@ -107,7 +109,7 @@ class CommandInvoker:
             return self._history.get_undo_description()
         return None
 
-    def get_redo_description(self) -> Optional[str]:
+    def get_redo_description(self) -> str | None:
         """
         Get description of the command that would be redone.
 

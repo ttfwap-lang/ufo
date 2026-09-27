@@ -6,7 +6,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 logger = logging.getLogger('EvalVerifiers')
 
@@ -26,7 +26,7 @@ def get_desktop_dir() -> Path:
             return desktop
     return Path.home() / 'Desktop'
 
-def verify_file_on_desktop(filename: str='ufo_test.txt', expected_content: Optional[str]=None) -> Dict[str, Any]:
+def verify_file_on_desktop(filename: str='ufo_test.txt', expected_content: str | None=None) -> dict[str, Any]:
     """
     Verify if a file exists on the Desktop and optionally verify its text content.
 
@@ -65,7 +65,7 @@ def verify_file_on_desktop(filename: str='ufo_test.txt', expected_content: Optio
         content_matched = normalized_expected.lower() in normalized_actual.lower() or normalized_actual == normalized_expected
     return {'verified': content_matched, 'exists': True, 'content_matched': content_matched, 'file_path': str(target_path), 'actual_content': actual_content.lstrip('\ufeff').strip(), 'error': None if content_matched else f"Content mismatch. Expected '{expected_content}', got '{actual_content.strip()}'"}
 
-def verify_process_running(process_name: Union[str, List[str]]) -> Dict[str, Any]:
+def verify_process_running(process_name: str | list[str]) -> dict[str, Any]:
     """
     Verify if any specified process name is currently running or active.
 
@@ -84,7 +84,7 @@ def verify_process_running(process_name: Union[str, List[str]]) -> Dict[str, Any
             for proc in psutil.process_iter(['name']):
                 try:
                     pname = proc.info['name']
-                    if pname and any((target.lower() in pname.lower() for target in process_names)):
+                    if pname and any(target.lower() in pname.lower() for target in process_names):
                         running.append(pname)
                 except Exception:
                     continue
@@ -104,7 +104,7 @@ def verify_process_running(process_name: Union[str, List[str]]) -> Dict[str, Any
     verified = len(running) > 0
     return {'verified': verified, 'running_processes': list(set(running)), 'error': None if verified else f'None of processes {process_names} were detected running.'}
 
-def resolve_log_path(stage_data: Optional[Union[Dict[str, Any], str, Path]]=None, output_dir: Optional[Union[str, Path]]=None, task_log_dir: Optional[Union[str, Path]]=None) -> Optional[Path]:
+def resolve_log_path(stage_data: dict[str, Any] | str | Path | None=None, output_dir: str | Path | None=None, task_log_dir: str | Path | None=None) -> Path | None:
     """
     Safely resolve log directory path from stage_data, task_log_dir, or output_dir.
     Handles stage_data passed as str, Path, or dict, as well as task_log_dir passed as dict positionally.
@@ -127,7 +127,7 @@ def resolve_log_path(stage_data: Optional[Union[Dict[str, Any], str, Path]]=None
         return None
     return Path(target_str)
 
-def verify_session_logs(log_dir: Optional[Union[str, Path]]=None, required_patterns: Optional[Union[str, List[str]]]=None, target_actions: Optional[List[str]]=None) -> Dict[str, Any]:
+def verify_session_logs(log_dir: str | Path | None=None, required_patterns: str | list[str] | None=None, target_actions: list[str] | None=None) -> dict[str, Any]:
     """
     Parse UFO response.log or step logs to verify execution patterns and check for step errors.
 
@@ -138,7 +138,7 @@ def verify_session_logs(log_dir: Optional[Union[str, Path]]=None, required_patte
     """
     if log_dir is None:
         return {'verified': False, 'total_steps': 0, 'matched_patterns': [], 'errors': [], 'error': 'Log directory is None or not provided.'}
-    patterns: List[str] = []
+    patterns: list[str] = []
     if required_patterns is not None:
         patterns = [required_patterns] if isinstance(required_patterns, str) else list(required_patterns)
     elif target_actions is not None:
@@ -178,7 +178,7 @@ def verify_session_logs(log_dir: Optional[Union[str, Path]]=None, required_patte
     errors_found = []
     for log_file in log_files:
         try:
-            with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+            with open(log_file, encoding='utf-8', errors='replace') as f:
                 content = f.read()
                 lines = content.strip().splitlines()
                 for line in lines:
@@ -201,7 +201,7 @@ def verify_session_logs(log_dir: Optional[Union[str, Path]]=None, required_patte
             logger.warning(f"Error reading log file '{log_file}': {e}")
     patterns_satisfied = True
     if patterns:
-        patterns_satisfied = all((p in matched_patterns for p in patterns))
+        patterns_satisfied = all(p in matched_patterns for p in patterns)
     verified = total_steps > 0 and len(errors_found) == 0 and patterns_satisfied
     error_msg = None
     if not verified:
@@ -216,7 +216,7 @@ def verify_session_logs(log_dir: Optional[Union[str, Path]]=None, required_patte
         error_msg = '; '.join(reasons) or 'Log verification failed.'
     return {'verified': verified, 'total_steps': total_steps, 'matched_patterns': list(matched_patterns), 'errors': errors_found, 'error': error_msg}
 
-def verify_bankfidelity_process(process_names: Optional[List[str]]=None) -> Dict[str, Any]:
+def verify_bankfidelity_process(process_names: list[str] | None=None) -> dict[str, Any]:
     """
     Verify if BankFidelity desktop application process is currently running or active.
 

@@ -1,12 +1,21 @@
-import sys, asyncio, json, tempfile, os
+import asyncio
+import json
+import os
+import sys
+import tempfile
+
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 sys.path.insert(0, 'C:\\Users\\lnxzf\\Desktop\\projects\\ufo')
+from ufo.automation.factory import get_desktop_automation
 from ufo.automator.app_apis.telegram import (
-    AutonomousTelegramAgent, ExecutionConfig, PrivacyRedactor,
-    ScreenLockout, TelegramGUIController, SAVED_MESSAGES,
+    SAVED_MESSAGES,
+    AutonomousTelegramAgent,
+    ExecutionConfig,
+    PrivacyRedactor,
+    ScreenLockout,
+    TelegramGUIController,
     canonical_chat_name,
 )
-from ufo.automation.factory import get_desktop_automation
 
 print('=' * 72)
 print('FINAL VALIDATION: A (Windows E2E) + B (conversation learn) + Privacy')

@@ -16,12 +16,12 @@ Or run specific tests:
 import asyncio
 import logging
 import subprocess
-import time
-from typing import Any, Dict, List, Optional
+
 import pytest
 from ufo.aip.messages import Command, ResultStatus
 from ufo.client.computer import CommandRouter, ComputerManager
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 class TestMobileMCPServers:
@@ -131,7 +131,7 @@ class TestMobileMCPServers:
         result = results[0].result
         assert result is not None
         assert result['success'] is True
-        print(f'✅ HOME key pressed successfully')
+        print('✅ HOME key pressed successfully')
         await asyncio.sleep(1)
         print('\n👆 Test 2: Tapping at screen center...')
         commands = [Command(tool_name='tap', tool_type='action', parameters={'x': 540, 'y': 960})]
@@ -177,12 +177,12 @@ class TestMobileMCPServers:
         commands = [Command(tool_name='invalidate_cache', tool_type='action', parameters={'cache_type': 'controls'})]
         results = await command_router.execute(agent_name='MobileAgent', process_name='', root_name='default', commands=commands)
         assert results[0].status == ResultStatus.SUCCESS
-        print(f'✅ Cache invalidated from action server')
+        print('✅ Cache invalidated from action server')
         print('\n3️⃣ Getting controls again from data collection server...')
         commands = [Command(tool_name='get_app_window_controls_target_info', tool_type='data_collection', parameters={'force_refresh': False})]
         results = await command_router.execute(agent_name='MobileAgent', process_name='', root_name='default', commands=commands)
         assert results[0].status == ResultStatus.SUCCESS
-        print(f'✅ Cache invalidation worked - data refreshed from device')
+        print('✅ Cache invalidation worked - data refreshed from device')
 
     @pytest.mark.asyncio
     async def test_complete_workflow(self, check_adb_connection, command_router):
@@ -207,7 +207,7 @@ class TestMobileMCPServers:
             commands = [Command(tool_name='click_control', tool_type='action', parameters={'control_id': clickable_control.get('id'), 'control_name': clickable_control.get('name')})]
             results = await command_router.execute(agent_name='MobileAgent', process_name='', root_name='default', commands=commands)
             if results[0].status == ResultStatus.SUCCESS:
-                print(f'✅ Successfully clicked control')
+                print('✅ Successfully clicked control')
             else:
                 print(f'⚠️ Click failed: {results[0].error}')
         else:

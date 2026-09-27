@@ -3,7 +3,6 @@ import asyncio
 import logging
 
 import pytest
-
 from ufo.utils.redact import RedactingFilter, redact
 
 TOKEN = "0123456789abcdef" * 3  # fake 48-hex token

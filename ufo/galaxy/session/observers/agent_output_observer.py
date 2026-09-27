@@ -6,10 +6,12 @@ delegating the actual printing logic to presenters.
 """
 import logging
 from typing import TYPE_CHECKING
-from ufo.galaxy.core.events import AgentEvent, Event, EventType, IEventObserver
-from ufo.galaxy.agents.schema import ConstellationAgentResponse
-from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
+
 from ufo.agents.presenters import PresenterFactory
+from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
+from ufo.galaxy.agents.schema import ConstellationAgentResponse
+from ufo.galaxy.core.events import AgentEvent, Event, EventType, IEventObserver
+
 if TYPE_CHECKING:
     from ufo.agents.presenters.base_presenter import BasePresenter
 
@@ -28,7 +30,7 @@ class AgentOutputObserver(IEventObserver):
         :param presenter_type: Type of presenter to use ("rich", "text", etc.)
         """
         self.logger = logging.getLogger(__name__)
-        self.presenter: 'BasePresenter' = PresenterFactory.create_presenter(presenter_type)
+        self.presenter: BasePresenter = PresenterFactory.create_presenter(presenter_type)
 
     async def on_event(self, event: Event) -> None:
         """

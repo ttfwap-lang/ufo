@@ -5,10 +5,12 @@ Wraps the existing UFO WebSocket client with AIP protocol abstractions.
 """
 import logging
 from typing import Any
+
 from ufo.aip.endpoints.base import AIPEndpoint
 from ufo.aip.protocol import AIPProtocol, HeartbeatProtocol, RegistrationProtocol
 from ufo.aip.resilience import HeartbeatManager, ReconnectionStrategy
 from ufo.aip.transport.websocket import WebSocketTransport
+
 
 class DeviceClientEndpoint(AIPEndpoint):
     """

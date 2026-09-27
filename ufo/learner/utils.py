@@ -1,8 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-import os
-
 import json
+import os
 
 from colorama import Fore, Style, init
 
@@ -79,7 +78,7 @@ def load_json_file(file_path):
     :return: The loaded JSON data.
     """
 
-    with open(file_path, "r", encoding="utf-8") as file:
+    with open(file_path, encoding="utf-8") as file:
         data = json.load(file)
     return data
 

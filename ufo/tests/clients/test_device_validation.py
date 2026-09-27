@@ -3,12 +3,14 @@
 """
 import asyncio
 import logging
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.abspath('.'))
 import pytest
 from ufo.galaxy.client.config_loader import ConstellationConfig, DeviceConfig
 from ufo.galaxy.client.constellation_client import ConstellationClient
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 

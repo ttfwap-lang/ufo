@@ -3,17 +3,15 @@
 Test the refactored visualization modules.
 """
 
-import pytest
-from unittest.mock import Mock
-from io import StringIO
 
+import pytest
+from ufo.galaxy.constellation.enums import TaskPriority, TaskStatus
 from ufo.galaxy.visualization import (
+    ConstellationDisplay,
     DAGVisualizer,
     TaskDisplay,
-    ConstellationDisplay,
     VisualizationChangeDetector,
 )
-from ufo.galaxy.constellation.enums import TaskStatus, TaskPriority
 
 
 class MockTaskStar:

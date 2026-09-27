@@ -1,15 +1,14 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from ufo.utils import get_hugginface_embedding
-
-from . import xml_loader, json_loader, basic
-
-from .utils import load_json_file, save_json_file, print_with_color
+import os
 
 from langchain_community.vectorstores import FAISS
 
-import os
+from ufo.utils import get_hugginface_embedding
+
+from . import basic, json_loader, xml_loader
+from .utils import load_json_file, print_with_color, save_json_file
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
@@ -43,7 +42,7 @@ class DocumentsIndexer:
         else:
             records = {}
 
-        print_with_color("Loading documents from {docs}...".format(docs=docs), "cyan")
+        print_with_color(f"Loading documents from {docs}...", "cyan")
 
         if format not in DocumentsIndexer._doc_loader_mapper.keys():
             raise ValueError("Invalid format: " + format)
@@ -54,9 +53,7 @@ class DocumentsIndexer:
         documents = loader.construct_document()
 
         print_with_color(
-            "Creating indexer for {num} documents for {app}...".format(
-                num=len(documents), app=app
-            ),
+            f"Creating indexer for {len(documents)} documents for {app}...",
             "yellow",
         )
 
@@ -81,9 +78,7 @@ class DocumentsIndexer:
         save_json_file("./learner/records.json", records)
 
         print_with_color(
-            "Indexer for {app} created successfully. Save in {path}.".format(
-                app=app, path=db_file_path
-            ),
+            f"Indexer for {app} created successfully. Save in {db_file_path}.",
             "green",
         )
 

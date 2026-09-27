@@ -2,9 +2,9 @@
 # Licensed under the MIT License.
 
 import logging
-from typing import Type, Optional
 
-from ufo.automator.app_apis.basic import WinCOMReceiverBasic, ReceiverBasic
+from ufo.automation.factory import get_desktop_automation
+from ufo.automator.app_apis.basic import ReceiverBasic, WinCOMReceiverBasic
 from ufo.automator.app_apis.excel.excelclient import ExcelWinCOMReceiver
 from ufo.automator.app_apis.powerpoint.powerpointclient import PowerPointWinCOMReceiver
 from ufo.automator.app_apis.shell.shell_client import ShellReceiver
@@ -13,7 +13,6 @@ from ufo.automator.app_apis.web.webclient import WebReceiver
 from ufo.automator.app_apis.word.wordclient import WordWinCOMReceiver
 from ufo.automator.basic import ReceiverFactory
 from ufo.automator.puppeteer import ReceiverManager
-from ufo.automation.factory import get_desktop_automation
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,7 @@ class COMReceiverFactory(APIReceiverFactory):
 
         return com_receiver(app_root_name, process_name, clsid)
 
-    def __com_client_mapper(self, app_root_name: str) -> Type[WinCOMReceiverBasic]:
+    def __com_client_mapper(self, app_root_name: str) -> type[WinCOMReceiverBasic]:
         """
         Map the app root to the corresponding COM client.
         :param app_root_name: The app root name.
@@ -68,7 +67,7 @@ class COMReceiverFactory(APIReceiverFactory):
             "POWERPNT.EXE": PowerPointWinCOMReceiver,
         }
 
-        com_receiver = win_com_client_mapping.get(app_root_name, None)
+        com_receiver = win_com_client_mapping.get(app_root_name)
 
         return com_receiver
 
@@ -85,7 +84,7 @@ class COMReceiverFactory(APIReceiverFactory):
             "olk.exe": "Outlook.Application",
         }
 
-        return win_com_map.get(app_root_name, None)
+        return win_com_map.get(app_root_name)
 
     @classmethod
     def name(cls) -> str:
@@ -171,7 +170,7 @@ class TelegramReceiverFactory(APIReceiverFactory):
 
     def create_receiver(
         self, app_root_name: str, process_name: str, *args, **kwargs
-    ) -> Optional[ReceiverBasic]:
+    ) -> ReceiverBasic | None:
         """
         Create the Telegram GUI receiver.
         :param app_root_name: The app root name (e.g., "Telegram.exe").
@@ -184,7 +183,7 @@ class TelegramReceiverFactory(APIReceiverFactory):
 
         # Get the appropriate desktop automation backend
         desktop = get_desktop_automation(process_name)
-        
+
         telegram_receiver = TelegramReceiver(app_root_name, process_name, desktop)
         logger.info(f"Telegram GUI receiver created for {app_root_name}.")
 

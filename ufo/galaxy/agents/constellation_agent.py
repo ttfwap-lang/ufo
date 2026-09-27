@@ -10,19 +10,24 @@ Optimized for type safety, maintainability, and follows SOLID principles.
 import asyncio
 import logging
 import time
-from typing import Dict, List, Optional, Tuple, Union
+
+from ufo.agents.agent.basic import BasicAgent
+from ufo.aip.messages import Command, MCPToolInfo, ResultStatus
 from ufo.galaxy.agents.constellation_agent_states import ConstellationAgentStatus
 from ufo.galaxy.agents.processors.processor import ConstellationAgentProcessor
-from ufo.galaxy.agents.prompters.base_constellation_prompter import BaseConstellationPrompter, ConstellationPrompterFactory
+from ufo.galaxy.agents.prompters.base_constellation_prompter import (
+    BaseConstellationPrompter,
+    ConstellationPrompterFactory,
+)
 from ufo.galaxy.agents.schema import ConstellationAgentResponse, WeavingMode
 from ufo.galaxy.client.components.types import AgentProfile
 from ufo.galaxy.constellation.orchestrator.orchestrator import TaskConstellationOrchestrator
 from ufo.galaxy.core.events import AgentEvent, ConstellationEvent, EventType, TaskEvent, get_event_bus
-from ufo.agents.agent.basic import BasicAgent
-from ufo.aip.messages import Command, MCPToolInfo, ResultStatus
 from ufo.module.context import Context, ContextNames
+
 from ..constellation import TaskConstellation
 from ..core.interfaces import IRequestProcessor, IResultProcessor
+
 
 class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
     """
@@ -43,7 +48,7 @@ class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
     """
     _constellation_creation_tool_name: str = 'build_constellation'
 
-    def __init__(self, orchestrator: Optional[TaskConstellationOrchestrator]=None, name: str='constellation_agent'):
+    def __init__(self, orchestrator: TaskConstellationOrchestrator | None=None, name: str='constellation_agent'):
         """
         Initialize the Constellation.
 
@@ -51,7 +56,7 @@ class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
         :param orchestrator: Task orchestrator instance
         """
         super().__init__(name)
-        self._current_constellation: Optional[TaskConstellation] = None
+        self._current_constellation: TaskConstellation | None = None
         self._status: str = 'START'
         self.logger = logging.getLogger(__name__)
         self.current_request: str = ''
@@ -65,7 +70,7 @@ class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
         self.set_state(StartConstellationAgentState())
 
     @property
-    def current_constellation(self) -> Optional[TaskConstellation]:
+    def current_constellation(self) -> TaskConstellation | None:
         """
         Get the current constellation being managed.
 
@@ -92,7 +97,7 @@ class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
             await self.context_provision(context=context)
             self._context_provision_executed = True
 
-    async def _create_and_process(self, context: Context) -> Tuple[float, float, float]:
+    async def _create_and_process(self, context: Context) -> tuple[float, float, float]:
         """
         Create processor and execute processing.
 
@@ -128,7 +133,7 @@ class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
         self._current_constellation = constellation
         return constellation
 
-    def _create_timing_info(self, start_time: float, end_time: float, duration: float) -> Dict[str, float]:
+    def _create_timing_info(self, start_time: float, end_time: float, duration: float) -> dict[str, float]:
         """
         Create timing information dictionary.
 
@@ -158,7 +163,7 @@ class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
         self.logger.info(f'{prefix}Task ID: {constellation.tasks.keys()}')
         self.logger.info(f'{prefix}Dependency ID: {constellation.dependencies.keys()}')
 
-    def _log_task_statuses(self, constellation: TaskConstellation, task_ids: List[str], stage: str) -> None:
+    def _log_task_statuses(self, constellation: TaskConstellation, task_ids: list[str], stage: str) -> None:
         """
         Log status for specific tasks.
 
@@ -171,7 +176,7 @@ class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
             if task:
                 self.logger.info(f'📊 Status for task {stage} {tid}: {task.status}')
 
-    async def _publish_constellation_modified_event(self, before_constellation: TaskConstellation, after_constellation: TaskConstellation, task_ids: List[str], timing_info: Dict[str, float]) -> None:
+    async def _publish_constellation_modified_event(self, before_constellation: TaskConstellation, after_constellation: TaskConstellation, task_ids: list[str], timing_info: dict[str, float]) -> None:
         """
         Publish constellation modified event.
 
@@ -198,7 +203,7 @@ class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
         except asyncio.TimeoutError:
             pass
 
-    async def process_creation(self, context: Context) -> Tuple[TaskConstellation, Dict[str, float]]:
+    async def process_creation(self, context: Context) -> tuple[TaskConstellation, dict[str, float]]:
         """
         Process a user request and generate a constellation.
 
@@ -216,7 +221,7 @@ class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
             await self._validate_and_update_constellation(created_constellation)
         return (self._current_constellation, self._create_timing_info(start_time, end_time, duration))
 
-    async def process_editing(self, context: Context=None, task_ids: Optional[List[str]]=None, before_constellation: Optional[TaskConstellation]=None) -> TaskConstellation:
+    async def process_editing(self, context: Context=None, task_ids: list[str] | None=None, before_constellation: TaskConstellation | None=None) -> TaskConstellation:
         """
         Process task completion events and potentially update the constellation.
 
@@ -291,7 +296,7 @@ class ConstellationAgent(BasicAgent, IRequestProcessor, IResultProcessor):
         self.logger.info(f'Creating prompter for {weaving_mode}')
         return ConstellationPrompterFactory.create_prompter(weaving_mode=weaving_mode)
 
-    def message_constructor(self, request: str, device_info: Dict[str, AgentProfile], constellation: TaskConstellation) -> List[Dict[str, Union[str, List[Dict[str, str]]]]]:
+    def message_constructor(self, request: str, device_info: dict[str, AgentProfile], constellation: TaskConstellation) -> list[dict[str, str | list[dict[str, str]]]]:
         """
         Construct the message for LLM interaction.
 

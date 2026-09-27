@@ -5,12 +5,10 @@ Simple test script for ConstellationAgent event publishing functionality.
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock
 
 from ufo.galaxy.constellation import TaskConstellation, TaskStar
-from ufo.galaxy.core.events import ConstellationEvent, EventType, EventBus
+from ufo.galaxy.core.events import ConstellationEvent, EventBus, EventType
 from ufo.galaxy.session.observers import DAGVisualizationObserver
-from ufo.module.context import Context, ContextNames
 
 
 class MockEventObserver:
@@ -33,15 +31,7 @@ class MockEventObserver:
 Simple test script for ConstellationAgent event publishing functionality.
 """
 
-import asyncio
-import time
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-
-from ufo.galaxy.constellation import TaskConstellation, TaskStar
-from ufo.galaxy.core.events import ConstellationEvent, EventType, EventBus
-from ufo.galaxy.session.observers import DAGVisualizationObserver
-from ufo.module.context import Context, ContextNames
 
 
 class MockEventObserver:
@@ -98,13 +88,13 @@ async def test_manual_constellation_event_publishing():
         constellation_state="modified",
     )
 
-    print(f"Publishing ConstellationEvent...")
+    print("Publishing ConstellationEvent...")
     await event_bus.publish_event(constellation_event)
 
     # Give a small delay to ensure event processing
     await asyncio.sleep(0.1)
 
-    print(f"\n📊 Event Publishing Results:")
+    print("\n📊 Event Publishing Results:")
     print(f"   Events captured by test observer: {len(test_observer.events_received)}")
 
     if test_observer.events_received:

@@ -47,7 +47,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ufo.automator.app_apis.telegram.telegram_privacy import PrivacyRedactor
 
@@ -84,15 +84,15 @@ class BotSkill:
     chat_name: str
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     version: int = 1
-    bot_commands: List[str] = field(default_factory=list)
-    command_usage: Dict[str, int] = field(default_factory=dict)
-    interaction_patterns: List[InteractionPattern] = field(default_factory=list)
-    extraction_patterns: List[str] = field(default_factory=list)
-    learned_facts: Dict[str, Any] = field(default_factory=dict)
-    failure_modes: List[FailureMode] = field(default_factory=list)
-    best_practices: List[str] = field(default_factory=list)
+    bot_commands: list[str] = field(default_factory=list)
+    command_usage: dict[str, int] = field(default_factory=dict)
+    interaction_patterns: list[InteractionPattern] = field(default_factory=list)
+    extraction_patterns: list[str] = field(default_factory=list)
+    learned_facts: dict[str, Any] = field(default_factory=dict)
+    failure_modes: list[FailureMode] = field(default_factory=list)
+    best_practices: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert skill to dictionary for serialization."""
         return {
             "skill_name": self.skill_name,
@@ -127,7 +127,7 @@ class BotSkill:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BotSkill":
+    def from_dict(cls, data: dict[str, Any]) -> BotSkill:
         """Create skill from dictionary."""
         skill = cls(
             skill_name=data.get("skill_name", ""),
@@ -244,17 +244,17 @@ class BotSkill:
         return filepath
 
     @classmethod
-    def load(cls, skill_name: str, skills_dir: Path = SKILLS_DIR) -> Optional["BotSkill"]:
+    def load(cls, skill_name: str, skills_dir: Path = SKILLS_DIR) -> BotSkill | None:
         """Load a skill from disk, or None if not present."""
         filepath = skills_dir / f"{skill_name}.json"
         if not filepath.exists():
             return None
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
         return cls.from_dict(data)
 
     @classmethod
-    def list_available(cls, skills_dir: Path = SKILLS_DIR) -> List[str]:
+    def list_available(cls, skills_dir: Path = SKILLS_DIR) -> list[str]:
         """List all available skill names."""
         if not skills_dir.exists():
             return []
@@ -320,12 +320,12 @@ class ConversationLearner:
     or in any output dict.
     """
 
-    def __init__(self, redactor: Optional[PrivacyRedactor] = None):
+    def __init__(self, redactor: PrivacyRedactor | None = None):
         self.redactor = redactor or PrivacyRedactor()
 
     # ==================== Public ====================
 
-    def learn_from_file(self, path: str, skill: BotSkill) -> Dict[str, Any]:
+    def learn_from_file(self, path: str, skill: BotSkill) -> dict[str, Any]:
         """Learn patterns from a Telegram Desktop JSON export. (No content reads.)"""
         import json
         from pathlib import Path
@@ -334,7 +334,7 @@ class ConversationLearner:
         if not p.exists():
             return {"error": f"File not found: {path}"}
 
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             data = json.load(f)
 
         if isinstance(data, dict) and "messages" in data:
@@ -352,8 +352,8 @@ class ConversationLearner:
         return self.learn_from_messages(messages, skill, chat_id=chat_id)
 
     def learn_from_messages(
-        self, messages: List[Dict], skill: BotSkill, chat_id: str = ""
-    ) -> Dict[str, Any]:
+        self, messages: list[dict], skill: BotSkill, chat_id: str = ""
+    ) -> dict[str, Any]:
         """Learn abstract patterns from a list of message dicts.
 
         Speaker classification: in Telegram Desktop exports BOTH sides use a
@@ -390,9 +390,7 @@ class ConversationLearner:
             text = _flatten_text(m.get("text", "")).strip()
 
             # Classify speaker
-            if bot_from_ids and from_id in bot_from_ids:
-                is_bot = True
-            elif bot_name and sender == bot_name:
+            if bot_from_ids and from_id in bot_from_ids or bot_name and sender == bot_name:
                 is_bot = True
             else:
                 is_bot = bool(from_id and not from_id.startswith("user"))
@@ -492,7 +490,7 @@ class ConversationLearner:
             return "news_bulletin", None
         return "plain_response", None
 
-    def _match_kw(self, text: str) -> Optional[str]:
+    def _match_kw(self, text: str) -> str | None:
         low = text.lower()
         for kw in self.redactor._keywords:
             if kw.lower() in low:

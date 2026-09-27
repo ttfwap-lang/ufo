@@ -16,12 +16,12 @@ import json
 import logging
 import math
 import os
-import random
 import sys
 import time
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
+
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 tests_dir = os.path.dirname(os.path.abspath(__file__))
 if tests_dir in sys.path:
@@ -35,9 +35,16 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
 logging.getLogger('ufo').setLevel(logging.ERROR)
 logging.getLogger('galaxy').setLevel(logging.ERROR)
-from ufo.galaxy.constellation import TaskConstellationOrchestrator, TaskConstellation, TaskStar, TaskStarLine, TaskStatus, TaskPriority, ConstellationState, DeviceType
-from ufo.galaxy.core.types import ExecutionResult
+from ufo.galaxy.constellation import (
+    TaskConstellation,
+    TaskConstellationOrchestrator,
+    TaskPriority,
+    TaskStar,
+    TaskStarLine,
+)
 from ufo.galaxy.core.events import EventBus
+from ufo.galaxy.core.types import ExecutionResult
+
 
 @dataclass
 class RequestResult:
@@ -49,7 +56,7 @@ class RequestResult:
     wall_time_sec: float
     task_count: int
     completed_tasks: int
-    error_message: Optional[str] = None
+    error_message: str | None = None
     start_timestamp: float = 0.0
     end_timestamp: float = 0.0
 
@@ -61,13 +68,13 @@ class IsolatedMockDeviceManager:
         self._connected_devices = {'web_device_01': {'device_type': 'web', 'status': 'connected'}, 'office_device_01': {'device_type': 'office', 'status': 'connected'}, 'mobile_device_01': {'device_type': 'mobile', 'status': 'connected'}, 'desktop_device_01': {'device_type': 'desktop', 'status': 'connected'}, 'cloud_service_01': {'device_type': 'cloud', 'status': 'connected'}}
         self.connected_devices = self._connected_devices
 
-    def get_all_devices(self) -> Dict[str, Any]:
+    def get_all_devices(self) -> dict[str, Any]:
         return self._connected_devices
 
-    def get_connected_devices(self) -> List[str]:
+    def get_connected_devices(self) -> list[str]:
         return list(self._connected_devices.keys())
 
-    async def assign_task_to_device(self, task_id: str, device_id: str, target_client_id: Optional[str]=None, task_description: str='', task_data: Optional[Dict[str, Any]]=None, timeout: float=300.0) -> ExecutionResult:
+    async def assign_task_to_device(self, task_id: str, device_id: str, target_client_id: str | None=None, task_description: str='', task_data: dict[str, Any] | None=None, timeout: float=300.0) -> ExecutionResult:
         if self.mock_latency > 0:
             await asyncio.sleep(self.mock_latency)
         return ExecutionResult(task_id=task_id, status='completed', result={'message': f"Successfully executed '{task_description}' on {device_id}"}, metadata={'device_id': device_id, 'execution_time': self.mock_latency})
@@ -76,7 +83,7 @@ class LoadMetricsCollector:
     """Aggregates real-time performance telemetry and computes statistical percentiles."""
 
     def __init__(self):
-        self.results: List[RequestResult] = []
+        self.results: list[RequestResult] = []
         self._lock = asyncio.Lock()
         self.start_time: float = 0.0
         self.end_time: float = 0.0
@@ -89,7 +96,7 @@ class LoadMetricsCollector:
                 self.framework_crashes += 1
 
     @staticmethod
-    def _percentile(sorted_data: List[float], p: float) -> float:
+    def _percentile(sorted_data: list[float], p: float) -> float:
         if not sorted_data:
             return 0.0
         k = (len(sorted_data) - 1) * (p / 100.0)
@@ -101,7 +108,7 @@ class LoadMetricsCollector:
         d1 = sorted_data[int(c)] * (k - f)
         return d0 + d1
 
-    def compute_summary(self) -> Dict[str, Any]:
+    def compute_summary(self) -> dict[str, Any]:
         total_requests = len(self.results)
         if total_requests == 0:
             return {'error': 'No requests recorded'}
@@ -109,8 +116,8 @@ class LoadMetricsCollector:
         failed = [r for r in self.results if not r.success]
         total_duration = max(0.001, self.end_time - self.start_time)
         latencies = sorted([r.wall_time_sec for r in self.results])
-        total_tasks = sum((r.task_count for r in self.results))
-        completed_tasks = sum((r.completed_tasks for r in self.results))
+        total_tasks = sum(r.task_count for r in self.results)
+        completed_tasks = sum(r.completed_tasks for r in self.results)
         success_count = len(successful)
         failed_count = len(failed)
         success_rate = success_count / total_requests * 100.0
@@ -132,7 +139,7 @@ class UFOLoadTestRunner:
     Uses asyncio.Semaphore for concurrency throttling across hundreds of agent requests.
     """
 
-    def __init__(self, concurrency: int=50, total_requests: int=100, mode: str='galaxy', profile: str='burst', duration: float=0.0, output_json: Optional[str]=None, mock_latency: float=0.001):
+    def __init__(self, concurrency: int=50, total_requests: int=100, mode: str='galaxy', profile: str='burst', duration: float=0.0, output_json: str | None=None, mock_latency: float=0.001):
         self.concurrency = concurrency
         self.total_requests = total_requests
         self.mode = mode.lower()
@@ -184,7 +191,7 @@ class UFOLoadTestRunner:
             constellation.add_dependency(TaskStarLine.create_success_only(f't_{req_id}_dev2', f't_{req_id}_test'))
         return constellation
 
-    async def _execute_simplified_request(self, req_id: int, dag_type: str) -> Tuple[bool, int, int, Optional[str]]:
+    async def _execute_simplified_request(self, req_id: int, dag_type: str) -> tuple[bool, int, int, str | None]:
         """Execute request using Simplified state machine direct completion."""
         try:
             constellation = self._create_synthetic_constellation(req_id, dag_type)
@@ -200,7 +207,7 @@ class UFOLoadTestRunner:
         except Exception as e:
             return (False, 0, 0, f'Simplified execution failure: {str(e)}')
 
-    async def _execute_galaxy_request(self, req_id: int, dag_type: str) -> Tuple[bool, int, int, Optional[str]]:
+    async def _execute_galaxy_request(self, req_id: int, dag_type: str) -> tuple[bool, int, int, str | None]:
         """Execute request using full Galaxy TaskConstellationOrchestrator pipeline."""
         try:
             device_manager = IsolatedMockDeviceManager(mock_latency=self.mock_latency)
@@ -236,9 +243,9 @@ class UFOLoadTestRunner:
             await self.collector.record_result(res)
             return res
 
-    async def run(self) -> Dict[str, Any]:
+    async def run(self) -> dict[str, Any]:
         """Execute the load test suite with specified concurrency and profile."""
-        print(f'🚀 Starting UFO Load Test Harness')
+        print('🚀 Starting UFO Load Test Harness')
         print(f'   - Target Concurrency: {self.concurrency}')
         print(f'   - Total Requests: {self.total_requests}')
         print(f'   - Orchestration Mode: {self.mode.upper()}')

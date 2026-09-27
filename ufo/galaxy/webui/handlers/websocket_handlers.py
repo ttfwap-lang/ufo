@@ -7,11 +7,13 @@ messages from clients, implementing the business logic for each message type.
 import asyncio
 import logging
 import time
-from typing import Any, Dict
+
 from fastapi import WebSocket
+
 from ufo.galaxy.webui.dependencies import AppState
-from ufo.galaxy.webui.models.enums import WebSocketMessageType, RequestStatus
+from ufo.galaxy.webui.models.enums import RequestStatus, WebSocketMessageType
 from ufo.galaxy.webui.services import DeviceService, GalaxyService
+
 
 class WebSocketMessageHandler:
     """

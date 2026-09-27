@@ -20,18 +20,19 @@ Usage:
 import gc
 import logging
 import platform
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
+
 logger = logging.getLogger(__name__)
 if platform.system() == 'Windows':
     from pywinauto.controls.uiawrapper import UIAWrapper
 else:
     UIAWrapper = Any
-ACTIONABLE_CONTROL_TYPES: Set[str] = {'Button', 'Edit', 'MenuItem', 'TabItem', 'ListItem', 'Hyperlink', 'CheckBox', 'RadioButton', 'ComboBox', 'TreeItem', 'Spinner', 'ScrollBar', 'Document', 'Text', 'Group'}
-CONTAINER_TYPES: Set[str] = {'Pane', 'Window', 'Group', 'ToolBar', 'Menu', 'MenuBar', 'StatusBar', 'Tab', 'List', 'Tree', 'Table', 'DataGrid', 'Custom'}
+ACTIONABLE_CONTROL_TYPES: set[str] = {'Button', 'Edit', 'MenuItem', 'TabItem', 'ListItem', 'Hyperlink', 'CheckBox', 'RadioButton', 'ComboBox', 'TreeItem', 'Spinner', 'ScrollBar', 'Document', 'Text', 'Group'}
+CONTAINER_TYPES: set[str] = {'Pane', 'Window', 'Group', 'ToolBar', 'Menu', 'MenuBar', 'StatusBar', 'Tab', 'List', 'Tree', 'Table', 'DataGrid', 'Custom'}
 DEFAULT_MAX_DEPTH = 15
 _COM_GC_INTERVAL = 50
 
-def prune_uia_tree(element: 'UIAWrapper', max_depth: int=DEFAULT_MAX_DEPTH, current_depth: int=0, _node_counter: Optional[List[int]]=None) -> Optional[Dict[str, Any]]:
+def prune_uia_tree(element: 'UIAWrapper', max_depth: int=DEFAULT_MAX_DEPTH, current_depth: int=0, _node_counter: list[int] | None=None) -> dict[str, Any] | None:
     """
     Recursively inspect and prune a Windows UIA control tree.
 
@@ -75,7 +76,7 @@ def prune_uia_tree(element: 'UIAWrapper', max_depth: int=DEFAULT_MAX_DEPTH, curr
             bounding_box = [rect.left, rect.top, rect.right, rect.bottom]
         except Exception:
             bounding_box = [0, 0, 0, 0]
-        node: Dict[str, Any] = {'control_type': control_type, 'name': name.strip(), 'automation_id': auto_id.strip(), 'bounding_box': bounding_box, 'children': []}
+        node: dict[str, Any] = {'control_type': control_type, 'name': name.strip(), 'automation_id': auto_id.strip(), 'bounding_box': bounding_box, 'children': []}
         try:
             children = element.children()
         except Exception:
@@ -96,7 +97,7 @@ def prune_uia_tree(element: 'UIAWrapper', max_depth: int=DEFAULT_MAX_DEPTH, curr
         logger.debug(f'Skipping stale UIA element at depth {current_depth}: {e}')
         return None
 
-def prune_uia_tree_from_root(app_window: 'UIAWrapper', max_depth: int=DEFAULT_MAX_DEPTH) -> Dict[str, Any]:
+def prune_uia_tree_from_root(app_window: 'UIAWrapper', max_depth: int=DEFAULT_MAX_DEPTH) -> dict[str, Any]:
     """
     Prune the UIA tree starting from an application window root.
 
@@ -130,7 +131,7 @@ def _count_descendants(element: 'UIAWrapper', max_depth: int=20) -> int:
         pass
     return count
 
-def _count_dict_nodes(tree: Optional[Dict[str, Any]]) -> int:
+def _count_dict_nodes(tree: dict[str, Any] | None) -> int:
     """Count nodes in a pruned tree dict."""
     if tree is None:
         return 0
@@ -139,7 +140,7 @@ def _count_dict_nodes(tree: Optional[Dict[str, Any]]) -> int:
         count += _count_dict_nodes(child)
     return count
 
-def tree_to_compact_string(tree: Optional[Dict[str, Any]], indent: int=0) -> str:
+def tree_to_compact_string(tree: dict[str, Any] | None, indent: int=0) -> str:
     """
     Convert a pruned tree dict to a compact string representation
     suitable for LLM context injection.

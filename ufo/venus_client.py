@@ -25,17 +25,16 @@ Coordinate convention (empirically verified, see bench_venus2.py):
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import os
 import re
 import subprocess
-import tempfile
 import threading
 import time
 from collections import OrderedDict
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any
 
 # Tailnet endpoints for the gx10 models.
 #
@@ -50,7 +49,7 @@ OCR_PS1 = os.environ.get(
     "UFO_OCR_PS1",
     r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\ocr_shot.ps1")
 
-Box = Tuple[int, int, int, int, str]   # x, y, w, h, text
+Box = tuple[int, int, int, int, str]   # x, y, w, h, text
 
 
 # --------------------------------------------------------------------------
@@ -64,13 +63,13 @@ Box = Tuple[int, int, int, int, str]   # x, y, w, h, text
 # (path, mtime_ns, size) so an edited screenshot is never served stale, and
 # bounded so a long session cannot grow without limit.
 _CACHE_MAX = 64
-_ocr_cache: "OrderedDict[Tuple[str, int, int], List[Box]]" = OrderedDict()
-_img_cache: "OrderedDict[Tuple[str, int, int], Tuple[str, int, int]]" = OrderedDict()
-_venus_cache: "OrderedDict[Tuple[Any, ...], Optional[Tuple[float, float]]]" = OrderedDict()
+_ocr_cache: OrderedDict[tuple[str, int, int], list[Box]] = OrderedDict()
+_img_cache: OrderedDict[tuple[str, int, int], tuple[str, int, int]] = OrderedDict()
+_venus_cache: OrderedDict[tuple[Any, ...], tuple[float, float] | None] = OrderedDict()
 _cache_lock = threading.Lock()
 
 
-def _file_key(png_path: str) -> Optional[Tuple[str, int, int]]:
+def _file_key(png_path: str) -> tuple[str, int, int] | None:
     """Cheap identity for a screenshot file: path + mtime + size.
 
     Avoids hashing megabytes of PNG just to decide whether a cache entry is
@@ -83,7 +82,7 @@ def _file_key(png_path: str) -> Optional[Tuple[str, int, int]]:
     return (os.path.abspath(png_path), st.st_mtime_ns, st.st_size)
 
 
-def _cache_get(store: "OrderedDict", key) -> Any:
+def _cache_get(store: OrderedDict, key) -> Any:
     with _cache_lock:
         if key in store:
             store.move_to_end(key)
@@ -91,7 +90,7 @@ def _cache_get(store: "OrderedDict", key) -> Any:
     return None
 
 
-def _cache_put(store: "OrderedDict", key, value) -> None:
+def _cache_put(store: OrderedDict, key, value) -> None:
     with _cache_lock:
         store[key] = value
         store.move_to_end(key)
@@ -105,7 +104,7 @@ def _cache_put(store: "OrderedDict", key, value) -> None:
 _ocr_service_down_until = 0.0
 
 
-def _ocr_via_service(png_path: str, timeout: float = 8.0) -> Optional[List[Box]]:
+def _ocr_via_service(png_path: str, timeout: float = 8.0) -> list[Box] | None:
     """Word boxes from the resident OCR service, or None to fall back.
 
     local_omniparser/service.py keeps the WinRT engine loaded, so this is ~150 ms
@@ -133,7 +132,7 @@ def _ocr_via_service(png_path: str, timeout: float = 8.0) -> Optional[List[Box]]
         return None
 
 
-def ocr_words(png_path: str, timeout: int = 240) -> List[Box]:
+def ocr_words(png_path: str, timeout: int = 240) -> list[Box]:
     """Word boxes (x, y, w, h, text) for a screenshot. THE OCR entry point.
 
     The bridge and astro_collect used to carry their own copies of the
@@ -179,12 +178,12 @@ def clear_caches() -> None:
         _venus_cache.clear()
 
 
-def _centre(box: Box) -> Tuple[float, float]:
+def _centre(box: Box) -> tuple[float, float]:
     return box[0] + box[2] / 2.0, box[1] + box[3] / 2.0
 
 
 def group_phrases(boxes: Sequence[Box], max_gap: int = 26,
-                  same_line: int = 8) -> List[Box]:
+                  same_line: int = 8) -> list[Box]:
     """Merge adjacent word boxes into phrase boxes (left-to-right, per line).
 
     WinRT OCR emits one box per WORD, so a UI label like "General Horoscopes"
@@ -196,8 +195,8 @@ def group_phrases(boxes: Sequence[Box], max_gap: int = 26,
     if not boxes:
         return []
     ordered = sorted(boxes, key=lambda b: (b[1], b[0]))
-    out: List[Box] = []
-    cur: List[Box] = []
+    out: list[Box] = []
+    cur: list[Box] = []
 
     def flush():
         if not cur:
@@ -232,10 +231,10 @@ def group_phrases(boxes: Sequence[Box], max_gap: int = 26,
 # One keep-alive connection per (host, port). urllib opens a fresh TCP
 # connection for every request, which on a tailnet link to the gx10 is a real
 # round trip per grounding call.
-_conn_pool: Dict[Tuple[str, int], Any] = {}
+_conn_pool: dict[tuple[str, int], Any] = {}
 
 
-def _post_json(url: str, payload: Dict[str, Any], timeout: int = 300) -> Dict:
+def _post_json(url: str, payload: dict[str, Any], timeout: int = 300) -> dict:
     import http.client
     from urllib.parse import urlsplit
 
@@ -256,7 +255,7 @@ def _post_json(url: str, payload: Dict[str, Any], timeout: int = 300) -> Dict:
         return http.client.HTTPConnection(host, port, timeout=timeout)
 
     key = (host, port)
-    last_exc: Optional[Exception] = None
+    last_exc: Exception | None = None
     # Retry once on a stale pooled socket: the far end may have closed an
     # idle keep-alive connection between calls.
     for attempt in (0, 1):
@@ -282,7 +281,7 @@ def _post_json(url: str, payload: Dict[str, Any], timeout: int = 300) -> Dict:
     raise last_exc  # type: ignore[misc]
 
 
-def _image_payload(png_path: str) -> Tuple[str, int, int]:
+def _image_payload(png_path: str) -> tuple[str, int, int]:
     """Return (base64 png, width, height), memoised per screenshot file.
 
     Reading, decoding and re-encoding the PNG on every grounding call is pure
@@ -307,8 +306,8 @@ def venus_point(png_path: str, label: str, *,
                 url: str = VENUS_URL,
                 model: str = VENUS_MODEL,
                 reasoning: bool = False,
-                temperature: Optional[float] = None,
-                max_tokens: int = 48) -> Optional[Tuple[float, float]]:
+                temperature: float | None = None,
+                max_tokens: int = 48) -> tuple[float, float] | None:
     """Return Venus' click point for `label` in IMAGE PIXELS, or None.
 
     COORDINATE CONVENTION (measured, see bench_venus2.py / bench_icons.py):
@@ -371,15 +370,15 @@ class LocateResult:
     y: float = 0.0
     strategy: str = "none"
     label: str = ""
-    venus_raw: Optional[Tuple[float, float]] = None
-    venus_px: Optional[Tuple[float, float]] = None
-    snapped_box: Optional[Box] = None
-    snap_distance: Optional[float] = None
+    venus_raw: tuple[float, float] | None = None
+    venus_px: tuple[float, float] | None = None
+    snapped_box: Box | None = None
+    snap_distance: float | None = None
     seconds: float = 0.0
     note: str = ""
-    candidates: List[Dict[str, Any]] = field(default_factory=list)
+    candidates: list[dict[str, Any]] = field(default_factory=list)
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "found": self.found, "x": round(self.x, 1), "y": round(self.y, 1),
             "strategy": self.strategy, "label": self.label,
@@ -425,7 +424,7 @@ def _label_matches(needle: str, text: str) -> bool:
 
 
 def locate(png_path: str, label: str, *,
-           ocr_boxes: Optional[Sequence[Box]] = None,
+           ocr_boxes: Sequence[Box] | None = None,
            prefer: str = "auto",
            snap_radius: float = 220.0,
            url: str = VENUS_URL) -> LocateResult:
@@ -539,7 +538,7 @@ OMNIPARSER_URL = os.environ.get("OMNIPARSER_URL",
 
 def omniparser_elements(png_path: str, *, url: str = OMNIPARSER_URL,
                         use_paddleocr: bool = True,
-                        imgsz: int = 1024) -> List[Dict[str, Any]]:
+                        imgsz: int = 1024) -> list[dict[str, Any]]:
     """Parse a screenshot into semantic elements (boxes in absolute pixels).
 
     Complements Venus: OmniParser enumerates EVERY control it sees with an
@@ -563,8 +562,7 @@ _STOPWORDS = {
     "the", "and", "for", "with", "that", "this", "from", "into", "are",
     "was", "were", "its", "you", "your", "not", "but", "can", "will",
     "has", "have", "had", "they", "them", "their", "there", "here", "some",
-    "other", "which", "what", "when", "where", "while", "about", "into",
-    "over", "under", "next", "near", "one", "two", "use", "using", "used",
+    "other", "which", "what", "when", "where", "while", "about", "over", "under", "next", "near", "one", "two", "use", "using", "used",
 }
 
 
@@ -589,9 +587,9 @@ def _caption_score(needle: str, caption: str) -> float:
 
 
 def locate_multi(png_path: str, label: str, *,
-                 ocr_boxes: Optional[Sequence[Box]] = None,
+                 ocr_boxes: Sequence[Box] | None = None,
                  engines: Sequence[str] = ("venus", "omni"),
-                 agree_px: float = 40.0) -> Dict[str, Any]:
+                 agree_px: float = 40.0) -> dict[str, Any]:
     """Locate `label` by CROSS-VALIDATING Venus and OmniParser.
 
     Two independently trained models agreeing on a point is the strongest
@@ -600,8 +598,8 @@ def locate_multi(png_path: str, label: str, *,
     """
     boxes = list(ocr_boxes) if ocr_boxes is not None else ocr_words(png_path)
     primary = locate(png_path, label, ocr_boxes=boxes, prefer="auto")
-    out: Dict[str, Any] = {"label": label, "primary": primary.as_dict()}
-    est: Dict[str, Tuple[float, float]] = {}
+    out: dict[str, Any] = {"label": label, "primary": primary.as_dict()}
+    est: dict[str, tuple[float, float]] = {}
     if "venus" in engines and primary.venus_px:
         est["venus"] = primary.venus_px
     if "omni" in engines:

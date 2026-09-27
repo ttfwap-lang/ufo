@@ -14,10 +14,10 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
-from dataclasses import dataclass, field, asdict
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -25,15 +25,15 @@ class ChatState:
     """Persistent state for a chat being automated."""
     chat_name: str
     op_name: str
-    last_message_id: Optional[int] = None
+    last_message_id: int | None = None
     total_known_messages: int = 0
-    bot_name: Optional[str] = None
-    bot_commands: List[str] = field(default_factory=list)
-    extraction_patterns: List[str] = field(default_factory=list)
-    daily_quota: Optional[int] = None
+    bot_name: str | None = None
+    bot_commands: list[str] = field(default_factory=list)
+    extraction_patterns: list[str] = field(default_factory=list)
+    daily_quota: int | None = None
     failures: int = 0
     completed_cycles: int = 0
-    learned_handlers: Dict[str, str] = field(default_factory=dict)
+    learned_handlers: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -43,8 +43,8 @@ class GoalState:
     description: str
     status: str = "pending"  # pending | running | completed | failed | paused
     current_milestone: str = ""
-    milestones: List[Dict[str, Any]] = field(default_factory=list)
-    progress: Dict[str, Any] = field(default_factory=dict)
+    milestones: list[dict[str, Any]] = field(default_factory=list)
+    progress: dict[str, Any] = field(default_factory=dict)
     messages_sent: int = 0
     messages_failed: int = 0
     created_at: str = ""
@@ -95,7 +95,7 @@ class TelegramMemory:
                 (chat_state.chat_name, json.dumps(asdict(chat_state), default=str)),
             )
 
-    def load_chat_state(self, chat_name: str) -> Optional[ChatState]:
+    def load_chat_state(self, chat_name: str) -> ChatState | None:
         """Load a chat state, or None if not present."""
         with self._lock, sqlite3.connect(self._db_path) as conn:
             row = conn.execute(
@@ -106,7 +106,7 @@ class TelegramMemory:
         data = json.loads(row[0])
         return ChatState(**data)
 
-    def load_all_chat_states(self) -> Dict[str, ChatState]:
+    def load_all_chat_states(self) -> dict[str, ChatState]:
         """Load all chat states keyed by chat name."""
         with self._lock, sqlite3.connect(self._db_path) as conn:
             rows = conn.execute("SELECT chat_name, state_json FROM chat_states").fetchall()
@@ -132,7 +132,7 @@ class TelegramMemory:
                 (goal.goal_id, json.dumps(asdict(goal), default=str)),
             )
 
-    def load_goal(self, goal_id: str) -> Optional[GoalState]:
+    def load_goal(self, goal_id: str) -> GoalState | None:
         """Load a goal state, or None if not present."""
         with self._lock, sqlite3.connect(self._db_path) as conn:
             row = conn.execute(
@@ -143,7 +143,7 @@ class TelegramMemory:
         data = json.loads(row[0])
         return GoalState(**data)
 
-    def load_all_goals(self) -> Dict[str, GoalState]:
+    def load_all_goals(self) -> dict[str, GoalState]:
         """Load all goals keyed by goal id."""
         with self._lock, sqlite3.connect(self._db_path) as conn:
             rows = conn.execute("SELECT goal_id, goal_json FROM goals").fetchall()
@@ -173,7 +173,7 @@ class TelegramMemory:
             return default
         return json.loads(row[0])
 
-    def get_all_knowledge(self) -> Dict[str, Any]:
+    def get_all_knowledge(self) -> dict[str, Any]:
         """Retrieve all knowledge as a dict."""
         with self._lock, sqlite3.connect(self._db_path) as conn:
             rows = conn.execute("SELECT key, value FROM knowledge").fetchall()

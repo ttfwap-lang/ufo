@@ -5,6 +5,7 @@ from response.log can be parsed by TaskConstellation.from_json
 import json
 import sys
 from pathlib import Path
+
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
@@ -15,7 +16,7 @@ __test__ = False
 def test_constellation_parsing(log_file_path: str):
     """Test parsing constellation_before and constellation_after from log file"""
     print(f'Reading log file: {log_file_path}\n')
-    with open(log_file_path, 'r', encoding='utf-8') as f:
+    with open(log_file_path, encoding='utf-8') as f:
         lines = f.readlines()
     print(f'Total lines in log file: {len(lines)}\n')
     results = {'total_lines': len(lines), 'lines_with_constellation_before': 0, 'lines_with_constellation_after': 0, 'successful_before_parsing': 0, 'failed_before_parsing': 0, 'successful_after_parsing': 0, 'failed_after_parsing': 0, 'errors': []}
@@ -29,7 +30,7 @@ def test_constellation_parsing(log_file_path: str):
                 try:
                     constellation = TaskConstellation.from_json(json_data=constellation_before_str)
                     results['successful_before_parsing'] += 1
-                    print(f'  [OK] Successfully parsed constellation_before')
+                    print('  [OK] Successfully parsed constellation_before')
                     print(f'    - Constellation ID: {constellation.constellation_id}')
                     print(f'    - Tasks: {constellation.task_count}')
                     print(f'    - Dependencies: {constellation.dependency_count}')
@@ -46,7 +47,7 @@ def test_constellation_parsing(log_file_path: str):
                 try:
                     constellation = TaskConstellation.from_json(json_data=constellation_after_str)
                     results['successful_after_parsing'] += 1
-                    print(f'  [OK] Successfully parsed constellation_after')
+                    print('  [OK] Successfully parsed constellation_after')
                     print(f'    - Constellation ID: {constellation.constellation_id}')
                     print(f'    - Tasks: {constellation.task_count}')
                     print(f'    - Dependencies: {constellation.dependency_count}')
@@ -68,11 +69,11 @@ def test_constellation_parsing(log_file_path: str):
     print(f"Lines with constellation_before: {results['lines_with_constellation_before']}")
     print(f"Lines with constellation_after: {results['lines_with_constellation_after']}")
     print()
-    print(f'constellation_before parsing:')
+    print('constellation_before parsing:')
     print(f"  - Successful: {results['successful_before_parsing']}")
     print(f"  - Failed: {results['failed_before_parsing']}")
     print()
-    print(f'constellation_after parsing:')
+    print('constellation_after parsing:')
     print(f"  - Successful: {results['successful_after_parsing']}")
     print(f"  - Failed: {results['failed_after_parsing']}")
     print()

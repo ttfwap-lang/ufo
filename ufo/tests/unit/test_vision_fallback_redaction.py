@@ -11,10 +11,10 @@ rectangle formats (dict-based adjusted_rectangle/rectangle and list-based boundi
 import os
 import shutil
 import tempfile
-import pytest
 from unittest.mock import AsyncMock, patch
-from PIL import Image
 
+import pytest
+from PIL import Image
 from ufo.automator.vision_fallback import VisionFallbackManager
 from ufo.llm.llm_result import LLMResult
 from ufo.security.pii_redactor import PIIRedactor

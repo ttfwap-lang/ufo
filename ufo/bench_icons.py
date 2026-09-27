@@ -8,16 +8,12 @@ Run after pinning the window; prints the error for both modes.
 import asyncio
 import base64
 import json
-import os
 import re
 import sys
 import urllib.request
 
 sys.path.insert(0, r"C:\Users\lnxzf\Desktop\projects\ufo")
 from ufo.automator.app_apis.telegram import TelegramGUIController
-from ufo.automation.desktop import Rect
-
-import venus_client as vc
 
 TARGETS = [
     ("Info", "the info panel toggle icon in the top bar"),

@@ -6,11 +6,10 @@ Adversarial and Stress Test Suite for GeminiService (Milestone 1 Verification)
 """
 
 import json
-import unittest
 from unittest.mock import MagicMock, patch
-import pytest
-from google.genai import types, errors
 
+import pytest
+from google.genai import errors, types
 from ufo.llm.gemini import GeminiService
 
 
@@ -42,23 +41,23 @@ def mock_config():
 
 def create_mock_response(text="Test response", prompt_tokens=10, completion_tokens=20):
     mock_response = MagicMock(spec=types.GenerateContentResponse)
-    
+
     mock_candidate = MagicMock()
     mock_part = MagicMock()
     mock_part.text = text
     mock_part.thought = False
     mock_part.function_call = None
     mock_part.model_dump.return_value = {}
-    
+
     mock_candidate.content.parts = [mock_part]
     mock_candidate.finish_reason = "STOP"
     mock_response.candidates = [mock_candidate]
-    
+
     mock_usage = MagicMock()
     mock_usage.prompt_token_count = prompt_tokens
     mock_usage.candidates_token_count = completion_tokens
     mock_response.usage_metadata = mock_usage
-    
+
     return mock_response
 
 
@@ -148,7 +147,7 @@ def test_candidate_parsing_thinking_parts(mock_config):
     """
     with patch.object(GeminiService, "get_gemini_client"):
         service = GeminiService(mock_config, "HOST_AGENT")
-        
+
         # Thought part only
         thought_part = MagicMock(text="Thinking about solution...", thought=True, function_call=None)
         thought_part.model_dump.return_value = {}
@@ -174,7 +173,7 @@ def test_candidate_parsing_function_call_as_dict(mock_config):
     """
     with patch.object(GeminiService, "get_gemini_client"):
         service = GeminiService(mock_config, "HOST_AGENT")
-        
+
         part = MagicMock(text=None, thought=False)
         part.function_call = {"name": "take_screenshot", "args": {"format": "png"}}
         part.model_dump.return_value = {}
@@ -195,7 +194,7 @@ def test_candidate_parsing_function_call_with_none_args(mock_config):
     """
     with patch.object(GeminiService, "get_gemini_client"):
         service = GeminiService(mock_config, "HOST_AGENT")
-        
+
         part = MagicMock(text=None, thought=False)
         part.function_call = types.FunctionCall(name="click_button", args=None)
         part.model_dump.return_value = {}
@@ -216,7 +215,7 @@ def test_candidate_parsing_function_call_and_text_combined(mock_config):
     """
     with patch.object(GeminiService, "get_gemini_client"):
         service = GeminiService(mock_config, "HOST_AGENT")
-        
+
         part1 = MagicMock(text="Executing command:", thought=False, function_call=None)
         part1.model_dump.return_value = {}
 
@@ -239,7 +238,7 @@ def test_candidate_parsing_unhandled_part_types(mock_config):
     """
     with patch.object(GeminiService, "get_gemini_client"):
         service = GeminiService(mock_config, "HOST_AGENT")
-        
+
         part = MagicMock(text="Hello", thought=False, function_call=None)
         part.model_dump.return_value = {"inline_data": {"mime_type": "image/png"}}
 

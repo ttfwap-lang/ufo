@@ -3,12 +3,13 @@
 """
 import asyncio
 import logging
-from unittest.mock import AsyncMock, MagicMock
-from ufo.aip.messages import ClientMessage, ClientMessageType, TaskStatus
-from ufo.server.ws.handler import UFOWebSocketHandler
-from ufo.server.services.ws_manager import WSManager
-from ufo.server.services.session_manager import SessionManager
 from datetime import datetime, timezone
+
+from ufo.aip.messages import ClientMessage, ClientMessageType, TaskStatus
+from ufo.server.services.session_manager import SessionManager
+from ufo.server.services.ws_manager import WSManager
+from ufo.server.ws.handler import UFOWebSocketHandler
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class MockWebSocket:
     async def send_text(self, message):
         self.messages_sent.append(message)
 import pytest
+
 
 @pytest.mark.asyncio
 async def test_handler_methods():

@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, model_validator
 
@@ -22,9 +22,9 @@ class TargetInfo(BaseModel):
 
     kind: TargetKind = TargetKind.WINDOW  # The kind of the target (window, control, or third-party agent)
     name: str = "Unknown"  # The name of the target
-    id: Optional[str] = None  # The ID of the target (only valid at current step)
-    type: Optional[str] = None  # The type of the target (e.g., process, app, etc.)
-    rect: Optional[List[int]] = (
+    id: str | None = None  # The ID of the target (only valid at current step)
+    type: str | None = None  # The type of the target (e.g., process, app, etc.)
+    rect: list[int] | None = (
         None  # The rectangle of the target [left, top, right, bottom]
     )
 
@@ -51,11 +51,11 @@ class TargetRegistry:
         """
         Initialize the target registry.
         """
-        self._targets: Dict[str, TargetInfo] = {}
+        self._targets: dict[str, TargetInfo] = {}
         self._counter = 0
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def register(self, target: Union[TargetInfo, List[TargetInfo]]) -> List[TargetInfo]:
+    def register(self, target: TargetInfo | list[TargetInfo]) -> list[TargetInfo]:
         """
         Register a target or a list of targets.
         :param target: The target or list of targets to register.
@@ -80,7 +80,7 @@ class TargetRegistry:
 
         return registered
 
-    def register_from_dict(self, target_dict: Dict[str, Any]) -> TargetInfo:
+    def register_from_dict(self, target_dict: dict[str, Any]) -> TargetInfo:
         """
         Register a target from a dictionary.
         :param target_dict: The dictionary containing target information.
@@ -96,8 +96,8 @@ class TargetRegistry:
         return self.register(target)
 
     def register_from_dicts(
-        self, target_dicts: List[Dict[str, Any]]
-    ) -> List[TargetInfo]:
+        self, target_dicts: list[dict[str, Any]]
+    ) -> list[TargetInfo]:
         """
         Register targets from a list of dictionaries.
         :param target_dicts: The list of dictionaries containing target information.
@@ -105,7 +105,7 @@ class TargetRegistry:
         """
         return [self.register_from_dict(d) for d in target_dicts]
 
-    def get(self, target_id: str) -> Optional[TargetInfo]:
+    def get(self, target_id: str) -> TargetInfo | None:
         """
         Get a target by its ID.
         :param target_id: The ID of the target to retrieve.
@@ -113,7 +113,7 @@ class TargetRegistry:
         """
         return self._targets.get(target_id)
 
-    def find_by_name(self, name: str) -> List[TargetInfo]:
+    def find_by_name(self, name: str) -> list[TargetInfo]:
         """
         Find targets by their name.
         :param name: The name of the targets to find.
@@ -121,7 +121,7 @@ class TargetRegistry:
         """
         return [t for t in self._targets.values() if t.name == name]
 
-    def find_by_id(self, target_id: str) -> Optional[TargetInfo]:
+    def find_by_id(self, target_id: str) -> TargetInfo | None:
         """
         Find a target by its ID.
         :param target_id: The ID of the target to find.
@@ -129,7 +129,7 @@ class TargetRegistry:
         """
         return self._targets.get(target_id)
 
-    def find_by_kind(self, kind: TargetKind) -> List[TargetInfo]:
+    def find_by_kind(self, kind: TargetKind) -> list[TargetInfo]:
         """
         Find targets by their kind.
         :param kind: The kind of the targets to find.
@@ -137,7 +137,7 @@ class TargetRegistry:
         """
         return [t for t in self._targets.values() if t.kind == kind]
 
-    def all_targets(self) -> List[TargetInfo]:
+    def all_targets(self) -> list[TargetInfo]:
         """
         Get all registered targets.
         :return: A list of all registered targets.
@@ -155,7 +155,7 @@ class TargetRegistry:
             return True
         return False
 
-    def to_list(self, keep_keys: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    def to_list(self, keep_keys: list[str] | None = None) -> list[dict[str, Any]]:
         """
         Convert the registered targets to a list of dictionaries.
         :param keep_keys: Optional list of keys to keep in the output dictionaries.

@@ -7,11 +7,13 @@ events and agent updates.
 """
 import asyncio
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, Type
+from typing import TYPE_CHECKING, Any
+
+from ufo.agents.states.basic import AgentState, AgentStateManager
 from ufo.galaxy.agents.schema import WeavingMode
 from ufo.galaxy.core.events import EventType
-from ufo.agents.states.basic import AgentState, AgentStateManager
 from ufo.module.context import Context, ContextNames
+
 if TYPE_CHECKING:
     from ufo.galaxy.agents.constellation_agent import ConstellationAgent
 
@@ -30,7 +32,7 @@ class ConstellationAgentStatus(Enum):
 
 class ConstellationAgentStateManager(AgentStateManager):
     """State manager for Galaxy Agent"""
-    _state_mapping: Dict[str, Type[AgentState]] = {}
+    _state_mapping: dict[str, type[AgentState]] = {}
     START = ConstellationAgentStatus.START
     CONTINUE = ConstellationAgentStatus.CONTINUE
     FINISH = ConstellationAgentStatus.FINISH
@@ -82,7 +84,7 @@ class ConstellationAgentState(AgentState):
         state = ConstellationAgentStateManager().get_state(status)
         return state
 
-    async def queue_task_update(self, task_update: Dict[str, Any]) -> None:
+    async def queue_task_update(self, task_update: dict[str, Any]) -> None:
         """Queue task update method for base state."""
         pass
 
@@ -94,8 +96,8 @@ class StartConstellationAgentState(ConstellationAgentState):
         """Configure task timeouts based on config and task priority."""
         if not constellation or not hasattr(constellation, 'tasks'):
             return
-        from ufo.galaxy.constellation.enums import TaskPriority
         from ufo.config import Config
+        from ufo.galaxy.constellation.enums import TaskPriority
         config = Config.get_instance().config_data
         default_timeout = config.get('GALAXY_TASK_TIMEOUT', 1800.0)
         critical_timeout = config.get('GALAXY_CRITICAL_TASK_TIMEOUT', 3600.0)
@@ -183,7 +185,7 @@ class ContinueConstellationAgentState(ConstellationAgentState):
         self._pending_task_updates = asyncio.Queue()
         self._running_tasks = set()
 
-    async def queue_task_update(self, task_update: Dict[str, Any]) -> None:
+    async def queue_task_update(self, task_update: dict[str, Any]) -> None:
         """Queue a task update to be processed by the state machine."""
         await self._pending_task_updates.put(task_update)
 

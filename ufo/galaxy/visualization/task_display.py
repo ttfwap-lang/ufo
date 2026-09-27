@@ -9,22 +9,16 @@ visualizations with rich console output, including status indicators,
 progress tracking, and detailed task information.
 """
 
-from typing import Any, Dict, Optional
-
+from typing import Any
 
 from rich.console import Console, Group
-
 from rich.panel import Panel
-
 from rich.table import Table
-
 from rich.text import Text
-
 
 from ufo.galaxy.core.types import ExecutionResult
 
 from ..constellation.enums import TaskStatus
-
 from ..constellation.task_star import TaskStar
 
 
@@ -36,7 +30,7 @@ class TaskDisplay:
     with consistent Rich formatting across different contexts.
     """
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Console | None = None):
         """
         Initialize TaskDisplay.
 
@@ -45,7 +39,7 @@ class TaskDisplay:
         self.console = console or Console()
 
     def display_task_started(
-        self, task: TaskStar, additional_info: Optional[Dict[str, Any]] = None
+        self, task: TaskStar, additional_info: dict[str, Any] | None = None
     ) -> None:
         """
         Display task start notification with enhanced formatting.
@@ -56,7 +50,7 @@ class TaskDisplay:
         # Create task info text
         task_info = Text()
         task_info.append("🚀 ", style="bold green")
-        task_info.append(f"Task Started: ", style="bold blue")
+        task_info.append("Task Started: ", style="bold blue")
         task_info.append(f"{task.name}", style="bold yellow")
         task_info.append(f" ({task.task_id[:8]}...)", style="dim")
 
@@ -76,9 +70,9 @@ class TaskDisplay:
     def display_task_completed(
         self,
         task: TaskStar,
-        execution_time: Optional[float] = None,
-        result: Optional[Any] = None,
-        newly_ready_tasks: Optional[int] = None,
+        execution_time: float | None = None,
+        result: Any | None = None,
+        newly_ready_tasks: int | None = None,
     ) -> None:
         """
         Display task completion notification with results.
@@ -91,7 +85,7 @@ class TaskDisplay:
         # Create success message
         success_text = Text()
         success_text.append("✅ ", style="bold green")
-        success_text.append(f"Task Completed: ", style="bold green")
+        success_text.append("Task Completed: ", style="bold green")
         success_text.append(f"{task.name}", style="bold yellow")
         success_text.append(f" ({task.task_id[:8]}...)", style="dim")
 
@@ -142,9 +136,9 @@ class TaskDisplay:
     def display_task_failed(
         self,
         task: TaskStar,
-        error: Optional[Exception] = None,
-        retry_info: Optional[Dict[str, int]] = None,
-        newly_ready_tasks: Optional[int] = None,
+        error: Exception | None = None,
+        retry_info: dict[str, int] | None = None,
+        newly_ready_tasks: int | None = None,
     ) -> None:
         """
         Display task failure notification with error details.
@@ -157,7 +151,7 @@ class TaskDisplay:
         # Create failure message
         failure_text = Text()
         failure_text.append("❌ ", style="bold red")
-        failure_text.append(f"Task Failed: ", style="bold red")
+        failure_text.append("Task Failed: ", style="bold red")
         failure_text.append(f"{task.name}", style="bold yellow")
         failure_text.append(f" ({task.task_id[:8]}...)", style="dim")
 
@@ -202,7 +196,7 @@ class TaskDisplay:
         self.console.print(panel)
 
     def _format_task_details(
-        self, task: TaskStar, additional_info: Optional[Dict[str, Any]] = None
+        self, task: TaskStar, additional_info: dict[str, Any] | None = None
     ) -> str:
         """
         Format task details for display.

@@ -5,35 +5,24 @@ Test script specifically for individual event visualization.
 
 import asyncio
 import time
+
+from ufo.galaxy.constellation.enums import TaskStatus
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
 from ufo.galaxy.core.events import (
-    get_event_bus,
+    ConstellationEvent,
     EventType,
     TaskEvent,
-    ConstellationEvent,
+    get_event_bus,
 )
 from ufo.galaxy.session.observers import DAGVisualizationObserver
-from ufo.galaxy.constellation.enums import TaskStatus
-
 
 #!/usr/bin/env python3
 """
 Test script specifically for individual event visualization.
 """
 
-import asyncio
-import time
 import pytest
-from ufo.galaxy.constellation.task_constellation import TaskConstellation
-from ufo.galaxy.constellation.task_star import TaskStar
-from ufo.galaxy.core.events import (
-    get_event_bus,
-    EventType,
-    TaskEvent,
-    ConstellationEvent,
-)
-from ufo.galaxy.session.observers import DAGVisualizationObserver
 
 
 @pytest.mark.asyncio

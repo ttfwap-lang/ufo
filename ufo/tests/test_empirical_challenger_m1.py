@@ -12,31 +12,30 @@ Targeting:
 """
 
 import json
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
 
-from tests.eval_suite.verifiers import (
-    resolve_log_path,
-    verify_session_logs,
-    verify_bankfidelity_process,
-    verify_process_running,
-)
+import pytest
+
 from tests.eval_suite.stages import (
-    verify_r1,
-    verify_r2,
-    verify_r3,
-    verify_r4,
-    verify_r5,
+    STAGE_R3_DEFAULT_REQUEST,
+    STAGE_R4_DEFAULT_REPORT_FILENAME,
+    STAGE_R5_DEFAULT_SUMMARY_FILENAME,
     pre_cleanup_r1,
     pre_cleanup_r2,
     pre_cleanup_r3,
     pre_cleanup_r4,
     pre_cleanup_r5,
-    STAGE_R3_DEFAULT_REQUEST,
-    STAGE_R4_DEFAULT_REPORT_FILENAME,
-    STAGE_R5_DEFAULT_SUMMARY_FILENAME,
+    verify_r1,
+    verify_r2,
+    verify_r3,
+    verify_r4,
+    verify_r5,
+)
+from tests.eval_suite.verifiers import (
+    resolve_log_path,
+    verify_session_logs,
 )
 
 

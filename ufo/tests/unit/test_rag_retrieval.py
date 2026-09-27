@@ -10,7 +10,6 @@ pytest.importorskip("faiss")
 from langchain_community.embeddings import DeterministicFakeEmbedding
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
-
 from ufo.rag import ddg_search, retriever, web_search
 from ufo.utils import resolve_data_path
 

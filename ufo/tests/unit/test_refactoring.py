@@ -4,14 +4,19 @@ Test script to validate the refactored Constellation Agent strategies and prompt
 This script tests the factory pattern implementation and ensures proper
 strategy/prompter creation based on weaving modes.
 """
-import sys
 import os
+import sys
+
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.insert(0, project_root)
-from ufo.galaxy.agents.processors.strategies.constellation_factory import ConstellationStrategyFactory, ConstellationPrompterFactory
-from ufo.galaxy.agents.schema import WeavingMode
+from ufo.galaxy.agents.processors.strategies.constellation_factory import (
+    ConstellationPrompterFactory,
+    ConstellationStrategyFactory,
+)
 from ufo.galaxy.agents.prompters.constellation_creation_prompter import ConstellationCreationPrompter
 from ufo.galaxy.agents.prompters.constellation_editing_prompter import ConstellationEditingPrompter
+from ufo.galaxy.agents.schema import WeavingMode
+
 
 def test_strategy_factory():
     """Test the ConstellationStrategyFactory."""

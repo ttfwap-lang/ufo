@@ -5,10 +5,12 @@ TaskConstellation Editor 使用示例
 """
 import sys
 from pathlib import Path
+
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 from ufo.galaxy.constellation.editor import ConstellationEditor
-from ufo.galaxy.constellation.enums import TaskPriority, DependencyType
+from ufo.galaxy.constellation.enums import DependencyType, TaskPriority
+
 
 def example_basic_operations():
     """基本操作示例"""
@@ -71,7 +73,7 @@ def example_bulk_operations():
     editor.build_from_tasks_and_dependencies(tasks, dependencies, metadata={'purpose': 'system_startup', 'version': '1.0'})
     print(f'✅ 批量创建: {len(editor.list_tasks())} 个任务, {len(editor.list_dependencies())} 个依赖')
     stats = editor.get_statistics()
-    print(f'📊 统计信息:')
+    print('📊 统计信息:')
     print(f"  - 总任务数: {stats['total_tasks']}")
     print(f"  - 总依赖数: {stats['total_dependencies']}")
     print(f"  - 编辑器执行次数: {stats['editor_execution_count']}")

@@ -16,7 +16,7 @@ extra in pyproject.toml). Importing this module must never fail even if
 from __future__ import annotations
 
 import re
-from typing import Any, Optional
+from typing import Any
 
 from ufo.automation.desktop import Element, Rect
 
@@ -53,7 +53,7 @@ class PlaywrightDesktop:
     subclass it because the protocol is runtime-checkable and duck-typed.
     """
 
-    def __init__(self, cdp_endpoint: Optional[str] = None) -> None:
+    def __init__(self, cdp_endpoint: str | None = None) -> None:
         """
         :param cdp_endpoint: Optional existing CDP endpoint (e.g.
             "http://localhost:9222") to attach to. If not provided, a new
@@ -65,7 +65,7 @@ class PlaywrightDesktop:
         self._browser = None
         self._page = None
 
-    async def launch(self, app: str, args: Optional[list] = None) -> int:
+    async def launch(self, app: str, args: list | None = None) -> int:
         """Launch or attach to a Chromium/Edge/Electron target.
 
         :param app: executable name (e.g. "chrome.exe", "msedge.exe") or a
@@ -97,7 +97,7 @@ class PlaywrightDesktop:
         return pid or 0
 
     async def find_window(
-        self, title_re: str, class_name: Optional[str] = None
+        self, title_re: str, class_name: str | None = None
     ) -> Element:
         """Find a browser page/window whose title matches ``title_re``."""
         if self._browser is None:
@@ -150,8 +150,8 @@ class PlaywrightDesktop:
     async def get_text(self, element: Element) -> str:
         return await element.handle.text_content() or ""
 
-    async def screenshot(self, window: Optional[Element] = None,
-                         region: Optional[Rect] = None) -> bytes:
+    async def screenshot(self, window: Element | None = None,
+                         region: Rect | None = None) -> bytes:
         """Signature matches the DesktopAutomation protocol (window, region).
 
         It used to be (region) only, so a caller written against the protocol

@@ -9,7 +9,7 @@ All agents' print_response logic is centralized here for maintainability.
 """
 
 import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -22,8 +22,8 @@ from .base_presenter import BasePresenter
 if TYPE_CHECKING:
     from ufo.agents.processors.schemas.response_schema import (
         AppAgentResponse,
-        HostAgentResponse,
         EvaluationAgentResponse,
+        HostAgentResponse,
     )
     from ufo.galaxy.agents.schema import ConstellationAgentResponse
 
@@ -79,7 +79,7 @@ class RichPresenter(BasePresenter):
         },
     }
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Console | None = None):
         """
         Initialize the Rich presenter.
 
@@ -178,7 +178,7 @@ class RichPresenter(BasePresenter):
         # This will be implemented by specific action presentation methods
         pass
 
-    def present_plan(self, plan: List[str]) -> None:
+    def present_plan(self, plan: list[str]) -> None:
         """
         Present agent's plan.
 
@@ -194,7 +194,7 @@ class RichPresenter(BasePresenter):
                 )
             )
 
-    def present_comment(self, comment: Optional[str]) -> None:
+    def present_comment(self, comment: str | None) -> None:
         """
         Present agent's comment/message.
 
@@ -331,7 +331,7 @@ class RichPresenter(BasePresenter):
         # Print response footer
         self._print_response_footer()
 
-    def _present_actions_as_table(self, actions: List[Any]) -> None:
+    def _present_actions_as_table(self, actions: list[Any]) -> None:
         """
         Present actions as a Rich table (AppAgent style).
 
@@ -366,7 +366,7 @@ class RichPresenter(BasePresenter):
     # ============================================================================
 
     def present_host_agent_response(
-        self, response: "HostAgentResponse", action_str: Optional[str] = None
+        self, response: "HostAgentResponse", action_str: str | None = None
     ) -> None:
         """
         Present HostAgent response - matches original HostAgent.print_response logic.
@@ -460,7 +460,7 @@ class RichPresenter(BasePresenter):
         # Print response footer
         self._print_response_footer()
 
-    def _format_action_string(self, function: str, arguments: Dict[str, Any]) -> str:
+    def _format_action_string(self, function: str, arguments: dict[str, Any]) -> str:
         """
         Format action string for display.
 
@@ -562,7 +562,7 @@ class RichPresenter(BasePresenter):
 
         constellation_info = Text()
         if "utf" in (self.console.encoding or "").lower():
-            constellation_info.append(f"🆔 ID: ", style="bold cyan")
+            constellation_info.append("🆔 ID: ", style="bold cyan")
         else:
             constellation_info.append("ID: ", style="bold cyan")
         constellation_info.append(f"{constellation.constellation_id}\n", style="white")
@@ -658,6 +658,7 @@ class RichPresenter(BasePresenter):
         :param success_only: Whether to print only successful actions
         """
         from rich.rule import Rule
+
         from ufo.aip.messages import ResultStatus
         if not actions or not actions.actions:
             self.console.print(
@@ -759,6 +760,7 @@ class RichPresenter(BasePresenter):
         """Print a single constellation editing action in compact format."""
         from rich.table import Table
         from rich.text import Text
+
         from ufo.aip.messages import ResultStatus
         # Determine status icon and color
         if action.result.status == ResultStatus.SUCCESS:
@@ -935,6 +937,7 @@ class RichPresenter(BasePresenter):
         :param action: ActionCommandInfo object
         """
         from rich.text import Text
+
         from ufo.aip.messages import ResultStatus
         # Determine status icon and color
         encoding = (self.console.encoding or "").lower()

@@ -39,12 +39,12 @@ Usage:
 import logging
 import os
 import threading
-import time
 from contextlib import contextmanager
-from typing import Any, Dict, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
-def _load_fleet_config() -> Dict[str, Any]:
+def _load_fleet_config() -> dict[str, Any]:
     """Load distributed fleet config from system.yaml."""
     defaults = {'ENABLED': False, 'REDIS_URL': 'redis://127.0.0.1:6379/0', 'WORKER_ID': 'auto', 'LOCK_EXPIRY_SECONDS': 300, 'LOCK_PREFIX': 'ufo:lock:action'}
     try:
@@ -76,7 +76,7 @@ class DistributedLockManager:
     Falls back to local threading.Lock if Redis is unavailable.
     """
 
-    def __init__(self, redis_url: Optional[str]=None, worker_id: Optional[str]=None) -> None:
+    def __init__(self, redis_url: str | None=None, worker_id: str | None=None) -> None:
         self._config = _load_fleet_config()
         self._redis_url = redis_url or self._config.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
         self._worker_id = worker_id or _resolve_worker_id(self._config.get('WORKER_ID', 'auto'))
@@ -84,7 +84,7 @@ class DistributedLockManager:
         self._lock_prefix = self._config.get('LOCK_PREFIX', 'ufo:lock:action')
         self._redis = None
         self._available = False
-        self._local_locks: Dict[str, threading.Lock] = {}
+        self._local_locks: dict[str, threading.Lock] = {}
         self._local_lock_guard = threading.Lock()
         # Keys acquired via the local fallback while Redis was unreachable.
         self._fallback_keys: set = set()
@@ -115,7 +115,7 @@ class DistributedLockManager:
         """Check if distributed locking is active (vs local fallback)."""
         return self._available and self._redis is not None
 
-    def acquire_lock(self, idempotency_key: str, worker_id: Optional[str]=None, expiry: Optional[int]=None) -> bool:
+    def acquire_lock(self, idempotency_key: str, worker_id: str | None=None, expiry: int | None=None) -> bool:
         """
         Attempt to acquire a global execution lock for an irrevocable action.
 
@@ -131,7 +131,7 @@ class DistributedLockManager:
         else:
             return self._acquire_local(idempotency_key)
 
-    def release_lock(self, idempotency_key: str, worker_id: Optional[str]=None) -> bool:
+    def release_lock(self, idempotency_key: str, worker_id: str | None=None) -> bool:
         """
         Release a held lock. Only the owner can release.
 
@@ -154,7 +154,7 @@ class DistributedLockManager:
         else:
             return self._release_local(idempotency_key)
 
-    def extend_lock(self, idempotency_key: str, worker_id: Optional[str]=None, extra_seconds: int=60) -> bool:
+    def extend_lock(self, idempotency_key: str, worker_id: str | None=None, extra_seconds: int=60) -> bool:
         """Extend an existing lock's TTL (only if owner)."""
         wid = worker_id or self._worker_id
         if not self.is_distributed:
@@ -180,7 +180,7 @@ class DistributedLockManager:
                 lock = self._local_locks.get(idempotency_key)
                 return lock is not None and lock.locked()
 
-    def get_lock_owner(self, idempotency_key: str) -> Optional[str]:
+    def get_lock_owner(self, idempotency_key: str) -> str | None:
         """Get the worker ID that holds a lock (Redis only)."""
         if not self.is_distributed:
             return None
@@ -191,7 +191,7 @@ class DistributedLockManager:
             return None
 
     @contextmanager
-    def lock(self, idempotency_key: str, worker_id: Optional[str]=None):
+    def lock(self, idempotency_key: str, worker_id: str | None=None):
         """
         Context manager for lock acquire/release.
 

@@ -9,12 +9,11 @@ import copy
 import json
 import logging
 import os
-import re
 import threading
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml
 
@@ -27,10 +26,10 @@ class BackendProfileError(RuntimeError):
     """Raised when a backend profile is missing, malformed, or unresolvable."""
     pass
 _route_lock = threading.RLock()
-_process_override: Optional[str] = None
-_process_override_cache: Optional[Dict[str, Any]] = None
-_profile_cache: Dict[str, Any] = {}
-_auto_probe_memo: Optional[bool] = None
+_process_override: str | None = None
+_process_override_cache: dict[str, Any] | None = None
+_profile_cache: dict[str, Any] = {}
+_auto_probe_memo: bool | None = None
 
 def reset_backend_caches(clear_override: bool=False) -> None:
     """Clear resolver caches and optionally the process override."""
@@ -50,7 +49,7 @@ def _probe_endpoint(url: str, timeout: float=2.0) -> bool:
     except Exception:
         return False
 
-def get_dgx_host() -> Optional[str]:
+def get_dgx_host() -> str | None:
     """Get the DGX host IP/hostname from the UFO_DGX_HOST environment variable,
     stripped of incidental whitespace, or None if unset/blank. Shared with
     ufo.llm.endpoint.is_local_endpoint() so both places normalize the same way.
@@ -86,7 +85,7 @@ def get_backend_selection() -> dict:
     if not state_path.exists():
         return {'selected': 'disk', 'source': 'default'}
     try:
-        with open(state_path, 'r', encoding='utf-8') as f:
+        with open(state_path, encoding='utf-8') as f:
             data = json.load(f)
             if isinstance(data, dict) and 'selected' in data:
                 if data['selected'] not in ['local', 'cloud', 'featherless', 'auto', 'profile', 'disk', 'dgx']:
@@ -100,7 +99,7 @@ def get_backend_selection() -> dict:
         logger.warning('Failed to read backend_state.json, falling back to disk configuration: %s', e)
     return {'selected': 'disk', 'source': 'default'}
 
-def set_backend_selection(selection: str, profile_path: Optional[str]=None, updated_by: str='api') -> dict:
+def set_backend_selection(selection: str, profile_path: str | None=None, updated_by: str='api') -> dict:
     global _auto_probe_memo
     loader = ConfigLoader.get_instance()
     state_path = loader.base_path / 'ufo' / 'backend_state.json'
@@ -149,7 +148,7 @@ def set_backend_selection(selection: str, profile_path: Optional[str]=None, upda
         reset_backend_caches(clear_override=False)
     return state
 
-def _find_unresolved_env_placeholders(value: Any, found: Optional[set] = None) -> set:
+def _find_unresolved_env_placeholders(value: Any, found: set | None = None) -> set:
     """Recursively collect any ``${VAR}``/``$VAR`` placeholders left unresolved after env expansion."""
     if found is None:
         found = set()
@@ -174,7 +173,7 @@ def _get_file_stat_key(path: Path) -> str:
     except Exception:
         return '0:0'
 
-def _resolve_backend_profile_full(selection: Optional[str]=None, profile_path: Optional[str]=None) -> Optional[Dict[str, Any]]:
+def _resolve_backend_profile_full(selection: str | None=None, profile_path: str | None=None) -> dict[str, Any] | None:
     """Resolve the backend profile and return the internal cache entry
     (``{'data': ..., 'unresolved_by_block': ...}``) rather than a bare copy of
     the data. ``unresolved_by_block`` is computed once per cache entry so
@@ -212,7 +211,7 @@ def _resolve_backend_profile_full(selection: Optional[str]=None, profile_path: O
     if not target_path.exists():
         raise BackendProfileError(f'Target profile path does not exist: {target_path}')
     try:
-        with open(target_path, 'r', encoding='utf-8') as f:
+        with open(target_path, encoding='utf-8') as f:
             raw_text = f.read()
     except Exception as e:
         raise BackendProfileError(f'Failed to load profile {target_path}: {e}')
@@ -222,7 +221,7 @@ def _resolve_backend_profile_full(selection: Optional[str]=None, profile_path: O
     # changes) would keep serving a stale, already-expanded host forever
     # until reset_backend_caches() is called explicitly.
     referenced_vars = sorted({m.group(1) or m.group(2) for m in ConfigLoader.ENV_PLACEHOLDER_PATTERN.finditer(raw_text)})
-    env_fingerprint = ','.join((f'{name}={os.getenv(name, "")}' for name in referenced_vars))
+    env_fingerprint = ','.join(f'{name}={os.getenv(name, "")}' for name in referenced_vars)
     state_stat = _get_file_stat_key(state_path)
     target_stat = _get_file_stat_key(target_path)
     cache_key = f'{selection}:{profile_path}:{state_stat}:{target_stat}:{env_fingerprint}'
@@ -252,7 +251,7 @@ def _resolve_backend_profile_full(selection: Optional[str]=None, profile_path: O
     except Exception as e:
         raise BackendProfileError(f'Failed to load profile {target_path}: {e}')
 
-def resolve_backend_profile(selection: Optional[str]=None, profile_path: Optional[str]=None) -> Optional[Dict[str, Any]]:
+def resolve_backend_profile(selection: str | None=None, profile_path: str | None=None) -> dict[str, Any] | None:
     entry = _resolve_backend_profile_full(selection, profile_path)
     return copy.deepcopy(entry['data']) if entry else None
 
@@ -277,7 +276,7 @@ def clear_process_override() -> None:
         _process_override = None
         _process_override_cache = None
 
-def set_active_agent_route(route: Optional[str]) -> bool:
+def set_active_agent_route(route: str | None) -> bool:
     """
     Set process-local memory override.
     Passing None clears the process override and restores persisted intent.
@@ -287,15 +286,15 @@ def set_active_agent_route(route: Optional[str]) -> bool:
     clear_process_override()
     return True
 
-def get_active_agent_route() -> Optional[str]:
+def get_active_agent_route() -> str | None:
     with _route_lock:
         return _process_override
 
-def resolve_agent_config(agent_type: str) -> Dict[str, Any]:
+def resolve_agent_config(agent_type: str) -> dict[str, Any]:
     with _route_lock:
         current_route = _process_override
         cached_override = _process_override_cache
-    unresolved_by_block: Optional[Dict[str, frozenset]] = None
+    unresolved_by_block: dict[str, frozenset] | None = None
     if current_route and cached_override:
         prof = cached_override
     else:
@@ -340,10 +339,10 @@ def resolve_agent_config(agent_type: str) -> Dict[str, Any]:
     state = get_backend_selection()
     raise BackendProfileError(f"Could not resolve agent config for '{agent_type}' under active selection '{state.get('selected', 'unknown')}'")
 
-def get_agent_config(agent_type: str) -> Dict[str, Any]:
+def get_agent_config(agent_type: str) -> dict[str, Any]:
     return resolve_agent_config(agent_type)
 
-def _config_to_dict(config_obj: Any) -> Dict[str, Any]:
+def _config_to_dict(config_obj: Any) -> dict[str, Any]:
     if hasattr(config_obj, 'to_dict'):
         return config_obj.to_dict()
     config_dict = {}
@@ -392,7 +391,7 @@ class AgentConfigAccessor:
         except (KeyError, AttributeError):
             return default
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         if self._dict_cache is None:
             self._dict_cache = _config_to_dict(self._config_obj)
         return self._dict_cache.copy()

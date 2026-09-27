@@ -13,7 +13,7 @@ line-based instruction format for LLM-proposed changes:
 import logging
 import re
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskPriority, TaskStar
@@ -24,13 +24,13 @@ _DEPENDENCY = re.compile(r"^\s*([\w.-]+)\s*->\s*([\w.-]+)\s*$")
 
 
 class ConstellationUpdater:
-    def __init__(self, enable_logging: bool = True, logger: Optional[logging.Logger] = None):
+    def __init__(self, enable_logging: bool = True, logger: logging.Logger | None = None):
         self.enable_logging = enable_logging
         self.logger = logger or logging.getLogger(__name__)
 
     # ---- tasks -----------------------------------------------------------------
 
-    def add_tasks(self, constellation: TaskConstellation, descriptions: List[str], priority: TaskPriority = TaskPriority.MEDIUM) -> List[TaskStar]:
+    def add_tasks(self, constellation: TaskConstellation, descriptions: list[str], priority: TaskPriority = TaskPriority.MEDIUM) -> list[TaskStar]:
         created = []
         for description in descriptions:
             task = TaskStar(task_id=f"task_{uuid.uuid4().hex[:8]}", description=description, priority=priority)
@@ -39,7 +39,7 @@ class ConstellationUpdater:
         self.logger.info(f"Added {len(created)} task(s) to constellation {constellation.name}")
         return created
 
-    def remove_tasks(self, constellation: TaskConstellation, task_ids: List[str], remove_dependencies: bool = True) -> List[str]:
+    def remove_tasks(self, constellation: TaskConstellation, task_ids: list[str], remove_dependencies: bool = True) -> list[str]:
         """Remove tasks (their dependencies always go with them). Returns removed ids."""
         removed = []
         for task_id in task_ids:
@@ -49,7 +49,7 @@ class ConstellationUpdater:
         self.logger.info(f"Removed {len(removed)} task(s) from constellation {constellation.name}")
         return removed
 
-    def add_task(self, constellation: TaskConstellation, task: TaskStar, dependencies: Optional[List[str]] = None) -> bool:
+    def add_task(self, constellation: TaskConstellation, task: TaskStar, dependencies: list[str] | None = None) -> bool:
         constellation.add_task(task)
         for dep in dependencies or []:
             if dep in constellation.tasks:
@@ -61,7 +61,7 @@ class ConstellationUpdater:
 
     # ---- dependencies ------------------------------------------------------------
 
-    def add_dependencies(self, constellation: TaskConstellation, dependency_specs: List[Dict[str, Any]]) -> List[TaskStarLine]:
+    def add_dependencies(self, constellation: TaskConstellation, dependency_specs: list[dict[str, Any]]) -> list[TaskStarLine]:
         created = []
         for spec in dependency_specs:
             dep = self._create_dependency_from_spec(constellation, spec)
@@ -69,7 +69,7 @@ class ConstellationUpdater:
                 created.append(dep)
         return created
 
-    def _create_dependency_from_spec(self, constellation: TaskConstellation, spec: Dict[str, Any]) -> Optional[TaskStarLine]:
+    def _create_dependency_from_spec(self, constellation: TaskConstellation, spec: dict[str, Any]) -> TaskStarLine | None:
         from_id = spec.get("from_task_id") or spec.get("predecessor_id")
         to_id = spec.get("to_task_id") or spec.get("successor_id")
         if from_id not in constellation.tasks or to_id not in constellation.tasks:
@@ -91,7 +91,7 @@ class ConstellationUpdater:
         return len(dep_ids)
 
     @staticmethod
-    def _parse_dependency_spec(spec: str) -> Optional[Dict[str, str]]:
+    def _parse_dependency_spec(spec: str) -> dict[str, str] | None:
         match = _DEPENDENCY.match(spec or "")
         if not match:
             return None
@@ -99,7 +99,7 @@ class ConstellationUpdater:
 
     # ---- LLM instructions ----------------------------------------------------------
 
-    def _parse_llm_update_instructions(self, llm_output: str) -> List[Dict[str, Any]]:
+    def _parse_llm_update_instructions(self, llm_output: str) -> list[dict[str, Any]]:
         instructions = []
         for kind, value in _INSTRUCTION.findall(llm_output or ""):
             kind = kind.upper()

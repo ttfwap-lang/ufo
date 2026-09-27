@@ -9,10 +9,11 @@ Handles device information requests and responses.
 
 import datetime
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import uuid4
 
-from ufo.aip.messages import (    ClientMessage,
+from ufo.aip.messages import (
+    ClientMessage,
     ClientMessageType,
     ClientType,
     ServerMessage,
@@ -20,6 +21,7 @@ from ufo.aip.messages import (    ClientMessage,
     TaskStatus,
 )
 from ufo.aip.protocol.base import AIPProtocol
+
 
 class DeviceInfoProtocol(AIPProtocol):
     """
@@ -40,7 +42,7 @@ class DeviceInfoProtocol(AIPProtocol):
         self,
         constellation_id: str,
         target_device: str,
-        request_id: Optional[str] = None,
+        request_id: str | None = None,
     ) -> None:
         """
         Request device information (constellation-side).
@@ -65,9 +67,9 @@ class DeviceInfoProtocol(AIPProtocol):
 
     async def send_device_info_response(
         self,
-        device_info: Optional[Dict[str, Any]],
+        device_info: dict[str, Any] | None,
         request_id: str,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> None:
         """
         Send device information response (server-side).
@@ -91,7 +93,7 @@ class DeviceInfoProtocol(AIPProtocol):
     async def send_device_info_push(
         self,
         device_id: str,
-        device_info: Dict[str, Any],
+        device_info: dict[str, Any],
     ) -> None:
         """
         Push device information proactively (device-side, future use).

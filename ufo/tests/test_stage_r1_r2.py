@@ -6,29 +6,38 @@ Unit & Mock Stage Execution Tests for Stage R1 (Notepad Test) and Stage R2 (Chro
 """
 
 import json
-import os
 from pathlib import Path
+
 import pytest
 
+from tests.eval_suite.eval_runner import EvaluationRunner
+from tests.eval_suite.stages.stage_r1 import (
+    DEFAULT_FILENAME as R1_DEFAULT_FILENAME,
+)
+from tests.eval_suite.stages.stage_r1 import (
+    DEFAULT_MESSAGE as R1_DEFAULT_MESSAGE,
+)
+from tests.eval_suite.stages.stage_r1 import (
+    pre_cleanup as pre_cleanup_r1,
+)
+from tests.eval_suite.stages.stage_r1 import (
+    verify_r1,
+)
+from tests.eval_suite.stages.stage_r2 import (
+    DEFAULT_INITIAL_URL as R2_DEFAULT_INITIAL_URL,
+)
+from tests.eval_suite.stages.stage_r2 import (
+    DEFAULT_SECOND_URL as R2_DEFAULT_SECOND_URL,
+)
+from tests.eval_suite.stages.stage_r2 import (
+    verify_r2,
+)
 from tests.eval_suite.verifiers import (
     get_desktop_dir,
     verify_file_on_desktop,
     verify_process_running,
     verify_session_logs,
 )
-from tests.eval_suite.stages.stage_r1 import (
-    DEFAULT_FILENAME as R1_DEFAULT_FILENAME,
-    DEFAULT_MESSAGE as R1_DEFAULT_MESSAGE,
-    pre_cleanup as pre_cleanup_r1,
-    verify_r1,
-)
-from tests.eval_suite.stages.stage_r2 import (
-    DEFAULT_INITIAL_URL as R2_DEFAULT_INITIAL_URL,
-    DEFAULT_SECOND_URL as R2_DEFAULT_SECOND_URL,
-    verify_r2,
-)
-from tests.eval_suite.eval_runner import EvaluationRunner
-
 
 # --- Verifiers Unit Tests ---
 

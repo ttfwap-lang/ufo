@@ -1,9 +1,7 @@
 import asyncio
 from types import SimpleNamespace
 
-import pytest
 import yaml
-
 from ufo.agents.processors.schemas.actions import ActionCommandInfo
 from ufo.agents.processors.strategies import app_agent_processing_strategy as m
 from ufo.aip.messages import Result, ResultStatus
@@ -87,8 +85,8 @@ def test_ollama_app_schema_uses_action_list():
 
 
 def test_check_ui_stable(monkeypatch):
-    from ufo.client.mcp.local_servers import ui_mcp_server as ui
     import win32gui
+    from ufo.client.mcp.local_servers import ui_mcp_server as ui
 
     class _Ctl:
         def __init__(self, rect, visible=True):

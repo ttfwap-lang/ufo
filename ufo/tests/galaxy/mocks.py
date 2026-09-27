@@ -9,23 +9,20 @@ This module provides mock implementations of Galaxy framework components
 for testing purposes, without requiring actual LLM integration or external dependencies.
 """
 
-import asyncio
-import logging
 import time
-from typing import Dict, List, Optional, Tuple, Union
 
 from ufo.galaxy.agents.constellation_agent import ConstellationAgent
+from ufo.galaxy.constellation import TaskConstellation, TaskStar
+from ufo.galaxy.constellation.enums import ConstellationState, TaskPriority
 from ufo.galaxy.constellation.orchestrator.orchestrator import (
     TaskConstellationOrchestrator,
 )
-from ufo.galaxy.core.events import get_event_bus, ConstellationEvent, EventType
-from ufo.galaxy.constellation import TaskConstellation, TaskStar
-from ufo.galaxy.constellation.enums import ConstellationState, TaskPriority
+from ufo.galaxy.core.events import ConstellationEvent, EventType
 from ufo.module.context import Context, ContextNames
 
 
 def create_simple_test_constellation(
-    task_descriptions: List[str],
+    task_descriptions: list[str],
     constellation_name: str = "TestConstellation",
     sequential: bool = True,
 ) -> TaskConstellation:
@@ -75,7 +72,7 @@ class MockConstellationAgent(ConstellationAgent):
 
     def __init__(
         self,
-        orchestrator: Optional[TaskConstellationOrchestrator] = None,
+        orchestrator: TaskConstellationOrchestrator | None = None,
         name: str = "mock_constellation_agent",
     ):
         """
@@ -86,7 +83,7 @@ class MockConstellationAgent(ConstellationAgent):
         """
         super().__init__(orchestrator, name)
 
-    def message_constructor(self) -> List[Dict[str, Union[str, List[Dict[str, str]]]]]:
+    def message_constructor(self) -> list[dict[str, str | list[dict[str, str]]]]:
         """
         Construct the message for LLM interaction.
 
@@ -116,7 +113,7 @@ class MockConstellationAgent(ConstellationAgent):
     async def process_creation(
         self,
         context: Context,
-    ) -> Tuple[TaskConstellation, Dict[str, float]]:
+    ) -> tuple[TaskConstellation, dict[str, float]]:
         """
         Process a user request and generate a constellation (Mock implementation).
 

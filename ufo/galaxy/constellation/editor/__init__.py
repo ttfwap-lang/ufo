@@ -9,25 +9,22 @@ Supports operations for adding/removing nodes/edges, building constellations, an
 comprehensive CRUD operations with undo/redo capabilities.
 """
 
+from .command_history import CommandHistory
 from .command_interface import ICommand, IUndoableCommand
-
-from .constellation_editor import ConstellationEditor
-
+from .command_invoker import CommandInvoker
 from .commands import (
-    AddTaskCommand,
-    RemoveTaskCommand,
-    UpdateTaskCommand,
     AddDependencyCommand,
-    RemoveDependencyCommand,
-    UpdateDependencyCommand,
+    AddTaskCommand,
     BuildConstellationCommand,
     ClearConstellationCommand,
     LoadConstellationCommand,
+    RemoveDependencyCommand,
+    RemoveTaskCommand,
     SaveConstellationCommand,
+    UpdateDependencyCommand,
+    UpdateTaskCommand,
 )
-from .command_invoker import CommandInvoker
-
-from .command_history import CommandHistory
+from .constellation_editor import ConstellationEditor
 
 __all__ = [
     "ICommand",

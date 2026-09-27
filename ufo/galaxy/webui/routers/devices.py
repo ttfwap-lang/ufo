@@ -4,18 +4,21 @@ Device management router for Galaxy Web UI.
 This module defines API endpoints for managing devices in the Galaxy framework.
 """
 import logging
-from typing import Dict, Any
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
+
 from ufo.galaxy.webui.dependencies import get_app_state, verify_api_key
 from ufo.galaxy.webui.models.requests import DeviceAddRequest
 from ufo.galaxy.webui.models.responses import DeviceAddResponse
-from ufo.galaxy.webui.services import ConfigService, DeviceService
 from ufo.galaxy.webui.security.url_validator import ServerUrlValidationError, validate_server_url
+from ufo.galaxy.webui.services import ConfigService, DeviceService
+
 router = APIRouter(prefix='/api', tags=['devices'])
 logger = logging.getLogger(__name__)
 
 @router.post('/devices', response_model=DeviceAddResponse, dependencies=[Depends(verify_api_key)])
-async def add_device(device: DeviceAddRequest) -> Dict[str, Any]:
+async def add_device(device: DeviceAddRequest) -> dict[str, Any]:
     """
     Add a new device to the Galaxy configuration.
 

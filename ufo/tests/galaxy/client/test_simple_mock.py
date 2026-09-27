@@ -14,8 +14,8 @@ def test_simple():
 
 def test_import_client_display():
     """Test importing ClientDisplay."""
-    from ufo.galaxy.visualization.client_display import ClientDisplay
     from rich.console import Console
+    from ufo.galaxy.visualization.client_display import ClientDisplay
 
     console = Console()
     display = ClientDisplay(console)

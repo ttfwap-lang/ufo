@@ -3,7 +3,6 @@
 
 import json
 import os
-from typing import Tuple
 
 import yaml
 from langchain_community.vectorstores import FAISS
@@ -58,7 +57,7 @@ class DemonstrationSummarizer:
         self.api_prompt_template = api_prompt_template
         self.completion_num = completion_num
 
-    def get_summary_list(self, record: DemonstrationRecord) -> Tuple[list, float]:
+    def get_summary_list(self, record: DemonstrationRecord) -> tuple[list, float]:
         """
         Get the summary list for a record
         :param record: The demonstration record.
@@ -149,7 +148,7 @@ class DemonstrationSummarizer:
             print(f"Created new YAML file: {yaml_path}")
 
         # Read existing data from the YAML file
-        with open(yaml_path, "r", encoding="utf-8") as file:
+        with open(yaml_path, encoding="utf-8") as file:
             existing_data = yaml.safe_load(file)
 
         # Initialize index and existing_data if file is empty

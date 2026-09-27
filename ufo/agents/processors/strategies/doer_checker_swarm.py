@@ -18,13 +18,15 @@ Usage:
 """
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
+
 from ufo import utils
 from ufo.agents.processors.context.processing_context import ProcessingContext, ProcessingPhase, ProcessingResult
 from ufo.agents.processors.core.strategy_dependency import depends_on, provides
 from ufo.agents.processors.strategies.processing_strategy import BaseProcessingStrategy
 from ufo.config.config_loader import LazyUFOConfig
 from ufo.llm import AgentType
+
 ufo_config = LazyUFOConfig()
 logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
@@ -89,7 +91,7 @@ class DoerCheckerSwarmStrategy(BaseProcessingStrategy):
             self.logger.warning(f'Doer-Checker swarm error (non-fatal, proceeding): {e}')
             return ProcessingResult(success=True, data={'checker_validation': 'error', 'reason': str(e)}, phase=ProcessingPhase.ACTION_EXECUTION)
 
-    async def _run_checker(self, agent: 'AppAgent', parsed_response: Any, screenshot_path: str, context: ProcessingContext) -> Dict[str, Any]:
+    async def _run_checker(self, agent: 'AppAgent', parsed_response: Any, screenshot_path: str, context: ProcessingContext) -> dict[str, Any]:
         """
         Run the Checker LLM call to validate the Doer's proposal.
 

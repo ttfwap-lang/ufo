@@ -4,8 +4,9 @@ Integration test demonstrating ConstellationAgent event publishing in a realisti
 """
 
 import asyncio
-import pytest
 import time
+
+import pytest
 from ufo.galaxy.constellation import TaskConstellation, TaskStar, TaskStarLine
 from ufo.galaxy.core.events import ConstellationEvent, EventType, get_event_bus
 from ufo.galaxy.session.observers import DAGVisualizationObserver

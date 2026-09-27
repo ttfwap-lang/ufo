@@ -12,17 +12,12 @@ This package contains the modular components that make up the Constellation Devi
 - TaskQueueManager: Task queuing and scheduling
 """
 
-from .types import DeviceStatus, AgentProfile, TaskRequest, DeviceEventHandler
-
-from .device_registry import DeviceRegistry
-
 from .connection_manager import WebSocketConnectionManager
-
+from .device_registry import DeviceRegistry
 from .heartbeat_manager import HeartbeatManager
-
 from .message_processor import MessageProcessor
-
 from .task_queue_manager import TaskQueueManager
+from .types import AgentProfile, DeviceEventHandler, DeviceStatus, TaskRequest
 
 __all__ = [
     "DeviceStatus",

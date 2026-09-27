@@ -6,9 +6,11 @@ import logging
 import os
 import sys
 from unittest.mock import MagicMock
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-from ufo.galaxy.session.galaxy_session import GalaxySession
 from ufo.galaxy.client.constellation_client import ConstellationClient
+from ufo.galaxy.session.galaxy_session import GalaxySession
+
 
 async def test_galaxy_session_complete_features():
     """Test all GalaxySession features comprehensively."""
@@ -27,7 +29,7 @@ async def test_galaxy_session_complete_features():
     print(f'   🤖 Agent: {type(session.agent).__name__}')
     print(f'   🔧 Orchestrator: {type(session.orchestrator).__name__}')
     print(f'   👥 Event Observers: {len(session._observers)}')
-    print(f'\n🎯 Testing Feature: Observer System Integration')
+    print('\n🎯 Testing Feature: Observer System Integration')
     print('-' * 50)
     for i, observer in enumerate(session._observers, 1):
         observer_name = type(observer).__name__
@@ -36,10 +38,10 @@ async def test_galaxy_session_complete_features():
             print(f"      └─ Visualization: {getattr(observer, 'enable_visualization', 'N/A')}")
         if hasattr(observer, 'session_id'):
             print(f"      └─ Session ID: {getattr(observer, 'session_id', 'N/A')}")
-    print(f'\n🎯 Testing Feature: Round Management')
+    print('\n🎯 Testing Feature: Round Management')
     print('-' * 50)
     round1 = session.create_new_round()
-    print(f'✅ Round 1 Created:')
+    print('✅ Round 1 Created:')
     print(f'   📊 Round ID: {round1._id}')
     print(f'   📝 Request: {round1._request[:80]}...')
     print(f'   🎯 Should Evaluate: {round1._should_evaluate}')
@@ -49,51 +51,52 @@ async def test_galaxy_session_complete_features():
         print('✅ Round 2: Correctly not created (no more requests)')
     else:
         print(f'✅ Round 2: Created with ID {round2._id}')
-    print(f'\n🎯 Testing Feature: Session State Management')
+    print('\n🎯 Testing Feature: Session State Management')
     print('-' * 50)
     state_info = {'Is Finished': session.is_finished(), 'Has Error': session.is_error(), 'Current Step': session.step, 'Total Rounds': session.total_rounds, 'Agent Status': session.agent.status, 'Constellation': session.current_constellation}
     for key, value in state_info.items():
         print(f'   📊 {key}: {value}')
-    print(f'\n🎯 Testing Feature: Agent & Orchestrator Integration')
+    print('\n🎯 Testing Feature: Agent & Orchestrator Integration')
     print('-' * 50)
     agent = session.agent
     orchestrator = session.orchestrator
-    print(f'✅ Agent Details:')
+    print('✅ Agent Details:')
     print(f'   🏷️  Name: {agent.name}')
     print(f'   📊 Status: {agent.status}')
     print(f'   🔗 Orchestrator: {type(agent.orchestrator).__name__}')
     print(f'   🌟 Current Constellation: {agent.current_constellation}')
-    print(f'✅ Orchestrator Details:')
+    print('✅ Orchestrator Details:')
     print(f'   🏷️  Type: {type(orchestrator).__name__}')
     device_manager = getattr(orchestrator, 'device_manager', getattr(orchestrator, '_device_manager', 'N/A'))
     if device_manager != 'N/A':
         print(f'   🎛️  Device Manager: {type(device_manager).__name__}')
     else:
-        print(f'   🎛️  Device Manager: Not accessible')
-    print(f'\n🎯 Testing Feature: Event System')
+        print('   🎛️  Device Manager: Not accessible')
+    print('\n🎯 Testing Feature: Event System')
     print('-' * 50)
     event_bus = session._event_bus
     print(f'✅ Event Bus: {type(event_bus).__name__}')
     print(f'   📡 Observers Registered: {len(session._observers)}')
     try:
-        from ufo.galaxy.core.events import ConstellationEvent, EventType
         import time
+
+        from ufo.galaxy.core.events import ConstellationEvent, EventType
         test_event = ConstellationEvent(event_type=EventType.CONSTELLATION_MODIFIED, source_id='test_galaxy_session', timestamp=time.time(), data={'test': 'event_system_check'}, constellation_id='test-constellation', constellation_state='testing')
         await event_bus.publish_event(test_event)
         print('✅ Event Publishing: Working correctly')
     except Exception as e:
         print(f'❌ Event Publishing: Error - {e}')
-    print(f'\n🎯 Testing Feature: Session Control & Cleanup')
+    print('\n🎯 Testing Feature: Session Control & Cleanup')
     print('-' * 50)
     await session.force_finish('Comprehensive test completed')
-    print(f'✅ Session Control:')
-    print(f'   🏁 Force Finished: Success')
+    print('✅ Session Control:')
+    print('   🏁 Force Finished: Success')
     print(f'   📊 Final Status: {session.agent.status}')
     print(f'   ✅ Is Finished: {session.is_finished()}')
     print(f"   📝 Finish Reason: {session.session_results.get('finish_reason', 'N/A')}")
     final_results = session.session_results
     print(f'   📈 Results Count: {len(final_results)}')
-    print(f'\n🎯 Testing Feature: Request Processing')
+    print('\n🎯 Testing Feature: Request Processing')
     print('-' * 50)
     test_requests = ['Create a simple task workflow', '', 'A' * 100 + ' very long request']
     new_session = GalaxySession(task='Request Processing Test', should_evaluate=False, id='request-test', client=mock_client, initial_request='')
@@ -105,15 +108,15 @@ async def test_galaxy_session_complete_features():
         print(f'      📝 Input: {repr(test_request[:30])}')
         print(f'      ➡️  Next: {repr(next_req[:30])}')
         print(f'      🎯 Eval: {repr(eval_req[:30])}')
-    print(f'\n' + '=' * 70)
+    print('\n' + '=' * 70)
     print('🎉 GalaxySession Complete Features Test Summary')
     print('=' * 70)
     features_tested = ['✅ Session Creation & Configuration', '✅ Observer System Integration', '✅ Round Management', '✅ Session State Management', '✅ Agent & Orchestrator Integration', '✅ Event System', '✅ Session Control & Cleanup', '✅ Request Processing']
     for feature in features_tested:
         print(f'   {feature}')
-    print(f'\n🎯 Conclusion:')
-    print(f'✅ GalaxySession is fully functional and ready for production!')
-    print(f'🚀 All core features tested and working correctly!')
-    print(f'🎉 No critical issues found!')
+    print('\n🎯 Conclusion:')
+    print('✅ GalaxySession is fully functional and ready for production!')
+    print('🚀 All core features tested and working correctly!')
+    print('🎉 No critical issues found!')
 if __name__ == '__main__':
     asyncio.run(test_galaxy_session_complete_features())

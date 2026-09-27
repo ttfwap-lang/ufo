@@ -11,13 +11,11 @@ Simulates real-world scenarios:
 """
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+import pytest
 from ufo.galaxy.client.components import DeviceStatus
-from ufo.galaxy.core.types import ExecutionResult
-from ufo.aip.messages import TaskStatus
+from ufo.galaxy.client.device_manager import ConstellationDeviceManager
 
 
 @pytest.fixture
@@ -96,19 +94,18 @@ async def test_server_restart_automatic_reconnection(device_manager):
         device_manager.connection_manager,
         "connect_to_device",
         side_effect=mock_connect_with_retry,
+    ), patch.object(
+        device_manager.connection_manager,
+        "request_device_info",
+        new_callable=AsyncMock,
+        return_value={"os": "Windows", "hostname": "test-pc"},
     ):
-        with patch.object(
-            device_manager.connection_manager,
-            "request_device_info",
-            new_callable=AsyncMock,
-            return_value={"os": "Windows", "hostname": "test-pc"},
-        ):
-            # Trigger disconnection
-            await device_manager._handle_device_disconnection(device_id)
+        # Trigger disconnection
+        await device_manager._handle_device_disconnection(device_id)
 
-            # Wait for reconnection loop to complete
-            # It should retry 3 times with 1 second delay each = ~3 seconds
-            await asyncio.sleep(4.0)
+        # Wait for reconnection loop to complete
+        # It should retry 3 times with 1 second delay each = ~3 seconds
+        await asyncio.sleep(4.0)
 
     # Verify device reconnected successfully
     device_info = device_manager.device_registry.get_device(device_id)
@@ -200,17 +197,16 @@ async def test_reconnection_succeeds_on_first_attempt(device_manager):
         device_manager.connection_manager,
         "connect_to_device",
         side_effect=mock_successful_connect,
+    ), patch.object(
+        device_manager.connection_manager,
+        "request_device_info",
+        new_callable=AsyncMock,
+        return_value={"os": "Windows"},
     ):
-        with patch.object(
-            device_manager.connection_manager,
-            "request_device_info",
-            new_callable=AsyncMock,
-            return_value={"os": "Windows"},
-        ):
-            # Start reconnection
-            start_time = asyncio.get_event_loop().time()
-            await device_manager._reconnect_device(device_id)
-            elapsed_time = asyncio.get_event_loop().time() - start_time
+        # Start reconnection
+        start_time = asyncio.get_event_loop().time()
+        await device_manager._reconnect_device(device_id)
+        elapsed_time = asyncio.get_event_loop().time() - start_time
 
     # Verify reconnection succeeded on first attempt
     assert connection_attempt_count == 1
@@ -249,15 +245,14 @@ async def test_is_reconnection_flag_prevents_attempt_increment(device_manager):
         "connect_to_device",
         new_callable=AsyncMock,
         return_value=MagicMock(),
+    ), patch.object(
+        device_manager.connection_manager,
+        "request_device_info",
+        new_callable=AsyncMock,
+        return_value={},
     ):
-        with patch.object(
-            device_manager.connection_manager,
-            "request_device_info",
-            new_callable=AsyncMock,
-            return_value={},
-        ):
-            # Call with is_reconnection=True
-            await device_manager.connect_device(device_id, is_reconnection=True)
+        # Call with is_reconnection=True
+        await device_manager.connect_device(device_id, is_reconnection=True)
 
     # Verify connection_attempts was NOT incremented
     final_attempts = device_manager.device_registry.get_device(
@@ -292,15 +287,14 @@ async def test_normal_connection_increments_attempts(device_manager):
         "connect_to_device",
         new_callable=AsyncMock,
         return_value=MagicMock(),
+    ), patch.object(
+        device_manager.connection_manager,
+        "request_device_info",
+        new_callable=AsyncMock,
+        return_value={},
     ):
-        with patch.object(
-            device_manager.connection_manager,
-            "request_device_info",
-            new_callable=AsyncMock,
-            return_value={},
-        ):
-            # Call with is_reconnection=False (default)
-            await device_manager.connect_device(device_id, is_reconnection=False)
+        # Call with is_reconnection=False (default)
+        await device_manager.connect_device(device_id, is_reconnection=False)
 
     # Verify connection_attempts WAS incremented
     final_attempts = device_manager.device_registry.get_device(
@@ -338,14 +332,13 @@ async def test_full_server_restart_scenario_integration(device_manager):
         "connect_to_device",
         new_callable=AsyncMock,
         return_value=MagicMock(),
+    ), patch.object(
+        device_manager.connection_manager,
+        "request_device_info",
+        new_callable=AsyncMock,
+        return_value={"os": "Linux", "hostname": "linux-server"},
     ):
-        with patch.object(
-            device_manager.connection_manager,
-            "request_device_info",
-            new_callable=AsyncMock,
-            return_value={"os": "Linux", "hostname": "linux-server"},
-        ):
-            success = await device_manager.connect_device(device_id)
+        success = await device_manager.connect_device(device_id)
 
     assert success is True
     assert (
@@ -364,7 +357,7 @@ async def test_full_server_restart_scenario_integration(device_manager):
 
         if not server_online:
             raise ConnectionError(
-                f"[WinError 1225] The remote computer refused the network connection"
+                "[WinError 1225] The remote computer refused the network connection"
             )
         else:
             return MagicMock()
@@ -373,42 +366,41 @@ async def test_full_server_restart_scenario_integration(device_manager):
         device_manager.connection_manager,
         "connect_to_device",
         side_effect=mock_connect_with_server_state,
+    ), patch.object(
+        device_manager.connection_manager,
+        "request_device_info",
+        new_callable=AsyncMock,
+        return_value={"os": "Linux", "hostname": "linux-server"},
     ):
-        with patch.object(
-            device_manager.connection_manager,
-            "request_device_info",
-            new_callable=AsyncMock,
-            return_value={"os": "Linux", "hostname": "linux-server"},
-        ):
-            # Trigger disconnection
-            print(f"🔌 Step 2: Simulating server killed")
-            disconnect_task = asyncio.create_task(
-                device_manager._handle_device_disconnection(device_id)
-            )
+        # Trigger disconnection
+        print("🔌 Step 2: Simulating server killed")
+        disconnect_task = asyncio.create_task(
+            device_manager._handle_device_disconnection(device_id)
+        )
 
-            # Wait for disconnection to be handled
-            await asyncio.sleep(0.1)
+        # Wait for disconnection to be handled
+        await asyncio.sleep(0.1)
 
-            # Verify device is DISCONNECTED
-            assert (
-                device_manager.device_registry.get_device(device_id).status
-                == DeviceStatus.DISCONNECTED
-            )
-            print(f"✅ Step 3: Device status → DISCONNECTED")
+        # Verify device is DISCONNECTED
+        assert (
+            device_manager.device_registry.get_device(device_id).status
+            == DeviceStatus.DISCONNECTED
+        )
+        print("✅ Step 3: Device status → DISCONNECTED")
 
-            # Step 3: Wait for first 2 reconnection attempts to fail
-            await asyncio.sleep(2.5)  # 2 attempts × 1 second delay
-            print(f"⚠️ Step 4: Reconnection attempts 1-2 failed (server still down)")
-            print(f"   Attempts made so far: {connection_attempt_count}")
+        # Step 3: Wait for first 2 reconnection attempts to fail
+        await asyncio.sleep(2.5)  # 2 attempts × 1 second delay
+        print("⚠️ Step 4: Reconnection attempts 1-2 failed (server still down)")
+        print(f"   Attempts made so far: {connection_attempt_count}")
 
-            # Step 4: Bring server back online
-            server_online = True
-            print(f"🔄 Step 5: Server restarted (online)")
+        # Step 4: Bring server back online
+        server_online = True
+        print("🔄 Step 5: Server restarted (online)")
 
-            # Step 5: Wait for reconnection to succeed
-            await asyncio.sleep(2.0)  # Wait for next retry
+        # Step 5: Wait for reconnection to succeed
+        await asyncio.sleep(2.0)  # Wait for next retry
 
-            await disconnect_task
+        await disconnect_task
 
     # Step 6: Verify device reconnected successfully
     device_info = device_manager.device_registry.get_device(device_id)

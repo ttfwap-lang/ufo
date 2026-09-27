@@ -10,19 +10,18 @@ Empirical stress tests for:
 """
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 
-from ufo.aip.transport.adapters import (
-    WebSocketsLibAdapter,
-    FastAPIWebSocketAdapter,
-    create_adapter,
-    State,
-)
-from ufo.aip.transport.websocket import WebSocketTransport
+import pytest
+
 from ufo.aip.messages import ServerMessageType, TaskStatus
-from ufo.server.services.session_manager import SessionManager, SessionOwnershipError
+from ufo.aip.transport.adapters import (
+    FastAPIWebSocketAdapter,
+    State,
+    WebSocketsLibAdapter,
+    create_adapter,
+)
 from ufo.module.basic import BaseSession
+from ufo.server.services.session_manager import SessionManager, SessionOwnershipError
 
 
 class MockWebsocket14Connection:

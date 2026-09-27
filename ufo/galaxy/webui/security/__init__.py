@@ -5,7 +5,8 @@
 Security utilities for the Galaxy Web UI.
 """
 
-from ufo.galaxy.webui.security.url_validator import (    ServerUrlValidationError,
+from ufo.galaxy.webui.security.url_validator import (
+    ServerUrlValidationError,
     UrlValidationPolicy,
     validate_server_url,
 )

@@ -3,8 +3,8 @@ Test Galaxy Configuration Loading and Access
 
 Tests the new Galaxy configuration system with structured attribute access.
 """
-import pytest
 from ufo.config.config_loader import get_galaxy_config
+
 
 def test_galaxy_config_basic_loading():
     """Test that Galaxy config loads successfully"""
@@ -92,7 +92,7 @@ def test_galaxy_config_usage_in_code():
     assert editing_prompt is not None
     assert creation_example is not None
     assert editing_example is not None
-    print(f'✅ Prompt templates retrieval successful')
+    print('✅ Prompt templates retrieval successful')
 
 def test_galaxy_config_types():
     """Test that configuration values have correct types"""

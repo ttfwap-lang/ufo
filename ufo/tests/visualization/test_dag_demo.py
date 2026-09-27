@@ -5,16 +5,17 @@ This script demonstrates the DAG visualization features by creating
 a sample constellation with tasks and dependencies, then displaying
 various visualization modes.
 """
-import asyncio
-import sys
 import os
+import sys
+
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, project_root)
+from ufo.galaxy.constellation.enums import TaskPriority
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
 from ufo.galaxy.constellation.task_star_line import TaskStarLine
-from ufo.galaxy.constellation.enums import TaskStatus, DependencyType, TaskPriority, ConstellationState
-from ufo.galaxy.visualization.dag_visualizer import DAGVisualizer, visualize_dag
+from ufo.galaxy.visualization.dag_visualizer import DAGVisualizer
+
 
 def create_sample_constellation() -> TaskConstellation:
     """Create a sample constellation for demonstration."""

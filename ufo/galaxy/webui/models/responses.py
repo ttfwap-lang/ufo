@@ -8,11 +8,12 @@ This module defines Pydantic models for all outgoing responses,
 both HTTP API responses and WebSocket messages.
 """
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from ufo.galaxy.webui.models.enums import WebSocketMessageType, RequestStatus
+from ufo.galaxy.webui.models.enums import RequestStatus, WebSocketMessageType
+
 
 class StandardResponse(BaseModel):
     """
@@ -31,7 +32,7 @@ class StandardResponse(BaseModel):
     timestamp: float = Field(
         ..., description="Unix timestamp when the response was generated"
     )
-    data: Optional[Dict[str, Any]] = Field(None, description="Optional data payload")
+    data: dict[str, Any] | None = Field(None, description="Optional data payload")
 
 
 class HealthResponse(BaseModel):
@@ -55,7 +56,7 @@ class DeviceAddResponse(BaseModel):
 
     status: str = Field(..., description="Status of the device addition operation")
     message: str = Field(..., description="Human-readable message about the operation")
-    device: Dict[str, Any] = Field(..., description="Details of the added device")
+    device: dict[str, Any] = Field(..., description="Details of the added device")
 
 
 class WelcomeMessage(BaseModel):
@@ -139,7 +140,7 @@ class ResetAcknowledgedMessage(BaseModel):
     )
     status: str = Field(..., description="Status of the reset operation")
     message: str = Field(..., description="Message describing the reset result")
-    timestamp: Optional[float] = Field(
+    timestamp: float | None = Field(
         None, description="Timestamp of the reset operation"
     )
 
@@ -156,13 +157,13 @@ class NextSessionAcknowledgedMessage(BaseModel):
     )
     status: str = Field(..., description="Status of the session creation")
     message: str = Field(..., description="Message describing the session creation")
-    session_name: Optional[str] = Field(
+    session_name: str | None = Field(
         None, description="Name of the newly created session"
     )
-    task_name: Optional[str] = Field(
+    task_name: str | None = Field(
         None, description="Name of the task for the new session"
     )
-    timestamp: Optional[float] = Field(
+    timestamp: float | None = Field(
         None, description="Timestamp of session creation"
     )
 
@@ -179,7 +180,7 @@ class StopAcknowledgedMessage(BaseModel):
     )
     status: str = Field(..., description="Status of the stop operation")
     message: str = Field(..., description="Message describing the stop result")
-    session_name: Optional[str] = Field(
+    session_name: str | None = Field(
         None, description="Name of the session after restart"
     )
     timestamp: float = Field(..., description="Timestamp of the stop operation")

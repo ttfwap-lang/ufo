@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Optional, Type
+from typing import TYPE_CHECKING
 
 from ufo.agents.states.basic import AgentState, AgentStateManager
 from ufo.module.context import Context
@@ -38,7 +38,7 @@ class EvaluationAgentState(AgentState):
     """
 
     @classmethod
-    def agent_class(cls) -> Type[EvaluationAgent]:
+    def agent_class(cls) -> type[EvaluationAgent]:
         """
         Handle the agent for the current step.
         """
@@ -71,7 +71,7 @@ class ContinueEvaluationAgentState(EvaluationAgentState):
     """
 
     def handle(
-        self, agent: EvaluationAgent, context: Optional["Context"] = None
+        self, agent: EvaluationAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -119,7 +119,7 @@ class NoneEvaluationAgentState(EvaluationAgentState):
     """
 
     def handle(
-        self, agent: EvaluationAgent, context: Optional["Context"] = None
+        self, agent: EvaluationAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.

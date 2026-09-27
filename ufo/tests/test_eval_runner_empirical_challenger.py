@@ -13,18 +13,22 @@ Created by Challenger 2 to empirically challenge and stress-test:
 
 import asyncio
 import json
-import os
-import shutil
 import sys
 import time
 from pathlib import Path
+
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from tests.eval_suite.eval_runner import EvaluationRunner, EVAL_STAGES, _generate_unique_report_paths, _write_json_file, _collect_trajectory_logs
+from tests.eval_suite.eval_runner import (
+    EvaluationRunner,
+    _collect_trajectory_logs,
+    _generate_unique_report_paths,
+    _write_json_file,
+)
 
 
 @pytest.mark.asyncio
@@ -62,7 +66,7 @@ async def test_concurrent_suite_executions_high_load(tmp_path):
         assert len(md_reports) == 1
 
         # Verify JSON file validity
-        with open(json_reports[0], "r", encoding="utf-8") as f:
+        with open(json_reports[0], encoding="utf-8") as f:
             data = json.load(f)
             assert data["total_stages"] == 2
             assert len(data["stage_results"]) == 2

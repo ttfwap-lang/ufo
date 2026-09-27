@@ -8,13 +8,11 @@ Provides ready-to-use extensions for common use cases.
 """
 
 import logging
-
 import time
-
-from typing import Any, Dict
-
+from typing import Any
 
 from ufo.aip.extensions.base import AIPExtension
+
 
 class LoggingExtension(AIPExtension):
     """
@@ -61,7 +59,7 @@ class MetricsExtension(AIPExtension):
     def __init__(self):
         """Initialize metrics extension."""
         self.logger = logging.getLogger(f"{__name__}.MetricsExtension")
-        self.metrics: Dict[str, Any] = {
+        self.metrics: dict[str, Any] = {
             "messages_sent": 0,
             "messages_received": 0,
             "connections_established": 0,
@@ -70,7 +68,7 @@ class MetricsExtension(AIPExtension):
             "message_types": {},
             "latencies": [],
         }
-        self._message_timestamps: Dict[str, float] = {}
+        self._message_timestamps: dict[str, float] = {}
 
     async def on_message_sent(self, msg: Any) -> None:
         """Track sent message."""
@@ -108,7 +106,7 @@ class MetricsExtension(AIPExtension):
         """Track error."""
         self.metrics["errors"] += 1
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """
         Get collected metrics.
 

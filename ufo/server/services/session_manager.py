@@ -4,7 +4,8 @@ import logging
 import platform
 import threading
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Optional
 
 from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
 from ufo.config.config_loader import LazyUFOConfig
@@ -49,27 +50,27 @@ class SessionManager:
     Supports Windows, Linux, and Mobile (Android) platforms using SessionFactory.
     """
 
-    def __init__(self, platform_override: Optional[str]=None):
+    def __init__(self, platform_override: str | None=None):
         """
         Initialize the SessionManager.
         This class manages active sessions for the UFO service.
         :param platform_override: Override platform detection ('windows', 'linux', or 'mobile').
                                   If None, platform is auto-detected.
         """
-        self.sessions: Dict[str, BaseSession] = {}
-        self.session_id_dict: Dict[str, str] = {}
-        self._session_owners: Dict[str, str] = {}
-        self._session_result_senders: Dict[str, str] = {}
+        self.sessions: dict[str, BaseSession] = {}
+        self.session_id_dict: dict[str, str] = {}
+        self._session_owners: dict[str, str] = {}
+        self._session_result_senders: dict[str, str] = {}
         self.lock = threading.Lock()
         self.logger = logging.getLogger(__name__)
-        self.results: Dict[str, Dict[str, Any]] = {}
-        self._running_tasks: Dict[str, asyncio.Task] = {}
-        self._cancellation_reasons: Dict[str, str] = {}
+        self.results: dict[str, dict[str, Any]] = {}
+        self._running_tasks: dict[str, asyncio.Task] = {}
+        self._cancellation_reasons: dict[str, str] = {}
         self.platform = platform_override or platform.system().lower()
         self.session_factory = SessionFactory()
         self.logger.info(f'SessionManager initialized for platform: {self.platform}')
 
-    def get_or_create_session(self, session_id: str, task_name: Optional[str]='test_task', request: Optional[str]=None, task_protocol: Optional['TaskExecutionProtocol']=None, platform_override: Optional[str]=None, local: bool=False, owner_client_id: Optional[str]=None) -> BaseSession:
+    def get_or_create_session(self, session_id: str, task_name: str | None='test_task', request: str | None=None, task_protocol: Optional['TaskExecutionProtocol']=None, platform_override: str | None=None, local: bool=False, owner_client_id: str | None=None) -> BaseSession:
         """
         Get an existing session or create a new one if it doesn't exist.
         Uses SessionFactory to create platform-specific service sessions.
@@ -114,7 +115,7 @@ class SessionManager:
                 self.logger.info(f'Created new {target_platform} session: {session_id} (type: {session_type}, owner: {owner_client_id!r})')
             return self.sessions[session_id]
 
-    def get_session(self, session_id: str) -> Optional[BaseSession]:
+    def get_session(self, session_id: str) -> BaseSession | None:
         """
         Look up an existing session **without creating one**.
 
@@ -148,7 +149,7 @@ class SessionManager:
         with self.lock:
             self._session_result_senders[session_id] = client_id
 
-    def is_authorized_result_sender(self, session_id: str, client_id: Optional[str]) -> bool:
+    def is_authorized_result_sender(self, session_id: str, client_id: str | None) -> bool:
         """
         Return whether ``client_id`` may submit ``COMMAND_RESULTS`` for
         ``session_id``.
@@ -171,7 +172,7 @@ class SessionManager:
             recorded = self._session_result_senders.get(session_id)
         return recorded is not None and recorded == client_id
 
-    def get_result(self, session_id: str) -> Optional[Dict[str, any]]:
+    def get_result(self, session_id: str) -> dict[str, any] | None:
         """
         Get the result of a completed session.
         :param session_id: The ID of the session to retrieve the result for.
@@ -182,7 +183,7 @@ class SessionManager:
                 return self.sessions[session_id].results
             return None
 
-    def get_result_by_task(self, task_name: str) -> Optional[Dict[str, any]]:
+    def get_result_by_task(self, task_name: str) -> dict[str, any] | None:
         """
         Get the result of a completed session by task name.
         :param task_name: The name of the task to retrieve the result for.
@@ -213,7 +214,7 @@ class SessionManager:
             self._session_result_senders.pop(session_id, None)
             self.logger.info(f'Removed session: {session_id}')
 
-    async def execute_task_async(self, session_id: str, task_name: str, request: str, task_protocol: Optional['TaskExecutionProtocol']=None, platform_override: str=None, callback: Optional[Callable[[str, ServerMessage], None]]=None, owner_client_id: Optional[str]=None, executor_client_id: Optional[str]=None) -> str:
+    async def execute_task_async(self, session_id: str, task_name: str, request: str, task_protocol: Optional['TaskExecutionProtocol']=None, platform_override: str=None, callback: Callable[[str, ServerMessage], None] | None=None, owner_client_id: str | None=None, executor_client_id: str | None=None) -> str:
         """
         Execute a task in the background without blocking the event loop.
 
@@ -282,7 +283,7 @@ class SessionManager:
         self.logger.warning(f'[SessionManager] ⚠️ No running task found for {session_id}')
         return False
 
-    async def _run_session_background(self, session_id: str, session: BaseSession, callback: Optional[Callable]) -> None:
+    async def _run_session_background(self, session_id: str, session: BaseSession, callback: Callable | None) -> None:
         """
         Run session in background and notify callback when complete.
 

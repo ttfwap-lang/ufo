@@ -42,8 +42,10 @@ import logging
 import os
 import platform
 import time
-from typing import Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 logger = logging.getLogger(__name__)
 
 class SettlementResult(BaseModel):
@@ -115,7 +117,7 @@ class StateVerifier:
         except Exception as e:
             logger.debug(f'Using default UI settlement config: {e}')
 
-    def wait_for_settlement(self, app_window: Any, target_control: Any=None, timeout: Optional[float]=None) -> SettlementResult:
+    def wait_for_settlement(self, app_window: Any, target_control: Any=None, timeout: float | None=None) -> SettlementResult:
         """
         Wait for the UI to settle after an action by checking structural stability.
 
@@ -188,8 +190,8 @@ class StateVerifier:
         node_desc = getattr(node, 'description', '')
         prompt = f'''You are the UFO Evaluation Agent. Your job is to verify whether a UI automation action was successful by comparing pre-action and post-action screenshots.\n\nUSER INTENT: "{user_intent}"\nACTION TAKEN: {action_type} on {target_app}\nNODE DESCRIPTION: "{node_desc}"\n\nThe FIRST image is the PRE-action state. The SECOND image is the POST-action state.\n\nCompare these two screenshots and determine:\n1. Did the UI state change in a way consistent with the action?\n2. Does the change fulfill the user's intent?\n3. Are there any error dialogs, crashes, or unexpected states?\n\nRespond with ONLY a JSON object:\n{{"success": <bool>, "observed_state": "<description>", "confidence": <float 0.0-1.0>, "error_reason": "<empty if success>"}}'''
         try:
-            from ufo.llm.llm_call import get_completion
             from ufo.llm import AgentType
+            from ufo.llm.llm_call import get_completion
             pre_b64 = self._encode_screenshot(pre_screenshot)
             post_b64 = self._encode_screenshot(post_screenshot)
             if not pre_b64 or not post_b64:
@@ -217,7 +219,7 @@ class StateVerifier:
             logger.error(f'Visual diff verification failed: {e}')
             return VerificationResult(success=False, observed_state='Unknown', error_reason=str(e), source='cloud_vlm')
 
-    def quick_verify(self, app_window: Any, expected_change: str='any', pre_control_count: Optional[int]=None) -> VerificationResult:
+    def quick_verify(self, app_window: Any, expected_change: str='any', pre_control_count: int | None=None) -> VerificationResult:
         """
         Quick structural verification without Cloud VLM.
 
@@ -279,7 +281,7 @@ class StateVerifier:
             return True
 
     @staticmethod
-    def _encode_screenshot(path: str) -> Optional[str]:
+    def _encode_screenshot(path: str) -> str | None:
         """Read a screenshot and return base64-encoded string."""
         try:
             with open(path, 'rb') as f:

@@ -8,7 +8,8 @@ import logging
 import platform
 import socket
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -27,12 +28,12 @@ class DeviceSystemInfo:
     memory_total_gb: float
     hostname: str
     ip_address: str
-    supported_features: List[str] = field(default_factory=list)
+    supported_features: list[str] = field(default_factory=list)
     platform_type: str = 'computer'
     schema_version: str = '1.0'
-    custom_metadata: Dict[str, Any] = field(default_factory=dict)
+    custom_metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return asdict(self)
 
@@ -45,7 +46,7 @@ class DeviceInfoProvider:
     """
 
     @staticmethod
-    def collect_system_info(client_id: str, custom_metadata: Optional[Dict[str, Any]]=None) -> DeviceSystemInfo:
+    def collect_system_info(client_id: str, custom_metadata: dict[str, Any] | None=None) -> DeviceSystemInfo:
         """
         Collect system information from the device.
 
@@ -122,7 +123,7 @@ class DeviceInfoProvider:
                 return 'unknown'
 
     @staticmethod
-    def _detect_features() -> List[str]:
+    def _detect_features() -> list[str]:
         """
         Auto-detect device capabilities based on platform.
 
@@ -159,7 +160,7 @@ class DeviceInfoProvider:
             return 'unknown'
 
     @staticmethod
-    def load_server_configured_metadata(config_file: str) -> Dict[str, Any]:
+    def load_server_configured_metadata(config_file: str) -> dict[str, Any]:
         """
         Load device metadata from a YAML/JSON configuration file.
 
@@ -171,7 +172,7 @@ class DeviceInfoProvider:
             return {}
         try:
             import yaml
-            with open(config_file, 'r', encoding='utf-8') as f:
+            with open(config_file, encoding='utf-8') as f:
                 data = yaml.safe_load(f)
                 if isinstance(data, dict):
                     return data.get('device_metadata', data)

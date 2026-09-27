@@ -19,7 +19,7 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,11 +28,13 @@ from fastapi.staticfiles import StaticFiles
 
 from ufo.galaxy.core.events import get_event_bus
 from ufo.galaxy.webui.dependencies import get_app_state
-from ufo.galaxy.webui.routers import auth_router, health_router, devices_router, websocket_router
+from ufo.galaxy.webui.routers import auth_router, devices_router, health_router, websocket_router
 from ufo.galaxy.webui.websocket_observer import WebSocketObserver
+
 if TYPE_CHECKING:
-    from ufo.galaxy.galaxy_client import GalaxyClient    
+    from ufo.galaxy.galaxy_client import GalaxyClient
 from ufo.galaxy.session.galaxy_session import GalaxySession
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -70,7 +72,7 @@ async def lifespan(app: FastAPI):
     logger.info(
         f"✅ WebSocket observer registered with event bus (observer: {websocket_observer})"
     )
-    print(f"✅ WebSocket observer registered with event bus")
+    print("✅ WebSocket observer registered with event bus")
     print(f"📊 Event bus has {len(event_bus._observers)} observers")
 
     yield
@@ -145,7 +147,7 @@ async def root() -> HTMLResponse:
     # Try to serve built React app first
     frontend_index: Path = Path(__file__).parent / "frontend" / "dist" / "index.html"
     if frontend_index.exists():
-        with open(frontend_index, "r", encoding="utf-8") as f:
+        with open(frontend_index, encoding="utf-8") as f:
             content = f.read()
 
         return HTMLResponse(
@@ -161,7 +163,7 @@ async def root() -> HTMLResponse:
     # Fallback to placeholder HTML from templates
     template_path: Path = Path(__file__).parent / "templates" / "index.html"
     if template_path.exists():
-        with open(template_path, "r", encoding="utf-8") as f:
+        with open(template_path, encoding="utf-8") as f:
             return HTMLResponse(content=f.read(), status_code=200)
 
     # Ultimate fallback if template file doesn't exist
@@ -193,7 +195,7 @@ def set_galaxy_client(client: "GalaxyClient") -> None:
 def start_server(
     host: str = "127.0.0.1",
     port: int = 8000,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
 ) -> None:
     """
     Start the Galaxy Web UI server.

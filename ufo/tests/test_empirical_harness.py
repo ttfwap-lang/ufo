@@ -11,22 +11,19 @@ Tests:
 """
 
 import asyncio
-import os
 import shutil
 import tempfile
 from pathlib import Path
+
 import pytest
 
-from tests.eval_suite.eval_runner import EvaluationRunner, EVAL_STAGES
+from tests.eval_suite.eval_runner import EVAL_STAGES, EvaluationRunner
+from tests.eval_suite.stages import stage_r1, stage_r2, stage_r3, stage_r4, stage_r5
 from tests.eval_suite.verifiers import (
     get_desktop_dir,
     verify_file_on_desktop,
-    verify_process_running,
     verify_session_logs,
-    verify_bankfidelity_process,
 )
-from tests.eval_suite.stages import stage_r1, stage_r2, stage_r3, stage_r4, stage_r5
-
 
 # ---------------------------------------------------------------------------
 # 1. EMPIRICAL CHALLENGE: STAGE PRE-CLEANUP ERROR HANDLING
@@ -56,7 +53,7 @@ def test_challenge_stage_r1_pre_cleanup_locked_or_missing_file():
     """Verify stage_r1 pre_cleanup handles non-existent or read-only desktop files."""
     desktop = get_desktop_dir()
     test_file = desktop / "ufo_test_challenge_temp.txt"
-    
+
     # Ensure file doesn't exist initially
     if test_file.exists():
         test_file.unlink()

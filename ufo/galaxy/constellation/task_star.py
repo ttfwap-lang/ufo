@@ -9,11 +9,14 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
 from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+
 from ..core.interfaces import ITask
 from ..core.types import ExecutionResult, TaskConfiguration, TaskId
 from .enums import DeviceType, TaskPriority, TaskStatus
+
 if TYPE_CHECKING:
     from ufo.galaxy.agents.schema import TaskStarSchema
 
@@ -31,7 +34,7 @@ class TaskStar(ITask):
     task management with type safety and validation.
     """
 
-    def __init__(self, task_id: Optional[TaskId]=None, name: str='', description: str='', tips: List[str]=None, target_device_id: Optional[str]=None, device_type: Optional[DeviceType]=None, priority: TaskPriority=TaskPriority.MEDIUM, timeout: Optional[float]=None, retry_count: int=0, task_data: Optional[Dict[str, Any]]=None, expected_output_type: Optional[str]=None, config: Optional[TaskConfiguration]=None):
+    def __init__(self, task_id: TaskId | None=None, name: str='', description: str='', tips: list[str]=None, target_device_id: str | None=None, device_type: DeviceType | None=None, priority: TaskPriority=TaskPriority.MEDIUM, timeout: float | None=None, retry_count: int=0, task_data: dict[str, Any] | None=None, expected_output_type: str | None=None, config: TaskConfiguration | None=None):
         """
         Initialize a TaskStar.
 
@@ -51,30 +54,30 @@ class TaskStar(ITask):
         self._task_id: TaskId = task_id or str(uuid.uuid4())
         self._name: str = name or f'task_{self._task_id[:8]}'
         self._description: str = description
-        self._tips: Optional[List[str]] = tips
-        self._target_device_id: Optional[str] = target_device_id
-        self._device_type: Optional[DeviceType] = device_type
+        self._tips: list[str] | None = tips
+        self._target_device_id: str | None = target_device_id
+        self._device_type: DeviceType | None = device_type
         self._priority: TaskPriority = priority
-        self._timeout: Optional[float] = timeout
+        self._timeout: float | None = timeout
         self._retry_count: int = retry_count
         self._current_retry: int = 0
-        self._task_data: Dict[str, Any] = task_data or {}
-        self._expected_output_type: Optional[str] = expected_output_type
+        self._task_data: dict[str, Any] = task_data or {}
+        self._expected_output_type: str | None = expected_output_type
         if config:
             self._timeout = config.timeout or self._timeout
             self._retry_count = config.retry_count or self._retry_count
             self._priority = config.priority or self._priority
             self._task_data.update(config.metadata)
         self._status: TaskStatus = TaskStatus.PENDING
-        self._result: Optional[Any] = None
-        self._error: Optional[Exception] = None
-        self._execution_start_time: Optional[datetime] = None
-        self._execution_end_time: Optional[datetime] = None
+        self._result: Any | None = None
+        self._error: Exception | None = None
+        self._execution_start_time: datetime | None = None
+        self._execution_end_time: datetime | None = None
         self._created_at: datetime = datetime.now(timezone.utc)
         self._updated_at: datetime = self._created_at
         self._dependencies: set[TaskId] = set()
         self._dependents: set[TaskId] = set()
-        self._validation_errors: List[str] = []
+        self._validation_errors: list[str] = []
         self.logger = logging.getLogger(__name__)
 
     @property
@@ -119,12 +122,12 @@ class TaskStar(ITask):
         self._updated_at = datetime.now(timezone.utc)
 
     @property
-    def tips(self) -> List[str]:
+    def tips(self) -> list[str]:
         """Get the task tips."""
         return self._tips
 
     @tips.setter
-    def tips(self, value: List[str]) -> None:
+    def tips(self, value: list[str]) -> None:
         """
         Set the task tips.
 
@@ -187,7 +190,7 @@ class TaskStar(ITask):
             self._validation_errors.append('Priority must be a TaskPriority enum value')
         return len(self._validation_errors) == 0
 
-    def get_validation_errors(self) -> List[str]:
+    def get_validation_errors(self) -> list[str]:
         """
         Get a list of validation errors.
 
@@ -206,12 +209,12 @@ class TaskStar(ITask):
         self.description = value
 
     @property
-    def target_device_id(self) -> Optional[str]:
+    def target_device_id(self) -> str | None:
         """Get the target device ID."""
         return self._target_device_id
 
     @target_device_id.setter
-    def target_device_id(self, value: Optional[str]) -> None:
+    def target_device_id(self, value: str | None) -> None:
         """Set the target device ID."""
         if self._status == TaskStatus.RUNNING:
             raise ValueError(f'Cannot modify device assignment of running task {self._task_id}')
@@ -219,12 +222,12 @@ class TaskStar(ITask):
         self._updated_at = datetime.now(timezone.utc)
 
     @property
-    def device_type(self) -> Optional[DeviceType]:
+    def device_type(self) -> DeviceType | None:
         """Get the device type."""
         return self._device_type
 
     @device_type.setter
-    def device_type(self, value: Optional[DeviceType]) -> None:
+    def device_type(self, value: DeviceType | None) -> None:
         """Set the device type."""
         if self._status == TaskStatus.RUNNING:
             raise ValueError(f'Cannot modify device type of running task {self._task_id}')
@@ -250,27 +253,27 @@ class TaskStar(ITask):
         return self._status
 
     @property
-    def result(self) -> Optional[Any]:
+    def result(self) -> Any | None:
         """Get the task execution result."""
         return self._result
 
     @property
-    def error(self) -> Optional[Exception]:
+    def error(self) -> Exception | None:
         """Get the task execution error, if any."""
         return self._error
 
     @property
-    def execution_start_time(self) -> Optional[datetime]:
+    def execution_start_time(self) -> datetime | None:
         """Get the execution start timestamp."""
         return self._execution_start_time
 
     @property
-    def execution_end_time(self) -> Optional[datetime]:
+    def execution_end_time(self) -> datetime | None:
         """Get the execution end timestamp."""
         return self._execution_end_time
 
     @property
-    def execution_duration(self) -> Optional[float]:
+    def execution_duration(self) -> float | None:
         """Get the execution duration in seconds."""
         if self._execution_start_time and self._execution_end_time:
             return (self._execution_end_time - self._execution_start_time).total_seconds()
@@ -297,11 +300,11 @@ class TaskStar(ITask):
         return self._status == TaskStatus.PENDING and len(self._dependencies) == 0
 
     @property
-    def task_data(self) -> Dict[str, Any]:
+    def task_data(self) -> dict[str, Any]:
         """Get a copy of the task data."""
         return self._task_data.copy()
 
-    def update_task_data(self, data: Dict[str, Any]) -> None:
+    def update_task_data(self, data: dict[str, Any]) -> None:
         """
         Update the task data.
 
@@ -417,10 +420,10 @@ class TaskStar(ITask):
         """
         Convert the TaskStar to a formated string representation (description + tips) for requests.
         """
-        tips = '\n'.join((f' - {tip}' for tip in self._tips)) if self._tips else 'No tips available.'
+        tips = '\n'.join(f' - {tip}' for tip in self._tips) if self._tips else 'No tips available.'
         return f'Task Description: {self._description}\nTips for Completion:\n{tips}'
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert the TaskStar to a dictionary representation.
 
@@ -435,9 +438,8 @@ class TaskStar(ITask):
         :param result: The result to serialize
         :return: JSON-compatible result
         """
-        import json
-        from enum import Enum
         from datetime import datetime
+        from enum import Enum
         if result is None:
             return None
         if isinstance(result, (str, int, float, bool)):
@@ -463,7 +465,7 @@ class TaskStar(ITask):
                 return str(result)
         return str(result)
 
-    def _serialize_task_data(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize_task_data(self, task_data: dict[str, Any]) -> dict[str, Any]:
         """
         Recursively serialize task data for JSON compatibility.
 
@@ -499,7 +501,7 @@ class TaskStar(ITask):
             return TaskPriority.MEDIUM
 
     @staticmethod
-    def _parse_device_type(device_type_value: Any) -> Optional[DeviceType]:
+    def _parse_device_type(device_type_value: Any) -> DeviceType | None:
         """
         Parse device type value (string or DeviceType) into DeviceType enum.
 
@@ -533,7 +535,7 @@ class TaskStar(ITask):
             return TaskStatus.PENDING
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'TaskStar':
+    def from_dict(cls, data: dict[str, Any]) -> 'TaskStar':
         """
         Create a TaskStar from a dictionary representation.
 
@@ -581,7 +583,7 @@ class TaskStar(ITask):
         return TaskStarSchema(**data)
 
     @classmethod
-    def from_json(cls, json_data: Optional[str]=None, file_path: Optional[str]=None) -> 'TaskStar':
+    def from_json(cls, json_data: str | None=None, file_path: str | None=None) -> 'TaskStar':
         """
         Create a TaskStar from a JSON string or JSON file.
 
@@ -600,12 +602,12 @@ class TaskStar(ITask):
             raise ValueError('Only one of json_data or file_path should be provided')
         if file_path:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, encoding='utf-8') as f:
                     data = json.load(f)
             except FileNotFoundError:
                 raise FileNotFoundError(f'JSON file not found: {file_path}')
             except Exception as e:
-                raise IOError(f'Failed to read JSON file {file_path}: {e}')
+                raise OSError(f'Failed to read JSON file {file_path}: {e}')
         else:
             try:
                 data = json.loads(json_data)
@@ -615,7 +617,7 @@ class TaskStar(ITask):
             raise ValueError('JSON data must represent a dictionary/object')
         return cls.from_dict(data)
 
-    def to_json(self, save_path: Optional[str]=None) -> str:
+    def to_json(self, save_path: str | None=None) -> str:
         """
         Convert the TaskStar to a JSON string representation.
 
@@ -634,10 +636,10 @@ class TaskStar(ITask):
                 self.logger.info(f'TaskStar {self.task_id} saved to {save_path}')
             except Exception as e:
                 self.logger.error(f'Failed to save TaskStar to {save_path}: {e}')
-                raise IOError(f'Failed to save TaskStar to {save_path}: {e}')
+                raise OSError(f'Failed to save TaskStar to {save_path}: {e}')
         return json_str
 
-    def _ensure_json_serializable(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _ensure_json_serializable(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Ensure all values in the dictionary are JSON serializable.
 

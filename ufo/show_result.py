@@ -1,5 +1,4 @@
 import json
-import sys
 import urllib.request
 
 tok = open(r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\ufo_bridge_token.txt").read().strip()

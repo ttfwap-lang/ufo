@@ -4,14 +4,12 @@ Test script for BaseModel integration with TaskStar, TaskStarLine, and TaskConst
 This script tests the serialization and deserialization functionality between
 the constellation classes and their corresponding Pydantic BaseModel schemas.
 """
-import json
-from datetime import datetime
-from typing import Dict, Any
+from ufo.galaxy.agents.schema import TaskConstellationSchema, TaskStarLineSchema, TaskStarSchema
+from ufo.galaxy.constellation.enums import DependencyType, DeviceType, TaskPriority
+from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
 from ufo.galaxy.constellation.task_star_line import TaskStarLine
-from ufo.galaxy.constellation.task_constellation import TaskConstellation
-from ufo.galaxy.constellation.enums import TaskStatus, TaskPriority, DeviceType, DependencyType, ConstellationState
-from ufo.galaxy.agents.schema import TaskStarSchema, TaskStarLineSchema, TaskConstellationSchema
+
 
 def test_task_star_basemodel():
     """Test TaskStar BaseModel integration."""
@@ -120,17 +118,17 @@ def test_validation_and_error_handling():
     try:
         TaskStar.from_basemodel('invalid_schema')
         assert False, 'Should have raised ValueError'
-    except ValueError as e:
+    except ValueError:
         print('✅ Correctly caught invalid schema type for TaskStar')
     try:
         TaskStarLine.from_basemodel(42)
         assert False, 'Should have raised ValueError'
-    except ValueError as e:
+    except ValueError:
         print('✅ Correctly caught invalid schema type for TaskStarLine')
     try:
         TaskConstellation.from_basemodel({'invalid': 'dict'})
         assert False, 'Should have raised ValueError'
-    except ValueError as e:
+    except ValueError:
         print('✅ Correctly caught invalid schema type for TaskConstellation')
     try:
         invalid_schema = TaskStarSchema(task_id='', name='', description='', created_at='invalid_date', updated_at='invalid_date')

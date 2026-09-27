@@ -4,7 +4,8 @@ Test script for automatic ID assignment in BaseModel schemas.
 This script tests the automatic generation of constellation_id, task_id, and line_id,
 as well as the uniqueness validation within constellation contexts.
 """
-from ufo.galaxy.agents.schema import TaskStarSchema, TaskStarLineSchema, TaskConstellationSchema, IDManager
+from ufo.galaxy.agents.schema import IDManager, TaskConstellationSchema, TaskStarLineSchema, TaskStarSchema
+
 
 def test_automatic_id_generation():
     """Test automatic ID generation for all schema types."""

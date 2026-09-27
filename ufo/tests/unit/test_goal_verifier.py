@@ -1,8 +1,6 @@
 import asyncio
 from types import SimpleNamespace
 
-import pytest
-
 from ufo.agents.processors.strategies import goal_verifier as gv
 
 

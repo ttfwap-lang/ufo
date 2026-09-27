@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 
 import pytest
-
 from ufo.client.mcp.local_servers.browseract_mcp_server import (
     BrowserActSessionManager,
     _Settings,

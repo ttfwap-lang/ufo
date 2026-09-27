@@ -2,14 +2,12 @@
 Tests for Galaxy WebUI WebSocket Server.
 """
 
-import pytest
-import asyncio
-from unittest.mock import Mock, AsyncMock, patch
-from fastapi.testclient import TestClient
-from fastapi.websockets import WebSocket
+from unittest.mock import AsyncMock, Mock
 
-from ufo.galaxy.webui.server import app, set_galaxy_client
+import pytest
+from fastapi.testclient import TestClient
 from ufo.galaxy.webui.dependencies import get_app_state
+from ufo.galaxy.webui.server import app, set_galaxy_client
 
 TEST_API_KEY = "test-api-key-for-unit-tests"
 
@@ -51,46 +49,43 @@ def test_root_endpoint(test_client):
 @pytest.mark.asyncio
 async def test_websocket_connection():
     """Test WebSocket connection establishment."""
-    with TestClient(app) as client:
-        with client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
-            # Should receive welcome message
-            data = websocket.receive_json()
-            assert data["type"] == "welcome"
-            assert "Connected to Galaxy Web UI" in data["message"]
+    with TestClient(app) as client, client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
+        # Should receive welcome message
+        data = websocket.receive_json()
+        assert data["type"] == "welcome"
+        assert "Connected to Galaxy Web UI" in data["message"]
 
 
 @pytest.mark.asyncio
 async def test_websocket_ping_pong():
     """Test WebSocket ping/pong mechanism."""
-    with TestClient(app) as client:
-        with client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
-            # Receive welcome message
-            websocket.receive_json()
+    with TestClient(app) as client, client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
+        # Receive welcome message
+        websocket.receive_json()
 
-            # Send ping
-            websocket.send_json({"type": "ping"})
+        # Send ping
+        websocket.send_json({"type": "ping"})
 
-            # Should receive pong
-            response = websocket.receive_json()
-            assert response["type"] == "pong"
-            assert "timestamp" in response
+        # Should receive pong
+        response = websocket.receive_json()
+        assert response["type"] == "pong"
+        assert "timestamp" in response
 
 
 @pytest.mark.asyncio
 async def test_websocket_request_without_client():
     """Test sending request when Galaxy client is not set."""
-    with TestClient(app) as client:
-        with client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
-            # Receive welcome message
-            websocket.receive_json()
+    with TestClient(app) as client, client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
+        # Receive welcome message
+        websocket.receive_json()
 
-            # Send request without Galaxy client
-            websocket.send_json({"type": "request", "text": "Test request"})
+        # Send request without Galaxy client
+        websocket.send_json({"type": "request", "text": "Test request"})
 
-            # Should receive error
-            response = websocket.receive_json()
-            assert response["type"] == "error"
-            assert "not initialized" in response["message"]
+        # Should receive error
+        response = websocket.receive_json()
+        assert response["type"] == "error"
+        assert "not initialized" in response["message"]
 
 
 @pytest.mark.asyncio
@@ -104,26 +99,25 @@ async def test_websocket_request_with_client():
     set_galaxy_client(mock_client)
 
     try:
-        with TestClient(app) as client:
-            with client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
-                # Receive welcome message
-                websocket.receive_json()
+        with TestClient(app) as client, client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
+            # Receive welcome message
+            websocket.receive_json()
 
-                # Send request
-                websocket.send_json({"type": "request", "text": "Test request"})
+            # Send request
+            websocket.send_json({"type": "request", "text": "Test request"})
 
-                # Acknowledged immediately, then completed when processing finishes
-                response = websocket.receive_json()
-                assert response["type"] == "request_received"
-                assert response["status"] == "processing"
+            # Acknowledged immediately, then completed when processing finishes
+            response = websocket.receive_json()
+            assert response["type"] == "request_received"
+            assert response["status"] == "processing"
 
-                response = websocket.receive_json()
-                assert response["type"] == "request_completed"
-                assert response["status"] == "completed"
-                assert "result" in response
+            response = websocket.receive_json()
+            assert response["type"] == "request_completed"
+            assert response["status"] == "completed"
+            assert "result" in response
 
-                # Verify client was called
-                mock_client.process_request.assert_called_once_with("Test request")
+            # Verify client was called
+            mock_client.process_request.assert_called_once_with("Test request")
     finally:
         # Clean up
         set_galaxy_client(None)
@@ -132,36 +126,34 @@ async def test_websocket_request_with_client():
 @pytest.mark.asyncio
 async def test_websocket_reset():
     """Test reset message handling."""
-    with TestClient(app) as client:
-        with client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
-            # Receive welcome message
-            websocket.receive_json()
+    with TestClient(app) as client, client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
+        # Receive welcome message
+        websocket.receive_json()
 
-            # Send reset
-            websocket.send_json({"type": "reset"})
+        # Send reset
+        websocket.send_json({"type": "reset"})
 
-            # Acknowledged; with no Galaxy client there is nothing to reset
-            response = websocket.receive_json()
-            assert response["type"] == "reset_acknowledged"
-            assert response["status"] == "warning"
-            assert "No active client" in response["message"]
+        # Acknowledged; with no Galaxy client there is nothing to reset
+        response = websocket.receive_json()
+        assert response["type"] == "reset_acknowledged"
+        assert response["status"] == "warning"
+        assert "No active client" in response["message"]
 
 
 @pytest.mark.asyncio
 async def test_websocket_unknown_message():
     """Test handling of unknown message types."""
-    with TestClient(app) as client:
-        with client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
-            # Receive welcome message
-            websocket.receive_json()
+    with TestClient(app) as client, client.websocket_connect(f"/ws?token={TEST_API_KEY}") as websocket:
+        # Receive welcome message
+        websocket.receive_json()
 
-            # Send unknown message type
-            websocket.send_json({"type": "unknown_type"})
+        # Send unknown message type
+        websocket.send_json({"type": "unknown_type"})
 
-            # Should receive error
-            response = websocket.receive_json()
-            assert response["type"] == "error"
-            assert "Unknown message type" in response["message"]
+        # Should receive error
+        response = websocket.receive_json()
+        assert response["type"] == "error"
+        assert "Unknown message type" in response["message"]
 
 
 def test_static_file_serving(test_client):

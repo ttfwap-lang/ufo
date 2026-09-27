@@ -37,8 +37,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ class EndpointDown(RuntimeError):
         )
 
 
-def endpoint_key(api_base: Optional[str]) -> Optional[str]:
+def endpoint_key(api_base: str | None) -> str | None:
     """Normalise an api_base to 'host:port' (localhost aliases collapse together)."""
     if not api_base or not isinstance(api_base, str):
         return None
@@ -74,7 +75,7 @@ def endpoint_key(api_base: Optional[str]) -> Optional[str]:
     return f"{host}:{port}"
 
 
-def is_timeout_error(error: Optional[BaseException]) -> bool:
+def is_timeout_error(error: BaseException | None) -> bool:
     if error is None:
         return False
     names = {c.__name__ for c in type(error).__mro__}
@@ -134,7 +135,7 @@ class EndpointGate:
         self.max_cooldown = max_cooldown
         self._clock = clock
         self._lock = threading.Lock()
-        self._states: Dict[str, _EndpointState] = {}
+        self._states: dict[str, _EndpointState] = {}
 
     def check(self, key: str) -> None:
         """Raise EndpointDown if the endpoint is open. After the cooldown exactly
@@ -194,7 +195,7 @@ class EndpointGate:
                 return True
             return False
 
-    def open_error(self, key: str) -> Optional[EndpointDown]:
+    def open_error(self, key: str) -> EndpointDown | None:
         """An EndpointDown describing the current open state, or None if closed."""
         with self._lock:
             st = self._states.get(key)
@@ -224,7 +225,7 @@ PROBE_TIMEOUT = 3.0
 
 # --------------------------------------------------------------------------- probe
 
-def probe_sync(api_base: str, timeout: float = 3.0, api_key: Optional[str] = None) -> bool:
+def probe_sync(api_base: str, timeout: float = 3.0, api_key: str | None = None) -> bool:
     """Is the server answering at all? Any HTTP response counts (401/404 too);
     only a connection error or no reply within `timeout` means down. Sync so it
     can run in a worker thread without needing an event loop."""
@@ -243,7 +244,7 @@ def probe_sync(api_base: str, timeout: float = 3.0, api_key: Optional[str] = Non
 
 # ------------------------------------------------------------- admission control
 
-_limiters: Dict[str, threading.BoundedSemaphore] = {}
+_limiters: dict[str, threading.BoundedSemaphore] = {}
 _limiters_lock = threading.Lock()
 
 
@@ -254,7 +255,7 @@ def max_inflight() -> int:
         return 4
 
 
-def inflight_limiter(api_base: Optional[str]) -> Optional[threading.BoundedSemaphore]:
+def inflight_limiter(api_base: str | None) -> threading.BoundedSemaphore | None:
     """One semaphore per local endpoint. Returns None for cloud endpoints, which
     have their own rate limiting and no shared decode slots to protect."""
     from ufo.llm.endpoint import is_local_endpoint
@@ -272,13 +273,13 @@ def inflight_limiter(api_base: Optional[str]) -> Optional[threading.BoundedSemap
 # ------------------------------------------------------------ model discovery
 
 _ALIAS_LOCK = threading.Lock()
-_ALIASES: Dict[tuple, str] = {}
-_LISTINGS: Dict[str, tuple] = {}  # key -> (expires_at, [ids])
+_ALIASES: dict[tuple, str] = {}
+_LISTINGS: dict[str, tuple] = {}  # key -> (expires_at, [ids])
 _LISTING_TTL_OK = 60.0
 _LISTING_TTL_FAIL = 10.0
 
 
-def list_models(api_base: str, api_key: Optional[str] = None, timeout: float = 3.0) -> List[str]:
+def list_models(api_base: str, api_key: str | None = None, timeout: float = 3.0) -> list[str]:
     """Model ids the server reports on /models. Cached briefly, never raises."""
     key = endpoint_key(api_base) or api_base
     now = time.monotonic()
@@ -286,7 +287,7 @@ def list_models(api_base: str, api_key: Optional[str] = None, timeout: float = 3
         cached = _LISTINGS.get(key)
         if cached and cached[0] > now:
             return list(cached[1])
-    ids: List[str] = []
+    ids: list[str] = []
     try:
         req = urllib.request.Request(api_base.rstrip("/") + "/models", method="GET")
         if api_key:
@@ -301,7 +302,7 @@ def list_models(api_base: str, api_key: Optional[str] = None, timeout: float = 3
     return ids
 
 
-def discover_model(api_base: str, configured: str, api_key: Optional[str] = None) -> Optional[str]:
+def discover_model(api_base: str, configured: str, api_key: str | None = None) -> str | None:
     """The name to use instead of `configured`, or None if `configured` is right
     or the answer is ambiguous. Only unambiguous corrections are made: the server
     serves exactly one model, or matches `configured` case-insensitively."""

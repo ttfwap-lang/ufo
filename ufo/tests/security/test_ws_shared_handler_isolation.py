@@ -13,14 +13,12 @@ receiving another client's ``device_info_response`` or task ACK).
 from __future__ import annotations
 
 import asyncio
-import os
 import importlib
 import sys
 import types
 import unittest
 from pathlib import Path
-from typing import Any, List
-
+from typing import Any
 
 # Allow importing the in-tree package without installation, mirroring
 # the layout used by the other security regression tests.
@@ -108,7 +106,6 @@ except Exception:
 
 
 from starlette.websockets import WebSocketState  # noqa: E402
-
 from ufo.aip.messages import (  # noqa: E402
     ClientMessage,
     ClientMessageType,
@@ -130,9 +127,9 @@ class _FakeWebSocket:
     are required by ``starlette`` introspection.
     """
 
-    def __init__(self, incoming: List[str], label: str) -> None:
+    def __init__(self, incoming: list[str], label: str) -> None:
         self.incoming = list(incoming)
-        self.sent: List[str] = []
+        self.sent: list[str] = []
         self.label = label
         self.client_state = WebSocketState.CONNECTED
         self.application_state = WebSocketState.CONNECTED
@@ -157,7 +154,7 @@ class _DummySessionManager:
     """Captures ``execute_task_async`` invocations."""
 
     def __init__(self) -> None:
-        self.calls: List[dict] = []
+        self.calls: list[dict] = []
 
     async def execute_task_async(self, **kwargs: Any) -> str:
         self.calls.append(kwargs)

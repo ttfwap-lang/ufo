@@ -4,7 +4,8 @@ Test script for optional fields in BaseModel schemas.
 This script verifies that created_at and updated_at fields are now optional
 and that task_description has been removed from TaskStarSchema.
 """
-from ufo.galaxy.agents.schema import TaskStarSchema, TaskStarLineSchema, TaskConstellationSchema
+from ufo.galaxy.agents.schema import TaskConstellationSchema, TaskStarLineSchema, TaskStarSchema
+
 
 def test_optional_fields():
     """Test that created_at and updated_at fields are optional."""

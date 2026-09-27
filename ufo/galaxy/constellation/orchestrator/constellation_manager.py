@@ -5,9 +5,12 @@ This module handles the management logic for TaskConstellation objects,
 including device assignment, status tracking, and execution coordination.
 """
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+
 from ..task_constellation import TaskConstellation
+
 
 class ConstellationManager:
     """
@@ -20,7 +23,7 @@ class ConstellationManager:
     - Execution coordination
     """
 
-    def __init__(self, device_manager: Optional[ConstellationDeviceManager]=None, enable_logging: bool=True):
+    def __init__(self, device_manager: ConstellationDeviceManager | None=None, enable_logging: bool=True):
         """
         Initialize the ConstellationManager.
 
@@ -29,8 +32,8 @@ class ConstellationManager:
         """
         self._device_manager = device_manager
         self._logger = logging.getLogger(__name__) if enable_logging else None
-        self._managed_constellations: Dict[str, TaskConstellation] = {}
-        self._constellation_metadata: Dict[str, Dict[str, Any]] = {}
+        self._managed_constellations: dict[str, TaskConstellation] = {}
+        self._constellation_metadata: dict[str, dict[str, Any]] = {}
 
     def set_device_manager(self, device_manager: ConstellationDeviceManager) -> None:
         """
@@ -42,7 +45,7 @@ class ConstellationManager:
         if self._logger:
             self._logger.info('Device manager updated')
 
-    def register_constellation(self, constellation: TaskConstellation, metadata: Optional[Dict[str, Any]]=None) -> str:
+    def register_constellation(self, constellation: TaskConstellation, metadata: dict[str, Any] | None=None) -> str:
         """
         Register a constellation for management.
 
@@ -74,7 +77,7 @@ class ConstellationManager:
             return True
         return False
 
-    def get_constellation(self, constellation_id: str) -> Optional[TaskConstellation]:
+    def get_constellation(self, constellation_id: str) -> TaskConstellation | None:
         """
         Get a managed constellation by ID.
 
@@ -83,7 +86,7 @@ class ConstellationManager:
         """
         return self._managed_constellations.get(constellation_id)
 
-    def list_constellations(self) -> List[Dict[str, Any]]:
+    def list_constellations(self) -> list[dict[str, Any]]:
         """
         List all managed constellations with their basic information.
 
@@ -95,7 +98,7 @@ class ConstellationManager:
             result.append({'constellation_id': constellation_id, 'name': constellation.name, 'state': constellation.state.value, 'task_count': constellation.task_count, 'dependency_count': constellation.dependency_count, 'metadata': metadata})
         return result
 
-    async def assign_devices_automatically(self, constellation: TaskConstellation, strategy: str='round_robin', device_preferences: Optional[Dict[str, str]]=None) -> Dict[str, str]:
+    async def assign_devices_automatically(self, constellation: TaskConstellation, strategy: str='round_robin', device_preferences: dict[str, str] | None=None) -> dict[str, str]:
         """
         Automatically assign devices to tasks in a constellation.
 
@@ -128,14 +131,14 @@ class ConstellationManager:
             self._logger.info(f'Assigned {len(assignments)} tasks to devices')
         return assignments
 
-    async def _assign_round_robin(self, constellation: TaskConstellation, available_devices: List[Dict[str, Any]], preferences: Optional[Dict[str, str]]=None) -> Dict[str, str]:
+    async def _assign_round_robin(self, constellation: TaskConstellation, available_devices: list[dict[str, Any]], preferences: dict[str, str] | None=None) -> dict[str, str]:
         """Round robin device assignment strategy."""
         assignments = {}
         device_index = 0
         for task_id, task in constellation.tasks.items():
             if preferences and task_id in preferences:
                 preferred_device = preferences[task_id]
-                if any((d['device_id'] == preferred_device for d in available_devices)):
+                if any(d['device_id'] == preferred_device for d in available_devices):
                     assignments[task_id] = preferred_device
                     continue
             device = available_devices[device_index % len(available_devices)]
@@ -143,13 +146,13 @@ class ConstellationManager:
             device_index += 1
         return assignments
 
-    async def _assign_capability_match(self, constellation: TaskConstellation, available_devices: List[Dict[str, Any]], preferences: Optional[Dict[str, str]]=None) -> Dict[str, str]:
+    async def _assign_capability_match(self, constellation: TaskConstellation, available_devices: list[dict[str, Any]], preferences: dict[str, str] | None=None) -> dict[str, str]:
         """Capability-based device assignment strategy."""
         assignments = {}
         for task_id, task in constellation.tasks.items():
             if preferences and task_id in preferences:
                 preferred_device = preferences[task_id]
-                if any((d['device_id'] == preferred_device for d in available_devices)):
+                if any(d['device_id'] == preferred_device for d in available_devices):
                     assignments[task_id] = preferred_device
                     continue
             matching_devices = []
@@ -161,14 +164,14 @@ class ConstellationManager:
                 assignments[task_id] = matching_devices[0]['device_id']
         return assignments
 
-    async def _assign_load_balance(self, constellation: TaskConstellation, available_devices: List[Dict[str, Any]], preferences: Optional[Dict[str, str]]=None) -> Dict[str, str]:
+    async def _assign_load_balance(self, constellation: TaskConstellation, available_devices: list[dict[str, Any]], preferences: dict[str, str] | None=None) -> dict[str, str]:
         """Load-balanced device assignment strategy."""
         assignments = {}
         device_load = {d['device_id']: 0 for d in available_devices}
         for task_id, task in constellation.tasks.items():
             if preferences and task_id in preferences:
                 preferred_device = preferences[task_id]
-                if any((d['device_id'] == preferred_device for d in available_devices)):
+                if any(d['device_id'] == preferred_device for d in available_devices):
                     assignments[task_id] = preferred_device
                     device_load[preferred_device] += 1
                     continue
@@ -177,7 +180,7 @@ class ConstellationManager:
             device_load[min_load_device] += 1
         return assignments
 
-    async def get_constellation_status(self, constellation_id: str) -> Optional[Dict[str, Any]]:
+    async def get_constellation_status(self, constellation_id: str) -> dict[str, Any] | None:
         """
         Get detailed status of a managed constellation.
 
@@ -190,7 +193,7 @@ class ConstellationManager:
         metadata = self._constellation_metadata.get(constellation_id, {})
         return {'constellation_id': constellation_id, 'name': constellation.name, 'state': constellation.state.value, 'statistics': constellation.get_statistics(), 'ready_tasks': [task.task_id for task in constellation.get_ready_tasks()], 'running_tasks': [task.task_id for task in constellation.get_running_tasks()], 'completed_tasks': [task.task_id for task in constellation.get_completed_tasks()], 'failed_tasks': [task.task_id for task in constellation.get_failed_tasks()], 'metadata': metadata}
 
-    async def get_available_devices(self) -> List[Dict[str, Any]]:
+    async def get_available_devices(self) -> list[dict[str, Any]]:
         """
         Get list of available devices from device manager.
 
@@ -198,7 +201,7 @@ class ConstellationManager:
         """
         return await self._get_available_devices()
 
-    async def _get_available_devices(self) -> List[Dict[str, Any]]:
+    async def _get_available_devices(self) -> list[dict[str, Any]]:
         """Internal method to get available devices."""
         if not self._device_manager:
             return []
@@ -215,7 +218,7 @@ class ConstellationManager:
                 self._logger.error(f'Failed to get available devices: {e}')
             return []
 
-    def validate_constellation_assignments(self, constellation: TaskConstellation) -> tuple[bool, List[str]]:
+    def validate_constellation_assignments(self, constellation: TaskConstellation) -> tuple[bool, list[str]]:
         """
         Validate that all tasks in a constellation have valid device assignments.
 
@@ -234,7 +237,7 @@ class ConstellationManager:
                 self._logger.warning(f"Constellation '{constellation.name}' has {len(errors)} assignment errors")
         return (is_valid, errors)
 
-    def get_task_device_info(self, constellation: TaskConstellation, task_id: str) -> Optional[Dict[str, Any]]:
+    def get_task_device_info(self, constellation: TaskConstellation, task_id: str) -> dict[str, Any] | None:
         """
         Get device information for a specific task.
 
@@ -289,7 +292,7 @@ class ConstellationManager:
             self._logger.info(f"Cleared {cleared_count} device assignments from constellation '{constellation.name}'")
         return cleared_count
 
-    def get_device_utilization(self, constellation: TaskConstellation) -> Dict[str, int]:
+    def get_device_utilization(self, constellation: TaskConstellation) -> dict[str, int]:
         """
         Get device utilization statistics for a constellation.
 

@@ -2,16 +2,13 @@
 # Stress-testing Bug 1 (JSON Log Duplication) and Bug 2 (Missing Log Dir False Positive Pass)
 
 import json
-from pathlib import Path
-import pytest
 
-from tests.eval_suite.verifiers import verify_session_logs, verify_file_on_desktop
 from tests.eval_suite.stages.stage_r1 import verify_r1
 from tests.eval_suite.stages.stage_r2 import verify_r2
 from tests.eval_suite.stages.stage_r3 import verify_r3
 from tests.eval_suite.stages.stage_r4 import verify_r4
 from tests.eval_suite.stages.stage_r5 import verify_r5
-
+from tests.eval_suite.verifiers import verify_session_logs
 
 # =====================================================================
 # STRESS TEST SUITE 1: JSON LOG DEDUPLICATION (Bug 1)

@@ -11,8 +11,9 @@ do NOT prove the agent works against a real Galaxy server or the real DGX
 host; no live infrastructure is exercised here.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from ufo.galaxy.device_agents.dgx_device_agent import DGXDeviceAgent
 

@@ -7,12 +7,11 @@ This module provides base classes for Windows and Linux platforms,
 allowing for platform-specific agent initialization and behavior.
 """
 
-from typing import Optional
 
 from ufo.agents.agent.customized_agent import LinuxAgent, MobileAgent
 from ufo.agents.agent.host_agent import AgentFactory, HostAgent
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
-from ufo.module.basic import BaseRound, BaseSession
+from ufo.config.config_loader import LazyUFOConfig
+from ufo.module.basic import BaseSession
 
 ufo_config = LazyUFOConfig()
 

@@ -14,14 +14,18 @@ import logging
 import tracemalloc
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
+
 from rich.console import Console
+
 from ufo.config.config_loader import get_galaxy_config
 from ufo.galaxy.client.config_loader import ConstellationConfig
 from ufo.ufo_logging.setup import setup_logger
+
 from .client.constellation_client import ConstellationClient
 from .session.galaxy_session import GalaxySession
 from .visualization.client_display import ClientDisplay
+
 tracemalloc.start()
 console = Console()
 
@@ -36,7 +40,7 @@ class GalaxyClient:
     - Interactive and batch modes
     """
 
-    def __init__(self, session_name: Optional[str]=None, task_name: Optional[str]=None, max_rounds: int=10, log_level: str='WARNING', output_dir: Optional[str]=None):
+    def __init__(self, session_name: str | None=None, task_name: str | None=None, max_rounds: int=10, log_level: str='WARNING', output_dir: str | None=None):
         """
         Initialize Galaxy client.
 
@@ -54,9 +58,9 @@ class GalaxyClient:
         if not root_logger.handlers:
             setup_logger(log_level)
         self.logger = logging.getLogger(__name__)
-        self._client: Optional[ConstellationClient] = None
-        self._session: Optional[GalaxySession] = None
-        self._current_request_task: Optional[asyncio.Task] = None
+        self._client: ConstellationClient | None = None
+        self._session: GalaxySession | None = None
+        self._current_request_task: asyncio.Task | None = None
         self._is_shutting_down: bool = False
         galaxy_config = get_galaxy_config()
         device_info_path = galaxy_config.constellation.DEVICE_INFO
@@ -93,7 +97,7 @@ class GalaxyClient:
             self.logger.error(f'? Failed to initialize UFO3 Framework: {e}', exc_info=True)
             raise
 
-    async def process_request(self, request: str) -> Dict[str, Any]:
+    async def process_request(self, request: str) -> dict[str, Any]:
         """
         Process a single user request.
 
@@ -109,19 +113,19 @@ class GalaxyClient:
             self.logger.info(f'?? Processing request: {request[:100]}...')
             from ufo.galaxy.client.components.types import DeviceStatus
             all_devices = self._client.device_manager.device_registry.get_all_devices()
-            connected_devices_count = sum((1 for device in all_devices.values() if device.status in [DeviceStatus.CONNECTED, DeviceStatus.IDLE, DeviceStatus.BUSY]))
+            connected_devices_count = sum(1 for device in all_devices.values() if device.status in [DeviceStatus.CONNECTED, DeviceStatus.IDLE, DeviceStatus.BUSY])
             total_devices_count = len(all_devices)
             if connected_devices_count < total_devices_count:
                 self.logger.info(f'?? Detected {total_devices_count - connected_devices_count} disconnected devices, attempting reconnection...')
                 self.display.print_info('[cyan]?? Reconnecting disconnected devices...[/cyan]')
                 connection_results = await self._client.ensure_devices_connected()
-                connected_count = sum((1 for connected in connection_results.values() if connected))
+                connected_count = sum(1 for connected in connection_results.values() if connected)
                 if connected_count < total_devices_count:
                     self.display.print_warning(f'??  Only {connected_count}/{total_devices_count} devices connected')
                     self.logger.warning(f'??  Only {connected_count}/{total_devices_count} devices connected')
                 else:
                     self.display.print_success(f'? All {connected_count} devices reconnected')
-                    self.logger.info(f'? All devices reconnected')
+                    self.logger.info('? All devices reconnected')
                 all_devices_after = self._client.device_manager.device_registry.get_all_devices()
                 self.logger.info(f'?? DEBUG: After reconnection, device registry contains {len(all_devices_after)} devices: {list(all_devices_after.keys())}')
             task_name = self.task_name
@@ -206,7 +210,7 @@ class GalaxyClient:
         session_info = {'client_initialized': self._client is not None, 'last_session_rounds': len(self._session._rounds) if self._session else 0}
         self.display.show_status(self.session_name, self.max_rounds, self.output_dir, session_info)
 
-    def _save_result(self, result: Dict[str, Any]) -> None:
+    def _save_result(self, result: dict[str, Any]) -> None:
         """
         Save result to JSON file.
 
@@ -232,7 +236,7 @@ class GalaxyClient:
             self.logger.error(f'Failed to save result: {e}', exc_info=True)
             self.display.print_warning(f'?? Failed to save result: {e}')
 
-    async def reset_session(self) -> Dict[str, Any]:
+    async def reset_session(self) -> dict[str, Any]:
         """
         Reset the current session, clearing all state.
 
@@ -254,7 +258,7 @@ class GalaxyClient:
             self.logger.error(f'Failed to reset session: {e}', exc_info=True)
             return {'status': 'error', 'message': f'Failed to reset session: {str(e)}', 'session_name': self.session_name, 'timestamp': datetime.now().isoformat()}
 
-    async def create_next_session(self) -> Dict[str, Any]:
+    async def create_next_session(self) -> dict[str, Any]:
         """
         Create a new session, replacing the current one.
 
@@ -273,7 +277,7 @@ class GalaxyClient:
                 self.display.print_info('[cyan]?? Checking device connections for new session...[/cyan]')
                 self.logger.info('?? Ensuring devices connected for new session...')
                 connection_results = await self._client.ensure_devices_connected()
-                connected_count = sum((1 for connected in connection_results.values() if connected))
+                connected_count = sum(1 for connected in connection_results.values() if connected)
                 total_count = len(connection_results)
                 if connected_count < total_count:
                     self.display.print_warning(f'??  Only {connected_count}/{total_count} devices connected for new session')

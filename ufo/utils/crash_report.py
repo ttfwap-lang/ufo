@@ -19,11 +19,12 @@ import os
 import platform
 import sys
 import traceback
-import urllib.request
 import urllib.error
+import urllib.request
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
 def _probe_service(port: int) -> str:
@@ -35,7 +36,7 @@ def _probe_service(port: int) -> str:
     except Exception as e:
         return f'DOWN ({type(e).__name__})'
 
-def _get_system_info() -> Dict[str, Any]:
+def _get_system_info() -> dict[str, Any]:
     """Collect system information for the crash report."""
     info = {'timestamp': datetime.now().isoformat(), 'platform': platform.platform(), 'python_version': sys.version, 'architecture': platform.machine(), 'processor': platform.processor(), 'cwd': os.getcwd()}
     try:
@@ -50,11 +51,11 @@ def _get_system_info() -> Dict[str, Any]:
         info['ram_info'] = 'psutil not available'
     return info
 
-def _get_service_status() -> Dict[str, str]:
+def _get_service_status() -> dict[str, str]:
     """Check health of all LLM services."""
     return {'qwen_8080': _probe_service(8080), 'gemma_8081': _probe_service(8081), 'litellm_4000': _probe_service(4000)}
 
-def _get_config_snapshot() -> Dict[str, Any]:
+def _get_config_snapshot() -> dict[str, Any]:
     """Snapshot current configuration."""
     ufo_dir = Path(__file__).resolve().parent.parent
     config_dir = ufo_dir / 'config' / 'ufo'
@@ -64,7 +65,7 @@ def _get_config_snapshot() -> Dict[str, Any]:
         for config_file in ['agents.yaml', 'system.yaml']:
             path = config_dir / config_file
             if path.exists():
-                with open(path, 'r', encoding='utf-8') as f:
+                with open(path, encoding='utf-8') as f:
                     data = yaml.safe_load(f)
                 if isinstance(data, dict):
                     safe_data = {}
@@ -79,7 +80,7 @@ def _get_config_snapshot() -> Dict[str, Any]:
         snapshot['error'] = str(e)
     return snapshot
 
-def generate_crash_report(exception: Exception, task_name: Optional[str]=None, log_dir: Optional[str]=None, extra_context: Optional[Dict[str, Any]]=None) -> str:
+def generate_crash_report(exception: Exception, task_name: str | None=None, log_dir: str | None=None, extra_context: dict[str, Any] | None=None) -> str:
     """
     Generate a structured crash report and save it to disk.
 

@@ -13,16 +13,29 @@ The processor maintains backward compatibility with BaseProcessor interface
 while providing enhanced modularity, error handling, and extensibility.
 """
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Type
+from typing import TYPE_CHECKING, Any
+
 from rich.console import Console
 from rich.panel import Panel
+
 from ufo.agents.processors.context.host_agent_processing_context import HostAgentProcessorContext
 from ufo.agents.processors.core.processing_middleware import EnhancedLoggingMiddleware
-from ufo.agents.processors.core.processor_framework import ProcessingContext, ProcessingPhase, ProcessingResult, ProcessorTemplate
+from ufo.agents.processors.core.processor_framework import (
+    ProcessingContext,
+    ProcessingPhase,
+    ProcessingResult,
+    ProcessorTemplate,
+)
 from ufo.agents.processors.schemas.target import TargetInfo
-from ufo.agents.processors.strategies.host_agent_processing_strategy import DesktopDataCollectionStrategy, HostActionExecutionStrategy, HostLLMInteractionStrategy, HostMemoryUpdateStrategy
+from ufo.agents.processors.strategies.host_agent_processing_strategy import (
+    DesktopDataCollectionStrategy,
+    HostActionExecutionStrategy,
+    HostLLMInteractionStrategy,
+    HostMemoryUpdateStrategy,
+)
 from ufo.config.config_loader import LazyUFOConfig
 from ufo.module.context import Context, ContextNames
+
 console = Console()
 ufo_config = LazyUFOConfig()
 
@@ -52,7 +65,7 @@ class HostAgentProcessor(ProcessorTemplate):
     This processor maintains compatibility with the original BaseProcessor
     interface while providing enhanced modularity and error handling.
     """
-    processor_context_class: Type[HostAgentProcessorContext] = HostAgentProcessorContext
+    processor_context_class: type[HostAgentProcessorContext] = HostAgentProcessorContext
 
     def __init__(self, agent: 'HostAgent', global_context: Context) -> None:
         """
@@ -79,7 +92,7 @@ class HostAgentProcessor(ProcessorTemplate):
         """
         self.middleware_chain = [HostAgentLoggingMiddleware()]
 
-    def _get_processor_specific_context_data(self) -> Dict[str, Any]:
+    def _get_processor_specific_context_data(self) -> dict[str, Any]:
         """
         Get processor-specific context data.
 

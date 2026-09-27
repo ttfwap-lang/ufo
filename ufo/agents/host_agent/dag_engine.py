@@ -29,7 +29,7 @@ import hashlib
 import logging
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -76,11 +76,11 @@ class TaskAction(BaseModel):
         ...,
         description="Target process name or window title",
     )
-    target_control: Optional[Dict[str, Any]] = Field(
+    target_control: dict[str, Any] | None = Field(
         None,
         description="UIA identification selector or bounding box coordinates",
     )
-    payload: Optional[str] = Field(
+    payload: str | None = Field(
         None,
         description="Text to input, key sequence, or URL to navigate to",
     )
@@ -96,15 +96,15 @@ class RecoveryPlan(BaseModel):
         default="",
         description="Exception traceback from the failed execution",
     )
-    diagnostic_screenshot: Optional[str] = Field(
+    diagnostic_screenshot: str | None = Field(
         None,
         description="Path to screenshot captured at failure time",
     )
-    uia_tree_snapshot: Optional[str] = Field(
+    uia_tree_snapshot: str | None = Field(
         None,
         description="Serialized pruned UIA tree at failure time",
     )
-    reasoning_response: Optional[str] = Field(
+    reasoning_response: str | None = Field(
         None,
         description="Diagnostic response from REASONING_AGENT (o3/Gemini)",
     )
@@ -115,7 +115,7 @@ class DAGNode(BaseModel):
     node_id: str = Field(..., description="Unique node identifier")
     description: str = Field(..., description="Human-readable task description")
     action: TaskAction = Field(..., description="The action to execute")
-    dependencies: List[str] = Field(
+    dependencies: list[str] = Field(
         default_factory=list,
         description="List of node_ids that must complete before this node",
     )
@@ -127,13 +127,13 @@ class DAGNode(BaseModel):
         default=False,
         description="If True, requires security audit before execution",
     )
-    idempotency_key: Optional[str] = Field(
+    idempotency_key: str | None = Field(
         None,
         description="Deterministic SHA-256 hash for irrevocable action deduplication",
     )
     retry_count: int = Field(default=0, description="Current retry attempt")
     max_retries: int = Field(default=2, description="Maximum retry attempts")
-    recovery_plan: Optional[RecoveryPlan] = Field(
+    recovery_plan: RecoveryPlan | None = Field(
         None,
         description="Diagnostic context if this node failed and needs recovery",
     )
@@ -172,7 +172,7 @@ class ExecutionGraph(BaseModel):
       - Downstream dependency freezing on failure
     """
     workflow_id: str = Field(..., description="Unique workflow identifier")
-    nodes: Dict[str, DAGNode] = Field(
+    nodes: dict[str, DAGNode] = Field(
         default_factory=dict,
         description="All nodes in the DAG, keyed by node_id",
     )
@@ -190,7 +190,7 @@ class ExecutionGraph(BaseModel):
             node.generate_idempotency_key()
         self.nodes[node.node_id] = node
 
-    def get_executable_nodes(self) -> List[DAGNode]:
+    def get_executable_nodes(self) -> list[DAGNode]:
         """
         Returns all nodes whose dependencies are strictly COMPLETED
         and whose status is PENDING (ready to run).
@@ -208,7 +208,7 @@ class ExecutionGraph(BaseModel):
                 executable.append(node)
         return executable
 
-    def freeze_downstream(self, failed_node_id: str) -> List[str]:
+    def freeze_downstream(self, failed_node_id: str) -> list[str]:
         """
         Freeze (BLOCK) all nodes that transitively depend on the failed node.
         Returns the list of blocked node_ids.
@@ -216,7 +216,7 @@ class ExecutionGraph(BaseModel):
         This prevents downstream tasks from executing with stale/invalid state
         while recovery is in progress.
         """
-        blocked: List[str] = []
+        blocked: list[str] = []
         # Find all nodes that depend on the failed node (direct + transitive)
         to_check = [failed_node_id]
         visited = set()
@@ -240,12 +240,12 @@ class ExecutionGraph(BaseModel):
 
         return blocked
 
-    def unfreeze_downstream(self, node_id: str) -> List[str]:
+    def unfreeze_downstream(self, node_id: str) -> list[str]:
         """
         Unfreeze (restore to PENDING) all BLOCKED nodes that depended on the
         given node, now that it has been recovered.
         """
-        unfrozen: List[str] = []
+        unfrozen: list[str] = []
         for node in self.nodes.values():
             if node.status == NodeStatus.BLOCKED:
                 # Check if all dependencies are now COMPLETED or PENDING
@@ -363,9 +363,9 @@ class ExecutionGraph(BaseModel):
             for node in self.nodes.values()
         )
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         """Return a summary of the current graph state."""
-        status_counts: Dict[str, int] = {}
+        status_counts: dict[str, int] = {}
         for node in self.nodes.values():
             status_counts[node.status.value] = status_counts.get(node.status.value, 0) + 1
         return {

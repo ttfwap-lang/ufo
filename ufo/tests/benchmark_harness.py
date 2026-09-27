@@ -6,11 +6,12 @@ Outputs structured timing report JSON and records wall-clock duration in seconds
 import argparse
 import json
 import os
-import sys
 import subprocess
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
 
 def get_default_python():
     """Detect local python executable in python_env if present, otherwise fallback to sys.executable."""
@@ -67,7 +68,7 @@ def run_benchmark(task_id, mode, request, log_level, python_exe, output_json_pat
     response_log = log_dir / 'response.log'
     if response_log.exists():
         try:
-            with open(response_log, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(response_log, encoding='utf-8', errors='ignore') as f:
                 lines = f.readlines()
                 for line in lines:
                     if line.strip():

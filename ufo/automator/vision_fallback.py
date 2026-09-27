@@ -27,8 +27,10 @@ import json
 import logging
 import os
 import tempfile
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 logger = logging.getLogger(__name__)
 
 class BoundingBox(BaseModel):
@@ -43,12 +45,12 @@ class BoundingBox(BaseModel):
 class VisionFallbackResult(BaseModel):
     """Full result from the vision fallback pipeline."""
     resolved: bool = Field(default=False)
-    bounding_box: Optional[BoundingBox] = None
+    bounding_box: BoundingBox | None = None
     stage_1_attempted: bool = False
     stage_1_confidence: float = 0.0
     stage_2_attempted: bool = False
     stage_3_attempted: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 class VisionFallbackManager:
     """
@@ -80,7 +82,7 @@ class VisionFallbackManager:
         except Exception as e:
             logger.debug(f'Using default vision fallback config: {e}')
 
-    async def resolve_element(self, target_description: str, screenshot_path: Optional[str]=None, application_window: Any=None, uia_tree: Optional[Dict[str, Any]]=None) -> Optional[BoundingBox]:
+    async def resolve_element(self, target_description: str, screenshot_path: str | None=None, application_window: Any=None, uia_tree: dict[str, Any] | None=None) -> BoundingBox | None:
         """
         Attempt to resolve a UI element's screen coordinates via vision asynchronously.
 
@@ -108,7 +110,7 @@ class VisionFallbackManager:
         if stage1_result and stage1_result.confidence >= self._confidence_threshold:
             logger.info(f'Rank 1 (OmniParser) succeeded: confidence={stage1_result.confidence:.2f}')
             return stage1_result
-            
+
         # RANK 2: Cloud VLM
         stage2_conf = stage1_result.confidence if stage1_result else 0.0
         logger.warning(f'Rank 1 failed (confidence={stage2_conf:.2f} < threshold={self._confidence_threshold}). Cascading to Rank 2: Cloud VLM.')
@@ -116,11 +118,11 @@ class VisionFallbackManager:
         if stage2_result:
             logger.info(f'Rank 2 (Cloud VLM) succeeded: confidence={stage2_result.confidence:.2f}')
             return stage2_result
-        
+
         logger.error('All vision grounding stages failed.')
         return None
 
-    async def resolve_element_full(self, target_description: str, screenshot_path: Optional[str]=None, application_window: Any=None, uia_tree: Optional[Dict[str, Any]]=None) -> VisionFallbackResult:
+    async def resolve_element_full(self, target_description: str, screenshot_path: str | None=None, application_window: Any=None, uia_tree: dict[str, Any] | None=None) -> VisionFallbackResult:
         """
         Same as resolve_element but returns full diagnostic result.
         """
@@ -133,7 +135,7 @@ class VisionFallbackManager:
             if screenshot_path is None:
                 result.error = 'Screenshot capture failed'
                 return result
-                
+
         # RANK 1: OmniParser
         result.stage_2_attempted = True
         logger.warning('Engaging Rank 1 Vision Grounding: Local OmniParser V2')
@@ -144,7 +146,7 @@ class VisionFallbackManager:
                 result.resolved = True
                 result.bounding_box = stage1_box
                 return result
-                
+
         # RANK 2: Cloud VLM
         result.stage_3_attempted = True
         logger.warning('Rank 1 failed or low confidence. Cascading to Rank 2: Cloud VLM (Gemini)')
@@ -156,7 +158,7 @@ class VisionFallbackManager:
             result.error = 'All vision fallback ranks (Reducto, OmniParser, Cloud VLM) failed to resolve element.'
         return result
 
-    def _stage1_omniparser(self, screenshot_path: str, target_description: str, application_window: Any=None) -> Optional[BoundingBox]:
+    def _stage1_omniparser(self, screenshot_path: str, target_description: str, application_window: Any=None) -> BoundingBox | None:
         """Attempt element resolution via local OmniParser V2 service."""
         try:
             from ufo.config.config_loader import get_ufo_config
@@ -186,8 +188,8 @@ class VisionFallbackManager:
             if not endpoint or 'xxx' in endpoint:
                 logger.debug('OmniParser endpoint not set — skipping Stage 1')
                 return None
-            from ufo.llm.grounding_model.omniparser_service import get_omniparser
             from ufo.automator.ui_control.grounding.omniparser import OmniparserGrounding
+            from ufo.llm.grounding_model.omniparser_service import get_omniparser
             service = get_omniparser(endpoint)
             grounding = OmniparserGrounding(service=service)
             box_threshold = 0.05
@@ -214,16 +216,17 @@ class VisionFallbackManager:
             logger.warning(f'Stage 1 (OmniParser) failed: {e}')
             return None
 
-    async def _stage2_cloud_vlm(self, screenshot_path: str, target_description: str, uia_tree: Optional[Dict[str, Any]]=None) -> Optional[BoundingBox]:
+    async def _stage2_cloud_vlm(self, screenshot_path: str, target_description: str, uia_tree: dict[str, Any] | None=None) -> BoundingBox | None:
         """
         Cascade to Cloud VLM for element grounding.
         Sends screenshot + targeted prompt to BACKUP_AGENT (Gemini/GPT).
         """
         try:
-            from ufo.llm.llm_call import get_completion
-            from ufo.llm import AgentType
-            from ufo.security.pii_redactor import PIIRedactor
             import base64
+
+            from ufo.llm import AgentType
+            from ufo.llm.llm_call import get_completion
+            from ufo.security.pii_redactor import PIIRedactor
             effective_screenshot_path = screenshot_path
             try:
                 redactor = PIIRedactor()
@@ -254,7 +257,7 @@ class VisionFallbackManager:
             logger.warning(f'Stage 2 (Cloud VLM) failed: {e}')
             return None
 
-    async def _stage3_reducto(self, screenshot_path: str, target_description: str) -> Optional[BoundingBox]:
+    async def _stage3_reducto(self, screenshot_path: str, target_description: str) -> BoundingBox | None:
         """
         Cascade to Reducto API for robust element grounding using agentic OCR.
         Uploads screenshot and queries /parse endpoint.
@@ -266,9 +269,9 @@ class VisionFallbackManager:
                 # Opt-in only: this stage uploads a desktop screenshot to a third-party API.
                 logger.info("Reducto grounding skipped: REDUCTO_API_KEY is not set.")
                 return None
-            
+
             headers = {"Authorization": f"Bearer {api_key}"}
-            
+
             # Step 1: Upload
             upload_url = "https://platform.reducto.ai/upload"
             with open(screenshot_path, "rb") as f:
@@ -277,7 +280,7 @@ class VisionFallbackManager:
             file_id = upload_res.json().get("file_id")
             if not file_id:
                 return None
-                
+
             # Step 2: Parse with agentic OCR
             parse_url = "https://platform.reducto.ai/parse"
             prompt_text = (
@@ -293,26 +296,26 @@ class VisionFallbackManager:
             parse_res = requests.post(parse_url, headers=headers, json=payload)
             parse_res.raise_for_status()
             parsed_data = parse_res.json()
-            
+
             # Check Reducto output format. It usually returns structured JSON if prompted.
             result_text = str(parsed_data)
             parsed_json = self._parse_json_response(result_text)
             if parsed_json and parsed_json.get('center_x', 0) > 0:
                 return BoundingBox(
-                    center_x=int(parsed_json['center_x']), 
-                    center_y=int(parsed_json['center_y']), 
-                    width=int(parsed_json.get('width', 0)), 
-                    height=int(parsed_json.get('height', 0)), 
-                    confidence=float(parsed_json.get('confidence', 0.9)), 
+                    center_x=int(parsed_json['center_x']),
+                    center_y=int(parsed_json['center_y']),
+                    width=int(parsed_json.get('width', 0)),
+                    height=int(parsed_json.get('height', 0)),
+                    confidence=float(parsed_json.get('confidence', 0.9)),
                     source='reducto'
                 )
-            
+
             return None
         except Exception as e:
             logger.warning(f'Stage 3 (Reducto API) failed: {e}')
             return None
 
-    def _capture_screenshot(self, application_window: Any=None) -> Optional[str]:
+    def _capture_screenshot(self, application_window: Any=None) -> str | None:
         """Capture a screenshot, either of the app window or full desktop."""
         try:
             import pyautogui
@@ -331,7 +334,7 @@ class VisionFallbackManager:
             return None
 
     @staticmethod
-    def _find_best_match(parsed_boxes: List[Dict[str, Any]], target_description: str) -> Optional[Dict[str, Any]]:
+    def _find_best_match(parsed_boxes: list[dict[str, Any]], target_description: str) -> dict[str, Any] | None:
         """Find the best matching box for the target description."""
         target_lower = target_description.lower().strip()
         best = None
@@ -352,7 +355,7 @@ class VisionFallbackManager:
         return best
 
     @staticmethod
-    def _parse_json_response(text: str) -> Optional[Dict[str, Any]]:
+    def _parse_json_response(text: str) -> dict[str, Any] | None:
         """Extract JSON from an LLM response that may contain markdown fences."""
         if not text:
             return None

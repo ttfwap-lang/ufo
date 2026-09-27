@@ -4,15 +4,15 @@ Simple test script for TaskStar and TaskStarLine JSON serialization/deserializat
 This script tests the to_json() and from_json() methods of both classes
 without complex imports.
 """
-import sys
-import os
-import tempfile
 import json
-from datetime import datetime, timezone
+import os
+import sys
+import tempfile
+
 project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
 try:
-    from ufo.galaxy.constellation.enums import TaskStatus, TaskPriority, DeviceType, DependencyType
+    from ufo.galaxy.constellation.enums import DependencyType, DeviceType, TaskPriority, TaskStatus
     from ufo.galaxy.constellation.task_star import TaskStar
     from ufo.galaxy.constellation.task_star_line import TaskStarLine
     print('✓ Successfully imported required modules')
@@ -36,7 +36,7 @@ def test_basic_json_operations():
         print(f'✓ Valid JSON with {len(parsed_data)} fields')
         print('\n2. Testing TaskStar.from_json()...')
         restored_task = TaskStar.from_json(json_data=json_str)
-        print(f'✓ TaskStar restored from JSON')
+        print('✓ TaskStar restored from JSON')
         print(f'✓ Original ID: {task.task_id}')
         print(f'✓ Restored ID: {restored_task.task_id}')
         print(f'✓ Names match: {task.name == restored_task.name}')
@@ -46,7 +46,7 @@ def test_basic_json_operations():
         task.to_json(save_path=temp_file)
         print(f'✓ Saved to file: {temp_file}')
         file_task = TaskStar.from_json(file_path=temp_file)
-        print(f'✓ Loaded from file')
+        print('✓ Loaded from file')
         print(f'✓ File task ID: {file_task.task_id}')
         os.unlink(temp_file)
         print('✓ Temporary file cleaned up')
@@ -73,7 +73,7 @@ def test_task_star_line_basic():
         print(f'✓ Valid JSON with {len(parsed_data)} fields')
         print('\n2. Testing TaskStarLine.from_json()...')
         restored_line = TaskStarLine.from_json(json_data=json_str)
-        print(f'✓ TaskStarLine restored from JSON')
+        print('✓ TaskStarLine restored from JSON')
         print(f'✓ Original ID: {line.line_id}')
         print(f'✓ Restored ID: {restored_line.line_id}')
         print(f'✓ From tasks match: {line.from_task_id == restored_line.from_task_id}')
@@ -84,7 +84,7 @@ def test_task_star_line_basic():
         line.to_json(save_path=temp_file)
         print(f'✓ Saved to file: {temp_file}')
         file_line = TaskStarLine.from_json(file_path=temp_file)
-        print(f'✓ Loaded from file')
+        print('✓ Loaded from file')
         print(f'✓ File line ID: {file_line.line_id}')
         os.unlink(temp_file)
         print('✓ Temporary file cleaned up')

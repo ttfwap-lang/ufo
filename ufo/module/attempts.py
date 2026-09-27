@@ -12,8 +12,8 @@ duplicating) completed work. Attempts are logged as ``{task}``,
 import json
 import logging
 import os
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass
-from typing import Awaitable, Callable, List, Optional
 
 from ufo.verification.registry import RETRY_MARKER, original_request
 
@@ -57,7 +57,7 @@ def _short(value, limit: int = 160) -> str:
 def behaviour_narrative(log_path: str, max_steps: int = NARRATIVE_STEPS) -> str:
     """Summarise an attempt's response.log as 'agent: action -> outcome' lines."""
     path = os.path.join(log_path or "", "response.log")
-    lines: List[str] = []
+    lines: list[str] = []
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             records = [json.loads(line) for line in f if line.strip().startswith("{")]
@@ -98,15 +98,15 @@ async def run_until_verified(
     task: str,
     request: str,
     run_attempt: Callable[[str, str], Awaitable[object]],
-    max_attempts: Optional[int] = None,
-) -> List[AttemptOutcome]:
+    max_attempts: int | None = None,
+) -> list[AttemptOutcome]:
     """Run attempts one after another until one is verified or the budget is spent.
 
     ``run_attempt(task_name, request)`` must run a session to completion and
     return it. Returns the outcome of every attempt, in order.
     """
     budget = max_attempts or MAX_ATTEMPTS
-    outcomes: List[AttemptOutcome] = []
+    outcomes: list[AttemptOutcome] = []
     current = request
     for i in range(1, budget + 1):
         name = task if i == 1 else f"{task}_try{i}"
@@ -121,5 +121,5 @@ async def run_until_verified(
     return outcomes
 
 
-def outcomes_as_dicts(outcomes: List[AttemptOutcome]) -> List[dict]:
+def outcomes_as_dicts(outcomes: list[AttemptOutcome]) -> list[dict]:
     return [asdict(o) for o in outcomes]

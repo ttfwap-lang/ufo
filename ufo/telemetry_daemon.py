@@ -38,7 +38,7 @@ def follow(logs_dir: str = DEFAULT_LOGS_DIR, poll: float = 0.5) -> None:
         if latest and latest != current:
             if handle:
                 handle.close()
-            current, handle = latest, open(latest, "r", encoding="utf-8")
+            current, handle = latest, open(latest, encoding="utf-8")
             print(f"[{_stamp()}] Following {latest}")
         line = handle.readline() if handle else ""
         if line:

@@ -6,10 +6,12 @@ and bidirectional communication with clients.
 """
 import logging
 import secrets
+
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from starlette.websockets import WebSocketState
+
 from ufo.galaxy.webui.dependencies import get_app_state
 from ufo.galaxy.webui.handlers import WebSocketMessageHandler
+
 router = APIRouter(tags=['websocket'])
 logger = logging.getLogger(__name__)
 WS_1008_POLICY_VIOLATION = 1008

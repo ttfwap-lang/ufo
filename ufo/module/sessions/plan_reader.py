@@ -1,7 +1,8 @@
 import json
 import os
-from typing import List, Optional
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
+
+from ufo.config.config_loader import LazyUFOConfig
+
 ufo_config = LazyUFOConfig()
 
 class PlanReader:
@@ -18,11 +19,11 @@ class PlanReader:
         self.plan = {}
         if plan_file and os.path.exists(plan_file):
             try:
-                with open(plan_file, 'r', encoding='utf-8') as f:
+                with open(plan_file, encoding='utf-8') as f:
                     self.plan = json.load(f)
             except (json.JSONDecodeError, OSError, UnicodeDecodeError):
                 try:
-                    with open(plan_file, 'r', encoding='utf-8') as f:
+                    with open(plan_file, encoding='utf-8') as f:
                         lines = [line.strip() for line in f if line.strip() and (not line.strip().startswith('#'))]
                     self.plan = {'task': os.path.basename(plan_file), 'steps': lines, 'object': ''}
                 except Exception:
@@ -46,7 +47,7 @@ class PlanReader:
         """
         return self.plan.get('task', '')
 
-    def get_steps(self) -> List[str]:
+    def get_steps(self) -> list[str]:
         """
         Get the steps in the plan.
         :return: The steps in the plan.
@@ -85,7 +86,7 @@ class PlanReader:
         file = os.path.basename(self.plan.get('object'))
         return os.path.join(file_path, file)
 
-    def get_support_apps(self) -> List[str]:
+    def get_support_apps(self) -> list[str]:
         """
         Get the support apps in the plan.
         :return: The support apps in the plan.
@@ -105,7 +106,7 @@ class PlanReader:
             request = f"Your task is '{task}'. And open the application of {object_name}. You must output the selected application with their control text and label even if it is already open."
         return request
 
-    def next_step(self) -> Optional[str]:
+    def next_step(self) -> str | None:
         """
         Get the next step in the plan.
         :return: The next step.

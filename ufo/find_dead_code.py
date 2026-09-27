@@ -9,11 +9,8 @@ bugs, because the dead copy can drift from the live one).
 from __future__ import annotations
 
 import ast
-import io
 import os
 import re
-from collections import defaultdict
-from typing import Dict, List, Tuple
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -33,8 +30,8 @@ OWNED = [
 ]
 
 
-def definitions(path: str) -> List[Tuple[str, int, str]]:
-    src = io.open(path, encoding="utf-8", errors="replace").read()
+def definitions(path: str) -> list[tuple[str, int, str]]:
+    src = open(path, encoding="utf-8", errors="replace").read()
     tree = ast.parse(src)
     out = []
     for node in tree.body:
@@ -50,14 +47,14 @@ def definitions(path: str) -> List[Tuple[str, int, str]]:
 
 
 def main() -> None:
-    texts: Dict[str, str] = {}
+    texts: dict[str, str] = {}
     for rel in OWNED:
         p = os.path.join(ROOT, rel)
         if os.path.exists(p):
-            texts[rel] = io.open(p, encoding="utf-8", errors="replace").read()
+            texts[rel] = open(p, encoding="utf-8", errors="replace").read()
     combined = "\n".join(texts.values())
 
-    unused: List[str] = []
+    unused: list[str] = []
     total = 0
     for rel, text in texts.items():
         for name, lineno, kind in definitions(os.path.join(ROOT, rel)):

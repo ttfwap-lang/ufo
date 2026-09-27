@@ -3,8 +3,6 @@
 import heapq
 import re
 from abc import abstractmethod
-from typing import Dict, List
-
 
 
 class ControlFilterFactory:
@@ -26,11 +24,11 @@ class ControlFilterFactory:
         elif control_filter_type == "icon":
             return IconControlFilter(*args, **kwargs)
         else:
-            raise ValueError("Invalid retriever type: {}".format(control_filter_type))
+            raise ValueError(f"Invalid retriever type: {control_filter_type}")
 
     @staticmethod
     def inplace_append_filtered_annotation_dict(
-        filtered_control_dict: Dict, control_dicts: Dict
+        filtered_control_dict: dict, control_dicts: dict
     ):
         """
         Appends the given control_info to the filtered_control_dict if it is not already present.
@@ -50,7 +48,7 @@ class ControlFilterFactory:
         return filtered_control_dict
 
     @staticmethod
-    def get_plans(plan: List[str], topk_plan: int) -> List[str]:
+    def get_plans(plan: list[str], topk_plan: int) -> list[str]:
         """
         Parses the given plan and returns a list of plans up to the specified topk_plan.
         :param plan: The plan to be parsed.
@@ -74,7 +72,7 @@ class BasicControlFilter:
         :return: The BasicControlFilter instance.
         """
         if model_path not in cls._instances:
-            instance = super(BasicControlFilter, cls).__new__(cls)
+            instance = super().__new__(cls)
             instance.model = cls.load_model(model_path)
             cls._instances[model_path] = instance
         return cls._instances[model_path]
@@ -110,7 +108,7 @@ class BasicControlFilter:
         pass
 
     @staticmethod
-    def plans_to_keywords(plans: List[str]) -> List[str]:
+    def plans_to_keywords(plans: list[str]) -> list[str]:
         """
         Gets keywords from the plan. We only consider the words in the plan that are alphabetic or Chinese characters.
         :param plans: The plan to be parsed.
@@ -140,7 +138,7 @@ class BasicControlFilter:
             from nltk.corpus import stopwords
 
             stopwords_list = stopwords.words("english")
-        except LookupError as e:
+        except LookupError:
             import nltk
 
             nltk.download("stopwords")
@@ -167,7 +165,7 @@ class TextControlFilter:
     """
 
     @staticmethod
-    def control_filter(control_dicts: Dict, plans: List[str]) -> Dict:
+    def control_filter(control_dicts: dict, plans: list[str]) -> dict:
         """
         Filters control items based on keywords.
         :param control_dicts: The dictionary of control items to be filtered.

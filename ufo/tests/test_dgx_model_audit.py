@@ -20,17 +20,15 @@ import pytest
 import yaml
 
 from ufo.config.config_loader import ConfigLoader, clear_config_cache
+from ufo.llm import AgentType
 from ufo.llm.config_helper import (
     BackendProfileError,
     reset_backend_caches,
     resolve_agent_config,
     resolve_backend_profile,
     set_backend_selection,
-    set_process_override,
-    clear_process_override,
 )
 from ufo.llm.endpoint import is_local_endpoint
-from ufo.llm import AgentType
 
 DGX_HOST = "192.168.1.10"
 
@@ -220,7 +218,7 @@ def test_dgx_model_names_match_expected():
     dgx_yaml_path = Path(__file__).resolve().parent.parent / "config" / "ufo" / "agents_dgx.yaml"
     if not dgx_yaml_path.exists():
         pytest.skip("agents_dgx.yaml not found in real config")
-    with open(dgx_yaml_path, "r", encoding="utf-8") as f:
+    with open(dgx_yaml_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     # Stack B (2026-09-22): the multimodal Qwen on :8000 plans for every role; screenshots are
     # capped (MAX_IMAGE_PIXELS) because its processor rejects images above ~2047 tokens.

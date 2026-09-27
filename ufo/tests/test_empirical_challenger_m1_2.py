@@ -6,14 +6,15 @@ and verifying event loop responsiveness.
 """
 import asyncio
 import json
-import os
 import shutil
 import tempfile
 import threading
-import time
 from pathlib import Path
+
 import pytest
-from tests.eval_suite.eval_runner import EvaluationRunner, _generate_unique_report_paths, _write_json_file_async
+
+from tests.eval_suite.eval_runner import EvaluationRunner, _generate_unique_report_paths
+
 
 @pytest.fixture
 def temp_output_dir():
@@ -37,7 +38,7 @@ async def test_high_iteration_sequential_writes(temp_output_dir):
     assert len(md_files) == num_iterations
     for jf in json_files:
         assert jf.stat().st_size > 0
-        with open(jf, 'r', encoding='utf-8') as f:
+        with open(jf, encoding='utf-8') as f:
             data = json.load(f)
             assert data['total_stages'] == 5
             assert len(data['stage_results']) == 5
@@ -63,7 +64,7 @@ async def test_high_concurrency_async_gather_writes(temp_output_dir):
     seen_timestamps = set()
     for jf in json_files:
         assert jf.stat().st_size > 0
-        with open(jf, 'r', encoding='utf-8') as f:
+        with open(jf, encoding='utf-8') as f:
             data = json.load(f)
             assert data['passed_stages'] == 5
             seen_timestamps.add(data['timestamp'])

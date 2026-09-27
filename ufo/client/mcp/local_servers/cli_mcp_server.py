@@ -8,15 +8,16 @@ import re
 import shlex
 import subprocess
 import time
-from typing import FrozenSet, List
+
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from ufo.client.mcp.mcp_registry import MCPRegistry
 from ufo.config import get_config
+
 logger = logging.getLogger(__name__)
 configs = get_config()
-ALLOWED_CLI_COMMANDS: FrozenSet[str] = frozenset({'notepad', 'notepad.exe', 'calc', 'calc.exe', 'mspaint', 'mspaint.exe', 'wordpad', 'wordpad.exe', 'explorer', 'explorer.exe', 'msedge', 'msedge.exe', 'chrome', 'chrome.exe', 'firefox', 'firefox.exe', 'winword', 'winword.exe', 'excel', 'excel.exe', 'powerpnt', 'powerpnt.exe', 'outlook', 'outlook.exe', 'onenote', 'onenote.exe', 'code', 'code.exe'})
-_DANGEROUS_PATTERNS: List[re.Pattern] = [re.compile('Invoke-Expression|IEX\\b', re.IGNORECASE), re.compile('Invoke-WebRequest|IWR\\b|Invoke-RestMethod|IRM\\b', re.IGNORECASE), re.compile('Start-Process\\b', re.IGNORECASE), re.compile('New-Object\\s+.*Net\\.WebClient', re.IGNORECASE), re.compile('DownloadString|DownloadFile', re.IGNORECASE), re.compile('\\bAdd-Type\\b', re.IGNORECASE), re.compile('\\b(cmd|powershell|pwsh)(\\.exe)?\\s+[/-]', re.IGNORECASE), re.compile('[|;&`]\\s*(bash|sh|cmd|powershell|pwsh)', re.IGNORECASE), re.compile('\\bNew-Service\\b|\\bsc\\.exe\\b', re.IGNORECASE), re.compile('\\breg(\\.exe)?\\s+(add|delete|import)', re.IGNORECASE), re.compile('\\bschtasks(\\.exe)?\\b', re.IGNORECASE), re.compile('\\bnet\\s+(user|localgroup)\\b', re.IGNORECASE), re.compile('\\bSet-ExecutionPolicy\\b', re.IGNORECASE), re.compile('\\bRemove-Item\\b.*-Recurse', re.IGNORECASE), re.compile('\\brm\\s+-rf\\b', re.IGNORECASE), re.compile('[`$]\\(', re.IGNORECASE), re.compile('\\bcurl\\b|\\bwget\\b', re.IGNORECASE), re.compile('\\brdp\\b|\\bmstsc\\b', re.IGNORECASE), re.compile('>{1,2}\\s*[/\\\\]', re.IGNORECASE)]
+ALLOWED_CLI_COMMANDS: frozenset[str] = frozenset({'notepad', 'notepad.exe', 'calc', 'calc.exe', 'mspaint', 'mspaint.exe', 'wordpad', 'wordpad.exe', 'explorer', 'explorer.exe', 'msedge', 'msedge.exe', 'chrome', 'chrome.exe', 'firefox', 'firefox.exe', 'winword', 'winword.exe', 'excel', 'excel.exe', 'powerpnt', 'powerpnt.exe', 'outlook', 'outlook.exe', 'onenote', 'onenote.exe', 'code', 'code.exe'})
+_DANGEROUS_PATTERNS: list[re.Pattern] = [re.compile('Invoke-Expression|IEX\\b', re.IGNORECASE), re.compile('Invoke-WebRequest|IWR\\b|Invoke-RestMethod|IRM\\b', re.IGNORECASE), re.compile('Start-Process\\b', re.IGNORECASE), re.compile('New-Object\\s+.*Net\\.WebClient', re.IGNORECASE), re.compile('DownloadString|DownloadFile', re.IGNORECASE), re.compile('\\bAdd-Type\\b', re.IGNORECASE), re.compile('\\b(cmd|powershell|pwsh)(\\.exe)?\\s+[/-]', re.IGNORECASE), re.compile('[|;&`]\\s*(bash|sh|cmd|powershell|pwsh)', re.IGNORECASE), re.compile('\\bNew-Service\\b|\\bsc\\.exe\\b', re.IGNORECASE), re.compile('\\breg(\\.exe)?\\s+(add|delete|import)', re.IGNORECASE), re.compile('\\bschtasks(\\.exe)?\\b', re.IGNORECASE), re.compile('\\bnet\\s+(user|localgroup)\\b', re.IGNORECASE), re.compile('\\bSet-ExecutionPolicy\\b', re.IGNORECASE), re.compile('\\bRemove-Item\\b.*-Recurse', re.IGNORECASE), re.compile('\\brm\\s+-rf\\b', re.IGNORECASE), re.compile('[`$]\\(', re.IGNORECASE), re.compile('\\bcurl\\b|\\bwget\\b', re.IGNORECASE), re.compile('\\brdp\\b|\\bmstsc\\b', re.IGNORECASE), re.compile('>{1,2}\\s*[/\\\\]', re.IGNORECASE)]
 
 def _is_cli_command_allowed(command_str: str) -> bool:
     """
@@ -27,7 +28,7 @@ def _is_cli_command_allowed(command_str: str) -> bool:
     return True
 
 
-def _resolve_executable(args: List[str]) -> List[str]:
+def _resolve_executable(args: list[str]) -> list[str]:
     """Prefer a real ``<name>.exe`` over an extensionless PATH entry.
 
     Git for Windows puts shell-script wrappers (Git/usr/bin/notepad) ahead of

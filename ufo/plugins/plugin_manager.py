@@ -33,25 +33,27 @@ Usage:
             ...
 """
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 logger = logging.getLogger(__name__)
 
 class PluginExecutionResult(BaseModel):
     """Result of a plugin API execution attempt."""
     success: bool = Field(default=False)
     plugin_used: str = Field(default='', description='Which MCP server handled it')
-    result_data: Optional[str] = Field(None, description='API return value if any')
-    error: Optional[str] = Field(None, description='Error message if failed')
+    result_data: str | None = Field(None, description='API return value if any')
+    error: str | None = Field(None, description='Error message if failed')
     fell_back_to_gui: bool = Field(default=False)
 
 class PluginRegistration(BaseModel):
     """Registration entry mapping a process name to its MCP server."""
     process_name: str = Field(..., description='Process name (e.g., WINWORD.EXE)')
     mcp_namespace: str = Field(..., description='MCP server namespace from mcp.yaml')
-    supported_actions: List[str] = Field(default_factory=lambda: ['type', 'click', 'hotkey', 'read'], description='Action types this plugin supports')
+    supported_actions: list[str] = Field(default_factory=lambda: ['type', 'click', 'hotkey', 'read'], description='Action types this plugin supports')
     description: str = Field(default='')
-_BUILTIN_PLUGINS: List[PluginRegistration] = [PluginRegistration(process_name='WINWORD.EXE', mcp_namespace='server_5_WordCOMExecutor', supported_actions=['type', 'read', 'format', 'save', 'navigate'], description='Microsoft Word COM automation via MCP'), PluginRegistration(process_name='EXCEL.EXE', mcp_namespace='excel_wincom_mcp_server', supported_actions=['type', 'read', 'formula', 'save', 'navigate'], description='Microsoft Excel COM automation via MCP'), PluginRegistration(process_name='POWERPNT.EXE', mcp_namespace='PowerPointCOMExecutor', supported_actions=['type', 'read', 'add_slide', 'save', 'navigate'], description='Microsoft PowerPoint COM automation via MCP')]
+_BUILTIN_PLUGINS: list[PluginRegistration] = [PluginRegistration(process_name='WINWORD.EXE', mcp_namespace='server_5_WordCOMExecutor', supported_actions=['type', 'read', 'format', 'save', 'navigate'], description='Microsoft Word COM automation via MCP'), PluginRegistration(process_name='EXCEL.EXE', mcp_namespace='excel_wincom_mcp_server', supported_actions=['type', 'read', 'formula', 'save', 'navigate'], description='Microsoft Excel COM automation via MCP'), PluginRegistration(process_name='POWERPNT.EXE', mcp_namespace='PowerPointCOMExecutor', supported_actions=['type', 'read', 'add_slide', 'save', 'navigate'], description='Microsoft PowerPoint COM automation via MCP')]
 
 class PluginManager:
     """
@@ -63,7 +65,7 @@ class PluginManager:
 
     def __init__(self) -> None:
         self._enabled: bool = True
-        self._registry: Dict[str, PluginRegistration] = {}
+        self._registry: dict[str, PluginRegistration] = {}
         self._load_config()
         self._register_builtins()
 
@@ -95,7 +97,7 @@ class PluginManager:
             return False
         return process_name.upper() in self._registry
 
-    def get_plugin(self, process_name: str) -> Optional[PluginRegistration]:
+    def get_plugin(self, process_name: str) -> PluginRegistration | None:
         """Get the plugin registration for a process."""
         return self._registry.get(process_name.upper())
 
@@ -104,11 +106,11 @@ class PluginManager:
         self._registry[plugin.process_name.upper()] = plugin
         logger.info(f'Registered plugin: {plugin.process_name} → {plugin.mcp_namespace}')
 
-    def list_plugins(self) -> List[PluginRegistration]:
+    def list_plugins(self) -> list[PluginRegistration]:
         """List all registered plugins."""
         return list(self._registry.values())
 
-    def try_execute(self, process_name: str, action_type: str, payload: Optional[str]=None, target_control: Optional[Dict[str, Any]]=None) -> PluginExecutionResult:
+    def try_execute(self, process_name: str, action_type: str, payload: str | None=None, target_control: dict[str, Any] | None=None) -> PluginExecutionResult:
         """
         Attempt to execute an action via API plugin instead of GUI.
 
@@ -133,7 +135,7 @@ class PluginManager:
             logger.warning(f'Plugin execution failed for {process_name}: {e}. Falling back to GUI.')
             return PluginExecutionResult(success=False, plugin_used=plugin.mcp_namespace, error=str(e), fell_back_to_gui=True)
 
-    def _dispatch_to_mcp(self, plugin: PluginRegistration, action_type: str, payload: Optional[str], target_control: Optional[Dict[str, Any]]) -> PluginExecutionResult:
+    def _dispatch_to_mcp(self, plugin: PluginRegistration, action_type: str, payload: str | None, target_control: dict[str, Any] | None) -> PluginExecutionResult:
         """
         Dispatch an action to the MCP server for API execution.
 

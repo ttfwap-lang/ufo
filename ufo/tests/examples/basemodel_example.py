@@ -4,16 +4,18 @@ BaseModel Integration Example for TaskStar, TaskStarLine, and TaskConstellation.
 This example demonstrates how to use the Pydantic BaseModel schemas for
 serialization, deserialization, and data validation with the constellation classes.
 """
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-import json
 from datetime import datetime
+
+from ufo.galaxy.agents.schema import TaskConstellationSchema, TaskStarSchema
+from ufo.galaxy.constellation.enums import DependencyType, DeviceType, TaskPriority
+from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
 from ufo.galaxy.constellation.task_star_line import TaskStarLine
-from ufo.galaxy.constellation.task_constellation import TaskConstellation
-from ufo.galaxy.constellation.enums import TaskStatus, TaskPriority, DeviceType, DependencyType
-from ufo.galaxy.agents.schema import TaskStarSchema, TaskStarLineSchema, TaskConstellationSchema
+
 
 def example_basic_usage():
     """示例：基本用法"""
@@ -49,7 +51,7 @@ def example_json_persistence():
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(json_data)
     print(f'✅ 星座已保存到: {filename}')
-    with open(filename, 'r', encoding='utf-8') as f:
+    with open(filename, encoding='utf-8') as f:
         loaded_json = f.read()
     loaded_schema = TaskConstellationSchema.model_validate_json(loaded_json)
     loaded_constellation = TaskConstellation.from_basemodel(loaded_schema)

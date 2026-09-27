@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, Optional, Type
+from typing import TYPE_CHECKING
 
 from ufo.agents.states.basic import AgentState, AgentStateManager
 from ufo.config.config_loader import LazyUFOConfig
@@ -30,7 +30,7 @@ class MobileAgentStatus(Enum):
 
 class MobileAgentStateManager(AgentStateManager):
 
-    _state_mapping: Dict[str, Type[MobileAgentState]] = {}
+    _state_mapping: dict[str, type[MobileAgentState]] = {}
 
     @property
     def none_state(self) -> AgentState:
@@ -46,7 +46,7 @@ class MobileAgentState(AgentState):
     """
 
     async def handle(
-        self, agent: "MobileAgent", context: Optional["Context"] = None
+        self, agent: MobileAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -56,7 +56,7 @@ class MobileAgentState(AgentState):
         pass
 
     @classmethod
-    def agent_class(cls) -> Type[MobileAgent]:
+    def agent_class(cls) -> type[MobileAgent]:
         """
         The agent class of the state.
         :return: The agent class.
@@ -67,7 +67,7 @@ class MobileAgentState(AgentState):
 
         return MobileAgent
 
-    def next_agent(self, agent: "MobileAgent") -> "MobileAgent":
+    def next_agent(self, agent: MobileAgent) -> MobileAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -75,7 +75,7 @@ class MobileAgentState(AgentState):
         """
         return agent
 
-    def next_state(self, agent: "MobileAgent") -> MobileAgentState:
+    def next_state(self, agent: MobileAgent) -> MobileAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -100,7 +100,7 @@ class FinishMobileAgentState(MobileAgentState):
     The class for the finish mobile agent state.
     """
 
-    def next_agent(self, agent: "MobileAgent") -> "MobileAgent":
+    def next_agent(self, agent: MobileAgent) -> MobileAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -108,7 +108,7 @@ class FinishMobileAgentState(MobileAgentState):
         """
         return agent
 
-    def next_state(self, agent: "MobileAgent") -> MobileAgentState:
+    def next_state(self, agent: MobileAgent) -> MobileAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -146,7 +146,7 @@ class ContinueMobileAgentState(MobileAgentState):
     """
 
     async def handle(
-        self, agent: "MobileAgent", context: Optional["Context"] = None
+        self, agent: MobileAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -178,7 +178,7 @@ class FailMobileAgentState(MobileAgentState):
     The class for the fail mobile agent state.
     """
 
-    def next_agent(self, agent: "MobileAgent") -> "MobileAgent":
+    def next_agent(self, agent: MobileAgent) -> MobileAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -186,7 +186,7 @@ class FailMobileAgentState(MobileAgentState):
         """
         return agent
 
-    def next_state(self, agent: "MobileAgent") -> MobileAgentState:
+    def next_state(self, agent: MobileAgent) -> MobileAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -223,7 +223,7 @@ class NoneMobileAgentState(MobileAgentState):
     The class for the none mobile agent state.
     """
 
-    def next_agent(self, agent: "MobileAgent") -> "MobileAgent":
+    def next_agent(self, agent: MobileAgent) -> MobileAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -231,7 +231,7 @@ class NoneMobileAgentState(MobileAgentState):
         """
         return agent
 
-    def next_state(self, agent: "MobileAgent") -> MobileAgentState:
+    def next_state(self, agent: MobileAgent) -> MobileAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.

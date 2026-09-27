@@ -1,5 +1,6 @@
 """Report the identity + integrity level + session the job runs under."""
-import ctypes, os
+import ctypes
+import os
 from ctypes import wintypes
 
 print("cwd:", os.getcwd())

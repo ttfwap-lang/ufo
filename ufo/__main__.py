@@ -8,7 +8,6 @@ import urllib.request
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 warnings.filterwarnings('ignore', category=PendingDeprecationWarning)
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='websockets.*')
@@ -21,7 +20,7 @@ UFO_ROOT = str(Path(__file__).resolve().parent.parent)
 if UFO_ROOT not in sys.path:
     sys.path.insert(0, UFO_ROOT)
 
-def parse_args(args_list: Optional[list]=None) -> argparse.Namespace:
+def parse_args(args_list: list | None=None) -> argparse.Namespace:
     """Parse CLI arguments for UFO."""
     parser = argparse.ArgumentParser(description='Microsoft UFO Agent CLI')
     parser.add_argument('--task', '-t', help='The name of current task.', type=str, default=None)
@@ -162,7 +161,7 @@ async def _ensure_llm_reachable(logger: logging.Logger) -> None:
     except Exception as e:
         logger.warning(f'AUTO-FALLBACK: LLM reachability probe encountered error: {e}')
 
-async def main(parsed_args: Optional[argparse.Namespace]=None):
+async def main(parsed_args: argparse.Namespace | None=None):
     """
     Main function to run the UFO system.
 

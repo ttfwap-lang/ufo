@@ -7,23 +7,22 @@ Created by Challenger 1 for M2 empirical verification.
 """
 
 import json
-import os
-import shutil
 from pathlib import Path
+
 import pytest
 
+from tests.eval_suite.eval_runner import EvaluationRunner
 from tests.eval_suite.stages.stage_r1 import (
     DEFAULT_FILENAME,
     DEFAULT_MESSAGE,
-    pre_cleanup as pre_cleanup_r1,
     verify_r1,
 )
-from tests.eval_suite.verifiers import (
-    get_desktop_dir,
-    verify_file_on_desktop,
-    verify_session_logs,
+from tests.eval_suite.stages.stage_r1 import (
+    pre_cleanup as pre_cleanup_r1,
 )
-from tests.eval_suite.eval_runner import EvaluationRunner
+from tests.eval_suite.verifiers import (
+    verify_file_on_desktop,
+)
 
 
 class TestR1DesktopFileCreation:

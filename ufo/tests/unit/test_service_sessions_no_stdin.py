@@ -1,5 +1,4 @@
 import pytest
-
 from ufo.module.sessions.linux_session import LinuxSession
 from ufo.module.sessions.mobile_session import MobileSession
 

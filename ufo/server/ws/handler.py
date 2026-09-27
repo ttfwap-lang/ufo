@@ -2,18 +2,19 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
-from typing import Optional
+
 from fastapi import WebSocket, WebSocketDisconnect
-from ufo.aip.protocol.registration import RegistrationProtocol
-from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, ServerMessage
 from ufo.aip.protocol.device_info import DeviceInfoProtocol
+from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+from ufo.aip.protocol.registration import RegistrationProtocol
 from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.aip.transport.websocket import WebSocketTransport
-from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, ServerMessage
 from ufo.module.dispatcher import WebSocketCommandDispatcher
-from ufo.server.services.session_manager import SessionManager, SessionOwnershipError
 from ufo.server.services.client_connection_manager import ClientConnectionManager, DuplicateClientError
+from ufo.server.services.session_manager import SessionManager, SessionOwnershipError
 from ufo.utils import sanitize_task_name
+
 
 @dataclass
 class ConnectionContext:
@@ -31,14 +32,14 @@ class ConnectionContext:
     and the ``handle_*`` dispatch methods so responses are always sent
     on the originating connection's transport.
     """
-    transport: Optional[WebSocketTransport] = None
-    registration_protocol: Optional[RegistrationProtocol] = None
-    heartbeat_protocol: Optional[HeartbeatProtocol] = None
-    device_info_protocol: Optional[DeviceInfoProtocol] = None
-    task_protocol: Optional[TaskExecutionProtocol] = None
-    registered_client_id: Optional[str] = None
-    registered_client_type: Optional[ClientType] = None
-    registered_target_id: Optional[str] = None
+    transport: WebSocketTransport | None = None
+    registration_protocol: RegistrationProtocol | None = None
+    heartbeat_protocol: HeartbeatProtocol | None = None
+    device_info_protocol: DeviceInfoProtocol | None = None
+    task_protocol: TaskExecutionProtocol | None = None
+    registered_client_id: str | None = None
+    registered_client_type: ClientType | None = None
+    registered_target_id: str | None = None
 
 class UFOWebSocketHandler:
     """
@@ -225,7 +226,7 @@ class UFOWebSocketHandler:
         :param websocket: The WebSocket connection.
         """
         client_id = None
-        ctx: Optional[ConnectionContext] = None
+        ctx: ConnectionContext | None = None
         try:
             ctx = await self.connect(websocket)
             client_id = ctx.registered_client_id
@@ -241,7 +242,7 @@ class UFOWebSocketHandler:
             if client_id:
                 await self.disconnect(client_id)
 
-    async def handle_message(self, msg: str, ctx: Optional[ConnectionContext]=None, *, registered_client_id: Optional[str]=None, registered_client_type: Optional[ClientType]=None) -> None:
+    async def handle_message(self, msg: str, ctx: ConnectionContext | None=None, *, registered_client_id: str | None=None, registered_client_type: ClientType | None=None) -> None:
         """
         Dispatch incoming WS messages to specific handlers.
 
@@ -323,7 +324,7 @@ class UFOWebSocketHandler:
             self.logger.error(f'[WS] Error handling message from {client_id}: {e}')
             await self._safe_send_error(str(e), ctx)
 
-    def _effective_ctx(self, ctx: Optional[ConnectionContext], *, registered_client_id: Optional[str]=None, registered_client_type: Optional[ClientType]=None) -> ConnectionContext:
+    def _effective_ctx(self, ctx: ConnectionContext | None, *, registered_client_id: str | None=None, registered_client_type: ClientType | None=None) -> ConnectionContext:
         """Return the context to use for an incoming message.
 
         Production callers always supply ``ctx``; this helper exists for
@@ -361,7 +362,7 @@ class UFOWebSocketHandler:
         try:
             if ctx.task_protocol is not None:
                 await ctx.task_protocol.send_error(error)
-        except (ConnectionError, IOError) as send_error:
+        except (OSError, ConnectionError) as send_error:
             self.logger.debug(f'[WS] Could not send error response (connection closed): {send_error}')
         except Exception as send_error:
             self.logger.debug(f'[WS] Suppressed error while sending error response: {send_error}')
@@ -379,7 +380,7 @@ class UFOWebSocketHandler:
             if ctx.heartbeat_protocol is not None:
                 await ctx.heartbeat_protocol.send_heartbeat_ack()
             self.logger.debug(f'[WS] [AIP] Heartbeat response sent to {data.client_id}')
-        except (ConnectionError, IOError) as e:
+        except (OSError, ConnectionError) as e:
             self.logger.debug(f'[WS] [AIP] Could not send heartbeat ack (connection closed): {e}')
 
     async def handle_error(self, data: ClientMessage, ctx: ConnectionContext) -> None:
@@ -490,12 +491,12 @@ class UFOWebSocketHandler:
                         try:
                             await target_protocol.send_task_end(session_id=sid, status=result_msg.status, result=result_msg.result, error=result_msg.error, response_id=result_msg.response_id)
                             self.logger.info(f'[WS] ✅ Sent to target device {target_device_id} successfully')
-                        except (ConnectionError, IOError) as target_error:
+                        except (OSError, ConnectionError) as target_error:
                             self.logger.warning(f'[WS] ⚠️ Target device {target_device_id} disconnected: {target_error}')
                     else:
                         self.logger.warning(f'[WS] ⚠️ Target device {target_device_id} disconnected, skipping send')
                 self.logger.info(f'[WS] ✅ All results sent for session {sid}')
-            except (ConnectionError, IOError) as e:
+            except (OSError, ConnectionError) as e:
                 self.logger.warning(f'[WS] ⚠️ Connection error sending result for {sid}: {e}')
             except Exception as e:
                 import traceback

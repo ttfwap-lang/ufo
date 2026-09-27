@@ -4,22 +4,24 @@ import logging
 import os
 import platform
 import subprocess
-import time
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
+
 import psutil
+
 if TYPE_CHECKING or platform.system() == 'Windows':
     import win32com.client
 else:
     win32com = None
 from rich.console import Console
+
 from ufo import utils
 from ufo.agents.agent.app_agent import OpenAIOperatorAgent
 from ufo.agents.agent.host_agent import AgentFactory
 from ufo.agents.states.app_agent_state import ContinueAppAgentState
 from ufo.agents.states.host_agent_state import ContinueHostAgentState
-from ufo.client.mcp.mcp_server_manager import MCPServerManager
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.aip.messages import Command
+from ufo.client.mcp.mcp_server_manager import MCPServerManager
+from ufo.config.config_loader import LazyUFOConfig
 from ufo.module import interactor
 from ufo.module.basic import BaseRound
 from ufo.module.context import ContextNames
@@ -27,6 +29,7 @@ from ufo.module.dispatcher import LocalCommandDispatcher
 from ufo.module.sessions.plan_reader import PlanReader
 from ufo.module.sessions.platform_session import WindowsBaseSession
 from ufo.trajectory.parser import Trajectory
+
 ufo_config = LazyUFOConfig()
 console = Console()
 
@@ -89,7 +92,7 @@ class Session(WindowsBaseSession):
         command_dispatcher = LocalCommandDispatcher(self, mcp_server_manager)
         self.context.attach_command_dispatcher(command_dispatcher)
 
-    def create_new_round(self) -> Optional[BaseRound]:
+    def create_new_round(self) -> BaseRound | None:
         """
         Create a new round.
         """
@@ -344,7 +347,7 @@ class FromFileSession(WindowsBaseSession):
         if is_record:
             file_path = ufo_config.system.get('TASK_STATUS_FILE', os.path.join(self.plan_file, '../..', 'tasks_status.json'))
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, encoding='utf-8') as f:
                     task_done = json.load(f)
                 task_done[self.task_name] = True
                 with open(file_path, 'w', encoding='utf-8') as f:

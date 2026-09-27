@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from ufo.agents.processors.context.processing_context import BasicProcessorContext
 from ufo.agents.processors.schemas.target import TargetInfo
 
@@ -21,14 +22,14 @@ class AppAgentProcessorContext(BasicProcessorContext):
 
     # App Agent type identifier
     agent_type: str = "AppAgent"
-    prev_plan: List[str] = field(default_factory=list)
+    prev_plan: list[str] = field(default_factory=list)
     subtask: str = ""  # Current subtask description
     subtask_index: int = 0
     agent_name: str = ""  # Agent name for logging
     agent_step: int = 0
 
     # Application and UI data
-    app_root: Optional[Any] = None  # Application window root element
+    app_root: Any | None = None  # Application window root element
     application_process_name: str = ""  # Application window name/identifier
 
     # Screenshot and visual data
@@ -40,50 +41,50 @@ class AppAgentProcessorContext(BasicProcessorContext):
     screenshot_saved_time: float = 0.0  # Time taken for screenshot operations
 
     # Control and UI information
-    filtered_controls: List[Dict[str, Any]] = field(
+    filtered_controls: list[dict[str, Any]] = field(
         default_factory=list
     )  # Filtered UI controls
-    control_info: List[Dict[str, TargetInfo]] = field(
+    control_info: list[dict[str, TargetInfo]] = field(
         default_factory=list
     )  # Alias for filtered_controls
-    annotation_dict: Dict[str, Any] = field(
+    annotation_dict: dict[str, Any] = field(
         default_factory=dict
     )  # Control annotation dictionary
-    application_window: Optional[Any] = (
+    application_window: Any | None = (
         None  # Application window object (from original)
     )
 
     # LLM interaction data - extends base parsed_response
     response_text: str = ""  # Raw LLM response text
-    prompt_message: Dict[str, Any] = field(
+    prompt_message: dict[str, Any] = field(
         default_factory=dict
     )  # Constructed prompt message
     function_name: str = ""  # Function name from response
-    function_arguments: Dict[str, Any] = field(
+    function_arguments: dict[str, Any] = field(
         default_factory=dict
     )  # Function arguments from response
-    save_screenshot: Dict[str, Any] = field(
+    save_screenshot: dict[str, Any] = field(
         default_factory=dict
     )  # Screenshot saving configuration
 
     # Action execution data
-    execution_result: List[Any] = field(
+    execution_result: list[Any] = field(
         default_factory=list
     )  # Action execution results
-    action_info: Optional[Any] = None  # Action command information
+    action_info: Any | None = None  # Action command information
     action_success: bool = False  # Whether action was successful
-    control_log: Dict[str, Any] = field(default_factory=dict)  # Control interaction log
+    control_log: dict[str, Any] = field(default_factory=dict)  # Control interaction log
 
     # Memory and blackboard data
-    additional_memory: Optional[Any] = (
+    additional_memory: Any | None = (
         None  # Additional memory data (AppAgentAdditionalMemory)
     )
-    memory_item: Optional[Any] = None  # Created memory item
+    memory_item: Any | None = None  # Created memory item
     updated_blackboard: bool = False  # Whether blackboard was updated
     log_path: str = ""
 
     # Performance and debugging data
-    app_performance_metrics: Dict[str, Any] = field(
+    app_performance_metrics: dict[str, Any] = field(
         default_factory=dict
     )  # Performance monitoring data
     app_error_handler_active: bool = False  # Error handler status
@@ -91,7 +92,7 @@ class AppAgentProcessorContext(BasicProcessorContext):
     app_memory_sync_active: bool = False  # Memory sync middleware status
 
     @property
-    def selected_keys(self) -> List[str]:
+    def selected_keys(self) -> list[str]:
         """
         Get keys that should be included in selective serialization.
         Excludes potentially unpicklable objects.

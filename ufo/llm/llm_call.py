@@ -15,14 +15,12 @@ import asyncio
 import logging
 import threading
 import time
-from typing import Dict, Optional, Type
 
 from pydantic import BaseModel, ValidationError
 
 from ufo.dlq.dead_letter_queue import record_dlq_event
-from ufo.llm import AgentType
+from ufo.llm import AgentType, endpoint_health
 from ufo.llm.base import BaseService
-from ufo.llm import endpoint_health
 from ufo.llm.config_helper import BackendProfileError, get_agent_config
 from ufo.llm.endpoint_health import ENDPOINT_GATE, EndpointDown
 from ufo.llm.llm_result import LLMResult
@@ -43,10 +41,10 @@ class _CircuitBreakerState:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._states: Dict[str, str] = {}
-        self._failure_counts: Dict[str, int] = {}
-        self._last_state_change: Dict[str, float] = {}
-        self._half_open_trials: Dict[str, int] = {}
+        self._states: dict[str, str] = {}
+        self._failure_counts: dict[str, int] = {}
+        self._last_state_change: dict[str, float] = {}
+        self._half_open_trials: dict[str, int] = {}
         self._threshold: int = 3
         self._reset_timeout: float = 300.0
         self._half_open_max_trials: int = 1
@@ -211,7 +209,7 @@ def _stop_on_repeated_timeout(retry_state) -> bool:
     return retry_state.attempt_number >= 2 and endpoint_health.is_timeout_error(exc)
 
 
-def _gated_endpoint_key(service: BaseService) -> Optional[str]:
+def _gated_endpoint_key(service: BaseService) -> str | None:
     """host:port for a *local* endpoint (the shared gx10 / LiteLLM); None for
     cloud services, which keep their own rate-limit handling."""
     api_base = getattr(service, 'api_base', None)
@@ -274,7 +272,7 @@ async def _retry_with_backoff(service: BaseService, messages: list, n: int) -> L
         ENDPOINT_GATE.record_success(key)
     return result
 
-def _fallback_shares_endpoint(agent_config: dict, fallback_target: str, configs: Optional[dict]) -> bool:
+def _fallback_shares_endpoint(agent_config: dict, fallback_target: str, configs: dict | None) -> bool:
     """True when the fallback agent talks to the same host:port as the agent that
     just failed, i.e. falling back cannot help (BACKUP_AGENT in agents_dgx.yaml
     points at the same gx10 :8000 as HOST/APP)."""
@@ -288,7 +286,7 @@ def _fallback_shares_endpoint(agent_config: dict, fallback_target: str, configs:
 
 _SCHEMA_VALIDATION_MAX_RETRIES = 2
 
-def _validate_response_schema(response: str, schema: Type[BaseModel]) -> Optional[str]:
+def _validate_response_schema(response: str, schema: type[BaseModel]) -> str | None:
     """
     Validate a response string against a Pydantic schema.
     Returns None on success, or an error message on failure.
@@ -303,7 +301,7 @@ def _validate_response_schema(response: str, schema: Type[BaseModel]) -> Optiona
     except Exception as e:
         return f'Response parsing failed: {e}'
 
-async def get_completion(messages, agent: str=AgentType.APP, use_backup_engine: bool=True, configs: Optional[dict]=None, response_schema: Optional[Type[BaseModel]]=None) -> LLMResult:
+async def get_completion(messages, agent: str=AgentType.APP, use_backup_engine: bool=True, configs: dict | None=None, response_schema: type[BaseModel] | None=None) -> LLMResult:
     """
     Get completion for the given messages asynchronously.
     :param messages: List of messages to be used for completion.
@@ -320,7 +318,7 @@ async def get_completion(messages, agent: str=AgentType.APP, use_backup_engine: 
         raise RuntimeError(f"LLM service returned no response candidates for agent '{agent}'.")
     return result
 
-async def get_completions(messages, agent: str=AgentType.APP, use_backup_engine: bool=True, n: int=1, configs: Optional[dict]=None, response_schema: Optional[Type[BaseModel]]=None) -> LLMResult:
+async def get_completions(messages, agent: str=AgentType.APP, use_backup_engine: bool=True, n: int=1, configs: dict | None=None, response_schema: type[BaseModel] | None=None) -> LLMResult:
     """
     Get completions for the given messages asynchronously with circuit breaker,
     retry middleware, schema validation, and DLQ recording.

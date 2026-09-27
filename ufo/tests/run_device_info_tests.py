@@ -8,9 +8,9 @@ This script runs all device info related tests:
 4. DeviceManager integration tests for device info updates
 """
 
+import os
 import subprocess
 import sys
-import os
 from pathlib import Path
 
 

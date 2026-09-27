@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_root))
 def debug_tasks_field(log_file_path: str):
     """Debug the tasks field in constellation_before"""
 
-    with open(log_file_path, "r", encoding="utf-8") as f:
+    with open(log_file_path, encoding="utf-8") as f:
         lines = f.readlines()
 
     # Check line 2 which had the issue
@@ -32,11 +32,11 @@ def debug_tasks_field(log_file_path: str):
 
         tasks = const_before.get("tasks")
         if isinstance(tasks, str):
-            print(f"\n  [WARN] Tasks is a STRING (should be dict)")
-            print(f"  Tasks value (first 500 chars):")
+            print("\n  [WARN] Tasks is a STRING (should be dict)")
+            print("  Tasks value (first 500 chars):")
             print(f"  {tasks[:500]}")
         elif isinstance(tasks, dict):
-            print(f"\n  [OK] Tasks is a DICT (correct)")
+            print("\n  [OK] Tasks is a DICT (correct)")
             print(f"  Number of tasks: {len(tasks)}")
 
         print("\n" + "=" * 80 + "\n")
@@ -56,11 +56,11 @@ def debug_tasks_field(log_file_path: str):
 
         tasks = const_after.get("tasks")
         if isinstance(tasks, str):
-            print(f"\n  ⚠️  Tasks is a STRING (should be dict)")
-            print(f"  Tasks value (first 500 chars):")
+            print("\n  ⚠️  Tasks is a STRING (should be dict)")
+            print("  Tasks value (first 500 chars):")
             print(f"  {tasks[:500]}")
         elif isinstance(tasks, dict):
-            print(f"\n  [OK] Tasks is a DICT (correct)")
+            print("\n  [OK] Tasks is a DICT (correct)")
             print(f"  Number of tasks: {len(tasks)}")
 
 

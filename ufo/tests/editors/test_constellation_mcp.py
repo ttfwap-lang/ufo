@@ -2,14 +2,16 @@
 Test script for the Constellation Editor MCP Server.
 Tests all the implemented MCP tools to ensure they work correctly.
 """
-import sys
 import asyncio
-import os
 import json
+import os
+import sys
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 ufo_path = os.path.dirname(current_dir)
 sys.path.insert(0, ufo_path)
 from ufo.client.mcp.local_servers.constellation_mcp_server import create_constellation_mcp_server
+
 
 def test_mcp_server():
     """Test all MCP server tools."""
@@ -24,7 +26,7 @@ def test_mcp_server():
         tools_list = asyncio.run(mcp_server._list_tools())
     tools_dict = {t.name: t for t in tools_list}
     print(f'\nAvailable tools: {len(tools_dict)}')
-    for tool_name in tools_dict.keys():
+    for tool_name in tools_dict:
         print(f'  - {tool_name}')
 
     def call_tool(tool_name, *args, **kwargs):
@@ -84,9 +86,9 @@ def test_mcp_server():
             dependency_id = deps[0]['line_id']
             updated_dep_result = call_tool('update_dependency', dependency_id=dependency_id, condition_description='Updated condition: Task2 must wait for Task1 to complete successfully with validation')
             updated_dep = json.loads(updated_dep_result)
-            print(f'   ✓ Updated dependency condition description')
+            print('   ✓ Updated dependency condition description')
         else:
-            print(f'   ✗ No dependencies found to update')
+            print('   ✗ No dependencies found to update')
     except Exception as e:
         print(f'   ✗ Failed to update dependency: {e}')
         return False
@@ -94,7 +96,7 @@ def test_mcp_server():
     try:
         status_result = call_tool('get_constellation_status')
         status = json.loads(status_result)
-        print(f'   ✓ Constellation status:')
+        print('   ✓ Constellation status:')
         print(f"     - Task count: {status['task_count']}")
         print(f"     - Dependency count: {status['dependency_count']}")
         print(f"     - Is valid: {status['is_valid']}")

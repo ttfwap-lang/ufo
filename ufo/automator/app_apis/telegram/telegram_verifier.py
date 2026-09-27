@@ -28,7 +28,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from PIL import Image
 
@@ -42,10 +42,10 @@ EVIDENCE_DIR = Path("ufo_skill_state/evidence")
 class VerificationResult:
     """Result of a verification check."""
     success: bool
-    evidence_path: Optional[Path] = None
+    evidence_path: Path | None = None
     reasoning: str = ""
     timestamp: str = ""
-    details: Dict[str, Any] = None
+    details: dict[str, Any] = None
 
     def __post_init__(self):
         if self.details is None:
@@ -77,8 +77,8 @@ class TelegramVerifier:
         self._controller = controller
         self._evidence_dir = Path(evidence_dir)
         self._evidence_dir.mkdir(parents=True, exist_ok=True)
-        self._last_screenshot: Optional[bytes] = None
-        self._screenshot_history: List[Dict[str, Any]] = []
+        self._last_screenshot: bytes | None = None
+        self._screenshot_history: list[dict[str, Any]] = []
 
     def set_controller(self, controller) -> None:
         """Attach a GUI controller."""
@@ -89,8 +89,8 @@ class TelegramVerifier:
     async def capture_screenshot(
         self,
         label: str = "",
-        goal_id: Optional[str] = None,
-    ) -> Tuple[Optional[bytes], Optional[Path]]:
+        goal_id: str | None = None,
+    ) -> tuple[bytes | None, Path | None]:
         """Capture a screenshot and optionally save it.
 
         Args:
@@ -150,7 +150,7 @@ class TelegramVerifier:
 
         return screenshot, saved_path
 
-    async def _capture_via_window(self) -> Optional[bytes]:
+    async def _capture_via_window(self) -> bytes | None:
         """Capture screenshot of the specific Telegram window.
 
         Uses PrintWindow on the concrete HWND - never grabs the whole desktop,
@@ -159,10 +159,10 @@ class TelegramVerifier:
         if self._controller is None or self._controller.window is None:
             return None
         try:
+            import ctypes
+
             import win32gui
             import win32ui
-            import win32con
-            import ctypes
             from PIL import Image
 
             # Resolve the concrete HWND from the WindowSpecification
@@ -273,7 +273,7 @@ class TelegramVerifier:
     async def verify_before_send(
         self,
         message_number: int,
-        goal_id: Optional[str] = None,
+        goal_id: str | None = None,
     ) -> VerificationResult:
         """Capture pre-send state and verify chat is ready."""
         screenshot, path = await self.capture_screenshot(
@@ -300,7 +300,7 @@ class TelegramVerifier:
         self,
         message_number: int,
         message_text: str,
-        goal_id: Optional[str] = None,
+        goal_id: str | None = None,
     ) -> VerificationResult:
         """Capture post-send screenshot and verify message was sent.
 
@@ -366,7 +366,7 @@ class TelegramVerifier:
 
     # ==================== Screenshot Analysis ====================
 
-    async def analyze_screenshot(self, screenshot: bytes) -> Dict[str, Any]:
+    async def analyze_screenshot(self, screenshot: bytes) -> dict[str, Any]:
         """Analyze a screenshot for basic properties.
 
         Checks:
@@ -420,7 +420,7 @@ class TelegramVerifier:
 
     # ==================== Evidence Management ====================
 
-    def list_evidence(self, goal_id: Optional[str] = None) -> List[Path]:
+    def list_evidence(self, goal_id: str | None = None) -> list[Path]:
         """List evidence files for a goal or all goals."""
         if goal_id:
             goal_dir = self._evidence_dir / f"goal_{goal_id}"
@@ -429,11 +429,11 @@ class TelegramVerifier:
             return []
         return sorted(self._evidence_dir.rglob("*.png"))
 
-    def get_screenshot_history(self) -> List[Dict[str, Any]]:
+    def get_screenshot_history(self) -> list[dict[str, Any]]:
         """Get in-memory screenshot capture history."""
         return self._screenshot_history
 
-    def clear_evidence(self, goal_id: Optional[str] = None) -> None:
+    def clear_evidence(self, goal_id: str | None = None) -> None:
         """Delete evidence files for cleanup."""
         if goal_id:
             goal_dir = self._evidence_dir / f"goal_{goal_id}"

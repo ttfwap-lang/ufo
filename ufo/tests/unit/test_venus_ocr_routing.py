@@ -9,7 +9,6 @@ import json
 import time
 
 import pytest
-
 from ufo import venus_client as v
 
 

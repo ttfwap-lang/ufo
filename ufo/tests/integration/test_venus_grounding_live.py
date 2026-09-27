@@ -6,7 +6,6 @@ import socket
 from pathlib import Path
 
 import pytest
-
 from ufo.automator.ui_control.grounding.venus import VenusGrounder
 
 SHOT = str(Path(__file__).resolve().parents[1] / "fixtures" / "notepad_window.png")

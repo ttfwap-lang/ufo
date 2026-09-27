@@ -10,21 +10,22 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
-from PIL import Image
 
+from PIL import Image
 from ufo.automator.ui_control.screenshot import (
-    is_valid_capture_image,
-    _ensure_window_restored,
-    _crop_desktop_rect,
-    _create_diagnostic_error_frame,
     ControlPhotographer,
     DesktopPhotographer,
+    _create_diagnostic_error_frame,
+    _crop_desktop_rect,
+    _ensure_window_restored,
+    is_valid_capture_image,
 )
+
 from tests.verify_screenshots import (
     is_valid_step_image,
+    main,
     scan_and_verify_screenshots,
     verify_task_screenshots,
-    main,
 )
 
 
@@ -110,7 +111,7 @@ class TestScreenshotHardening(unittest.TestCase):
         mock_control.capture_as_image.return_value = Image.new("RGB", (100, 100), (0, 0, 0)) # invalid black
 
         photographer = ControlPhotographer(mock_control)
-        
+
         valid_img = Image.new("RGB", (300, 200), (255, 255, 255))
         for x in range(20, 80):
             valid_img.putpixel((x, x), (255, 0, 0))

@@ -3,11 +3,14 @@ import datetime
 import logging
 import uuid
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable, Coroutine, Any, Dict, List, Optional
+from collections.abc import Callable, Coroutine
+from typing import TYPE_CHECKING, Any
+
+from ufo.aip.messages import ClientMessage, Command, Result, ResultStatus, ServerMessage, ServerMessageType, TaskStatus
 from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
 from ufo.config import get_config
-from ufo.aip.messages import ClientMessage, Command, Result, ServerMessage, ServerMessageType, TaskStatus, ResultStatus
+
 if TYPE_CHECKING:
     from ufo.module.basic import BaseSession
 
@@ -18,7 +21,7 @@ class BasicCommandDispatcher(ABC):
     """
 
     @abstractmethod
-    async def execute_commands(self, commands: List[Command], timeout: float=6000) -> Optional[List[Result]]:
+    async def execute_commands(self, commands: list[Command], timeout: float=6000) -> list[Result] | None:
         """
         Publish commands to the command dispatcher and wait for the result.
         :param commands: The list of commands to publish.
@@ -27,7 +30,7 @@ class BasicCommandDispatcher(ABC):
         """
         pass
 
-    def generate_error_results(self, commands: List[Command], error: Exception) -> Optional[List[Result]]:
+    def generate_error_results(self, commands: list[Command], error: Exception) -> list[Result] | None:
         """
         Handle errors that occur during command execution.
         :param commands: The list of commands that were being executed.
@@ -54,14 +57,14 @@ class LocalCommandDispatcher(BasicCommandDispatcher):
         """
         from ufo.client.computer import CommandRouter, ComputerManager
         self.session = session
-        self.pending: Dict[str, asyncio.Future] = {}
+        self.pending: dict[str, asyncio.Future] = {}
         self.logger = logging.getLogger(__name__)
         configs = get_config() or {}
         self.mcp_server_manager = mcp_server_manager
         self.computer_manager = ComputerManager(configs, mcp_server_manager)
         self.command_router = CommandRouter(self.computer_manager)
 
-    async def execute_commands(self, commands: List[Command], timeout=6000) -> Optional[List[Result]]:
+    async def execute_commands(self, commands: list[Command], timeout=6000) -> list[Result] | None:
         """
         Publish commands to the command dispatcher and wait for the result.
         :param commands: The list of commands to publish.
@@ -88,16 +91,16 @@ class WebSocketCommandDispatcher(BasicCommandDispatcher):
     Uses AIP's TaskExecutionProtocol for structured message handling.
     """
 
-    def __init__(self, session: 'BaseSession', protocol: Optional[TaskExecutionProtocol]=None) -> None:
+    def __init__(self, session: 'BaseSession', protocol: TaskExecutionProtocol | None=None) -> None:
         """
         Initializes the CommandDispatcher.
         :param session: The session associated with the command dispatcher.
         :param protocol: AIP TaskExecutionProtocol instance.
         """
         self.session = session
-        self.pending: Dict[str, asyncio.Future] = {}
+        self.pending: dict[str, asyncio.Future] = {}
         self.send_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
-        self.observers: List[asyncio.Task] = []
+        self.observers: list[asyncio.Task] = []
         self.logger = logging.getLogger(__name__)
         if not protocol:
             raise ValueError('protocol parameter is required')
@@ -110,7 +113,7 @@ class WebSocketCommandDispatcher(BasicCommandDispatcher):
         """
         self.logger.debug('register_observer() is deprecated; AIP protocol handles sending internally.')
 
-    def make_server_response(self, commands: List[Command]) -> ServerMessage:
+    def make_server_response(self, commands: list[Command]) -> ServerMessage:
         """
         Create a server response message for the given commands.
         :param commands: The list of commands to include in the response.
@@ -127,7 +130,7 @@ class WebSocketCommandDispatcher(BasicCommandDispatcher):
         timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
         return ServerMessage(type=ServerMessageType.COMMAND, status=TaskStatus.CONTINUE, agent_name=agent_name, process_name=process_name, root_name=root_name, actions=commands, session_id=session_id, task_name=self.session.task, timestamp=timestamp, response_id=response_id)
 
-    async def execute_commands(self, commands: List[Command], timeout: float=6000) -> Optional[List[Result]]:
+    async def execute_commands(self, commands: list[Command], timeout: float=6000) -> list[Result] | None:
         """
         Publish commands to the command dispatcher and wait for the result.
         Uses AIP's TaskExecutionProtocol for message handling.

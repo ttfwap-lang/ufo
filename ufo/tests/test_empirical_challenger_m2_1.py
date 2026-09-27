@@ -11,18 +11,17 @@ Adversarially tests and validates:
 """
 
 import ast
-import sys
-import pytest
+from typing import Any
 from unittest.mock import MagicMock, patch
-from typing import Any, Dict, List
 
-from ufo.agents.agent.basic import BasicAgent, AgentRegistry
+import pytest
+
 from ufo.agents.agent.app_agent import AppAgent, OpenAIOperatorAgent
+from ufo.agents.agent.basic import AgentRegistry, BasicAgent
 from ufo.agents.agent.host_agent import HostAgent
 from ufo.agents.processors.context.processing_context import BasicProcessorContext, ProcessingContext
 from ufo.config.config_loader import get_ufo_config
 from ufo.config.config_schemas import UFOConfig
-
 
 # Real prompt paths relative to working directory C:\Users\lnxzf\Desktop\projects\ufo\ufo
 VALID_MAIN_PROMPT = "prompts/share/base/app_agent.yaml"
@@ -306,10 +305,10 @@ def test_r2_02_custom_worker_structure():
     worker_file = pathlib.Path(__file__).resolve().parents[1] / "model_worker" / "custom_worker.py"
     if not worker_file.exists():
         pytest.skip("model_worker/custom_worker.py (optional custom LLM worker) is not part of this checkout")
-    
+
     code = worker_file.read_text(encoding="utf-8")
     tree = ast.parse(code)
-    
+
     # Check that app = FastAPI() and worker = None are present in the AST
     assign_targets = []
     for node in ast.walk(tree):
@@ -334,7 +333,7 @@ def test_r2_03_blackboard_add_data_signature():
 def test_r2_05_websockets_adapter_open_check():
     """Verify aip/transport/adapters.py handles websockets modern ClientConnection object."""
     from ufo.aip.transport.adapters import WebSocketsLibAdapter
-    
+
     mock_ws = MagicMock()
 
     # Mock legacy websocket object with .closed attribute

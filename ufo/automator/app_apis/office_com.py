@@ -13,8 +13,9 @@ Shared COM plumbing for the Word / Excel / PowerPoint MCP servers.
 import logging
 import queue
 import threading
+from collections.abc import Callable
 from concurrent.futures import Future
-from typing import Any, Callable, Optional, Type
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class OfficeComError(RuntimeError):
 
 class _StaWorker:
     def __init__(self, name: str) -> None:
-        self._jobs: "queue.Queue[tuple]" = queue.Queue()
+        self._jobs: queue.Queue[tuple] = queue.Queue()
         self._thread = threading.Thread(target=self._run, name=name, daemon=True)
         self.app = None
         self._thread.start()
@@ -63,15 +64,15 @@ class _StaWorker:
 class OfficeComSession:
     """Runs receiver methods for one Office app on a dedicated STA thread."""
 
-    def __init__(self, progid: str, receiver_cls: Type, app_root_name: str, process_name: str = "", timeout: float = 30.0,
-                 attach: Optional[Callable[[str], Any]] = None) -> None:
+    def __init__(self, progid: str, receiver_cls: type, app_root_name: str, process_name: str = "", timeout: float = 30.0,
+                 attach: Callable[[str], Any] | None = None) -> None:
         self.progid = progid
         self._attach_fn = attach or self._attach
         self.receiver_cls = receiver_cls
         self.app_root_name = app_root_name
         self.process_name = process_name or ""
         self.timeout = timeout
-        self._worker: Optional[_StaWorker] = None
+        self._worker: _StaWorker | None = None
         self._lock = threading.Lock()
 
     def _get_worker(self) -> _StaWorker:

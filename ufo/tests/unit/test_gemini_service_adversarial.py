@@ -1,11 +1,10 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import unittest
 from unittest.mock import MagicMock, patch
-import pytest
-from google.genai import types, errors
 
+import pytest
+from google.genai import errors, types
 from ufo.llm.gemini import GeminiService
 
 
@@ -42,7 +41,7 @@ def create_mock_response(text="Test response", prompt_tokens=10, completion_toke
     mock_candidate.content.parts = [mock_part]
     mock_candidate.finish_reason = "STOP"
     mock_response.candidates = [mock_candidate]
-    
+
     mock_usage = MagicMock()
     mock_usage.prompt_token_count = prompt_tokens
     mock_usage.candidates_token_count = completion_tokens

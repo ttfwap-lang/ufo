@@ -4,9 +4,10 @@ Debug visualization issues.
 """
 
 import asyncio
-from ufo.galaxy.session.observers import DAGVisualizationObserver
+
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
+from ufo.galaxy.session.observers import DAGVisualizationObserver
 
 
 async def debug_visualization():

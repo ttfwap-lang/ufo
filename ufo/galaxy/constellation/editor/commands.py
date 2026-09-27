@@ -3,13 +3,16 @@ Concrete Command Implementations
 
 Implements specific commands for TaskConstellation manipulation.
 """
-from typing import Any, Dict, Optional
+from typing import Any
+
 from ufo.galaxy.agents.schema import TaskConstellationSchema
+
 from ..task_constellation import TaskConstellation
 from ..task_star import TaskStar
 from ..task_star_line import TaskStarLine
 from .command_interface import CommandExecutionError, CommandUndoError, IUndoableCommand
 from .command_registry import register_command
+
 
 class BaseConstellationCommand(IUndoableCommand):
     """
@@ -28,7 +31,7 @@ class BaseConstellationCommand(IUndoableCommand):
         self._constellation = constellation
         self._description = description
         self._executed = False
-        self._backup_data: Optional[Dict[str, Any]] = None
+        self._backup_data: dict[str, Any] | None = None
 
     @property
     def constellation(self) -> TaskConstellation:
@@ -131,7 +134,7 @@ class AddTaskCommand(BaseConstellationCommand):
             self._constellation.remove_task(self._task.task_id)
             self._executed = False
             self._task_added = False
-        except Exception as e:
+        except Exception:
             self._restore_backup()
             self._executed = False
             self._task_added = False
@@ -149,7 +152,7 @@ class RemoveTaskCommand(BaseConstellationCommand):
         """
         super().__init__(constellation, f'Remove task: {task_id}')
         self._task_id = task_id
-        self._removed_task: Optional[TaskStar] = None
+        self._removed_task: TaskStar | None = None
         self._removed_dependencies: list = []
 
     def can_execute(self) -> bool:
@@ -211,7 +214,7 @@ class RemoveTaskCommand(BaseConstellationCommand):
 class UpdateTaskCommand(BaseConstellationCommand):
     """Command to update a task in the constellation."""
 
-    def __init__(self, constellation: TaskConstellation, task_id: str, updates: Dict[str, Any]):
+    def __init__(self, constellation: TaskConstellation, task_id: str, updates: dict[str, Any]):
         """
         Initialize update task command.
 
@@ -222,7 +225,7 @@ class UpdateTaskCommand(BaseConstellationCommand):
         super().__init__(constellation, f'Update task: {task_id}')
         self._task_id = task_id
         self._updates = updates.copy()
-        self._original_values: Dict[str, Any] = {}
+        self._original_values: dict[str, Any] = {}
 
     def can_execute(self) -> bool:
         """Check if the task can be updated."""
@@ -276,7 +279,7 @@ class UpdateTaskCommand(BaseConstellationCommand):
                     setattr(task, field, original_value)
             self._executed = False
             self._original_values = {}
-        except Exception as e:
+        except Exception:
             self._restore_backup()
             self._executed = False
             self._original_values = {}
@@ -344,7 +347,7 @@ class AddDependencyCommand(BaseConstellationCommand):
             self._constellation.remove_dependency(self._dependency.line_id)
             self._executed = False
             self._dependency_added = False
-        except Exception as e:
+        except Exception:
             self._restore_backup()
             self._executed = False
             self._dependency_added = False
@@ -362,7 +365,7 @@ class RemoveDependencyCommand(BaseConstellationCommand):
         """
         super().__init__(constellation, f'Remove dependency: {dependency_id}')
         self._dependency_id = dependency_id
-        self._removed_dependency: Optional[TaskStarLine] = None
+        self._removed_dependency: TaskStarLine | None = None
 
     def can_execute(self) -> bool:
         """Check if the dependency can be removed."""
@@ -414,7 +417,7 @@ class RemoveDependencyCommand(BaseConstellationCommand):
 class UpdateDependencyCommand(BaseConstellationCommand):
     """Command to update a dependency in the constellation."""
 
-    def __init__(self, constellation: TaskConstellation, dependency_id: str, updates: Dict[str, Any]):
+    def __init__(self, constellation: TaskConstellation, dependency_id: str, updates: dict[str, Any]):
         """
         Initialize update dependency command.
 
@@ -425,7 +428,7 @@ class UpdateDependencyCommand(BaseConstellationCommand):
         super().__init__(constellation, f'Update dependency: {dependency_id}')
         self._dependency_id = dependency_id
         self._updates = updates.copy()
-        self._original_values: Dict[str, Any] = {}
+        self._original_values: dict[str, Any] = {}
 
     def can_execute(self) -> bool:
         """Check if the dependency can be updated."""
@@ -479,7 +482,7 @@ class UpdateDependencyCommand(BaseConstellationCommand):
                     setattr(dependency, field, original_value)
             self._executed = False
             self._original_values = {}
-        except Exception as e:
+        except Exception:
             self._restore_backup()
             self._executed = False
             self._original_values = {}
@@ -499,7 +502,7 @@ class BuildConstellationCommand(BaseConstellationCommand):
         super().__init__(constellation, f'Build constellation: {config.name}')
         self._config = config.model_copy()
         self._clear_existing = clear_existing
-        self._original_state: Optional[Dict[str, Any]] = None
+        self._original_state: dict[str, Any] | None = None
 
     def can_execute(self) -> bool:
         """Check if the constellation can be built."""
@@ -676,7 +679,7 @@ class SaveConstellationCommand(BaseConstellationCommand):
         super().__init__(constellation, f'Save constellation to: {file_path}')
         self._file_path = file_path
         self._file_existed = False
-        self._backup_file_content: Optional[str] = None
+        self._backup_file_content: str | None = None
 
     def can_execute(self) -> bool:
         """Check if the constellation can be saved."""
@@ -696,7 +699,7 @@ class SaveConstellationCommand(BaseConstellationCommand):
         try:
             self._file_existed = os.path.exists(self._file_path)
             if self._file_existed:
-                with open(self._file_path, 'r', encoding='utf-8') as f:
+                with open(self._file_path, encoding='utf-8') as f:
                     self._backup_file_content = f.read()
             self._constellation.to_json(save_path=self._file_path)
             self._executed = True

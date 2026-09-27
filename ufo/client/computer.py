@@ -1,18 +1,20 @@
 import asyncio
 import concurrent.futures
 import copy
-import os
 import inspect
 import json
 import logging
-import time
-from typing import Any, Callable, Dict, List, Optional
+import os
+from collections.abc import Callable
+from typing import Any
+
+import ufo.client.mcp.local_servers
 from fastmcp import Client, FastMCP
 from fastmcp.client.client import CallToolResult
 from mcp.types import TextContent
+from ufo.aip.messages import Command, MCPToolCall, Result, ResultStatus
 from ufo.client.mcp.mcp_server_manager import BaseMCPServer, MCPServerManager
-from ufo.aip.messages import Command, Result, MCPToolCall, ResultStatus
-import ufo.client.mcp.local_servers
+
 ufo.client.mcp.local_servers.load_all_servers()
 
 class Computer:
@@ -22,7 +24,7 @@ class Computer:
     _data_collection_namespaces: str = 'data_collection'
     _action_namespaces: str = 'action'
 
-    def __init__(self, name: str, process_name: str, mcp_server_manager: MCPServerManager, data_collection_servers_config: Optional[List[Dict[str, Any]]]=None, action_servers_config: Optional[List[Dict[str, Any]]]=None):
+    def __init__(self, name: str, process_name: str, mcp_server_manager: MCPServerManager, data_collection_servers_config: list[dict[str, Any]] | None=None, action_servers_config: list[dict[str, Any]] | None=None):
         """
         Initialize the computer with a name and optional agent name.
         :param name: The name of the computer.
@@ -35,16 +37,16 @@ class Computer:
         self.action_servers_config = action_servers_config
         self._data_collection_servers = {}
         self._action_servers = {}
-        self._tools_registry: Dict[str, MCPToolCall] = {}
+        self._tools_registry: dict[str, MCPToolCall] = {}
         self.mcp_server_manager = mcp_server_manager
-        self._meta_tools: Dict[str, Callable] = {}
+        self._meta_tools: dict[str, Callable] = {}
         self.logger = logging.getLogger(self.__class__.__name__)
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=100, thread_name_prefix='mcp_tool_')
         self._tool_timeout = 300
         for attr in dir(self):
             method = getattr(self, attr)
             if callable(method) and hasattr(method, '_meta_tool_name'):
-                name = getattr(method, '_meta_tool_name')
+                name = method._meta_tool_name
                 self._meta_tools[name] = method
 
     async def async_init(self) -> None:
@@ -68,7 +70,7 @@ class Computer:
             return func
         return decorator
 
-    def _safe_create_server(self, server_config: Dict[str, Any], reset: bool, namespace: str) -> Optional[BaseMCPServer]:
+    def _safe_create_server(self, server_config: dict[str, Any], reset: bool, namespace: str) -> BaseMCPServer | None:
         """Create one MCP server; an unavailable one is skipped with a warning.
 
         A server that cannot start (e.g. a configured stdio command that is not
@@ -82,7 +84,7 @@ class Computer:
             self.logger.warning(f"Skipping MCP server '{namespace}': {e}")
             return None
 
-    def _init_data_collection_servers(self) -> Dict[str, BaseMCPServer]:
+    def _init_data_collection_servers(self) -> dict[str, BaseMCPServer]:
         """
         Initialize data collection servers for the computer of the
         """
@@ -96,7 +98,7 @@ class Computer:
                 self._data_collection_servers[namespace] = mcp_server
         return self._data_collection_servers
 
-    def _init_action_servers(self) -> Dict[str, BaseMCPServer]:
+    def _init_action_servers(self) -> dict[str, BaseMCPServer]:
         """
         Initialize action servers for the computer.
         """
@@ -165,7 +167,7 @@ class Computer:
             error_content = [TextContent(type='text', text=error_msg)]
             return CallToolResult(content=error_content, structured_content=None, data=None, is_error=True, meta={})
 
-    async def run_actions(self, tool_calls: List[MCPToolCall]) -> List[CallToolResult]:
+    async def run_actions(self, tool_calls: list[MCPToolCall]) -> list[CallToolResult]:
         """
         Run an action on the computer.
         :param tool_calls: The list of tool calls to run.
@@ -178,7 +180,7 @@ class Computer:
             self.logger.debug(f'Action {tool_call.tool_name} executed with result: {_redact_secrets(str(result))}')
         return results
 
-    async def register_mcp_servers(self, server_dict: Dict[str, BaseMCPServer], tool_type: str) -> None:
+    async def register_mcp_servers(self, server_dict: dict[str, BaseMCPServer], tool_type: str) -> None:
         """
         Register a tool with the computer.
         :param server_dict: A dictionary mapping namespaces to MCP servers.
@@ -231,7 +233,7 @@ class Computer:
                     self.logger.info(f'Registering meta tool: {meta_tool_name} with key: {tool_key} for computer {self._name} for MCP server {namespace}.')
                     self._register_tool(tool_key=tool_key, tool_name=meta_tool_name, title=meta_tool_func.__name__, namespace=namespace, tool_type=tool_type, description=meta_tool_func.__doc__ or 'Meta tool', input_schema=meta_tool_func.__annotations__, output_schema=meta_tool_func.__annotations__, mcp_server=mcp_server)
 
-    def _register_tool(self, tool_key: str, tool_name: str, title: str, namespace: str, tool_type: str, description: str, input_schema: Optional[Dict[str, Any]], output_schema: Optional[Dict[str, Any]], mcp_server: BaseMCPServer, meta: Optional[Dict[str, Any]]=None, annotations: Optional[Dict[str, Any]]=None) -> None:
+    def _register_tool(self, tool_key: str, tool_name: str, title: str, namespace: str, tool_type: str, description: str, input_schema: dict[str, Any] | None, output_schema: dict[str, Any] | None, mcp_server: BaseMCPServer, meta: dict[str, Any] | None=None, annotations: dict[str, Any] | None=None) -> None:
         """
         Register a tool with the computer in its tools registry.
         :param tool_key: Unique key for the tool, e.g., "tool_type.tool_name".
@@ -249,7 +251,7 @@ class Computer:
         tool_info = MCPToolCall(tool_key=tool_key, tool_name=tool_name, title=title, description=description, namespace=namespace, tool_type=tool_type, input_schema=input_schema, output_schema=output_schema, mcp_server=mcp_server, meta=meta, annotations=annotations)
         self._tools_registry[tool_key] = tool_info
 
-    async def add_server(self, namespace: str, mcp_server: BaseMCPServer, tool_type: Optional[str]=None) -> None:
+    async def add_server(self, namespace: str, mcp_server: BaseMCPServer, tool_type: str | None=None) -> None:
         """
         Add a server and its tools to the computer.
         :param namespace: The namespace of the server.
@@ -267,7 +269,7 @@ class Computer:
             raise ValueError(f'Invalid tool type: {tool_type}. Must be one of {self._data_collection_namespaces} or {self._action_namespaces}.')
         await self.register_one_mcp_server(namespace, tool_type, mcp_server)
 
-    async def delete_server(self, namespace: str, tool_type: Optional[str]=None) -> None:
+    async def delete_server(self, namespace: str, tool_type: str | None=None) -> None:
         """
         Delete a server and its tools from the computer.
         :param namesspace: The namespace of the server to delete.
@@ -283,7 +285,7 @@ class Computer:
             self._action_servers.pop(namespace, None)
 
     @meta_tool('list_tools')
-    async def list_tools(self, tool_type: Optional[str]=None, namespace: Optional[str]=None, remove_meta: bool=True) -> CallToolResult:
+    async def list_tools(self, tool_type: str | None=None, namespace: str | None=None, remove_meta: bool=True) -> CallToolResult:
         """
         Get the available tools of a specific type (action or data_collection).
         :param tool_type: The type of tools to retrieve (e.g., "action", "data_collection").
@@ -343,14 +345,14 @@ class Computer:
         return f'{tool_type}::{tool_name}'
 
     @property
-    def data_collection_servers(self) -> Dict[str, FastMCP]:
+    def data_collection_servers(self) -> dict[str, FastMCP]:
         """
         Get the data collection servers for the computer.
         """
         return self._data_collection_servers
 
     @property
-    def action_servers(self) -> Dict[str, FastMCP]:
+    def action_servers(self) -> dict[str, FastMCP]:
         """
         Get the action servers for the computer.
         """
@@ -369,7 +371,7 @@ class ComputerManager:
     """
     _configs_key = 'mcp'
 
-    def __init__(self, configs: Dict[str, Any], mcp_server_manager: MCPServerManager):
+    def __init__(self, configs: dict[str, Any], mcp_server_manager: MCPServerManager):
         """
         Initialize the ComputerManager with configurations.
         :param configs: Configuration dictionary containing agent_name, process_name, and root_name.
@@ -379,7 +381,7 @@ class ComputerManager:
         self.computers = {}
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    async def get_or_create(self, agent_name: str, process_name: Optional[str]=None, root_name: Optional[str]=None) -> Computer:
+    async def get_or_create(self, agent_name: str, process_name: str | None=None, root_name: str | None=None) -> Computer:
         """
         Get or create a Computer instance based on the provided configuration.
         :param config: Configuration dictionary containing agent_name, process_name, and root_name.
@@ -408,14 +410,14 @@ class ComputerManager:
             if root is None:
                 self.logger.info(f"Root name '{root_name}' not found in agent configuration for {agent_name}. Using default configuration.")
                 root = 'default'
-            agent_instance_config = agent_config.get(root, None)
+            agent_instance_config = agent_config.get(root)
             if agent_instance_config is None:
                 raise ValueError(f'Agent configuration for root_name={root} not found for agent_name={agent_name}.')
             # A per-agent entry only names the server; its definition (command/args/cwd
             # for stdio, host/port for http) lives in the mcp_servers section.
             server_definitions = mcp_config.get('mcp_servers', {}) or {}
 
-            def _with_definition(entry: Dict[str, Any]) -> Dict[str, Any]:
+            def _with_definition(entry: dict[str, Any]) -> dict[str, Any]:
                 name = entry.get('name') or entry.get('namespace')
                 merged = {**(server_definitions.get(name) or {}), **entry}
                 merged.setdefault('namespace', name)
@@ -450,7 +452,7 @@ class CommandRouter:
         self.computer_manager = computer_manager
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    async def execute(self, agent_name: str, process_name: Optional[str], root_name: Optional[str], commands: List[Command], early_exit: bool=True) -> List[Result]:
+    async def execute(self, agent_name: str, process_name: str | None, root_name: str | None, commands: list[Command], early_exit: bool=True) -> list[Result]:
         """
         Execute a command on the appropriate Computer instance based on the provided configuration.
         :param agent_name: The name of the agent to execute the command for.
@@ -461,7 +463,7 @@ class CommandRouter:
         :return: The list of results from executing the commands.
         """
         computer = await self.computer_manager.get_or_create(agent_name=agent_name, process_name=process_name, root_name=root_name)
-        results: List[Result] = []
+        results: list[Result] = []
         has_failed = False
         for command in commands:
             call_id = command.call_id

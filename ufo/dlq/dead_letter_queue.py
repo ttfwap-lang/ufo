@@ -25,7 +25,7 @@ import logging
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +52,12 @@ class DeadLetterQueue:
     def record_failure(
         self,
         agent_type: str,
-        messages: Optional[List[Dict[str, Any]]] = None,
-        error: Optional[BaseException] = None,
+        messages: list[dict[str, Any]] | None = None,
+        error: BaseException | None = None,
         model: str = "unknown",
-        circuit_breaker_state: Optional[str] = None,
-        extra_meta: Optional[Dict[str, Any]] = None,
-    ) -> Optional[str]:
+        circuit_breaker_state: str | None = None,
+        extra_meta: dict[str, Any] | None = None,
+    ) -> str | None:
         """Record one terminal failure as a JSON snapshot. Returns the snapshot path, or None if disabled/failed."""
         if not self._enabled:
             logger.debug("LLM DLQ is disabled -- skipping snapshot capture.")
@@ -97,7 +97,7 @@ class DeadLetterQueue:
         except Exception as e:
             logger.debug(f"[LLM DLQ] Snapshot pruning failed: {e}")
 
-    def list_snapshots(self) -> List[Dict[str, Any]]:
+    def list_snapshots(self) -> list[dict[str, Any]]:
         """List all recorded snapshots (oldest first), each as its decoded JSON dict."""
         snapshot_dir = Path(self._snapshot_dir)
         if not snapshot_dir.exists():
@@ -105,14 +105,14 @@ class DeadLetterQueue:
         results = []
         for path in sorted(snapshot_dir.glob("dlq_*.json"), key=lambda p: p.stat().st_mtime):
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     results.append(json.load(f))
             except Exception as e:
                 logger.error(f"Failed to load LLM DLQ snapshot {path}: {e}")
         return results
 
 
-_default_dlq: Optional[DeadLetterQueue] = None
+_default_dlq: DeadLetterQueue | None = None
 
 
 def get_default_dlq() -> DeadLetterQueue:
@@ -138,12 +138,12 @@ def get_default_dlq() -> DeadLetterQueue:
 
 def record_dlq_event(
     agent_type: str,
-    messages: Optional[List[Dict[str, Any]]] = None,
-    error: Optional[BaseException] = None,
+    messages: list[dict[str, Any]] | None = None,
+    error: BaseException | None = None,
     model: str = "unknown",
-    circuit_breaker_state: Optional[str] = None,
-    extra_meta: Optional[Dict[str, Any]] = None,
-) -> Optional[str]:
+    circuit_breaker_state: str | None = None,
+    extra_meta: dict[str, Any] | None = None,
+) -> str | None:
     """Module-level convenience wrapper around the default DLQ instance, used by ufo.llm.llm_call."""
     return get_default_dlq().record_failure(
         agent_type=agent_type,

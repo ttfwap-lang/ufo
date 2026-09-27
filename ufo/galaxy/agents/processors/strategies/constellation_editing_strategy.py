@@ -5,8 +5,13 @@ This module provides specific strategies for constellation editing mode,
 implementing the abstract methods defined in the base strategies.
 """
 import time
-from typing import TYPE_CHECKING, List
-from ufo.galaxy.agents.processors.strategies.base_constellation_strategy import BaseConstellationActionExecutionStrategy, ConstellationLLMInteractionStrategy
+from typing import TYPE_CHECKING
+
+from ufo.galaxy.agents.processors.strategies.base_constellation_strategy import (
+    BaseConstellationActionExecutionStrategy,
+    ConstellationLLMInteractionStrategy,
+)
+
 
 class ConstellationEditingLLMInteractionStrategy(ConstellationLLMInteractionStrategy):
     """LLM interaction strategy for constellation editing mode."""
@@ -15,13 +20,14 @@ class ConstellationEditingLLMInteractionStrategy(ConstellationLLMInteractionStra
         super().__init__(fail_fast=fail_fast)
         self.name = 'constellation_llm_interaction_editing'
         self.weaving_mode = WeavingMode.EDITING
+from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
+from ufo.aip.messages import Result, ResultStatus
 from ufo.galaxy.agents.schema import ConstellationAgentResponse, WeavingMode
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.core.events import AgentEvent, EventType, get_event_bus
 from ufo.galaxy.core.types import ProcessingContext
-from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
-from ufo.aip.messages import Result, ResultStatus
 from ufo.module.context import ContextNames
+
 if TYPE_CHECKING:
     from ufo.galaxy.agents.constellation_agent import ConstellationAgent
 
@@ -41,7 +47,7 @@ class ConstellationEditingActionExecutionStrategy(BaseConstellationActionExecuti
         """
         super().__init__(weaving_mode=WeavingMode.EDITING, fail_fast=fail_fast)
 
-    async def _create_mode_specific_action_info(self, agent: 'ConstellationAgent', parsed_response: ConstellationAgentResponse) -> ActionCommandInfo | List[ActionCommandInfo]:
+    async def _create_mode_specific_action_info(self, agent: 'ConstellationAgent', parsed_response: ConstellationAgentResponse) -> ActionCommandInfo | list[ActionCommandInfo]:
         """
         Create editing-specific action information from LLM response.
         """
@@ -64,7 +70,7 @@ class ConstellationEditingActionExecutionStrategy(BaseConstellationActionExecuti
         event = AgentEvent(event_type=EventType.AGENT_ACTION, source_id=agent.name, timestamp=time.time(), data={}, agent_name=agent.name, agent_type='constellation', output_type='action', output_data={'action_type': 'constellation_editing', 'actions': [action.model_dump() for action in actions.actions]})
         await get_event_bus().publish_event(event)
 
-    def sync_constellation(self, results: List[Result], context: ProcessingContext) -> None:
+    def sync_constellation(self, results: list[Result], context: ProcessingContext) -> None:
         """
         Synchronize the constellation state from MCP tool execution results.
 

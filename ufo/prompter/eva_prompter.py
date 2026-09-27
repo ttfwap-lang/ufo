@@ -1,11 +1,13 @@
 import json
 import os
-from typing import Any, Dict, List
+from typing import Any
+
+import ufo.utils
 from ufo.config.config_loader import get_ufo_config
 from ufo.prompter.basic import BasicPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
 from ufo.trajectory import parser
-import ufo.utils
+
 
 class EvaluationAgentPrompter(BasicPrompter):
     """
@@ -35,7 +37,7 @@ class EvaluationAgentPrompter(BasicPrompter):
         screenshots_description = self.prompt_template[screenshot_key]
         return self.prompt_template[system_key].format(examples=examples, apis=apis, screenshots=screenshots_description)
 
-    def user_prompt_construction(self, request: str, trajectory: List[Dict[str, str]]) -> str:
+    def user_prompt_construction(self, request: str, trajectory: list[dict[str, str]]) -> str:
         """
         Construct the prompt for action selection.
         :request: The user request(s) to be evaluated.
@@ -45,7 +47,7 @@ class EvaluationAgentPrompter(BasicPrompter):
         prompt = self.prompt_template['user'].format(request=sanitize_user_input(request, 'request'), trajectory=json.dumps(trajectory, indent=4, sort_keys=True))
         return prompt
 
-    def user_content_construction(self, log_path: str, request: str, eva_all_screenshots: bool=True) -> List[Dict[str, str]]:
+    def user_content_construction(self, log_path: str, request: str, eva_all_screenshots: bool=True) -> list[dict[str, str]]:
         """
         Construct the prompt for the EvaluationAgent.
         :param log_path: The path of the log.
@@ -57,7 +59,7 @@ class EvaluationAgentPrompter(BasicPrompter):
         else:
             return self.user_content_construction_head_tail(log_path, request)
 
-    def user_content_construction_head_tail(self, log_path: str, request: str) -> List[Dict[str, str]]:
+    def user_content_construction_head_tail(self, log_path: str, request: str) -> list[dict[str, str]]:
         """
         Construct the prompt for the EvaluationAgent with head and tail screenshots.
         :param log_path: The path of the log.
@@ -121,7 +123,7 @@ class EvaluationAgentPrompter(BasicPrompter):
             return False
         return True
 
-    def user_content_construction_all(self, log_path: str, request: str) -> List[Dict[str, str]]:
+    def user_content_construction_all(self, log_path: str, request: str) -> list[dict[str, str]]:
         """
         Construct the prompt for the EvaluationAgent with all screenshots.
         Filters out placeholder/empty images and caps the total to avoid
@@ -131,7 +133,7 @@ class EvaluationAgentPrompter(BasicPrompter):
         return: The prompt for the EvaluationAgent.
         """
         user_content = []
-        user_content.append({'type': 'text', 'text': '<Original Request:> {request}'.format(request=request)})
+        user_content.append({'type': 'text', 'text': f'<Original Request:> {request}'})
         trajectory = self.load_logs(log_path)
         image_count = 0
         for log in trajectory.app_agent_log:
@@ -160,7 +162,7 @@ class EvaluationAgentPrompter(BasicPrompter):
         user_content.append({'type': 'text', 'text': '<Your response:>'})
         return user_content
 
-    def get_step_trajectory(self, log: Dict[str, str]) -> Dict[str, str]:
+    def get_step_trajectory(self, log: dict[str, str]) -> dict[str, str]:
         """
         Get the step trajectory from the log path.
         :param log: The log.
@@ -175,7 +177,7 @@ class EvaluationAgentPrompter(BasicPrompter):
         """
         return parser.Trajectory(log_path)
 
-    def load_screenshots(self, log_path: str) -> List[str]:
+    def load_screenshots(self, log_path: str) -> list[str]:
         """
         Load the first and last screenshots from the log path.
         :param log_path: The path of the log.
@@ -214,7 +216,7 @@ class EvaluationAgentPrompter(BasicPrompter):
                 example_list.append(example)
         return self.retrieved_documents_prompt_helper(header, separator, example_list)
 
-    def create_api_prompt_template(self, tool_info_dict: Dict[str, Any]) -> None:
+    def create_api_prompt_template(self, tool_info_dict: dict[str, Any]) -> None:
         """
         Create the API prompt template.
         :param tool_info_dict: The tool information dictionary.

@@ -90,8 +90,8 @@ class TestConfigValidator(unittest.TestCase):
         validator.validate_structure()
 
         # Load config to validate fields
-        from ufo.config.config_loader import get_ufo_config, clear_config_cache, ConfigLoader
-        
+        from ufo.config.config_loader import ConfigLoader, clear_config_cache, get_ufo_config
+
         clear_config_cache()
         ConfigLoader.get_instance(base_path=f"{self.test_dir}/config")
         config_obj = get_ufo_config()
@@ -123,8 +123,8 @@ class TestConfigValidator(unittest.TestCase):
         validator = ConfigValidator("ufo")
         validator.validate_structure()
 
-        from ufo.config.config_loader import get_ufo_config, clear_config_cache, ConfigLoader
-        
+        from ufo.config.config_loader import ConfigLoader, clear_config_cache, get_ufo_config
+
         clear_config_cache()
         ConfigLoader.get_instance(base_path=f"{self.test_dir}/config")
         config_obj = get_ufo_config()
@@ -157,8 +157,8 @@ class TestConfigValidator(unittest.TestCase):
         validator = ConfigValidator("ufo")
         validator.validate_structure()
 
-        from ufo.config.config_loader import get_ufo_config, clear_config_cache, ConfigLoader
-        
+        from ufo.config.config_loader import ConfigLoader, clear_config_cache, get_ufo_config
+
         clear_config_cache()
         ConfigLoader.get_instance(base_path=f"{self.test_dir}/config")
         config_obj = get_ufo_config()
@@ -191,8 +191,8 @@ class TestConfigValidator(unittest.TestCase):
         validator = ConfigValidator("ufo")
         validator.validate_structure()
 
-        from ufo.config.config_loader import get_ufo_config, clear_config_cache, ConfigLoader
-        
+        from ufo.config.config_loader import ConfigLoader, clear_config_cache, get_ufo_config
+
         clear_config_cache()
         ConfigLoader.get_instance(base_path=f"{self.test_dir}/config")
         config_obj = get_ufo_config()

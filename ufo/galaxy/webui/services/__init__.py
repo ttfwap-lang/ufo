@@ -8,11 +8,10 @@ This package contains business logic services that encapsulate
 operations and interact with the Galaxy framework.
 """
 
+from ufo.galaxy.webui.services.config_service import ConfigService
 from ufo.galaxy.webui.services.device_service import DeviceService
-
 from ufo.galaxy.webui.services.galaxy_service import GalaxyService
 
-from ufo.galaxy.webui.services.config_service import ConfigService
 __all__ = [
     "DeviceService",
     "GalaxyService",

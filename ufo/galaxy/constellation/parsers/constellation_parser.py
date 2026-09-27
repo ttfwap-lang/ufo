@@ -7,9 +7,7 @@ TaskConstellation objects (create from LLM text / JSON, simple sequential or
 parallel plans, add/remove tasks, validate, export, clone, merge).
 """
 
-import json
 import uuid
-from typing import List, Optional, Tuple
 
 from ufo.galaxy.constellation.orchestrator.orchestrator import TaskConstellationOrchestrator
 from ufo.galaxy.constellation.parsers.constellation_serializer import ConstellationSerializer
@@ -27,20 +25,20 @@ class ConstellationParser:
     async def create_from_llm(self, llm_output: str, name: str = "LLM Constellation") -> TaskConstellation:
         return await self.orchestrator.create_constellation_from_llm(llm_output or "", name)
 
-    async def create_from_json(self, json_data: str, name: Optional[str] = None) -> TaskConstellation:
+    async def create_from_json(self, json_data: str, name: str | None = None) -> TaskConstellation:
         constellation = ConstellationSerializer.from_json(json_data)
         if name:
             constellation.name = name
         return constellation
 
-    def create_simple_sequential(self, task_descriptions: List[str], name: str = "Sequential Constellation") -> TaskConstellation:
+    def create_simple_sequential(self, task_descriptions: list[str], name: str = "Sequential Constellation") -> TaskConstellation:
         return self._simple(task_descriptions, name, sequential=True)
 
-    def create_simple_parallel(self, task_descriptions: List[str], name: str = "Parallel Constellation") -> TaskConstellation:
+    def create_simple_parallel(self, task_descriptions: list[str], name: str = "Parallel Constellation") -> TaskConstellation:
         return self._simple(task_descriptions, name, sequential=False)
 
     @staticmethod
-    def _simple(task_descriptions: List[str], name: str, sequential: bool) -> TaskConstellation:
+    def _simple(task_descriptions: list[str], name: str, sequential: bool) -> TaskConstellation:
         constellation = TaskConstellation(name=name)
         previous = None
         for i, description in enumerate(task_descriptions):
@@ -52,13 +50,13 @@ class ConstellationParser:
         return constellation
 
     # Backwards-compatible names used by earlier callers.
-    async def create_simple_constellation(self, task_descriptions: List[str], name: str = "Simple Constellation", sequential: bool = True) -> TaskConstellation:
+    async def create_simple_constellation(self, task_descriptions: list[str], name: str = "Simple Constellation", sequential: bool = True) -> TaskConstellation:
         return self._simple(task_descriptions, name, sequential)
 
     async def parse_llm_response(self, llm_response: str, name: str = "LLM Constellation") -> TaskConstellation:
         return await self.create_from_llm(llm_response, name)
 
-    async def parse_json(self, json_data: str, name: Optional[str] = None) -> TaskConstellation:
+    async def parse_json(self, json_data: str, name: str | None = None) -> TaskConstellation:
         return await self.create_from_json(json_data, name)
 
     # ---- modification ---------------------------------------------------------
@@ -68,7 +66,7 @@ class ConstellationParser:
         the constellation is returned unchanged."""
         return constellation
 
-    def add_task_to_constellation(self, constellation: TaskConstellation, task: TaskStar, dependencies: Optional[List[str]] = None) -> bool:
+    def add_task_to_constellation(self, constellation: TaskConstellation, task: TaskStar, dependencies: list[str] | None = None) -> bool:
         constellation.add_task(task)
         for dep in dependencies or []:
             if dep in constellation.tasks:
@@ -83,7 +81,7 @@ class ConstellationParser:
 
     # ---- inspection / export ----------------------------------------------------
 
-    def validate_constellation(self, constellation: TaskConstellation) -> Tuple[bool, List[str]]:
+    def validate_constellation(self, constellation: TaskConstellation) -> tuple[bool, list[str]]:
         if not constellation.tasks:
             return False, ["Constellation has no tasks"]
         return constellation.validate_dag()
@@ -105,13 +103,13 @@ class ConstellationParser:
 
     # ---- composition -------------------------------------------------------------
 
-    def clone_constellation(self, constellation: TaskConstellation, name: Optional[str] = None) -> TaskConstellation:
+    def clone_constellation(self, constellation: TaskConstellation, name: str | None = None) -> TaskConstellation:
         cloned = TaskConstellation.from_json(constellation.to_json())
         cloned._constellation_id = str(uuid.uuid4())
         cloned.name = name or f"{constellation.name} (Copy)"
         return cloned
 
-    def merge_constellations(self, constellation1: TaskConstellation, constellation2: TaskConstellation, name: Optional[str] = None) -> TaskConstellation:
+    def merge_constellations(self, constellation1: TaskConstellation, constellation2: TaskConstellation, name: str | None = None) -> TaskConstellation:
         """Merge two constellations; task ids are prefixed c1_/c2_ so they never collide."""
         merged = TaskConstellation(name=name or f"{constellation1.name} + {constellation2.name}")
         for prefix, source in (("c1_", constellation1), ("c2_", constellation2)):

@@ -1,15 +1,14 @@
 import sys
-import os
-import asyncio
 
 # Ensure UFO is in path
 ufo_path = r'C:\Users\lnxzf\Desktop\projects\ufo'
 if ufo_path not in sys.path:
     sys.path.insert(0, ufo_path)
 
-from ufo.utils import is_json_serializable, _attempt_truncated_json_recovery
 from ufo.automator.ui_control.inspector import ControlInspectorFacade
 from ufo.automator.vision_fallback import VisionFallbackManager
+from ufo.utils import _attempt_truncated_json_recovery
+
 
 def test_json_recovery():
     print("Testing JSON recovery...")

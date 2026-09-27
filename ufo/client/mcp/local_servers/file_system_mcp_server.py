@@ -7,11 +7,12 @@ Provides comprehensive local file system interaction tools:
 - grep_files: search for text patterns across files
 - file_info: stat size, timestamps, permissions
 """
+import logging
 import os
 import re
-import logging
 from pathlib import Path
-from typing import Annotated, List, Optional
+from typing import Annotated
+
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
@@ -35,7 +36,7 @@ def create_file_system_mcp_server(*args, **kwargs) -> FastMCP:
         if not os.path.isfile(file_path):
             raise ToolError(f"File not found: {file_path}")
         try:
-            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(file_path, encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
             start_idx = max(0, start_line - 1)
             end_idx = min(len(lines), start_idx + max_lines)
@@ -125,7 +126,7 @@ def create_file_system_mcp_server(*args, **kwargs) -> FastMCP:
 
         for fpath in files_to_search:
             try:
-                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                with open(fpath, encoding="utf-8", errors="ignore") as f:
                     for line_no, line in enumerate(f, 1):
                         if regex.search(line):
                             rel = os.path.relpath(fpath, search_path) if target.is_dir() else str(fpath)

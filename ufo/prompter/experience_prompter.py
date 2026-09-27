@@ -2,12 +2,11 @@
 # Licensed under the MIT License.
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
-
+from ufo.experience.experience_parser import ExperienceLogLoader
 from ufo.prompter.basic import BasicPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
-from ufo.experience.experience_parser import ExperienceLogLoader
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +57,8 @@ class ExperiencePrompter(BasicPrompter):
         return prompt
 
     def user_content_construction(
-        self, subtask_partition: Dict[str, Any]
-    ) -> List[Dict[str, str]]:
+        self, subtask_partition: dict[str, Any]
+    ) -> list[dict[str, str]]:
         """
         Construct the prompt for LLMs.
         :param log_partition: The log partition.
@@ -70,7 +69,7 @@ class ExperiencePrompter(BasicPrompter):
         user_content = []
 
         # Get the total steps of the log partition.
-        log_partition: List[Dict[str, Any]] = subtask_partition.get("logs")
+        log_partition: list[dict[str, Any]] = subtask_partition.get("logs")
 
         if self.is_visual:
             user_content.append(
@@ -101,7 +100,7 @@ class ExperiencePrompter(BasicPrompter):
 
         return user_content
 
-    def _filter_log(self, log: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _filter_log(self, log: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Filter the logs to only include the necessary fields.
         :param log: The log.
@@ -128,7 +127,7 @@ class ExperiencePrompter(BasicPrompter):
 
         return filtered_log
 
-    def _filter_logs(self, logs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _filter_logs(self, logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Filter the logs to only include the necessary fields.
         :param logs: The logs.
@@ -149,9 +148,7 @@ class ExperiencePrompter(BasicPrompter):
 
         # Construct the prompt for APIs
         api_list = [
-            "- The action type are limited to {actions}.".format(
-                actions=list(self.api_prompt_template.keys())
-            )
+            f"- The action type are limited to {list(self.api_prompt_template.keys())}."
         ]
 
         # Construct the prompt for each API

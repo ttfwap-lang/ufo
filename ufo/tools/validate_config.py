@@ -19,10 +19,10 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
+
 from rich.console import Console
 from rich.panel import Panel
-from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
@@ -59,11 +59,11 @@ class ConfigValidator:
         self.module = module
         self.new_path = Path(f'config/{module}')
         self.legacy_path = Path(f'{module}/config') if module == 'ufo' else None
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
-        self.info: List[str] = []
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
+        self.info: list[str] = []
 
-    def check_paths(self) -> Tuple[bool, bool]:
+    def check_paths(self) -> tuple[bool, bool]:
         """
         Check which configuration paths exist.
 
@@ -89,7 +89,7 @@ class ConfigValidator:
             self.warnings.append(f'Configuration found in both locations:\n  - {self.new_path}/ (active)\n  - {self.legacy_path}/ (ignored)\nConsider removing legacy config to avoid confusion')
         return True
 
-    def validate_fields(self, config: Dict[str, Any]) -> bool:
+    def validate_fields(self, config: dict[str, Any]) -> bool:
         """
         Validate required configuration fields.
 
@@ -118,7 +118,7 @@ class ConfigValidator:
                     self.warnings.append(f"Placeholder value detected: {section}.{field} = '{value}'\nPlease update with actual value")
         return all_valid
 
-    def validate_api_config(self, config: Dict[str, Any]) -> None:
+    def validate_api_config(self, config: dict[str, Any]) -> None:
         """
         Validate API configuration.
 
@@ -152,7 +152,7 @@ class ConfigValidator:
             tree.add(f'[cyan]{file.name}[/cyan]')
         console.print(tree)
 
-    def show_report(self, config: Dict[str, Any]=None) -> None:
+    def show_report(self, config: dict[str, Any]=None) -> None:
         """
         Show validation report.
 
@@ -160,7 +160,7 @@ class ConfigValidator:
         """
         console.print()
         console.print(Panel.fit(f'[bold]Configuration Validation Report[/bold]\nModule: [cyan]{self.module}[/cyan]', title='🔍 Validation', border_style='blue'))
-        console.print(f'\n[bold]Configuration Paths:[/bold]')
+        console.print('\n[bold]Configuration Paths:[/bold]')
         new_exists, legacy_exists = self.check_paths()
         if new_exists:
             console.print(f'  [green]✓[/green] {self.new_path}/ (active)')
@@ -202,7 +202,7 @@ class ConfigValidator:
             self.show_report()
             return False
         try:
-            from ufo.config.config_loader import get_ufo_config, get_galaxy_config
+            from ufo.config.config_loader import get_galaxy_config, get_ufo_config
             if self.module == 'ufo':
                 config_obj = get_ufo_config()
             else:
@@ -219,13 +219,13 @@ class ConfigValidator:
             self.show_report()
             return False
 
-    def show_configuration(self, config: Dict[str, Any]) -> None:
+    def show_configuration(self, config: dict[str, Any]) -> None:
         """
         Show configuration details.
 
         :param config: Configuration dictionary
         """
-        console.print(f'\n[bold]Configuration Details:[/bold]')
+        console.print('\n[bold]Configuration Details:[/bold]')
         table = Table(show_header=True, header_style='bold cyan')
         table.add_column('Section', style='cyan', width=30)
         table.add_column('Key', style='yellow', width=30)

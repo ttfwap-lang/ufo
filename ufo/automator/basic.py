@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Type
 
 
 class ReceiverBasic(ABC):
@@ -12,10 +11,10 @@ class ReceiverBasic(ABC):
     The abstract receiver interface.
     """
 
-    _command_registry: Dict[str, Type[CommandBasic]] = {}
+    _command_registry: dict[str, type[CommandBasic]] = {}
 
     @property
-    def command_registry(self) -> Dict[str, Type[CommandBasic]]:
+    def command_registry(self) -> dict[str, type[CommandBasic]]:
         """
         Get the command registry.
         """
@@ -37,20 +36,20 @@ class ReceiverBasic(ABC):
         return list(self.command_registry.keys())
 
     @property
-    def supported_command_names(self) -> List[str]:
+    def supported_command_names(self) -> list[str]:
         """
         Get the command name list.
         """
         return list(self.command_registry.keys())
 
-    def self_command_mapping(self) -> Dict[str, CommandBasic]:
+    def self_command_mapping(self) -> dict[str, CommandBasic]:
         """
         Get the command-receiver mapping.
         """
-        return {command_name: self for command_name in self.supported_command_names}
+        return dict.fromkeys(self.supported_command_names, self)
 
     @classmethod
-    def register(cls, command_class: Type[CommandBasic]) -> Type[CommandBasic]:
+    def register(cls, command_class: type[CommandBasic]) -> type[CommandBasic]:
         """
         Decorator to register the state class to the state manager.
         :param command_class: The state class to be registered.
@@ -70,7 +69,7 @@ class CommandBasic(ABC):
     The abstract command interface.
     """
 
-    def __init__(self, receiver: ReceiverBasic, params: Dict = None) -> None:
+    def __init__(self, receiver: ReceiverBasic, params: dict = None) -> None:
         """
         Initialize the command.
         :param receiver: The receiver of the command.

@@ -40,10 +40,11 @@ import ctypes
 import logging
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
-def _load_vault_config() -> Dict[str, Any]:
+def _load_vault_config() -> dict[str, Any]:
     """Load vault config from system.yaml."""
     defaults = {'ENABLED': True, 'SERVICE_NAME': 'BankFidelity_UFO', 'TYPE_INTERVAL': 0.02, 'SCRUB_MEMORY': True}
     try:
@@ -80,7 +81,7 @@ class VaultManager:
     plaintext credential.
     """
 
-    def __init__(self, service_name: Optional[str]=None) -> None:
+    def __init__(self, service_name: str | None=None) -> None:
         self._config = _load_vault_config()
         self._service_name = service_name or self._config.get('SERVICE_NAME', 'BankFidelity_UFO')
         self._type_interval = float(self._config.get('TYPE_INTERVAL', 0.02))
@@ -106,7 +107,7 @@ class VaultManager:
         """Check if the vault is enabled and dependencies are available."""
         return self._config.get('ENABLED', True) and self._keyring_available and self._pyautogui_available
 
-    def inject_credential(self, username_key: str, service_name: Optional[str]=None, press_enter: bool=False, pre_clear: bool=True) -> bool:
+    def inject_credential(self, username_key: str, service_name: str | None=None, press_enter: bool=False, pre_clear: bool=True) -> bool:
         """
         Retrieve a credential from the vault and type it into the active field.
 
@@ -171,7 +172,7 @@ class VaultManager:
             return False
         return self.inject_credential(username_key)
 
-    def store_credential(self, username_key: str, password: str, service_name: Optional[str]=None) -> bool:
+    def store_credential(self, username_key: str, password: str, service_name: str | None=None) -> bool:
         """
         Store a credential in the platform keyring.
 
@@ -195,7 +196,7 @@ class VaultManager:
             if self._scrub_memory:
                 _scrub_string(password)
 
-    def delete_credential(self, username_key: str, service_name: Optional[str]=None) -> bool:
+    def delete_credential(self, username_key: str, service_name: str | None=None) -> bool:
         """Delete a credential from the keyring."""
         if not self._keyring_available:
             return False
@@ -209,7 +210,7 @@ class VaultManager:
             logger.error(f'[Vault] Failed to delete credential: {e}')
             return False
 
-    def has_credential(self, username_key: str, service_name: Optional[str]=None) -> bool:
+    def has_credential(self, username_key: str, service_name: str | None=None) -> bool:
         """Check if a credential exists in the keyring (without retrieving it)."""
         if not self._keyring_available:
             return False

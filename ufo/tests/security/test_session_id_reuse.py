@@ -26,16 +26,18 @@ After the fix:
    completed sessions whose ``results`` could later be replayed.
 """
 from __future__ import annotations
+
 import asyncio
 import sys
 import types
 import unittest
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-def _stub_module(name: str, attrs: Optional[dict]=None) -> types.ModuleType:
+def _stub_module(name: str, attrs: dict | None=None) -> types.ModuleType:
     if name in sys.modules:
         return sys.modules[name]
     try:  # prefer the real module; a stub for an importable module leaks into later tests
@@ -59,12 +61,13 @@ def _ensure_repo_on_path() -> None:
 _ensure_repo_on_path()
 from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, TaskStatus
 from ufo.server.services.client_connection_manager import ClientConnectionManager
+
 _MODULES_TO_RESTORE = ('ufo.server.services.session_manager', 'ufo.server.ws.handler', 'ufo.module.dispatcher', 'ufo.module.basic', 'ufo.module.session_pool', 'ufo.module.context')
 
 def _load_real_modules() -> tuple:
     """Drop any test-stubbed entries and re-import the real modules."""
     import importlib
-    saved: Dict[str, Any] = {}
+    saved: dict[str, Any] = {}
     for name in _MODULES_TO_RESTORE:
         if name in sys.modules:
             saved[name] = sys.modules.pop(name)
@@ -85,7 +88,7 @@ def _run(coro):
 
 class SessionManagerOwnershipTests(unittest.TestCase):
     """The session manager must bind sessions to their creating client."""
-    _saved_modules: Dict[str, Any] = {}
+    _saved_modules: dict[str, Any] = {}
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -102,7 +105,7 @@ class SessionManagerOwnershipTests(unittest.TestCase):
     def setUp(self) -> None:
         self.manager = self._SessionManager(platform_override='windows')
 
-    def _seed_completed_session(self, session_id: str, owner: Optional[str], results: Dict[str, Any]) -> '_CompletedSession':
+    def _seed_completed_session(self, session_id: str, owner: str | None, results: dict[str, Any]) -> _CompletedSession:
         """Inject a completed session into the manager's store.
 
         Mirrors the published PoC, which pre-populates a completed
@@ -161,12 +164,12 @@ class _CompletedSession:
     :meth:`SessionManager._run_session_background` consumes).
     """
 
-    def __init__(self, results: Dict[str, Any]) -> None:
+    def __init__(self, results: dict[str, Any]) -> None:
         self.results = results
         self.run_calls = 0
         self.reset_calls = 0
 
-    async def run(self) -> Dict[str, Any]:
+    async def run(self) -> dict[str, Any]:
         self.run_calls += 1
         return self.results
 
@@ -183,9 +186,9 @@ class _CompletedSession:
 class _RecorderProtocol:
     """Captures the AIP protocol calls the handler would send."""
     label: str
-    acks: List[str] = field(default_factory=list)
-    task_ends: List[Dict[str, Any]] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
+    acks: list[str] = field(default_factory=list)
+    task_ends: list[dict[str, Any]] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
     async def send_ack(self, session_id: str) -> None:
         self.acks.append(session_id)
@@ -198,7 +201,7 @@ class _RecorderProtocol:
 
 class HandlerCrossClientReplayRejectionTests(unittest.TestCase):
     """End-to-end: the handler must reject session_id replay attempts."""
-    _saved_modules: Dict[str, Any] = {}
+    _saved_modules: dict[str, Any] = {}
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -248,7 +251,7 @@ class HandlerCrossClientReplayRejectionTests(unittest.TestCase):
         self.assertEqual(completed.run_calls, 0, 'Victim session must not be (re)executed for the attacker')
         self.assertEqual(self.attacker_protocol.task_ends, [], 'No task_end carrying victim results may be sent to the attacker')
         self.assertEqual(self.attacker_protocol.acks, [], 'The replayed session_id must not be acknowledged')
-        self.assertTrue(any(('owned by another client' in err for err in self.attacker_protocol.errors)), f'Expected an ownership error; got {self.attacker_protocol.errors!r}')
+        self.assertTrue(any('owned by another client' in err for err in self.attacker_protocol.errors), f'Expected an ownership error; got {self.attacker_protocol.errors!r}')
 
     def test_replay_of_unowned_seeded_session_is_rejected(self) -> None:
         """The exact PoC shape (no recorded owner) must also be rejected.
@@ -268,7 +271,7 @@ class HandlerCrossClientReplayRejectionTests(unittest.TestCase):
         self.assertEqual(completed.run_calls, 0)
         self.assertEqual(self.attacker_protocol.task_ends, [])
         self.assertEqual(self.attacker_protocol.acks, [])
-        self.assertTrue(any(('owned by another client' in err for err in self.attacker_protocol.errors)), f'Expected an ownership error; got {self.attacker_protocol.errors!r}')
+        self.assertTrue(any('owned by another client' in err for err in self.attacker_protocol.errors), f'Expected an ownership error; got {self.attacker_protocol.errors!r}')
 
 class CommandResultUnownedSquatTests(unittest.TestCase):
     """The ``COMMAND_RESULTS`` path must never create a session.
@@ -286,7 +289,7 @@ class CommandResultUnownedSquatTests(unittest.TestCase):
     After the fix the handler looks the session up only, drops the
     message when absent, and rejects results from a non-owner.
     """
-    _saved_modules: Dict[str, Any] = {}
+    _saved_modules: dict[str, Any] = {}
 
     @classmethod
     def setUpClass(cls) -> None:

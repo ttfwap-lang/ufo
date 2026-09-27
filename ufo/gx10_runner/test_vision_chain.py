@@ -5,7 +5,6 @@ with the real token, so this proves the whole chain the agent will use.
 """
 import json
 import os
-import sys
 import urllib.error
 import urllib.request
 

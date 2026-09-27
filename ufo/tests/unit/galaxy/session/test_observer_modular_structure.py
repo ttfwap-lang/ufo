@@ -4,17 +4,23 @@ Observer Module Structure Test
 This test verifies the new modular observer structure works correctly
 and all modules can be imported and used independently.
 """
-import sys
 import os
+import sys
+
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 sys.path.insert(0, project_root)
 
 def test_modular_imports():
     """Test that all observer modules can be imported from the new structure."""
     print('Testing modular observer imports...')
-    from ufo.galaxy.session.observers import ConstellationProgressObserver, SessionMetricsObserver, DAGVisualizationObserver
+    from ufo.galaxy.session.observers import (
+        ConstellationProgressObserver,
+        DAGVisualizationObserver,
+        SessionMetricsObserver,
+    )
     print('[PASS] Main observer imports successful')
-    from ufo.galaxy.session.observers.base_observer import ConstellationProgressObserver as DirectProgressObserver, SessionMetricsObserver as DirectMetricsObserver
+    from ufo.galaxy.session.observers.base_observer import ConstellationProgressObserver as DirectProgressObserver
+    from ufo.galaxy.session.observers.base_observer import SessionMetricsObserver as DirectMetricsObserver
     print('[PASS] Direct base_observer imports successful')
     from ufo.galaxy.session.observers.dag_visualization_observer import DAGVisualizationObserver as DirectDAGObserver
     print('[PASS] Direct dag_visualization_observer import successful')
@@ -26,7 +32,11 @@ def test_modular_imports():
 def test_observer_modules():
     """Test that observer modules are properly structured."""
     print('\nTesting observer module structure...')
-    from ufo.galaxy.session.observers import ConstellationProgressObserver, SessionMetricsObserver, DAGVisualizationObserver
+    from ufo.galaxy.session.observers import (
+        ConstellationProgressObserver,
+        DAGVisualizationObserver,
+        SessionMetricsObserver,
+    )
     expected_modules = {ConstellationProgressObserver: 'ufo.galaxy.session.observers.base_observer', SessionMetricsObserver: 'ufo.galaxy.session.observers.base_observer', DAGVisualizationObserver: 'ufo.galaxy.session.observers.dag_visualization_observer'}
     for observer_class, expected_module in expected_modules.items():
         actual_module = observer_class.__module__
@@ -36,8 +46,13 @@ def test_observer_modules():
 def test_observer_instantiation():
     """Test that observers can be instantiated with mock parameters."""
     print('\nTesting observer instantiation...')
-    from ufo.galaxy.session.observers import ConstellationProgressObserver, SessionMetricsObserver, DAGVisualizationObserver
     from unittest.mock import Mock
+
+    from ufo.galaxy.session.observers import (
+        ConstellationProgressObserver,
+        DAGVisualizationObserver,
+        SessionMetricsObserver,
+    )
     mock_agent = Mock()
     mock_context = Mock()
     progress_observer = ConstellationProgressObserver(agent=mock_agent, context=mock_context)
@@ -54,8 +69,6 @@ def test_observer_instantiation():
 def test_backward_compatibility():
     """Test that existing imports still work."""
     print('\nTesting backward compatibility...')
-    from ufo.galaxy.session.observers import ConstellationProgressObserver
-    from ufo.galaxy.session import GalaxySession
     import ufo.galaxy.session.galaxy_session as gs_module
     assert hasattr(gs_module, 'ConstellationProgressObserver')
     assert hasattr(gs_module, 'SessionMetricsObserver')

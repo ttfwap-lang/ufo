@@ -83,10 +83,10 @@ def test_bridge_has_no_telelegram_typo():
 
 # 4 ---- a non-raising failure does not satisfy SUCCESS_ONLY dependents
 def test_failed_task_without_error_does_not_unblock_success_only_dependents():
+    from ufo.galaxy.constellation.enums import DependencyType
     from ufo.galaxy.constellation.task_constellation import TaskConstellation
     from ufo.galaxy.constellation.task_star import TaskStar
     from ufo.galaxy.constellation.task_star_line import TaskStarLine
-    from ufo.galaxy.constellation.enums import DependencyType
 
     c = TaskConstellation()
     a, b = TaskStar(task_id="a", description="a"), TaskStar(task_id="b", description="b")
@@ -169,10 +169,10 @@ def test_fallback_lock_is_released():
 
 # 8 ---- execute() uses the same name-matched target the selection used
 def test_resolve_target_matches_by_name():
+    from ufo.agents.processors.schemas.target import TargetInfo, TargetKind, TargetRegistry
     from ufo.agents.processors.strategies.host_agent_processing_strategy import (
         HostActionExecutionStrategy,
     )
-    from ufo.agents.processors.schemas.target import TargetInfo, TargetKind, TargetRegistry
 
     reg = TargetRegistry()
     reg.register(TargetInfo(kind=TargetKind.WINDOW, id="7", name="Untitled - Notepad"))
@@ -185,7 +185,6 @@ def test_resolve_target_matches_by_name():
 # 9 ---- an SSRF-rejected URL is never written to devices.yaml
 def test_rejected_device_url_is_not_persisted(monkeypatch):
     from fastapi import HTTPException
-
     from ufo.galaxy.webui.routers import devices as r
 
     written = []
@@ -384,7 +383,8 @@ def _chain(*deps):
 
 
 def test_failure_cancels_the_success_only_chain_and_the_run_can_finish():
-    from ufo.galaxy.constellation.enums import DependencyType as D, TaskStatus as S
+    from ufo.galaxy.constellation.enums import DependencyType as D
+    from ufo.galaxy.constellation.enums import TaskStatus as S
 
     c = _chain(("a", "b", D.SUCCESS_ONLY), ("b", "c", D.SUCCESS_ONLY))
     c.mark_task_completed("a", success=False)
@@ -394,7 +394,8 @@ def test_failure_cancels_the_success_only_chain_and_the_run_can_finish():
 
 
 def test_completion_only_dependent_still_runs_after_a_failure():
-    from ufo.galaxy.constellation.enums import DependencyType as D, TaskStatus as S
+    from ufo.galaxy.constellation.enums import DependencyType as D
+    from ufo.galaxy.constellation.enums import TaskStatus as S
 
     c = _chain(("a", "b", D.COMPLETION_ONLY), ("a", "x", D.SUCCESS_ONLY), ("x", "y", D.COMPLETION_ONLY))
     ready = c.mark_task_completed("a", success=False)
@@ -406,7 +407,8 @@ def test_completion_only_dependent_still_runs_after_a_failure():
 
 
 def test_success_path_is_unchanged():
-    from ufo.galaxy.constellation.enums import DependencyType as D, TaskStatus as S
+    from ufo.galaxy.constellation.enums import DependencyType as D
+    from ufo.galaxy.constellation.enums import TaskStatus as S
 
     c = _chain(("a", "b", D.SUCCESS_ONLY))
     ready = c.mark_task_completed("a", success=True, result="ok")

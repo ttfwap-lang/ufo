@@ -1,9 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from abc import ABC, abstractmethod
 import platform
-from typing import TYPE_CHECKING, Any, Dict, List
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 
 # Conditional imports for Windows-specific packages
 if TYPE_CHECKING or platform.system() == "Windows":
@@ -97,8 +97,8 @@ class BasicGrounding(ABC):
 
     @abstractmethod
     def parse_results(
-        self, results: List[Dict[str, Any]], application_window: UIAWrapper = None
-    ) -> List[Dict[str, Any]]:
+        self, results: list[dict[str, Any]], application_window: UIAWrapper = None
+    ) -> list[dict[str, Any]]:
         """
         Parse the grounding results string into a list of control elements infomation dictionaries.
         :param results: The list of grounding results dictionaries from the grounding model.
@@ -120,7 +120,7 @@ class BasicGrounding(ABC):
         self,
         screenshot_path: str,
         application_window_info: TargetInfo = None,
-    ) -> List[TargetInfo]:
+    ) -> list[TargetInfo]:
         """
         Parse the grounding results using TargetInfo for application window information.
         :param screenshot_path: The path to the screenshot image.
@@ -131,7 +131,7 @@ class BasicGrounding(ABC):
         pass
 
     @staticmethod
-    def uia_wrapping(control_info: Dict[str, Any]) -> UIAWrapper:
+    def uia_wrapping(control_info: dict[str, Any]) -> UIAWrapper:
         """
         Create a UIAWrapper object from the given control info.
         :param control_info: The control info dictionary.
@@ -153,14 +153,14 @@ class BasicGrounding(ABC):
 
     def convert_to_virtual_uia_elements(
         self, image_path: str, application_window: UIAWrapper = None, *args, **kwargs
-    ) -> List[UIAWrapper]:
+    ) -> list[UIAWrapper]:
         """
         Convert the grounding to a UIAWrapper object.
         :param image_path: The path to the image.
         :return: The control elements dictionary.
         """
 
-        control_list: List[UIAWrapper] = []
+        control_list: list[UIAWrapper] = []
 
         grounding_results = self.predict(image_path, *args, **kwargs)
         control_elements_info = self.parse_results(

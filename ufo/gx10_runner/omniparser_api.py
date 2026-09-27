@@ -28,18 +28,16 @@ import io
 import os
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import gradio as gr
-import numpy as np
 import torch
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from util.utils import (check_ocr_box, get_som_labeled_img,  # noqa: E402
-                        get_yolo_model, get_caption_model_processor)
+from util.utils import check_ocr_box, get_caption_model_processor, get_som_labeled_img, get_yolo_model  # noqa: E402
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BOX_TRESHOLD = 0.05
@@ -84,7 +82,7 @@ print(f"[omniparser] models ready in {time.time()-t0:.1f}s on {DEVICE}", flush=T
 def parse_image(image: Image.Image, box_threshold: float = BOX_TRESHOLD,
                 iou_threshold: float = IOU_THRESHOLD,
                 use_paddleocr: bool = True, imgsz: int = 640
-                ) -> Dict[str, Any]:
+                ) -> dict[str, Any]:
     """Run the full OmniParser pipeline and return ABSOLUTE pixel elements."""
     if image.mode == "RGBA":
         image = image.convert("RGB")
@@ -104,7 +102,7 @@ def parse_image(image: Image.Image, box_threshold: float = BOX_TRESHOLD,
         draw_bbox_config=None, caption_model_processor=caption_model_processor,
         ocr_text=ocr_text, iou_threshold=iou_threshold, imgsz=imgsz)
 
-    elements: List[Dict[str, Any]] = []
+    elements: list[dict[str, Any]] = []
     for key, coords in (label_coords or {}).items():
         try:
             a, b, c, d = [float(v) for v in coords]
@@ -140,14 +138,14 @@ app = FastAPI(title="OmniParser screen parser", version="1.0")
 
 
 @app.get("/api/health")
-def health() -> Dict[str, Any]:
+def health() -> dict[str, Any]:
     return {"ok": True, "device": str(DEVICE), "model": "omniparser-v2",
             "detector": "yolo icon_detect_v3", "captioner": "florence2",
             "cuda_available": bool(torch.cuda.is_available())}
 
 
 @app.post("/api/parse")
-async def api_parse(payload: Dict[str, Any]) -> Any:
+async def api_parse(payload: dict[str, Any]) -> Any:
     b64 = payload.get("image_b64") or ""
     if not b64:
         return JSONResponse({"error": "image_b64 is required"}, status_code=400)

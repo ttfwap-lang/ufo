@@ -11,7 +11,6 @@ Ensures tasks are queued when devices are busy.
 import asyncio
 import logging
 from collections import deque
-from typing import Dict, List, Optional
 
 from .types import TaskRequest
 
@@ -24,10 +23,10 @@ class TaskQueueManager:
 
     def __init__(self):
         # Task queues per device
-        self._task_queues: Dict[str, deque[TaskRequest]] = {}
+        self._task_queues: dict[str, deque[TaskRequest]] = {}
 
         # Pending task futures for awaiting results
-        self._pending_tasks: Dict[str, Dict[str, asyncio.Future]] = {}
+        self._pending_tasks: dict[str, dict[str, asyncio.Future]] = {}
 
         self.logger = logging.getLogger(f"{__name__}.TaskQueueManager")
 
@@ -62,7 +61,7 @@ class TaskQueueManager:
 
         return future
 
-    def dequeue_task(self, device_id: str) -> Optional[TaskRequest]:
+    def dequeue_task(self, device_id: str) -> TaskRequest | None:
         """
         Dequeue the next task for a device.
 
@@ -79,7 +78,7 @@ class TaskQueueManager:
         )
         return task
 
-    def peek_next_task(self, device_id: str) -> Optional[TaskRequest]:
+    def peek_next_task(self, device_id: str) -> TaskRequest | None:
         """
         Peek at the next task without removing it.
 
@@ -159,13 +158,13 @@ class TaskQueueManager:
                     future.cancel()
             self._pending_tasks[device_id].clear()
 
-    def get_pending_task_ids(self, device_id: str) -> List[str]:
+    def get_pending_task_ids(self, device_id: str) -> list[str]:
         """Get list of pending task IDs for a device"""
         if device_id not in self._pending_tasks:
             return []
         return list(self._pending_tasks[device_id].keys())
 
-    def get_queued_task_ids(self, device_id: str) -> List[str]:
+    def get_queued_task_ids(self, device_id: str) -> list[str]:
         """Get list of queued task IDs for a device"""
         if device_id not in self._task_queues:
             return []

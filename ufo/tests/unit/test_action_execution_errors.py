@@ -6,7 +6,6 @@ stale-control failure surfaced as "'str' object is not callable" and hid the
 real cause.
 """
 import pytest
-
 from ufo.agents.processors.schemas.actions import ActionCommandInfo, TargetInfo
 from ufo.automator.action_execution import ActionExecutor
 

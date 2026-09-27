@@ -9,14 +9,33 @@ This module implements the architecture for Customized Agent processing, providi
 - Robust error handling and recovery mechanisms
 """
 from typing import TYPE_CHECKING
+
 from ufo.agents.processors.app_agent_processor import AppAgentProcessor
 from ufo.agents.processors.context.processing_context import ProcessingContext, ProcessingPhase
-from ufo.agents.processors.strategies.app_agent_processing_strategy import AppActionExecutionStrategy, AppMemoryUpdateStrategy
-from ufo.agents.processors.strategies.customized_agent_processing_strategy import CustomizedLLMInteractionStrategy, CustomizedScreenshotCaptureStrategy
-from ufo.agents.processors.strategies.linux_agent_strategy import LinuxActionExecutionStrategy, LinuxLLMInteractionStrategy, LinuxLoggingMiddleware
-from ufo.agents.processors.strategies.mobile_agent_strategy import MobileScreenshotCaptureStrategy, MobileAppsCollectionStrategy, MobileControlsCollectionStrategy, MobileLLMInteractionStrategy, MobileActionExecutionStrategy, MobileLoggingMiddleware
+from ufo.agents.processors.strategies.app_agent_processing_strategy import (
+    AppActionExecutionStrategy,
+    AppMemoryUpdateStrategy,
+)
+from ufo.agents.processors.strategies.customized_agent_processing_strategy import (
+    CustomizedLLMInteractionStrategy,
+    CustomizedScreenshotCaptureStrategy,
+)
+from ufo.agents.processors.strategies.linux_agent_strategy import (
+    LinuxActionExecutionStrategy,
+    LinuxLLMInteractionStrategy,
+    LinuxLoggingMiddleware,
+)
+from ufo.agents.processors.strategies.mobile_agent_strategy import (
+    MobileActionExecutionStrategy,
+    MobileAppsCollectionStrategy,
+    MobileControlsCollectionStrategy,
+    MobileLLMInteractionStrategy,
+    MobileLoggingMiddleware,
+    MobileScreenshotCaptureStrategy,
+)
 from ufo.agents.processors.strategies.processing_strategy import ComposedStrategy
 from ufo.module.context import Context, ContextNames
+
 if TYPE_CHECKING:
     from ufo.agents.agent.customized_agent import CustomizedAgent
 

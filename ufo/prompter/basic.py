@@ -4,11 +4,11 @@
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
 
 import yaml
 
 from ufo.aip.messages import MCPToolInfo
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,7 +41,7 @@ class BasicPrompter(ABC):
         self.logger = logging.getLogger(__name__)
 
     @staticmethod
-    def load_prompt_template(template_path: str, is_visual=None) -> Dict[str, str]:
+    def load_prompt_template(template_path: str, is_visual=None) -> dict[str, str]:
         """
         Load the prompt template.
         :return: The prompt template.
@@ -61,23 +61,21 @@ class BasicPrompter(ABC):
             import pathlib
             # basic.py is in <ufo_package>/prompter, so parent.parent is the UFO package root
             module_dir = pathlib.Path(__file__).resolve().parent.parent
-            
+
             # Normalize the path to handle cross-platform slashes
             normalized_path = os.path.normpath(path)
-            
-            if normalized_path.startswith(f"ufo{os.sep}"):
-                fallback = module_dir / normalized_path[4:]
-            elif normalized_path.startswith("ufo/") or normalized_path.startswith("ufo\\"):
+
+            if normalized_path.startswith(f"ufo{os.sep}") or normalized_path.startswith("ufo/") or normalized_path.startswith("ufo\\"):
                 fallback = module_dir / normalized_path[4:]
             else:
                 fallback = module_dir / normalized_path
-            
+
             if fallback.exists():
                 path = str(fallback)
 
         if os.path.exists(path):
             try:
-                prompt = yaml.safe_load(open(path, "r", encoding="utf-8"))
+                prompt = yaml.safe_load(open(path, encoding="utf-8"))
             except yaml.YAMLError as exc:
                 logger.warning(f"Error loading prompt template: {exc}")
         else:
@@ -87,8 +85,8 @@ class BasicPrompter(ABC):
 
     @staticmethod
     def prompt_construction(
-        system_prompt: str, user_content: List[Dict[str, str]]
-    ) -> List:
+        system_prompt: str, user_content: list[dict[str, str]]
+    ) -> list:
         """
         Construct the prompt for summarizing the experience into an example.
         :param user_content: The user content.
@@ -105,7 +103,7 @@ class BasicPrompter(ABC):
 
     @staticmethod
     def retrieved_documents_prompt_helper(
-        header: str, separator: str, documents: List[str]
+        header: str, separator: str, documents: list[str]
     ) -> str:
         """
         Construct the prompt for retrieved documents.
@@ -116,12 +114,12 @@ class BasicPrompter(ABC):
         """
 
         if header:
-            prompt = "\n<{header}:>\n".format(header=header)
+            prompt = f"\n<{header}:>\n"
         else:
             prompt = ""
         for i, document in enumerate(documents):
             if separator:
-                prompt += "[{separator} {i}:]".format(separator=separator, i=i + 1)
+                prompt += f"[{separator} {i + 1}:]"
                 prompt += "\n"
             prompt += document
             prompt += "\n\n"
@@ -172,7 +170,7 @@ class BasicPrompter(ABC):
 
     @staticmethod
     def tools_to_llm_prompt(
-        tools: List[MCPToolInfo], generate_example: bool = True
+        tools: list[MCPToolInfo], generate_example: bool = True
     ) -> str:
         """
         Convert a list of tool information to a formatted string for LLM.

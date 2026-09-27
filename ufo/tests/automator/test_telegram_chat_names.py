@@ -8,7 +8,6 @@ hand-written code, older scripts, and LLM-generated tool arguments.
 """
 
 import pytest
-
 from ufo.automator.app_apis.telegram.chat_names import (
     SAVED_MESSAGES,
     canonical_chat_name,

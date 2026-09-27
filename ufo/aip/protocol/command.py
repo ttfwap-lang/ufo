@@ -8,10 +8,10 @@ Handles command execution at a fine-grained level.
 """
 
 import logging
-from typing import List
 
 from ufo.aip.messages import Command, Result
 from ufo.aip.protocol.base import AIPProtocol
+
 
 class CommandProtocol(AIPProtocol):
     """
@@ -44,7 +44,7 @@ class CommandProtocol(AIPProtocol):
             return False
         return True
 
-    def validate_commands(self, commands: List[Command]) -> bool:
+    def validate_commands(self, commands: list[Command]) -> bool:
         """
         Validate a batch of commands.
 
@@ -65,7 +65,7 @@ class CommandProtocol(AIPProtocol):
             return False
         return True
 
-    def validate_results(self, results: List[Result]) -> bool:
+    def validate_results(self, results: list[Result]) -> bool:
         """
         Validate a batch of results.
 

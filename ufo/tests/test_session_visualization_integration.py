@@ -4,19 +4,21 @@
 Test integration between session observers and refactored visualization module.
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from io import StringIO
+
+from rich.console import Console
+
 from ufo.galaxy.session.observers import DAGVisualizationObserver
 from ufo.galaxy.visualization import (
-    TaskDisplay,
     ConstellationDisplay,
+    TaskDisplay,
     VisualizationChangeDetector,
 )
-from rich.console import Console
-from io import StringIO
 
 
 # Mock constellation class for testing

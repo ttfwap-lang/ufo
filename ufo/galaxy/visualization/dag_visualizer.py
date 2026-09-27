@@ -9,14 +9,13 @@ with rich console output, focusing on structure, dependencies, and topology anal
 """
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 from rich import box
 from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-
 from rich.tree import Tree
 
 if TYPE_CHECKING:
@@ -36,7 +35,7 @@ class DAGVisualizer:
     visualization. Event-specific displays are handled by separate display classes.
     """
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Console | None = None):
         """
         Initialize the visualizer with optional console.
 
@@ -377,7 +376,7 @@ class DAGVisualizer:
 
     def _build_topology_layers(
         self, constellation: "TaskConstellation"
-    ) -> List[List[TaskStar]]:
+    ) -> list[list[TaskStar]]:
         """
         Build topology layers using topological sort.
 
@@ -467,7 +466,7 @@ class DAGVisualizer:
 
 
 def display_constellation_creation(
-    constellation: "TaskConstellation", console: Optional[Console] = None
+    constellation: "TaskConstellation", console: Console | None = None
 ) -> None:
     """
     Display constellation when first created.
@@ -484,7 +483,7 @@ def display_constellation_creation(
 def display_constellation_update(
     constellation: "TaskConstellation",
     change_description: str = "",
-    console: Optional[Console] = None,
+    console: Console | None = None,
 ) -> None:
     """
     Display constellation after updates/modifications.
@@ -504,7 +503,7 @@ def display_constellation_update(
 
 
 def display_execution_progress(
-    constellation: "TaskConstellation", console: Optional[Console] = None
+    constellation: "TaskConstellation", console: Console | None = None
 ) -> None:
     """
     Display constellation execution progress.
@@ -520,7 +519,7 @@ def display_execution_progress(
 def visualize_dag(
     constellation: "TaskConstellation",
     mode: str = "overview",
-    console: Optional[Console] = None,
+    console: Console | None = None,
 ) -> None:
     """
     Quick visualization of DAG.

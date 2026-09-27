@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ufo.llm.llm_result import LLMResult
 from ufo.llm.openai import BaseOpenAIService
@@ -27,12 +27,12 @@ class QwenService(BaseOpenAIService):
 
     async def chat_completion(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         n: int = 1,
         stream: bool = True,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        top_p: Optional[float] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
         **kwargs: Any,
     ) -> LLMResult:
         """

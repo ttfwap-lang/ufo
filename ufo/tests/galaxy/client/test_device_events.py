@@ -6,12 +6,12 @@ Test device event publishing in ConstellationDeviceManager
 """
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
-from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+import pytest
 from ufo.galaxy.client.components import DeviceStatus
-from ufo.galaxy.core.events import EventType, DeviceEvent, IEventObserver
+from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+from ufo.galaxy.core.events import DeviceEvent, EventType, IEventObserver
 
 
 class MockDeviceEventObserver(IEventObserver):
@@ -44,18 +44,17 @@ async def test_device_connected_event():
     # Mock WebSocket connection
     with patch.object(
         manager.connection_manager, "connect_to_device", new_callable=AsyncMock
+    ), patch.object(
+        manager.connection_manager, "request_device_info", return_value={}
     ):
-        with patch.object(
-            manager.connection_manager, "request_device_info", return_value={}
-        ):
-            # Register and connect device
-            await manager.register_device(
-                device_id="test_device",
-                server_url="ws://localhost:8000",
-                os="Windows",
-                capabilities=["ui_control"],
-                metadata={"test": "data"},
-            )
+        # Register and connect device
+        await manager.register_device(
+            device_id="test_device",
+            server_url="ws://localhost:8000",
+            os="Windows",
+            capabilities=["ui_control"],
+            metadata={"test": "data"},
+        )
 
     # Wait for event propagation
     await asyncio.sleep(0.1)
@@ -87,22 +86,20 @@ async def test_device_disconnected_event():
     # Mock WebSocket connection
     with patch.object(
         manager.connection_manager, "connect_to_device", new_callable=AsyncMock
+    ), patch.object(
+        manager.connection_manager, "request_device_info", return_value={}
+    ), patch.object(
+        manager.connection_manager, "disconnect_device", new_callable=AsyncMock
     ):
-        with patch.object(
-            manager.connection_manager, "request_device_info", return_value={}
-        ):
-            with patch.object(
-                manager.connection_manager, "disconnect_device", new_callable=AsyncMock
-            ):
-                # Register and connect device
-                await manager.register_device(
-                    device_id="test_device",
-                    server_url="ws://localhost:8000",
-                    os="Windows",
-                )
+        # Register and connect device
+        await manager.register_device(
+            device_id="test_device",
+            server_url="ws://localhost:8000",
+            os="Windows",
+        )
 
-                # Disconnect device
-                await manager.disconnect_device("test_device")
+        # Disconnect device
+        await manager.disconnect_device("test_device")
 
     # Wait for event propagation
     await asyncio.sleep(0.1)
@@ -131,39 +128,37 @@ async def test_device_status_changed_event():
     # Mock WebSocket connection and task execution
     with patch.object(
         manager.connection_manager, "connect_to_device", new_callable=AsyncMock
-    ):
-        with patch.object(
-            manager.connection_manager, "request_device_info", return_value={}
-        ):
-            with patch.object(
-                manager.connection_manager,
-                "send_task_to_device",
-                new_callable=AsyncMock,
-            ) as mock_send_task:
-                from ufo.galaxy.core.types import ExecutionResult
-                from ufo.aip.messages import TaskStatus
+    ), patch.object(
+        manager.connection_manager, "request_device_info", return_value={}
+    ), patch.object(
+        manager.connection_manager,
+        "send_task_to_device",
+        new_callable=AsyncMock,
+    ) as mock_send_task:
+        from ufo.aip.messages import TaskStatus
+        from ufo.galaxy.core.types import ExecutionResult
 
-                # Mock successful task execution
-                mock_send_task.return_value = ExecutionResult(
-                    task_id="test_task_1",
-                    status=TaskStatus.COMPLETED,
-                    result={"success": True},
-                )
+        # Mock successful task execution
+        mock_send_task.return_value = ExecutionResult(
+            task_id="test_task_1",
+            status=TaskStatus.COMPLETED,
+            result={"success": True},
+        )
 
-                # Register and connect device
-                await manager.register_device(
-                    device_id="test_device",
-                    server_url="ws://localhost:8000",
-                    os="Windows",
-                )
+        # Register and connect device
+        await manager.register_device(
+            device_id="test_device",
+            server_url="ws://localhost:8000",
+            os="Windows",
+        )
 
-                # Execute task (should trigger BUSY -> IDLE status changes)
-                await manager.assign_task_to_device(
-                    task_id="test_task_1",
-                    device_id="test_device",
-                    task_description="Test task",
-                    task_data={},
-                )
+        # Execute task (should trigger BUSY -> IDLE status changes)
+        await manager.assign_task_to_device(
+            task_id="test_task_1",
+            device_id="test_device",
+            task_description="Test task",
+            task_data={},
+        )
 
     # Wait for event propagation
     await asyncio.sleep(0.1)
@@ -206,21 +201,20 @@ async def test_device_registry_snapshot_in_events():
     # Mock WebSocket connection
     with patch.object(
         manager.connection_manager, "connect_to_device", new_callable=AsyncMock
+    ), patch.object(
+        manager.connection_manager, "request_device_info", return_value={}
     ):
-        with patch.object(
-            manager.connection_manager, "request_device_info", return_value={}
-        ):
-            # Register multiple devices
-            await manager.register_device(
-                device_id="device1",
-                server_url="ws://localhost:8001",
-                os="Windows",
-            )
-            await manager.register_device(
-                device_id="device2",
-                server_url="ws://localhost:8002",
-                os="macOS",
-            )
+        # Register multiple devices
+        await manager.register_device(
+            device_id="device1",
+            server_url="ws://localhost:8001",
+            os="Windows",
+        )
+        await manager.register_device(
+            device_id="device2",
+            server_url="ws://localhost:8002",
+            os="macOS",
+        )
 
     # Wait for event propagation
     await asyncio.sleep(0.1)

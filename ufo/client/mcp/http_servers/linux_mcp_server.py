@@ -12,22 +12,24 @@ Security model (mirrors the Windows ``shell_client.py`` approach):
   matches the ``UFO_MCP_API_KEY`` environment variable.
 """
 import argparse
+import asyncio
 import hmac
 import logging
 import os
 import re
 import shlex
-import asyncio
 from pathlib import Path
-from typing import Annotated, Any, Dict, FrozenSet, List, Optional
+from typing import Annotated, Any
+
 from fastmcp import FastMCP
 from pydantic import Field
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+
 logger = logging.getLogger(__name__)
-ALLOWED_LOCAL_HOSTS: FrozenSet[str] = frozenset({'localhost', '127.0.0.1', '::1'})
+ALLOWED_LOCAL_HOSTS: frozenset[str] = frozenset({'localhost', '127.0.0.1', '::1'})
 
 def _extract_hostname(host_header: str) -> str:
     """Return the bare hostname from a Host/Origin value, stripping any port.
@@ -71,10 +73,10 @@ class LocalhostGuardMiddleware(BaseHTTPMiddleware):
             logger.warning('Rejected request with Sec-Fetch-Site=%r', sec_fetch_site)
             return JSONResponse({'error': 'Forbidden: cross-site request rejected.'}, status_code=403)
         return await call_next(request)
-ALLOWED_SHELL_COMMANDS: FrozenSet[str] = frozenset({'ls', 'pwd', 'cat', 'head', 'tail', 'grep', 'find', 'which', 'whereis', 'wc', 'sort', 'uniq', 'cut', 'tr', 'uname', 'hostname', 'whoami', 'id', 'uptime', 'free', 'df', 'du', 'ps', 'ping', 'traceroute', 'nslookup', 'dig', 'host', 'file', 'stat', 'md5sum', 'sha256sum', 'python3', 'python', 'echo', 'date', 'cal', 'basename', 'dirname', 'realpath', 'diff', 'test'})
-_DANGEROUS_PATTERNS: List[re.Pattern] = [re.compile('[;|&`]'), re.compile('\\$\\('), re.compile('\\$\\{'), re.compile('-exec\\b'), re.compile('-execdir\\b'), re.compile('/dev/tcp/'), re.compile('/dev/udp/'), re.compile('[><]'), re.compile('[\\n\\r\\x00]')]
+ALLOWED_SHELL_COMMANDS: frozenset[str] = frozenset({'ls', 'pwd', 'cat', 'head', 'tail', 'grep', 'find', 'which', 'whereis', 'wc', 'sort', 'uniq', 'cut', 'tr', 'uname', 'hostname', 'whoami', 'id', 'uptime', 'free', 'df', 'du', 'ps', 'ping', 'traceroute', 'nslookup', 'dig', 'host', 'file', 'stat', 'md5sum', 'sha256sum', 'python3', 'python', 'echo', 'date', 'cal', 'basename', 'dirname', 'realpath', 'diff', 'test'})
+_DANGEROUS_PATTERNS: list[re.Pattern] = [re.compile('[;|&`]'), re.compile('\\$\\('), re.compile('\\$\\{'), re.compile('-exec\\b'), re.compile('-execdir\\b'), re.compile('/dev/tcp/'), re.compile('/dev/udp/'), re.compile('[><]'), re.compile('[\\n\\r\\x00]')]
 
-def _check_python_args(args: List[str]) -> bool:
+def _check_python_args(args: list[str]) -> bool:
     """
     Argument policy for the ``python`` / ``python3`` interpreters.
 
@@ -85,9 +87,9 @@ def _check_python_args(args: List[str]) -> bool:
     """
     if not args:
         return False
-    return all((arg in ('--version', '-V') for arg in args))
+    return all(arg in ('--version', '-V') for arg in args)
 
-def _check_find_args(args: List[str]) -> bool:
+def _check_find_args(args: list[str]) -> bool:
     """
     Argument policy for ``find``.
 
@@ -97,10 +99,10 @@ def _check_find_args(args: List[str]) -> bool:
     ``-delete`` and the ``-f*`` file-writing primaries.
     """
     blocked_actions = {'-exec', '-execdir', '-delete', '-ok', '-okdir', '-fprint', '-fprint0', '-fprintf', '-fls'}
-    return not any((arg in blocked_actions for arg in args))
-_ARGUMENT_POLICIES: Dict[str, Any] = {'python': _check_python_args, 'python3': _check_python_args, 'find': _check_find_args}
+    return not any(arg in blocked_actions for arg in args)
+_ARGUMENT_POLICIES: dict[str, Any] = {'python': _check_python_args, 'python3': _check_python_args, 'find': _check_find_args}
 
-def _tokenize(command_str: str) -> Optional[List[str]]:
+def _tokenize(command_str: str) -> list[str] | None:
     """Return the full token list for *command_str* or ``None`` if malformed."""
     stripped = command_str.strip()
     if not stripped:
@@ -111,7 +113,7 @@ def _tokenize(command_str: str) -> Optional[List[str]]:
     except ValueError:
         return None
 
-def _extract_base_command(command_str: str) -> Optional[str]:
+def _extract_base_command(command_str: str) -> str | None:
     """Return the first token (base command) from *command_str*."""
     tokens = _tokenize(command_str)
     return tokens[0] if tokens else None
@@ -124,7 +126,7 @@ def _is_command_allowed(command_str: str) -> bool:
         return False
     return True
 
-def _validate_api_key(provided_key: Optional[str]) -> bool:
+def _validate_api_key(provided_key: str | None) -> bool:
     """
     Constant-time comparison of *provided_key* against the
     ``UFO_MCP_API_KEY`` environment variable.
@@ -137,7 +139,7 @@ def _validate_api_key(provided_key: Optional[str]) -> bool:
         return False
     return hmac.compare_digest(provided_key, expected_key)
 
-def _validate_cwd(cwd: Optional[str]) -> Optional[str]:
+def _validate_cwd(cwd: str | None) -> str | None:
     """
     Validate the working directory to prevent path traversal.
 
@@ -157,7 +159,7 @@ def create_bash_mcp_server(host: str='localhost', port: int=8010) -> None:
     mcp = FastMCP('Linux Bash MCP Server', instructions='MCP server for executing shell commands on Linux.')
 
     @mcp.tool()
-    async def execute_command(command: Annotated[str, Field(description='Shell command to execute on the Linux system. Only allow-listed base commands are permitted (e.g. ls, cat, grep, find, df, ps). Shell metacharacters, pipes, and chaining operators are blocked. Examples: \'ls -la /home\', \'cat /etc/os-release\', \'grep -r "pattern" /path\'.')], api_key: Annotated[str, Field(description='API key for authentication. Must match the UFO_MCP_API_KEY environment variable configured on the server.')], timeout: Annotated[int, Field(description='Maximum execution time in seconds (1-120). Default is 30.')]=30, cwd: Annotated[Optional[str], Field(description="Working directory for command execution. Must be an absolute path. Defaults to the server's current directory.")]=None) -> Annotated[Dict[str, Any], Field(description="Dictionary containing execution results with keys: 'success', 'exit_code', 'stdout', 'stderr', or 'error'.")]:
+    async def execute_command(command: Annotated[str, Field(description='Shell command to execute on the Linux system. Only allow-listed base commands are permitted (e.g. ls, cat, grep, find, df, ps). Shell metacharacters, pipes, and chaining operators are blocked. Examples: \'ls -la /home\', \'cat /etc/os-release\', \'grep -r "pattern" /path\'.')], api_key: Annotated[str, Field(description='API key for authentication. Must match the UFO_MCP_API_KEY environment variable configured on the server.')], timeout: Annotated[int, Field(description='Maximum execution time in seconds (1-120). Default is 30.')]=30, cwd: Annotated[str | None, Field(description="Working directory for command execution. Must be an absolute path. Defaults to the server's current directory.")]=None) -> Annotated[dict[str, Any], Field(description="Dictionary containing execution results with keys: 'success', 'exit_code', 'stdout', 'stderr', or 'error'.")]:
         """
         Execute an allow-listed command on Linux and return stdout/stderr.
 
@@ -190,15 +192,15 @@ def create_bash_mcp_server(host: str='localhost', port: int=8010) -> None:
             return {'success': False, 'error': str(e)}
 
     @mcp.tool()
-    async def get_system_info(api_key: Annotated[str, Field(description='API key for authentication. Must match the UFO_MCP_API_KEY environment variable configured on the server.')]) -> Annotated[Dict[str, Any], Field(description="Dictionary containing basic Linux system information with keys: 'uname', 'uptime', 'memory', 'disk'.")]:
+    async def get_system_info(api_key: Annotated[str, Field(description='API key for authentication. Must match the UFO_MCP_API_KEY environment variable configured on the server.')]) -> Annotated[dict[str, Any], Field(description="Dictionary containing basic Linux system information with keys: 'uname', 'uptime', 'memory', 'disk'.")]:
         """
         Get basic system info (uname, uptime, memory, disk).
         Requires API key authentication.
         """
         if not _validate_api_key(api_key):
             return {'error': 'Authentication failed. Invalid or missing API key.'}
-        info: Dict[str, str] = {}
-        cmds: Dict[str, List[str]] = {'uname': ['uname', '-a'], 'uptime': ['uptime'], 'memory': ['free', '-h'], 'disk': ['df', '-h']}
+        info: dict[str, str] = {}
+        cmds: dict[str, list[str]] = {'uname': ['uname', '-a'], 'uptime': ['uptime'], 'memory': ['free', '-h'], 'disk': ['df', '-h']}
         for k, cmd in cmds.items():
             try:
                 proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE)

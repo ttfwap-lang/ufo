@@ -4,13 +4,14 @@ Test script for TaskStar and TaskStarLine JSON serialization/deserialization.
 This script tests the to_json() and from_json() methods of both classes
 to ensure they work correctly with various data types and edge cases.
 """
+import json
 import os
 import tempfile
-import json
-from datetime import datetime, timezone
+
+from ufo.galaxy.constellation.enums import DeviceType, TaskPriority
 from ufo.galaxy.constellation.task_star import TaskStar
 from ufo.galaxy.constellation.task_star_line import TaskStarLine
-from ufo.galaxy.constellation.enums import TaskStatus, TaskPriority, DeviceType, DependencyType
+
 
 def test_task_star_json():
     """Test TaskStar JSON serialization and deserialization."""
@@ -20,7 +21,7 @@ def test_task_star_json():
     task = TaskStar(name='Test Task', description='This is a test task for JSON serialization', tips=['Tip 1: Be careful', 'Tip 2: Double-check results'], target_device_id='device_001', device_type=DeviceType.WINDOWS, priority=TaskPriority.HIGH, timeout=300.0, retry_count=3, task_data={'string_value': 'test', 'number_value': 42, 'list_value': [1, 2, 3], 'dict_value': {'nested': 'data'}, 'bool_value': True}, expected_output_type='json')
     task.start_execution()
     task.complete_with_success({'result': 'success', 'data': [1, 2, 3]})
-    print(f'Original TaskStar:')
+    print('Original TaskStar:')
     print(f'  ID: {task.task_id}')
     print(f'  Name: {task.name}')
     print(f'  Status: {task.status}')
@@ -85,7 +86,7 @@ def test_task_star_line_json():
     line = TaskStarLine.create_conditional(from_task_id='task_001', to_task_id='task_002', condition_description='Task 001 must complete successfully', condition_evaluator=condition_evaluator)
     line.update_metadata({'priority': 'high', 'created_by': 'test_script', 'tags': ['test', 'conditional']})
     line.evaluate_condition({'success': True, 'data': 'test_result'})
-    print(f'Original TaskStarLine:')
+    print('Original TaskStarLine:')
     print(f'  ID: {line.line_id}')
     print(f'  From Task: {line.from_task_id}')
     print(f'  To Task: {line.to_task_id}')

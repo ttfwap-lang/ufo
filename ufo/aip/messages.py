@@ -19,12 +19,11 @@ Key Concepts:
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from ufo.client.mcp.mcp_server_manager import BaseMCPServer
-
 
 # ============================================================================
 # Core Data Structures
@@ -48,18 +47,18 @@ class ControlInfo(BaseModel):
     Information about a UI control.
     """
 
-    annotation_id: Optional[str] = None
-    name: Optional[str] = None
-    title: Optional[str] = None
-    handle: Optional[int] = None
-    class_name: Optional[str] = None
-    rectangle: Optional[Rect] = None
-    control_type: Optional[str] = None
-    automation_id: Optional[str] = None
-    is_enabled: Optional[bool] = None
-    is_visible: Optional[bool] = None
-    source: Optional[str] = None
-    text_content: Optional[str] = None
+    annotation_id: str | None = None
+    name: str | None = None
+    title: str | None = None
+    handle: int | None = None
+    class_name: str | None = None
+    rectangle: Rect | None = None
+    control_type: str | None = None
+    automation_id: str | None = None
+    is_enabled: bool | None = None
+    is_visible: bool | None = None
+    source: str | None = None
+    text_content: str | None = None
 
 
 class WindowInfo(ControlInfo):
@@ -67,12 +66,12 @@ class WindowInfo(ControlInfo):
     Information about a window in the UI.
     """
 
-    process_id: Optional[int] = None
-    process_name: Optional[str] = None
-    is_visible: Optional[bool] = None
-    is_minimized: Optional[bool] = None
-    is_maximized: Optional[bool] = None
-    is_active: Optional[bool] = None
+    process_id: int | None = None
+    process_name: str | None = None
+    is_visible: bool | None = None
+    is_minimized: bool | None = None
+    is_maximized: bool | None = None
+    is_active: bool | None = None
 
 
 class AppWindowControlInfo(BaseModel):
@@ -81,7 +80,7 @@ class AppWindowControlInfo(BaseModel):
     """
 
     window_info: WindowInfo
-    controls: Optional[List[ControlInfo]] = None
+    controls: list[ControlInfo] | None = None
 
 
 # ============================================================================
@@ -96,14 +95,14 @@ class MCPToolInfo(BaseModel):
 
     tool_key: str
     tool_name: str
-    title: Optional[str] = None
+    title: str | None = None
     namespace: str
     tool_type: str
-    description: Optional[str] = None
-    input_schema: Optional[Dict[str, Any]] = None
-    output_schema: Optional[Dict[str, Any]] = None
-    meta: Optional[Dict[str, Any]] = None
-    annotations: Optional[Dict[str, Any]] = None
+    description: str | None = None
+    input_schema: dict[str, Any] | None = None
+    output_schema: dict[str, Any] | None = None
+    meta: dict[str, Any] | None = None
+    annotations: dict[str, Any] | None = None
 
 
 class MCPToolCall(BaseModel):
@@ -113,16 +112,16 @@ class MCPToolCall(BaseModel):
 
     tool_key: str  # Unique key for the tool, e.g., "namespace.tool_name"
     tool_name: str  # Name of the tool
-    title: Optional[str] = None  # Title of the tool, if any
+    title: str | None = None  # Title of the tool, if any
     namespace: str  # Namespace of the tool, same as the MCP server namespace
     tool_type: str  # Type of the tool (e.g., "action", "data_collection")
     description: str  # Description of the tool
-    input_schema: Optional[Dict[str, Any]] = None  # Input schema for the tool, if any
-    output_schema: Optional[Dict[str, Any]] = None  # Output schema for the tool, if any
-    parameters: Optional[Dict[str, Any]] = None  # Parameters for the tool, if any
+    input_schema: dict[str, Any] | None = None  # Input schema for the tool, if any
+    output_schema: dict[str, Any] | None = None  # Output schema for the tool, if any
+    parameters: dict[str, Any] | None = None  # Parameters for the tool, if any
     mcp_server: BaseMCPServer  # The BaseMCPServer instance where the tool is registered
-    meta: Optional[Dict[str, Any]] = None  # Metadata about the tool, if any
-    annotations: Optional[Dict[str, Any]] = None  # Annotations for the tool, if any
+    meta: dict[str, Any] | None = None  # Metadata about the tool, if any
+    annotations: dict[str, Any] | None = None  # Annotations for the tool, if any
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -153,13 +152,13 @@ class Command(BaseModel):
     """
 
     tool_name: str = Field(..., description="Name of the tool to execute")
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: dict[str, Any] | None = Field(
         default=None, description="Parameters for the tool"
     )
     tool_type: Literal["data_collection", "action"] = Field(
         ..., description="Type of tool: data_collection or action"
     )
-    call_id: Optional[str] = Field(
+    call_id: str | None = Field(
         default=None, description="Unique identifier for this command call"
     )
 
@@ -187,12 +186,12 @@ class Result(BaseModel):
     """
 
     status: ResultStatus = Field(..., description="Execution status")
-    error: Optional[str] = Field(default=None, description="Error message if failed")
+    error: str | None = Field(default=None, description="Error message if failed")
     result: Any = Field(default=None, description="Result payload")
-    namespace: Optional[str] = Field(
+    namespace: str | None = Field(
         default=None, description="Namespace of the executed tool"
     )
-    call_id: Optional[str] = Field(
+    call_id: str | None = Field(
         default=None, description="ID matching the Command.call_id"
     )
 
@@ -322,22 +321,22 @@ class ServerMessage(BaseModel):
 
     type: ServerMessageType = Field(..., description="Type of server message")
     status: TaskStatus = Field(..., description="Current task status")
-    user_request: Optional[str] = Field(
+    user_request: str | None = Field(
         default=None, description="Original user request"
     )
-    agent_name: Optional[str] = Field(default=None, description="Agent name")
-    process_name: Optional[str] = Field(default=None, description="Process name")
-    root_name: Optional[str] = Field(default=None, description="Root application name")
-    actions: Optional[List[Command]] = Field(
+    agent_name: str | None = Field(default=None, description="Agent name")
+    process_name: str | None = Field(default=None, description="Process name")
+    root_name: str | None = Field(default=None, description="Root application name")
+    actions: list[Command] | None = Field(
         default=None, description="Commands to execute"
     )
-    messages: Optional[List[str]] = Field(default=None, description="Log messages")
-    error: Optional[str] = Field(default=None, description="Error message")
-    session_id: Optional[str] = Field(default=None, description="Session ID")
-    task_name: Optional[str] = Field(default=None, description="Task name")
-    timestamp: Optional[str] = Field(default=None, description="ISO 8601 timestamp")
-    response_id: Optional[str] = Field(default=None, description="Unique response ID")
-    result: Optional[Any] = Field(default=None, description="Result payload")
+    messages: list[str] | None = Field(default=None, description="Log messages")
+    error: str | None = Field(default=None, description="Error message")
+    session_id: str | None = Field(default=None, description="Session ID")
+    task_name: str | None = Field(default=None, description="Task name")
+    timestamp: str | None = Field(default=None, description="ISO 8601 timestamp")
+    response_id: str | None = Field(default=None, description="Unique response ID")
+    result: Any | None = Field(default=None, description="Result payload")
 
 
 class ClientMessage(BaseModel):
@@ -369,23 +368,23 @@ class ClientMessage(BaseModel):
     client_type: ClientType = Field(
         default=ClientType.DEVICE, description="Type of client"
     )
-    session_id: Optional[str] = Field(default=None, description="Session ID")
-    task_name: Optional[str] = Field(default=None, description="Task name")
-    client_id: Optional[str] = Field(default=None, description="Client ID")
-    target_id: Optional[str] = Field(
+    session_id: str | None = Field(default=None, description="Session ID")
+    task_name: str | None = Field(default=None, description="Task name")
+    client_id: str | None = Field(default=None, description="Client ID")
+    target_id: str | None = Field(
         default=None, description="Target device ID (for constellation)"
     )
-    request: Optional[str] = Field(default=None, description="Request text")
-    action_results: Optional[List[Result]] = Field(
+    request: str | None = Field(default=None, description="Request text")
+    action_results: list[Result] | None = Field(
         default=None, description="Command execution results"
     )
-    timestamp: Optional[str] = Field(default=None, description="ISO 8601 timestamp")
-    request_id: Optional[str] = Field(default=None, description="Unique request ID")
-    prev_response_id: Optional[str] = Field(
+    timestamp: str | None = Field(default=None, description="ISO 8601 timestamp")
+    request_id: str | None = Field(default=None, description="Unique request ID")
+    prev_response_id: str | None = Field(
         default=None, description="Previous response ID"
     )
-    error: Optional[str] = Field(default=None, description="Error message")
-    metadata: Optional[Dict[str, Any]] = Field(
+    error: str | None = Field(default=None, description="Error message")
+    metadata: dict[str, Any] | None = Field(
         default=None, description="Additional metadata"
     )
 
@@ -490,15 +489,15 @@ class BinaryMetadata(BaseModel):
     """
 
     type: Literal["binary_data"] = "binary_data"
-    filename: Optional[str] = None
-    mime_type: Optional[str] = None
+    filename: str | None = None
+    mime_type: str | None = None
     size: int = Field(..., description="Size of binary data in bytes")
-    checksum: Optional[str] = Field(
+    checksum: str | None = Field(
         None, description="MD5 or SHA256 checksum for validation"
     )
-    session_id: Optional[str] = None
-    description: Optional[str] = None
-    timestamp: Optional[str] = None
+    session_id: str | None = None
+    description: str | None = None
+    timestamp: str | None = None
     # Allow additional custom fields
     model_config = ConfigDict(extra="allow")
 
@@ -516,9 +515,9 @@ class FileTransferStart(BaseModel):
     size: int = Field(..., description="Total file size in bytes")
     chunk_size: int = Field(..., description="Size of each chunk in bytes")
     total_chunks: int = Field(..., description="Total number of chunks")
-    mime_type: Optional[str] = Field(None, description="MIME type of file")
-    session_id: Optional[str] = None
-    description: Optional[str] = None
+    mime_type: str | None = Field(None, description="MIME type of file")
+    session_id: str | None = None
+    description: str | None = None
     # Allow additional custom fields
     model_config = ConfigDict(extra="allow")
 
@@ -534,8 +533,8 @@ class FileTransferComplete(BaseModel):
     type: Literal["file_transfer_complete"] = "file_transfer_complete"
     filename: str = Field(..., description="Name of transferred file")
     total_chunks: int = Field(..., description="Total chunks sent")
-    checksum: Optional[str] = Field(None, description="MD5 checksum of complete file")
-    session_id: Optional[str] = None
+    checksum: str | None = Field(None, description="MD5 checksum of complete file")
+    session_id: str | None = None
     # Allow additional custom fields
     model_config = ConfigDict(extra="allow")
 
@@ -550,6 +549,6 @@ class ChunkMetadata(BaseModel):
 
     chunk_num: int = Field(..., description="Chunk sequence number (0-indexed)")
     chunk_size: int = Field(..., description="Size of this chunk in bytes")
-    checksum: Optional[str] = Field(None, description="Checksum of this chunk")
+    checksum: str | None = Field(None, description="Checksum of this chunk")
     # Allow additional custom fields
     model_config = ConfigDict(extra="allow")

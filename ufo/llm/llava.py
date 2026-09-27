@@ -4,7 +4,7 @@ import dataclasses
 import logging
 from enum import Enum, auto
 from io import BytesIO
-from typing import Any, List, Optional
+from typing import Any
 
 import requests
 from PIL import Image
@@ -29,9 +29,9 @@ class LlavaService(BaseService):
         self,
         messages,
         n,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        top_p: Optional[float] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
         **kwargs: Any,
     ) -> LLMResult:
         """
@@ -146,8 +146,8 @@ class Conversation:
     """A class that keeps all conversation history."""
 
     system: str
-    roles: List[str]
-    messages: List[List[str]]
+    roles: list[str]
+    messages: list[list[str]]
     offset: int
     sep_style: SeparatorStyle = SeparatorStyle.SINGLE
     sep: str = "###"

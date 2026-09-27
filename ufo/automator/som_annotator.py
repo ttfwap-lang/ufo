@@ -22,10 +22,11 @@ Usage:
 """
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
-def _load_som_config() -> Dict[str, Any]:
+def _load_som_config() -> dict[str, Any]:
     """Load SoM config from system.yaml."""
     defaults = {'ENABLED': False}
     try:
@@ -39,7 +40,7 @@ def _load_som_config() -> Dict[str, Any]:
     return defaults
 _ACTIONABLE_LEAVES = {'Button', 'Edit', 'MenuItem', 'TabItem', 'ListItem', 'Hyperlink', 'CheckBox', 'RadioButton', 'ComboBox', 'TreeItem', 'Spinner', 'Text'}
 
-def _flatten_tree(node: Optional[Dict[str, Any]], result: Optional[List[Dict[str, Any]]]=None) -> List[Dict[str, Any]]:
+def _flatten_tree(node: dict[str, Any] | None, result: list[dict[str, Any]] | None=None) -> list[dict[str, Any]]:
     """
     Flatten a pruned UIA tree dict into a list of actionable leaf elements
     with valid bounding boxes.
@@ -72,7 +73,7 @@ class SoMAnnotator:
         """Check if SoM annotation is enabled in config."""
         return self._config.get('ENABLED', False)
 
-    def generate(self, screenshot_path: str, uia_tree: Optional[Dict[str, Any]]=None, elements: Optional[List[Dict[str, Any]]]=None) -> Tuple[str, Dict[int, Dict[str, Any]]]:
+    def generate(self, screenshot_path: str, uia_tree: dict[str, Any] | None=None, elements: list[dict[str, Any]] | None=None) -> tuple[str, dict[int, dict[str, Any]]]:
         """
         Generate a Set-of-Marks annotated screenshot.
 
@@ -96,14 +97,14 @@ class SoMAnnotator:
         if not leaves:
             logger.warning('SoM: No actionable elements found to annotate.')
             return (screenshot_path, {})
-        element_map: Dict[int, Dict[str, Any]] = {}
+        element_map: dict[int, dict[str, Any]] = {}
         for idx, elem in enumerate(leaves):
             element_map[idx] = elem
         annotated_path = self._draw_annotations(screenshot_path, element_map)
         logger.info(f'SoM generated: {len(leaves)} marked elements → {annotated_path}')
         return (annotated_path, element_map)
 
-    def generate_prompt_context(self, element_map: Dict[int, Dict[str, Any]]) -> str:
+    def generate_prompt_context(self, element_map: dict[int, dict[str, Any]]) -> str:
         """
         Generate a text description of the SoM element map for the VLM prompt.
 
@@ -124,7 +125,7 @@ class SoMAnnotator:
         return '\n'.join(lines)
 
     @staticmethod
-    def _draw_annotations(screenshot_path: str, element_map: Dict[int, Dict[str, Any]]) -> str:
+    def _draw_annotations(screenshot_path: str, element_map: dict[int, dict[str, Any]]) -> str:
         """Draw numbered red bounding boxes on the screenshot."""
         annotated_path = screenshot_path.replace('.png', '_som.png')
         if annotated_path == screenshot_path:
@@ -141,17 +142,17 @@ class SoMAnnotator:
                 return screenshot_path
 
     @staticmethod
-    def _draw_with_pillow(screenshot_path: str, element_map: Dict[int, Dict[str, Any]], output_path: str) -> str:
+    def _draw_with_pillow(screenshot_path: str, element_map: dict[int, dict[str, Any]], output_path: str) -> str:
         """Draw SoM annotations using Pillow."""
         from PIL import Image, ImageDraw, ImageFont
         image = Image.open(screenshot_path)
         draw = ImageDraw.Draw(image)
         try:
             font = ImageFont.truetype('arial.ttf', 14)
-        except (IOError, OSError):
+        except OSError:
             try:
                 font = ImageFont.truetype('C:/Windows/Fonts/arial.ttf', 14)
-            except (IOError, OSError):
+            except OSError:
                 font = ImageFont.load_default()
         for idx, elem in element_map.items():
             bbox = elem.get('bounding_box', [0, 0, 0, 0])
@@ -169,7 +170,7 @@ class SoMAnnotator:
         return output_path
 
     @staticmethod
-    def _draw_with_cv2(screenshot_path: str, element_map: Dict[int, Dict[str, Any]], output_path: str) -> str:
+    def _draw_with_cv2(screenshot_path: str, element_map: dict[int, dict[str, Any]], output_path: str) -> str:
         """Draw SoM annotations using OpenCV (cv2)."""
         import cv2
         image = cv2.imread(screenshot_path)

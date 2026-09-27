@@ -10,11 +10,13 @@ Checks for a batch of moves:
 
 Also renders path traces to PNG for visual inspection.
 """
-import sys, os, math
+import math
+import sys
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, "C:\\Users\\lnxzf\\Desktop\\projects\\ufo")
 
-from ufo.automator.app_apis.telegram import HumanMouse, TARGET_PEAK_PX_PER_S, ScreenLockout
+from ufo.automator.app_apis.telegram import TARGET_PEAK_PX_PER_S, HumanMouse, ScreenLockout
 
 # MANDATORY WARNING GATE before any cursor movement - even this test.
 _warning = ScreenLockout()
@@ -82,6 +84,8 @@ print(f"overshoot rate: {overshoot_pct:.0f}% (human 65-80%)")
 
 # Landing accuracy: cursor should be ~at last target after settle
 import ctypes
+
+
 class POINT(ctypes.Structure):
     _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
 p = POINT()

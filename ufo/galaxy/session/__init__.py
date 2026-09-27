@@ -14,8 +14,8 @@ from .galaxy_session import GalaxySession
 # Import observers from the new modular structure
 from .observers import (
     ConstellationProgressObserver,
-    SessionMetricsObserver,
     DAGVisualizationObserver,
+    SessionMetricsObserver,
 )
 
 __all__ = [

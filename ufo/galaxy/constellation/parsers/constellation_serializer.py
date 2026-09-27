@@ -11,7 +11,7 @@ format TaskConstellation expects.
 """
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 
@@ -23,11 +23,11 @@ class ConstellationSerializer:
     # ---- static API -------------------------------------------------------
 
     @staticmethod
-    def to_dict(constellation: TaskConstellation) -> Dict[str, Any]:
+    def to_dict(constellation: TaskConstellation) -> dict[str, Any]:
         return constellation.to_dict()
 
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> TaskConstellation:
+    def from_dict(data: dict[str, Any]) -> TaskConstellation:
         return TaskConstellation.from_dict(ConstellationSerializer.normalize_json_data(data))
 
     @staticmethod
@@ -40,7 +40,7 @@ class ConstellationSerializer:
         return ConstellationSerializer.from_dict(json.loads(json_data))
 
     @staticmethod
-    def normalize_json_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    def normalize_json_data(data: dict[str, Any]) -> dict[str, Any]:
         """Return a copy of data whose "dependencies" is a dict keyed by id.
 
         List entries may use predecessor_id/successor_id or from_task_id/to_task_id;
@@ -68,5 +68,5 @@ class ConstellationSerializer:
     def deserialize_from_json(self, json_data: str) -> TaskConstellation:
         return self.from_json(json_data)
 
-    def serialize_to_dict(self, constellation: TaskConstellation) -> Dict[str, Any]:
+    def serialize_to_dict(self, constellation: TaskConstellation) -> dict[str, Any]:
         return json.loads(constellation.to_json())

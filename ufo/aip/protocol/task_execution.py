@@ -9,10 +9,11 @@ Handles task assignment, execution coordination, and result reporting.
 
 import datetime
 import logging
-from typing import Any, List, Optional
+from typing import Any
 from uuid import uuid4
 
-from ufo.aip.messages import (    ClientMessage,
+from ufo.aip.messages import (
+    ClientMessage,
     ClientMessageType,
     ClientType,
     Command,
@@ -22,6 +23,7 @@ from ufo.aip.messages import (    ClientMessage,
     TaskStatus,
 )
 from ufo.aip.protocol.base import AIPProtocol
+
 
 class TaskExecutionProtocol(AIPProtocol):
     """
@@ -45,9 +47,9 @@ class TaskExecutionProtocol(AIPProtocol):
         task_name: str,
         session_id: str,
         client_id: str,
-        target_id: Optional[str] = None,
+        target_id: str | None = None,
         client_type: ClientType = ClientType.DEVICE,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> None:
         """
         Send a task request.
@@ -82,8 +84,8 @@ class TaskExecutionProtocol(AIPProtocol):
         task_name: str,
         session_id: str,
         response_id: str,
-        agent_name: Optional[str] = None,
-        process_name: Optional[str] = None,
+        agent_name: str | None = None,
+        process_name: str | None = None,
     ) -> None:
         """
         Send task assignment to device (server-side).
@@ -124,14 +126,14 @@ class TaskExecutionProtocol(AIPProtocol):
 
     async def send_commands(
         self,
-        actions: List[Command],
+        actions: list[Command],
         session_id: str,
         response_id: str,
         status: TaskStatus = TaskStatus.CONTINUE,
-        agent_name: Optional[str] = None,
-        process_name: Optional[str] = None,
-        root_name: Optional[str] = None,
-        task_name: Optional[str] = None,
+        agent_name: str | None = None,
+        process_name: str | None = None,
+        root_name: str | None = None,
+        task_name: str | None = None,
     ) -> None:
         """
         Send command(s) to execute (server-side).
@@ -163,7 +165,7 @@ class TaskExecutionProtocol(AIPProtocol):
 
     async def send_command_results(
         self,
-        action_results: List[Result],
+        action_results: list[Result],
         session_id: str,
         client_id: str,
         prev_response_id: str,
@@ -197,9 +199,9 @@ class TaskExecutionProtocol(AIPProtocol):
         self,
         session_id: str,
         prev_response_id: str,
-        action_results: List[Result],
+        action_results: list[Result],
         status: TaskStatus = TaskStatus.CONTINUE,
-        client_id: Optional[str] = None,
+        client_id: str | None = None,
     ) -> None:
         """
         Convenience method to send task results (client-side).
@@ -227,9 +229,9 @@ class TaskExecutionProtocol(AIPProtocol):
         self,
         session_id: str,
         status: TaskStatus,
-        result: Optional[Any] = None,
-        error: Optional[str] = None,
-        response_id: Optional[str] = None,
+        result: Any | None = None,
+        error: str | None = None,
+        response_id: str | None = None,
     ) -> None:
         """
         Send task completion notification (server-side).
@@ -257,7 +259,7 @@ class TaskExecutionProtocol(AIPProtocol):
         session_id: str,
         client_id: str,
         status: TaskStatus,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> None:
         """
         Send task end acknowledgment (client-side).

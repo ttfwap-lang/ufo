@@ -11,8 +11,8 @@ a.txt"). Each rule that recognises a clause contributes a check. The outcome:
                                 the check results as evidence.
 """
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Tuple
 
 from ufo.verification import checks
 from ufo.verification.checks import CheckResult
@@ -65,15 +65,15 @@ class PlannedCheck:
 
 @dataclass
 class Evaluation:
-    results: List[CheckResult] = field(default_factory=list)
-    uncovered: List[str] = field(default_factory=list)
+    results: list[CheckResult] = field(default_factory=list)
+    uncovered: list[str] = field(default_factory=list)
 
     @property
-    def failed(self) -> List[CheckResult]:
+    def failed(self) -> list[CheckResult]:
         return [r for r in self.results if r.passed is False]
 
     @property
-    def achieved(self) -> Optional[bool]:
+    def achieved(self) -> bool | None:
         if self.failed:
             return False
         if self.results and not self.uncovered and all(r.passed for r in self.results):
@@ -87,8 +87,8 @@ class Evaluation:
         return "\n".join(lines)
 
 
-def _mask_quotes(text: str) -> Tuple[str, List[str]]:
-    quoted: List[str] = []
+def _mask_quotes(text: str) -> tuple[str, list[str]]:
+    quoted: list[str] = []
 
     def sub(m):
         quoted.append(m.group(1))
@@ -97,7 +97,7 @@ def _mask_quotes(text: str) -> Tuple[str, List[str]]:
     return _QUOTED.sub(sub, text), quoted
 
 
-def _unmask(text: str, quoted: List[str]) -> List[str]:
+def _unmask(text: str, quoted: list[str]) -> list[str]:
     return [quoted[int(i)] for i in re.findall(r"\x00(\d+)\x00", text)]
 
 
@@ -107,12 +107,12 @@ def _soften(result: CheckResult, definitive: bool) -> CheckResult:
     return result
 
 
-def _apps_in(text: str) -> List[str]:
+def _apps_in(text: str) -> list[str]:
     low = text.lower()
     return [app for app in sorted(APP_PROCESSES, key=len, reverse=True) if re.search(rf"\b{re.escape(app)}\b", low)]
 
 
-def plan_checks(request: str, since: Optional[float] = None) -> Tuple[List[PlannedCheck], List[str]]:
+def plan_checks(request: str, since: float | None = None) -> tuple[list[PlannedCheck], list[str]]:
     """Return (checks, uncovered clauses) for a request."""
     request = original_request(request)
     masked, quoted = _mask_quotes(request)
@@ -120,8 +120,8 @@ def plan_checks(request: str, since: Optional[float] = None) -> Tuple[List[Plann
     apps = _apps_in(masked)
     typed = [q for c in clauses if _TYPE_VERB.search(c) for q in _unmask(c, quoted)]
 
-    planned: List[PlannedCheck] = []
-    uncovered: List[str] = []
+    planned: list[PlannedCheck] = []
+    uncovered: list[str] = []
     for clause in clauses:
         readable = re.sub(r"\x00(\d+)\x00", lambda m: repr(quoted[int(m.group(1))]), clause).strip(" .")
         clause_quotes = _unmask(clause, quoted)
@@ -165,7 +165,7 @@ def plan_checks(request: str, since: Optional[float] = None) -> Tuple[List[Plann
     return planned, uncovered
 
 
-def evaluate(request: str, since: Optional[float] = None) -> Evaluation:
+def evaluate(request: str, since: float | None = None) -> Evaluation:
     planned, uncovered = plan_checks(request, since)
     ev = Evaluation(uncovered=uncovered)
     for p in planned:

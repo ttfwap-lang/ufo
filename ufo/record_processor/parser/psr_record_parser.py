@@ -186,8 +186,6 @@ class PSRRecordParser:
         content_type = screenshot_part["Content-Type"]
         content_transfer_encoding = screenshot_part["Content-Transfer-Encoding"]
 
-        screenshot = "data:{type};{encoding}, {content}".format(
-            type=content_type, encoding=content_transfer_encoding, content=content
-        )
+        screenshot = f"data:{content_type};{content_transfer_encoding}, {content}"
 
         return screenshot

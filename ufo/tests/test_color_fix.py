@@ -4,13 +4,14 @@
 Quick test to verify color display in constellation_modified method.
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from ufo.galaxy.visualization.constellation_display import ConstellationDisplay
 from rich.console import Console
+
+from ufo.galaxy.visualization.constellation_display import ConstellationDisplay
 
 
 # Mock constellation class for testing

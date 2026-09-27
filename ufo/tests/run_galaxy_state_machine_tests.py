@@ -8,30 +8,37 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any
+
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 from tests.galaxy.mocks import MockConstellationAgent as MockGalaxyWeaverAgent
-from ufo.galaxy.agents.constellation_agent_states import ConstellationAgentStatus as GalaxyAgentStatus, StartConstellationAgentState as CreatingGalaxyAgentState, ContinueConstellationAgentState as MonitoringGalaxyAgentState, FinishConstellationAgentState as FinishedGalaxyAgentState, FailConstellationAgentState as FailedGalaxyAgentState, ConstellationAgentStateManager as GalaxyAgentStateManager
-from ufo.galaxy.session.observers import ConstellationProgressObserver
-from ufo.galaxy.core.events import EventType, TaskEvent, get_event_bus
 from tests.galaxy.mocks import create_simple_test_constellation as create_simple_constellation
+from ufo.galaxy.agents.constellation_agent_states import ConstellationAgentStateManager as GalaxyAgentStateManager
+from ufo.galaxy.agents.constellation_agent_states import ConstellationAgentStatus as GalaxyAgentStatus
+from ufo.galaxy.agents.constellation_agent_states import ContinueConstellationAgentState as MonitoringGalaxyAgentState
+from ufo.galaxy.agents.constellation_agent_states import FailConstellationAgentState as FailedGalaxyAgentState
+from ufo.galaxy.agents.constellation_agent_states import FinishConstellationAgentState as FinishedGalaxyAgentState
+from ufo.galaxy.agents.constellation_agent_states import StartConstellationAgentState as CreatingGalaxyAgentState
+from ufo.galaxy.core.events import EventType, TaskEvent, get_event_bus
+from ufo.galaxy.session.observers import ConstellationProgressObserver
 from ufo.module.context import Context
+
 
 class GalaxyStateMachineTestRunner:
     """Galaxy状态机测试运行器"""
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.results: Dict[str, Any] = {'tests_run': 0, 'tests_passed': 0, 'tests_failed': 0, 'failures': [], 'execution_time': 0}
+        self.results: dict[str, Any] = {'tests_run': 0, 'tests_passed': 0, 'tests_failed': 0, 'failures': [], 'execution_time': 0}
 
     def setup_logging(self):
         """设置日志"""
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    async def run_all_tests(self) -> Dict[str, Any]:
+    async def run_all_tests(self) -> dict[str, Any]:
         """运行所有测试"""
         self.setup_logging()
         start_time = time.time()
@@ -114,7 +121,9 @@ class GalaxyStateMachineTestRunner:
             agent = MockGalaxyWeaverAgent()
             context = Context()
             event_bus = get_event_bus()
-            from ufo.galaxy.agents.constellation_agent_states import ContinueConstellationAgentState as MonitoringGalaxyAgentState
+            from ufo.galaxy.agents.constellation_agent_states import (
+                ContinueConstellationAgentState as MonitoringGalaxyAgentState,
+            )
             monitoring_state = MonitoringGalaxyAgentState()
             agent._state = monitoring_state
             agent.queue_task_update_to_current_state = monitoring_state.queue_task_update

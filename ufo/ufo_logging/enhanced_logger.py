@@ -7,9 +7,9 @@ Enhanced Logger Module — JSONL Event Streaming and Markdown Trajectory Rendere
 
 import json
 import os
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -30,18 +30,18 @@ class EnhancedActionLogRecord:
 
     observation: str
     thought: str
-    plan: List[str]
+    plan: list[str]
     selected_action_name: str
-    action_parameters: Dict[str, Any]
+    action_parameters: dict[str, Any]
 
-    target_control: Dict[str, Any]
+    target_control: dict[str, Any]
 
     pre_action_screenshot_path: str
     post_action_screenshot_path: str
     annotated_screenshot_path: str
     clean_screenshot_path: str
 
-    ui_state_diff: Dict[str, Any]
+    ui_state_diff: dict[str, Any]
 
     verification_passed: bool
     verification_confidence: float
@@ -50,9 +50,9 @@ class EnhancedActionLogRecord:
 
     execution_duration_ms: float
     llm_cost_usd: float
-    error_stacktrace: Optional[str] = None
+    error_stacktrace: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     def to_json(self) -> str:
@@ -69,7 +69,7 @@ class JSONLEventStreamWriter:
         os.makedirs(self.log_dir, exist_ok=True)
         self.events_file_path = os.path.join(self.log_dir, "events.jsonl")
         self.trajectory_file_path = os.path.join(self.log_dir, "trajectory.md")
-        self.records: List[EnhancedActionLogRecord] = []
+        self.records: list[EnhancedActionLogRecord] = []
 
     def write_event(self, record: EnhancedActionLogRecord) -> None:
         """Append log record to events.jsonl and render trajectory markdown."""

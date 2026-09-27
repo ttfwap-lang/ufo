@@ -4,17 +4,17 @@ Debug script to test constellation comparison visualization output.
 """
 
 import asyncio
-import sys
 import os
+import sys
 from datetime import datetime
 
 # Add the project root to the path
 sys.path.insert(0, os.path.abspath("."))
 
-from ufo.galaxy.constellation import TaskConstellation, TaskStar, TaskStarLine
+from rich.console import Console
+from ufo.galaxy.constellation import TaskConstellation, TaskStar
 from ufo.galaxy.core.events import ConstellationEvent, EventType
 from ufo.galaxy.session.observers import DAGVisualizationObserver
-from rich.console import Console
 
 
 async def test_observer_output():

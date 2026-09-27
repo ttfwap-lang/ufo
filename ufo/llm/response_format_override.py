@@ -6,19 +6,20 @@ override for the duration of one request.
 """
 import contextlib
 import contextvars
-from typing import Any, Dict, Iterator, Optional
+from collections.abc import Iterator
+from typing import Any
 
-_override: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.ContextVar(
+_override: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
     "ufo_response_format_override", default=None
 )
 
 
-def current() -> Optional[Dict[str, Any]]:
+def current() -> dict[str, Any] | None:
     return _override.get()
 
 
 @contextlib.contextmanager
-def response_format(fmt: Dict[str, Any]) -> Iterator[None]:
+def response_format(fmt: dict[str, Any]) -> Iterator[None]:
     token = _override.set(fmt)
     try:
         yield

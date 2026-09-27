@@ -8,8 +8,7 @@ Provides a modern web interface for the Galaxy Framework with real-time
 event streaming via WebSocket.
 """
 
-from .server import app, start_server, set_galaxy_session
-
+from .server import app, set_galaxy_session, start_server
 from .websocket_observer import WebSocketObserver
 
 __all__ = [

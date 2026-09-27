@@ -41,10 +41,11 @@ import json
 import logging
 import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
-def _load_hitl_config() -> Dict[str, Any]:
+def _load_hitl_config() -> dict[str, Any]:
     """Load HITL config."""
     defaults = {'REDIS_URL': 'redis://127.0.0.1:6379/0', 'DEFAULT_TIMEOUT_MINUTES': 15}
     try:
@@ -68,7 +69,7 @@ class HITLManager:
     Pub/Sub channel and blocks until the operator sends a resolution.
     """
 
-    def __init__(self, redis_url: Optional[str]=None) -> None:
+    def __init__(self, redis_url: str | None=None) -> None:
         self._config = _load_hitl_config()
         self._redis_url = redis_url or self._config.get('REDIS_URL')
         self._default_timeout = int(self._config.get('DEFAULT_TIMEOUT_MINUTES', 15))
@@ -86,7 +87,7 @@ class HITLManager:
         except Exception as e:
             logger.warning(f'[HITL] Redis unavailable: {e}')
 
-    def wait_for_resolution(self, workflow_id: str, timeout_minutes: Optional[int]=None, context: Optional[Dict[str, Any]]=None) -> Dict[str, Any]:
+    def wait_for_resolution(self, workflow_id: str, timeout_minutes: int | None=None, context: dict[str, Any] | None=None) -> dict[str, Any]:
         """
         Block until a human operator sends a decision for this workflow.
 
@@ -140,7 +141,7 @@ class HITLManager:
             except Exception:
                 pass
 
-    async def async_wait_for_resolution(self, workflow_id: str, timeout_minutes: Optional[int]=None, context: Optional[Dict[str, Any]]=None) -> Dict[str, Any]:
+    async def async_wait_for_resolution(self, workflow_id: str, timeout_minutes: int | None=None, context: dict[str, Any] | None=None) -> dict[str, Any]:
         """
         Async version — uses redis.asyncio for non-blocking wait.
         """
@@ -149,6 +150,7 @@ class HITLManager:
         logger.critical(f"[HITL] Workflow '{workflow_id}' HALTED (async). Awaiting operator on '{channel}'...")
         try:
             import asyncio
+
             import redis.asyncio as aioredis
             r = aioredis.from_url(self._redis_url, decode_responses=True)
             pubsub = r.pubsub()
@@ -176,7 +178,7 @@ class HITLManager:
             logger.warning('[HITL] redis.asyncio not available — using sync fallback.')
             return self.wait_for_resolution(workflow_id, timeout_minutes, context)
 
-    def request_human_review(self, workflow_id: str, reason: str, screenshot_path: Optional[str]=None, dag_state: Optional[Dict[str, Any]]=None) -> bool:
+    def request_human_review(self, workflow_id: str, reason: str, screenshot_path: str | None=None, dag_state: dict[str, Any] | None=None) -> bool:
         """
         Signal that a workflow needs human review.
 
@@ -212,7 +214,7 @@ class HITLManager:
             logger.error(f'[HITL] Review request failed: {e}')
             return False
 
-    def _register_waiting(self, workflow_id: str, context: Optional[Dict[str, Any]]=None) -> None:
+    def _register_waiting(self, workflow_id: str, context: dict[str, Any] | None=None) -> None:
         """Mark this workflow as waiting for HITL resolution."""
         if not self._available:
             return
@@ -231,7 +233,7 @@ class HITLManager:
         except Exception:
             pass
 
-    def _check_pending_resolution(self, workflow_id: str) -> Optional[Dict[str, Any]]:
+    def _check_pending_resolution(self, workflow_id: str) -> dict[str, Any] | None:
         """Check if a resolution was queued before we subscribed."""
         if not self._available:
             return None
@@ -245,7 +247,7 @@ class HITLManager:
             pass
         return None
 
-    def _local_fallback(self, workflow_id: str, timeout_seconds: float) -> Dict[str, Any]:
+    def _local_fallback(self, workflow_id: str, timeout_seconds: float) -> dict[str, Any]:
         """
         Local fallback when Redis is unavailable.
         Uses a threading.Event that external code can signal.

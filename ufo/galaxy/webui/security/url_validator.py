@@ -39,16 +39,15 @@ import logging
 import os
 import socket
 from dataclasses import dataclass, field
-from typing import List, Set
 from urllib.parse import urlsplit
 
 logger = logging.getLogger(__name__)
 
 # Schemes that are valid for an outbound device WebSocket connection.
-_ALLOWED_SCHEMES: Set[str] = {"ws", "wss"}
+_ALLOWED_SCHEMES: set[str] = {"ws", "wss"}
 
 # Hostnames that always resolve to the local machine but may not parse as IPs.
-_LOOPBACK_HOSTNAMES: Set[str] = {"localhost"}
+_LOOPBACK_HOSTNAMES: set[str] = {"localhost"}
 
 
 class ServerUrlValidationError(ValueError):
@@ -69,7 +68,7 @@ def _env_flag(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _parse_allowlist(raw: str) -> Set[str]:
+def _parse_allowlist(raw: str) -> set[str]:
     """
     Parse a comma-separated host allowlist into a normalized set.
 
@@ -79,7 +78,7 @@ def _parse_allowlist(raw: str) -> Set[str]:
     :param raw: Raw allowlist string from the environment.
     :return: Set of normalized hostnames.
     """
-    hosts: Set[str] = set()
+    hosts: set[str] = set()
     for entry in raw.split(","):
         entry = entry.strip().lower()
         if not entry:
@@ -101,10 +100,10 @@ class UrlValidationPolicy:
     :param allowlist: When non-empty, only these hostnames are accepted.
     """
 
-    allowed_schemes: Set[str] = field(default_factory=lambda: set(_ALLOWED_SCHEMES))
+    allowed_schemes: set[str] = field(default_factory=lambda: set(_ALLOWED_SCHEMES))
     block_loopback: bool = True
     block_private: bool = False
-    allowlist: Set[str] = field(default_factory=set)
+    allowlist: set[str] = field(default_factory=set)
 
     @classmethod
     def from_env(cls) -> "UrlValidationPolicy":
@@ -123,7 +122,7 @@ class UrlValidationPolicy:
         )
 
 
-def _resolve_addresses(hostname: str) -> List[ipaddress._BaseAddress]:
+def _resolve_addresses(hostname: str) -> list[ipaddress._BaseAddress]:
     """
     Resolve a hostname to all of its IP addresses.
 
@@ -145,7 +144,7 @@ def _resolve_addresses(hostname: str) -> List[ipaddress._BaseAddress]:
             f"Could not resolve host '{hostname}'"
         ) from exc
 
-    addresses: List[ipaddress._BaseAddress] = []
+    addresses: list[ipaddress._BaseAddress] = []
     for info in infos:
         sockaddr = info[4]
         ip_str = sockaddr[0]

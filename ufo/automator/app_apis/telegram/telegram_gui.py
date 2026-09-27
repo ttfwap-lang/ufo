@@ -4,21 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import os
-import sys
 import time
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple
 
 from ufo.automation.desktop import DesktopAutomation, Element, Rect
 from ufo.automation.factory import get_desktop_automation
-from ufo.automator.app_apis.telegram.telegram_privacy import PrivacyRedactor, REDACTED
 from ufo.automator.app_apis.telegram.chat_names import (
     SAVED_MESSAGES,
     canonical_chat_name,
     chat_key,
-    is_saved_messages,
-    pick_best_match,
 )
+from ufo.automator.app_apis.telegram.telegram_privacy import REDACTED, PrivacyRedactor
 
 
 @dataclass
@@ -31,7 +27,7 @@ class ChatItem:
     is_group: bool = False
     is_bot: bool = False
     last_message_preview: str = ""
-    element: Optional[Element] = None
+    element: Element | None = None
 
 
 @dataclass
@@ -56,7 +52,7 @@ class TelegramGUIController:
     # "SavedMessages" finds nothing. See chat_names.py - every chat name
     # entering this controller is canonicalised through it.
     SAVED_MESSAGES = SAVED_MESSAGES
-    
+
     # Keyboard shortcuts
     SHORTCUTS = {
         "new_message": "^n",           # Ctrl+N
@@ -80,7 +76,7 @@ class TelegramGUIController:
     # "50% off" into 5, 0, ALT+o, f, f - see _literal_keys.
     _SEND_KEYS_SYNTAX = frozenset("+^%~(){}")
 
-    def __init__(self, desktop: Optional[DesktopAutomation] = None):
+    def __init__(self, desktop: DesktopAutomation | None = None):
         """Initialize the Telegram GUI controller.
         
         Args:
@@ -88,17 +84,17 @@ class TelegramGUIController:
                      will be created based on process name.
         """
         self._desktop = desktop
-        self._window: Optional[Element] = None
-        self._chat_list: Optional[Element] = None
+        self._window: Element | None = None
+        self._chat_list: Element | None = None
         self._connected = False
         self._lockout = None  # Optional ScreenLockout reference for locked input
-        self._privacy_redactor: Optional[PrivacyRedactor] = None
+        self._privacy_redactor: PrivacyRedactor | None = None
         self._human_mouse = None  # cached HumanMouse engine
         # MANDATORY warning gate: near-opaque on-top 5s countdown with "*" to
         # cancel - shown before ANY automation input, even tests.
         self._warning_lockout = None
         self._automation_warning_armed = False
-    
+
     async def connect(self) -> bool:
         """Connect to Telegram Desktop window.
 
@@ -146,7 +142,7 @@ class TelegramGUIController:
             self._connected = False
             return False
 
-    async def _find_telegram_window(self) -> Optional[Tuple[int, str, str, int]]:
+    async def _find_telegram_window(self) -> tuple[int, str, str, int] | None:
         """Find Telegram's main window: (hwnd, title, class_name, pid).
 
         Title-independent: Telegram changes its window title to the active
@@ -222,7 +218,7 @@ class TelegramGUIController:
             return best
 
         return await asyncio.to_thread(_do_find)
-    
+
     async def _ensure_window_fresh(self) -> bool:
         """Ensure the window handle is still valid, re-find if needed.
 
@@ -251,8 +247,8 @@ class TelegramGUIController:
                 return True
             except Exception:
                 return False
-    
-    def get_concrete_hwnd(self) -> Optional[int]:
+
+    def get_concrete_hwnd(self) -> int | None:
         """Resolve the concrete HWND of the Telegram main window."""
         if not self._window:
             return None
@@ -274,8 +270,8 @@ class TelegramGUIController:
         into the primary monitor's work area with a small margin.
         """
         try:
-            import win32gui
             import win32con
+            import win32gui
 
             # Un-minimize / un-hide first (idempotent)
             if win32gui.IsIconic(hwnd):
@@ -312,13 +308,7 @@ class TelegramGUIController:
 
             need_fix = False
             # iconic leftovers put the rect at -32000
-            if w <= 0 or h <= 0 or l < -1000 or t < -1000:
-                need_fix = True
-            # extends beyond the work area (bottom/right overflow is the
-            # common failure after a display change or geometry restore)
-            elif r > rect.right + 4 or b > rect.bottom + 4:
-                need_fix = True
-            elif w > max_w or h > max_h:
+            if w <= 0 or h <= 0 or l < -1000 or t < -1000 or r > rect.right + 4 or b > rect.bottom + 4 or w > max_w or h > max_h:
                 need_fix = True
 
             if need_fix:
@@ -351,10 +341,11 @@ class TelegramGUIController:
         if not hwnd:
             return False
         try:
-            import win32gui
-            import win32con
             import ctypes
             import time
+
+            import win32con
+            import win32gui
 
             user32 = ctypes.windll.user32
             kernel32 = ctypes.windll.kernel32
@@ -582,7 +573,8 @@ class TelegramGUIController:
         # UIPI path: elevated fixer (operator approves UAC once)
         print("force_telegram_top: UIPI-blocked - requesting elevated fix (approve UAC)")
         try:
-            import subprocess, sys as _sys
+            import subprocess
+            import sys as _sys
             proc = subprocess.run(
                 [
                     "powershell", "-NoProfile", "-Command",
@@ -631,6 +623,7 @@ class TelegramGUIController:
         """
         try:
             from io import BytesIO
+
             from PIL import Image
 
             with Image.open(BytesIO(png)) as im:
@@ -668,6 +661,7 @@ class TelegramGUIController:
         """
         try:
             from io import BytesIO
+
             from PIL import ImageGrab
 
             buf = BytesIO()
@@ -695,6 +689,7 @@ class TelegramGUIController:
         """
         try:
             from io import BytesIO
+
             from PIL import Image
             with Image.open(BytesIO(png)) as im:
                 w, h = im.size
@@ -702,7 +697,7 @@ class TelegramGUIController:
         except Exception:
             return True  # undecidable - let _looks_blank() have the last word
 
-    async def troubleshoot_screenshot(self, label: str = "troubleshoot") -> Optional[str]:
+    async def troubleshoot_screenshot(self, label: str = "troubleshoot") -> str | None:
         """GLOBAL RULE 3: capture a screenshot to diagnose any stuck state.
 
         Saves to ufo_skill_state/evidence/debug/<label>_<ts>.png and returns
@@ -718,7 +713,7 @@ class TelegramGUIController:
             from pathlib import Path
             shot = await self.take_screenshot()
 
-            def _defect(data: bytes) -> Optional[str]:
+            def _defect(data: bytes) -> str | None:
                 if not data:
                     return "no bytes captured"
                 if self._looks_blank(data):
@@ -872,7 +867,7 @@ class TelegramGUIController:
                     burst.end_input_burst()
                 except Exception:
                     pass
-    
+
     async def _dismiss_overlays(self) -> bool:
         """Close stray overlays (search panel, context menus) before work.
 
@@ -921,7 +916,7 @@ class TelegramGUIController:
 
         return await asyncio.to_thread(_check)
 
-    async def _find_chat_list(self) -> Optional[Element]:
+    async def _find_chat_list(self) -> Element | None:
         """Find the chat list element (Dialogs::InnerWidget) robustly.
 
         Resolves fresh each call (window handles go stale). Searches the
@@ -964,7 +959,7 @@ class TelegramGUIController:
 
         return await asyncio.to_thread(_do_find)
 
-    async def _find_chat_by_name(self, name: str) -> Optional[Element]:
+    async def _find_chat_by_name(self, name: str) -> Element | None:
         """Find a chat row (ListItem) in the sidebar by its display name.
 
         Walks the real chat list - each chat is a ListItem whose window text
@@ -1064,8 +1059,8 @@ class TelegramGUIController:
                 return False
 
         return await asyncio.to_thread(_do_scroll)
-    
-    def _parse_chat_element(self, element: Element) -> Optional[ChatItem]:
+
+    def _parse_chat_element(self, element: Element) -> ChatItem | None:
         """Parse a chat list item element into ChatItem.
 
         Privacy: the message preview is ALWAYS redacted - only the chat name
@@ -1083,7 +1078,7 @@ class TelegramGUIController:
         except Exception:
             return None
 
-    async def get_chats(self, max_chats: int = 50) -> List[ChatItem]:
+    async def get_chats(self, max_chats: int = 50) -> list[ChatItem]:
         """Get the visible chats from the sidebar (real list walk).
 
         Args:
@@ -1108,7 +1103,7 @@ class TelegramGUIController:
             await asyncio.sleep(0.5)
         return []
 
-    async def _walk_chat_items(self, max_chats: int) -> List[ChatItem]:
+    async def _walk_chat_items(self, max_chats: int) -> list[ChatItem]:
         """Enum the sidebar rows and build privacy-safe ChatItems."""
         if not self._chat_list:
             return []
@@ -1169,7 +1164,7 @@ class TelegramGUIController:
             return results
 
         return await asyncio.to_thread(_do_walk)
-    
+
     async def open_chat(self, chat_name: str) -> bool:
         """Open a chat the way a human does: CLICK its real row in the sidebar.
 
@@ -1347,22 +1342,23 @@ class TelegramGUIController:
                 except Exception:
                     pass
 
-    async def _capture_window_state_hash(self) -> Optional[str]:
+    async def _capture_window_state_hash(self) -> str | None:
         """Capture a stable window-state signature (post-click verification)."""
         try:
             screenshot = await self.take_screenshot()
             if not screenshot:
                 return None
             import hashlib
+            import io
+
             # Downsample for stability against minor rendering jitter
             from PIL import Image
-            import io
             img = Image.open(io.BytesIO(screenshot)).convert("L").resize((64, 48))
             return hashlib.md5(img.tobytes()).hexdigest()
         except Exception:
             return None
-    
-    async def _find_sidebar_search(self) -> Optional[Element]:
+
+    async def _find_sidebar_search(self) -> Element | None:
         """Find the sidebar GLOBAL search field (top-left Ui::InputField "Search").
 
         Resolved fresh each call. The message box is also a Ui::InputField
@@ -1452,8 +1448,8 @@ class TelegramGUIController:
         except Exception as e:
             print(f"Keyboard navigation failed: {e}")
             return False
-    
-    async def search_chats(self, query: str) -> List[ChatItem]:
+
+    async def search_chats(self, query: str) -> list[ChatItem]:
         """Search for chats.
         
         Args:
@@ -1468,11 +1464,11 @@ class TelegramGUIController:
         if field is None:
             print("[search_chats] sidebar Search field not found")
             return []
-        
+
         if not await self._click_at_rect(field.rect):
             print("[search_chats] failed to click search field")
             return []
-        
+
         await asyncio.sleep(0.3)
         # Clear and type the query
         if not (await self._type_keys_safe(self.SHORTCUTS["select_all"])
@@ -1480,11 +1476,11 @@ class TelegramGUIController:
                 and await self._type_text_safe(query)):
             print("[search_chats] failed to type query")
             return []
-        
+
         await asyncio.sleep(1.0)
-        
+
         # Use UIA to find the search results dropdown
-        results: List[ChatItem] = []
+        results: list[ChatItem] = []
         if self._window:
             try:
                 for ed in self._window.handle.descendants(control_type="ListItem"):
@@ -1501,15 +1497,15 @@ class TelegramGUIController:
                         continue
             except Exception:
                 pass
-        
+
         if not results:
             print(f"[search_chats] no ListItems found for '{query}'")
-        
+
         return results
-    
+
     # ==================== Message Operations ====================
-    
-    async def send_message(self, text: str, chat_name: Optional[str] = None) -> bool:
+
+    async def send_message(self, text: str, chat_name: str | None = None) -> bool:
         """Send a message to the current (or specified) chat.
         
         Args:
@@ -1521,25 +1517,25 @@ class TelegramGUIController:
         """
         if not self._connected:
             await self.connect()
-        
+
         # Switch chat if needed
         if chat_name:
             success = await self.open_chat(chat_name)
             if not success:
                 return False
-        
+
         # Focus message input and send
         return await self._send_message_to_current_chat(text)
-    
+
     async def _send_message_to_current_chat(self, text: str) -> bool:
         """Send message to currently open chat using keyboard."""
         if not self._window:
             return False
-        
+
         try:
             # Method 1: Ctrl+N for new message (works in some versions)
             # await self._type_keys_safe(self.SHORTCUTS["new_message"])
-            
+
             # Method 2: Tab to focus input (most reliable)
             await self._type_keys_safe(self.SHORTCUTS["focus_input"])
             await asyncio.sleep(0.2)
@@ -1560,32 +1556,32 @@ class TelegramGUIController:
         except Exception as e:
             print(f"Failed to send message: {e}")
             return False
-    
-    async def send_multiline_message(self, lines: List[str]) -> bool:
+
+    async def send_multiline_message(self, lines: list[str]) -> bool:
         """Send a multi-line message (Shift+Enter for new lines)."""
         if not self._window:
             return False
-        
+
         try:
             await self._type_keys_safe(self.SHORTCUTS["focus_input"])
             await asyncio.sleep(0.2)
-            
+
             for i, line in enumerate(lines):
                 if not await self._type_text_safe(line):
                     return False
                 if i < len(lines) - 1:
                     await self._type_keys_safe(self.SHORTCUTS["new_line"])
                     await asyncio.sleep(0.1)
-            
+
             await self._type_keys_safe(self.SHORTCUTS["send"])
             await asyncio.sleep(0.3)
-            
+
             return True
         except Exception as e:
             print(f"Failed to send multiline message: {e}")
             return False
-    
-    async def read_recent_messages(self, count: int = 10) -> List[Message]:
+
+    async def read_recent_messages(self, count: int = 10) -> list[Message]:
         """Read recent messages from current chat.
 
         PRIVACY POLICY: the message area content is NEVER read for context.
@@ -1600,10 +1596,10 @@ class TelegramGUIController:
         except Exception:
             pass
         return []
-    
+
     # ==================== Visual Grounding Fallback ====================
-    
-    async def find_element_visual(self, element_type: str) -> Optional[Tuple[int, int]]:
+
+    async def find_element_visual(self, element_type: str) -> tuple[int, int] | None:
         """Find element coordinates using visual grounding.
 
         NOT IMPLEMENTED: returning None (no vision model attached here).
@@ -1620,10 +1616,10 @@ class TelegramGUIController:
         Use the UIA/keyboard paths which are fully implemented.
         """
         return False
-    
+
     # ==================== Utility Methods ====================
-    
-    async def take_screenshot(self, region: Optional[Rect] = None) -> bytes:
+
+    async def take_screenshot(self, region: Rect | None = None) -> bytes:
         """Take screenshot of the Telegram window (targets the specific window).
 
         Self-healing: a minimized / off-screen window (rect at -25600 after a
@@ -1648,7 +1644,7 @@ class TelegramGUIController:
                 except Exception:
                     pass
             raise first_err
-    
+
     async def close(self) -> None:
         """Close the desktop automation connection."""
         if self._desktop:
@@ -1664,15 +1660,15 @@ class TelegramGUIController:
         self._lockout = None
         self._automation_warning_armed = False
         self._connected = False
-    
+
     @property
     def is_connected(self) -> bool:
         return self._connected
-    
+
     @property
-    def window(self) -> Optional[Element]:
+    def window(self) -> Element | None:
         return self._window
-    
+
     @property
-    def desktop(self) -> Optional[DesktopAutomation]:
+    def desktop(self) -> DesktopAutomation | None:
         return self._desktop

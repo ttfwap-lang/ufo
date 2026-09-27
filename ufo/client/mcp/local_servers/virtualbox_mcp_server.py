@@ -12,11 +12,9 @@ import logging
 import os
 import shutil
 import subprocess
-from typing import Optional
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
-
 from ufo.client.mcp.mcp_registry import MCPRegistry
 
 logger = logging.getLogger(__name__)
@@ -99,7 +97,7 @@ def create_virtualbox_mcp_server(*args, **kwargs) -> FastMCP:
         ram_mb: int = 4096,
         cpus: int = 2,
         disk_gb: int = 50,
-        base_folder: Optional[str] = None,
+        base_folder: str | None = None,
     ) -> str:
         """
         Create a new VM with disk, storage controller, and basic configuration.
@@ -233,7 +231,7 @@ def create_virtualbox_mcp_server(*args, **kwargs) -> FastMCP:
         vm_name: str,
         adapter: int = 1,
         mode: str = "nat",
-        bridge_adapter: Optional[str] = None,
+        bridge_adapter: str | None = None,
     ) -> str:
         """
         Configure a VM's network adapter.

@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -13,7 +13,7 @@ class SaveScreenshotConfig(BaseModel):
         default=False,
         description="Whether to save the screenshot of the current application window",
     )
-    reason: Optional[str] = Field(
+    reason: str | None = Field(
         default="", description="The reason for saving the screenshot"
     )
 
@@ -35,28 +35,28 @@ class HostAgentResponse(BaseModel):
         default="CONTINUE",
         description="Status of the HostAgent: 'FINISH', 'CONTINUE', 'PENDING', or 'ASSIGN'.",
     )
-    message: Optional[List[str]] = Field(
+    message: list[str] | None = Field(
         default=None, description="List of messages and information for the AppAgent."
     )
-    questions: Optional[List[str]] = Field(
+    questions: list[str] | None = Field(
         default=None, description="List of questions for user clarification."
     )
-    current_subtask: Optional[str] = Field(
+    current_subtask: str | None = Field(
         default=None, description="Description of current sub-task to be completed."
     )
-    plan: Optional[List[str]] = Field(
+    plan: list[str] | None = Field(
         default=None, description="List of future sub-tasks."
     )
-    comment: Optional[str] = Field(
+    comment: str | None = Field(
         default=None, description="Additional comments or information."
     )
-    function: Optional[str] = Field(
+    function: str | None = Field(
         default=None, description="Precise API function name to call."
     )
-    arguments: Optional[Union[Dict[str, Any], str]] = Field(
+    arguments: dict[str, Any] | str | None = Field(
         default=None, description="Precise arguments dict or JSON string."
     )
-    result: Optional[Any] = Field(default=None, description="Execution result.")
+    result: Any | None = Field(default=None, description="Execution result.")
 
 
 class AppAgentResponse(BaseModel):
@@ -71,33 +71,33 @@ class AppAgentResponse(BaseModel):
     thought: str = Field(
         default="", description="Thinking and logic for the current action."
     )
-    function: Optional[str] = Field(
+    function: str | None = Field(
         default=None, description="Precise API function name without arguments."
     )
-    arguments: Optional[Union[Dict[str, Any], str]] = Field(
+    arguments: dict[str, Any] | str | None = Field(
         default=None, description="Precise arguments dict or JSON string."
     )
-    status: Optional[str] = Field(
+    status: str | None = Field(
         default="CONTINUE", description="Status of the task given the action."
     )
-    plan: Optional[List[str]] = Field(
+    plan: list[str] | None = Field(
         default=None, description="List of future actions."
     )
-    comment: Optional[str] = Field(
+    comment: str | None = Field(
         default=None, description="Additional comments or information."
     )
-    action: Union[List[ActionCommandInfo], ActionCommandInfo, None] = Field(
+    action: list[ActionCommandInfo] | ActionCommandInfo | None = Field(
         default=None, description="Structured ActionCommandInfo object or list."
     )
-    save_screenshot: Optional[Union[SaveScreenshotConfig, Dict[str, Any]]] = Field(
+    save_screenshot: SaveScreenshotConfig | dict[str, Any] | None = Field(
         default=None, description="Configuration for saving screenshots."
     )
-    result: Optional[Any] = Field(default=None, description="Execution result.")
+    result: Any | None = Field(default=None, description="Execution result.")
 
 
 class EvaluationSubscore(BaseModel):
     name: str = Field(default="", description="The sub-score name")
-    evaluation: Optional[Literal["yes", "no", "unsure"]] = Field(
+    evaluation: Literal["yes", "no", "unsure"] | None = Field(
         default="unsure", description="Sub-score result"
     )
 
@@ -107,13 +107,13 @@ class EvaluationAgentResponse(BaseModel):
     The response data for the EvaluationAgent.
     """
 
-    complete: Optional[str] = Field(
+    complete: str | None = Field(
         default="no", description="Overall completion status of the evaluation"
     )
-    sub_scores: Optional[List[Union[EvaluationSubscore, Dict[str, Any]]]] = Field(
+    sub_scores: list[EvaluationSubscore | dict[str, Any]] | None = Field(
         default=None, description="Sub-scores list"
     )
-    reason: Optional[str] = Field(
+    reason: str | None = Field(
         default=None, description="Detailed reason for judgment"
     )
 

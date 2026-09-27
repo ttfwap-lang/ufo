@@ -9,14 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from typing import List, Tuple
 
 from winrt.windows.globalization import Language
 from winrt.windows.graphics.imaging import BitmapDecoder
 from winrt.windows.media.ocr import OcrEngine
 from winrt.windows.storage.streams import DataWriter, InMemoryRandomAccessStream
 
-Word = Tuple[int, int, int, int, str]   # x, y, w, h, text  (same as venus_client.Box)
+Word = tuple[int, int, int, int, str]   # x, y, w, h, text  (same as venus_client.Box)
 
 _engine = None
 _engine_lock = threading.Lock()
@@ -35,7 +34,7 @@ def _get_engine():
         return _engine
 
 
-async def _recognize(png: bytes) -> List[List[Word]]:
+async def _recognize(png: bytes) -> list[list[Word]]:
     """Recognise and return one list of word boxes per OCR line."""
     stream = InMemoryRandomAccessStream()
     writer = DataWriter(stream)
@@ -47,9 +46,9 @@ async def _recognize(png: bytes) -> List[List[Word]]:
     decoder = await BitmapDecoder.create_async(stream)
     bitmap = await decoder.get_software_bitmap_async()
     result = await _get_engine().recognize_async(bitmap)
-    lines: List[List[Word]] = []
+    lines: list[list[Word]] = []
     for line in result.lines:
-        words: List[Word] = []
+        words: list[Word] = []
         for word in line.words:
             r = word.bounding_rect
             if r.width > 0 and r.height > 0:
@@ -59,12 +58,12 @@ async def _recognize(png: bytes) -> List[List[Word]]:
     return lines
 
 
-def ocr_words(png_bytes: bytes) -> List[Word]:
+def ocr_words(png_bytes: bytes) -> list[Word]:
     """Word boxes for an encoded image (PNG/JPEG bytes). Blocking."""
     return [w for line in asyncio.run(_recognize(png_bytes)) for w in line]
 
 
-def ocr_phrases(png_bytes: bytes, gap_factor: float = 1.5) -> List[Tuple[Tuple[int, int, int, int], str]]:
+def ocr_phrases(png_bytes: bytes, gap_factor: float = 1.5) -> list[tuple[tuple[int, int, int, int], str]]:
     """Phrase boxes ((x1, y1, x2, y2), text): each OCR line split where the gap
     between neighbouring words exceeds `gap_factor` x the line's word height.
 
@@ -85,7 +84,7 @@ def ocr_phrases(png_bytes: bytes, gap_factor: float = 1.5) -> List[Tuple[Tuple[i
     return phrases
 
 
-def _union(words: List[Word]):
+def _union(words: list[Word]):
     x1 = min(w[0] for w in words)
     y1 = min(w[1] for w in words)
     x2 = max(w[0] + w[2] for w in words)

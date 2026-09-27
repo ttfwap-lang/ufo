@@ -1,12 +1,11 @@
 import asyncio
 import logging
 import tracemalloc
-from typing import List, Optional
 
-
+from ufo.aip.messages import Command, Result, ServerMessage
 from ufo.client.computer import CommandRouter, ComputerManager
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
-from ufo.aip.messages import Command, Result, ServerMessage
+
 tracemalloc.start()
 
 
@@ -20,8 +19,8 @@ class UFOClient:
         self,
         mcp_server_manager: MCPServerManager,
         computer_manager: ComputerManager,
-        client_id: Optional[str] = None,
-        platform: Optional[str] = None,
+        client_id: str | None = None,
+        platform: str | None = None,
     ):
         """
         Initialize the UFO web client.
@@ -43,13 +42,13 @@ class UFOClient:
         self.platform = platform
 
         # Initialize session variables
-        self._agent_name: Optional[str] = None
-        self._process_name: Optional[str] = None
-        self._root_name: Optional[str] = None
+        self._agent_name: str | None = None
+        self._process_name: str | None = None
+        self._root_name: str | None = None
 
-        self._session_id: Optional[str] = None
+        self._session_id: str | None = None
 
-    async def execute_step(self, response: ServerMessage) -> List[Result]:
+    async def execute_step(self, response: ServerMessage) -> list[Result]:
         """
         Perform a single step execution.
         :param response: The ServerMessage instance to process.
@@ -65,7 +64,7 @@ class UFOClient:
 
         return action_results
 
-    async def execute_actions(self, commands: Optional[List[Command]]) -> List[Result]:
+    async def execute_actions(self, commands: list[Command] | None) -> list[Result]:
         """
         Execute the actions provided by the server
         :param commands: List of actions to execute
@@ -87,7 +86,7 @@ class UFOClient:
         return action_results
 
     @property
-    def session_id(self) -> Optional[str]:
+    def session_id(self) -> str | None:
         """
         Get the current session ID.
         :return: The current session ID or None if not set.
@@ -95,7 +94,7 @@ class UFOClient:
         return self._session_id
 
     @session_id.setter
-    def session_id(self, value: Optional[str]):
+    def session_id(self, value: str | None):
         """
         Set the current session ID.
         :param value: The session ID to set.
@@ -106,7 +105,7 @@ class UFOClient:
         self.logger.info(f"Session ID set to: {self._session_id}")
 
     @property
-    def agent_name(self) -> Optional[str]:
+    def agent_name(self) -> str | None:
         """
         Get the agent name.
         :return: The agent name or None if not set.
@@ -114,7 +113,7 @@ class UFOClient:
         return self._agent_name
 
     @agent_name.setter
-    def agent_name(self, value: Optional[str]):
+    def agent_name(self, value: str | None):
         """
         Set the agent name.
         :param value: The agent name to set.
@@ -125,7 +124,7 @@ class UFOClient:
         self.logger.info(f"Agent name set to: {self._agent_name}")
 
     @property
-    def process_name(self) -> Optional[str]:
+    def process_name(self) -> str | None:
         """
         Get the process name.
         :return: The process name or None if not set.
@@ -133,7 +132,7 @@ class UFOClient:
         return self._process_name
 
     @process_name.setter
-    def process_name(self, value: Optional[str]):
+    def process_name(self, value: str | None):
         """
         Set the process name.
         :param value: The process name to set.
@@ -144,7 +143,7 @@ class UFOClient:
         self.logger.info(f"Process name set to: {self._process_name}")
 
     @property
-    def root_name(self) -> Optional[str]:
+    def root_name(self) -> str | None:
         """
         Get the root name.
         :return: The root name or None if not set.
@@ -152,7 +151,7 @@ class UFOClient:
         return self._root_name
 
     @root_name.setter
-    def root_name(self, value: Optional[str]):
+    def root_name(self, value: str | None):
         """
         Set the root name.
         :param value: The root name to set.

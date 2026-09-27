@@ -5,14 +5,14 @@ import logging
 from urllib.parse import quote_plus
 
 import requests
+from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_text_splitters import HTMLHeaderTextSplitter
-from langchain_community.vectorstores import FAISS
 
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
+from ufo.config.config_loader import LazyUFOConfig
+from ufo.rag import ddg_search
 from ufo.utils import get_hugginface_embedding
 from ufo.utils.url_security import safe_get, validate_url
-from ufo.rag import ddg_search
 
 ufo_config = LazyUFOConfig()
 logger = logging.getLogger(__name__)

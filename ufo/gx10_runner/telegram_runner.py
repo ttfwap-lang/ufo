@@ -36,7 +36,7 @@ OWNER_FILE = "/data/owner.txt"  # persisted owner after auto-claim
 
 def load_owner() -> str:
     try:
-        with open(OWNER_FILE, "r") as f:
+        with open(OWNER_FILE) as f:
             return f.read().strip()
     except Exception:  # noqa: BLE001
         return ""
@@ -53,7 +53,7 @@ def save_owner(chat_id: str) -> None:
 ALLOWLIST = {
     "nvidia-smi", "docker", "df", "nproc", "uptime", "free", "uname",
     "hostname", "ls", "cat", "grep", "find", "ps", "ss", "du", "date",
-    "uptime", "systemctl", "curl", "python3", "uptime", "w", "ip",
+    "systemctl", "curl", "python3", "w", "ip",
 }
 # Prefixes allowed with the first token in ALLOWLIST
 ALLOWED_PREFIXES = ()

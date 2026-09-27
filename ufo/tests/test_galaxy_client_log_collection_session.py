@@ -8,17 +8,16 @@ This test demonstrates using GalaxyClient with the mock AgentProfile objects
 to simulate a log collection and Excel generation workflow session.
 """
 
-import pytest
-import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-import tempfile
-import os
+from unittest.mock import AsyncMock, Mock, patch
 
-from ufo.galaxy.galaxy_client import GalaxyClient
+import pytest
+
 from ufo.galaxy.client.components.types import AgentProfile, DeviceStatus
 from ufo.galaxy.client.config_loader import ConstellationConfig, DeviceConfig
+from ufo.galaxy.galaxy_client import GalaxyClient
 
 
 class TestGalaxyClientLogCollectionSession:

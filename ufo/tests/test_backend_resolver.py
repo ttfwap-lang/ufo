@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.test_dgx_model_audit import SYNTHETIC_DGX_CONFIG
 from ufo.config.config_loader import ConfigLoader, clear_config_cache
 from ufo.llm import AgentType
 from ufo.llm.config_helper import (
@@ -21,8 +22,6 @@ from ufo.llm.config_helper import (
     set_backend_selection,
     set_process_override,
 )
-
-from tests.test_dgx_model_audit import SYNTHETIC_DGX_CONFIG
 
 
 def create_minimal_profile(model_name: str) -> dict:

@@ -7,15 +7,19 @@ Single responsibility: Connection management with AIP abstraction.
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any
+
 import websockets
+
 from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, ServerMessage, TaskStatus
 from ufo.aip.protocol.device_info import DeviceInfoProtocol
 from ufo.aip.protocol.registration import RegistrationProtocol
 from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.aip.transport.websocket import WebSocketTransport
 from ufo.galaxy.core.types import ExecutionResult
+
 from .types import AgentProfile, TaskRequest
+
 if TYPE_CHECKING:
     from ufo.galaxy.client.components.message_processor import MessageProcessor
 
@@ -31,13 +35,13 @@ class WebSocketConnectionManager:
         :param task_name: Unique identifier for the task
         """
         self.task_name = task_name
-        self._transports: Dict[str, WebSocketTransport] = {}
-        self._registration_protocols: Dict[str, RegistrationProtocol] = {}
-        self._task_protocols: Dict[str, TaskExecutionProtocol] = {}
-        self._device_info_protocols: Dict[str, DeviceInfoProtocol] = {}
-        self._pending_tasks: Dict[str, tuple[str, asyncio.Future]] = {}
-        self._pending_device_info: Dict[str, asyncio.Future] = {}
-        self._pending_registration: Dict[str, asyncio.Future] = {}
+        self._transports: dict[str, WebSocketTransport] = {}
+        self._registration_protocols: dict[str, RegistrationProtocol] = {}
+        self._task_protocols: dict[str, TaskExecutionProtocol] = {}
+        self._device_info_protocols: dict[str, DeviceInfoProtocol] = {}
+        self._pending_tasks: dict[str, tuple[str, asyncio.Future]] = {}
+        self._pending_device_info: dict[str, asyncio.Future] = {}
+        self._pending_registration: dict[str, asyncio.Future] = {}
         self.logger = logging.getLogger(f'{__name__}.WebSocketConnectionManager')
 
     async def connect_to_device(self, device_info: AgentProfile, message_processor: 'MessageProcessor') -> None:
@@ -116,8 +120,9 @@ class WebSocketConnectionManager:
             self.logger.info(f'📝 Registering constellation client: {constellation_client_id}')
             registration_future = asyncio.Future()
             self._pending_registration[device_info.device_id] = registration_future
-            from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, TaskStatus
             import datetime
+
+            from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, TaskStatus
             reg_msg = ClientMessage(type=ClientMessageType.REGISTER, client_id=constellation_client_id, client_type=ClientType.CONSTELLATION, target_id=device_info.device_id, status=TaskStatus.OK, timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(), metadata=metadata)
             await transport.send(reg_msg.model_dump_json().encode())
             self.logger.info(f'📤 Sent constellation registration for {constellation_client_id} → {device_info.device_id}')
@@ -132,7 +137,7 @@ class WebSocketConnectionManager:
                 return False
             self.logger.info(f'✅ Registration successful for {constellation_client_id}')
             return True
-        except (ConnectionError, IOError) as e:
+        except (OSError, ConnectionError) as e:
             self.logger.warning(f'⚠️ Connection error during registration for device {device_info.device_id}: {e}')
             return False
         except asyncio.TimeoutError as e:
@@ -169,7 +174,7 @@ class WebSocketConnectionManager:
             self._pending_tasks.pop(constellation_task_id, None)
             self.logger.error(f'⏰ Task {task_request.task_id} timed out on device {device_id}')
             raise asyncio.TimeoutError(f'Task {task_request.task_id} timed out')
-        except (ConnectionError, IOError) as e:
+        except (OSError, ConnectionError) as e:
             self._pending_tasks.pop(constellation_task_id, None)
             self.logger.error(f'🔌 Device {device_id} connection error during task {task_request.task_id}: {e}')
             raise ConnectionError(f'Device {device_id} connection error during task execution: {e}')
@@ -214,7 +219,7 @@ class WebSocketConnectionManager:
         finally:
             self._pending_tasks.pop(task_id, None)
 
-    def complete_task_response(self, task_id: str, response: ServerMessage, sender_device_id: Optional[str]=None) -> None:
+    def complete_task_response(self, task_id: str, response: ServerMessage, sender_device_id: str | None=None) -> None:
         """
         Complete a pending task response with the result from the server.
 
@@ -318,7 +323,7 @@ class WebSocketConnectionManager:
         for device_id in list(self._transports.keys()):
             await self.disconnect_device(device_id)
 
-    async def request_device_info(self, device_id: str) -> Optional[Dict[str, Any]]:
+    async def request_device_info(self, device_id: str) -> dict[str, Any] | None:
         """
         Request device system information using AIP DeviceInfoProtocol.
 
@@ -350,7 +355,7 @@ class WebSocketConnectionManager:
                 return None
             finally:
                 self._pending_device_info.pop(request_id, None)
-        except (ConnectionError, IOError) as e:
+        except (OSError, ConnectionError) as e:
             self.logger.error(f'❌ Connection error requesting device info for {device_id}: {e}')
             self._pending_device_info.pop(request_id, None)
             return None
@@ -359,7 +364,7 @@ class WebSocketConnectionManager:
             self._pending_device_info.pop(request_id, None)
             return None
 
-    def complete_device_info_response(self, request_id: str, device_info: Optional[Dict[str, Any]]) -> None:
+    def complete_device_info_response(self, request_id: str, device_info: dict[str, Any] | None) -> None:
         """
         Complete a pending device info request with the response from the server.
 
@@ -379,7 +384,7 @@ class WebSocketConnectionManager:
         info_future.set_result(device_info)
         self.logger.debug(f'✅ Completed device info response for {request_id}')
 
-    def complete_registration_response(self, device_id: str, success: bool, error_message: Optional[str]=None) -> None:
+    def complete_registration_response(self, device_id: str, success: bool, error_message: str | None=None) -> None:
         """
         Complete a pending registration request with the response from the server.
 

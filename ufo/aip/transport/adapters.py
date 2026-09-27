@@ -13,7 +13,7 @@ Supports both text and binary frame transmission for efficient file transfer.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Union
+from typing import Any
 
 try:
     from websockets.asyncio.client import ClientConnection as WebSocketClientProtocol
@@ -87,7 +87,7 @@ class WebSocketAdapter(ABC):
         pass
 
     @abstractmethod
-    async def receive_auto(self) -> Union[str, bytes]:
+    async def receive_auto(self) -> str | bytes:
         """
         Receive data and auto-detect frame type (text or binary).
 
@@ -159,7 +159,7 @@ class FastAPIWebSocketAdapter(WebSocketAdapter):
         """
         return await self._ws.receive_bytes()
 
-    async def receive_auto(self) -> Union[str, bytes]:
+    async def receive_auto(self) -> str | bytes:
         """
         Auto-detect and receive text or binary data.
 
@@ -236,7 +236,7 @@ class WebSocketsLibAdapter(WebSocketAdapter):
             )
         return received
 
-    async def receive_auto(self) -> Union[str, bytes]:
+    async def receive_auto(self) -> str | bytes:
         """
         Auto-detect and receive text or binary data.
 

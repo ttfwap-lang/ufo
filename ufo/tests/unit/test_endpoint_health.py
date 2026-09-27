@@ -14,10 +14,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 
 import pytest
-
 from ufo.llm import AgentType, endpoint_health
-from ufo.llm.endpoint_health import ENDPOINT_GATE, EndpointDown, EndpointGate
-
+from ufo.llm.endpoint_health import EndpointDown, EndpointGate
 
 # ------------------------------------------------------------------ pure gate
 

@@ -37,10 +37,11 @@ import os
 import signal
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
-def _load_watchdog_config() -> Dict[str, Any]:
+def _load_watchdog_config() -> dict[str, Any]:
     """Load watchdog config from system.yaml."""
     defaults = {'ENABLED': False, 'REDIS_URL': 'redis://127.0.0.1:6379/0', 'HEARTBEAT_KEY': 'ufo:fleet:heartbeats', 'HEARTBEAT_INTERVAL_SECONDS': 10, 'WATCHDOG_TIMEOUT_SECONDS': 30, 'DLQ_QUEUE': 'ufo:queue:dlq', 'WORKER_ID': 'auto'}
     try:
@@ -66,7 +67,7 @@ class WorkerHeartbeat:
     to a Redis hash. The FleetWatchdog reads these heartbeats.
     """
 
-    def __init__(self, worker_id: Optional[str]=None, redis_url: Optional[str]=None) -> None:
+    def __init__(self, worker_id: str | None=None, redis_url: str | None=None) -> None:
         self._config = _load_watchdog_config()
         self._worker_id = worker_id or _resolve_worker_id(self._config.get('WORKER_ID', 'auto'))
         self._redis_url = redis_url or self._config.get('REDIS_URL')
@@ -75,7 +76,7 @@ class WorkerHeartbeat:
         self._redis = None
         self._available = False
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._init_redis()
 
@@ -91,7 +92,7 @@ class WorkerHeartbeat:
         except Exception as e:
             logger.warning(f'[Heartbeat] Redis unavailable: {e}')
 
-    def start(self) -> Optional[threading.Thread]:
+    def start(self) -> threading.Thread | None:
         """Start the heartbeat reporter as a daemon thread."""
         if not self._available:
             logger.info('[Heartbeat] Redis unavailable — heartbeat disabled.')
@@ -143,7 +144,7 @@ class FleetWatchdog:
       4. Removes the dead worker from the heartbeat registry
     """
 
-    def __init__(self, redis_url: Optional[str]=None) -> None:
+    def __init__(self, redis_url: str | None=None) -> None:
         self._config = _load_watchdog_config()
         self._redis_url = redis_url or self._config.get('REDIS_URL')
         self._hb_key = self._config.get('HEARTBEAT_KEY', 'ufo:fleet:heartbeats')
@@ -269,7 +270,7 @@ class FleetWatchdog:
         logger.info(f'[Watchdog] Received signal {signum}. Shutting down.')
         self.stop()
 
-    def get_fleet_status(self) -> Dict[str, Any]:
+    def get_fleet_status(self) -> dict[str, Any]:
         """Get current status of all fleet workers."""
         if not self._available:
             return {'error': 'Redis not available'}
@@ -283,6 +284,6 @@ class FleetWatchdog:
                 processing_queue = f'ufo:queue:processing:{worker_id}'
                 active_tasks = self._redis.llen(processing_queue)
                 status[worker_id] = {'last_heartbeat': last_beat, 'silence_seconds': silence, 'alive': silence <= self._timeout, 'active_tasks': active_tasks}
-            return {'workers': status, 'total_workers': len(status), 'alive_workers': sum((1 for w in status.values() if w['alive'])), 'dead_workers': sum((1 for w in status.values() if not w['alive']))}
+            return {'workers': status, 'total_workers': len(status), 'alive_workers': sum(1 for w in status.values() if w['alive']), 'dead_workers': sum(1 for w in status.values() if not w['alive'])}
         except Exception as e:
             return {'error': str(e)}

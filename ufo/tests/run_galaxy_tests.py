@@ -4,10 +4,11 @@ Test runner for Galaxy Agent State Machine refactoring
 This script runs all tests for the refactored Galaxy Agent State Machine,
 including unit tests and integration tests covering various scenarios.
 """
+import os
 import subprocess
 import sys
-import os
 from pathlib import Path
+
 
 def run_test_suite():
     """Run the complete test suite for Galaxy Agent State Machine."""
@@ -91,7 +92,7 @@ def run_specific_test_scenarios():
         except Exception as e:
             print(f"💥 EXCEPTION: {scenario['name']} - {e}")
             failed_scenarios.append(scenario['name'])
-    print(f'\n📊 Scenario Test Results:')
+    print('\n📊 Scenario Test Results:')
     print(f'   ✅ Passed: {len(passed_scenarios)}')
     print(f'   ❌ Failed: {len(failed_scenarios)}')
     return len(failed_scenarios) == 0

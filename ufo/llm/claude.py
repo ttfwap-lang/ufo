@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import anthropic
 
@@ -16,7 +16,7 @@ class ClaudeService(BaseService):
     A service class for Claude models.
     """
 
-    def __init__(self, config: Dict[str, Any], agent_type: str):
+    def __init__(self, config: dict[str, Any], agent_type: str):
         """
         Initialize the Claude service.
         :param config: The configuration.
@@ -33,11 +33,11 @@ class ClaudeService(BaseService):
 
     async def chat_completion(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         n: int = 1,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        top_p: Optional[float] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
         **kwargs: Any,
     ) -> LLMResult:
         """
@@ -97,8 +97,8 @@ class ClaudeService(BaseService):
         )
 
     def process_messages(
-        self, messages: List[Dict[str, str]]
-    ) -> Tuple[str, list[Dict]]:
+        self, messages: list[dict[str, str]]
+    ) -> tuple[str, list[dict]]:
         """
         Processes the messages to generate the system and user prompts.
         :param messages: A list of message dictionaries.

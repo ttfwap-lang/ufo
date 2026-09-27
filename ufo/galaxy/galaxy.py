@@ -19,15 +19,17 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+
 galaxy_dir = str(Path(__file__).resolve().parent)
 if sys.path and sys.path[0] == galaxy_dir:
     sys.path.pop(0)
 UFO_ROOT = str(Path(__file__).resolve().parent.parent)
 if UFO_ROOT not in sys.path:
     sys.path.insert(0, UFO_ROOT)
-from ufo.ufo_logging.setup import setup_logger
 from rich.console import Console
+
+from ufo.ufo_logging.setup import setup_logger
+
 
 def parse_args():
     """Parse command-line arguments with support for both simple and advanced usage."""
@@ -45,6 +47,7 @@ def parse_args():
     return parser.parse_args()
 from ufo.galaxy.galaxy_client import GalaxyClient
 from ufo.galaxy.visualization.client_display import ClientDisplay
+
 console = Console()
 
 async def galaxy_quick_start(request: str, session_name: str='galaxy_quick', log_level: str='WARNING', output_dir: str='./logs'):
@@ -77,7 +80,7 @@ async def galaxy_interactive(session_name: str='galaxy_interactive', log_level: 
     await client.interactive_mode()
     await client.shutdown()
 
-async def main(args: Optional[argparse.Namespace]=None):
+async def main(args: argparse.Namespace | None=None):
     """
     Main entry point with unified simple and advanced CLI support.
 
@@ -156,7 +159,9 @@ async def run_webui_mode(client: GalaxyClient):
     """
     import socket
     import webbrowser
+
     import uvicorn
+
     from ufo.galaxy.webui.server import app, set_galaxy_client
     set_galaxy_client(client)
 

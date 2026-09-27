@@ -1,9 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import pytest
-from ufo.utils import json_parser, _normalize_keys, regex_normalize_pascal_keys
-from ufo.agents.processors.schemas.response_schema import HostAgentResponse, AppAgentResponse
+from ufo.agents.processors.schemas.response_schema import AppAgentResponse, HostAgentResponse
+from ufo.utils import _normalize_keys, json_parser, regex_normalize_pascal_keys
 
 
 def test_regex_normalize_pascal_keys():

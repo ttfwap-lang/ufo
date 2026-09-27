@@ -13,7 +13,7 @@ This module implements the architecture for App Agent processing, providing:
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -121,7 +121,7 @@ class AppAgentProcessor(ProcessorTemplate):
         # Core middleware (order matters)
         self.middleware_chain = [AppAgentLoggingMiddleware()]
 
-    def _get_processor_specific_context_data(self) -> Dict[str, Any]:
+    def _get_processor_specific_context_data(self) -> dict[str, Any]:
         """
         Get processor-specific context data for App Agent. This data is merged into the processing local context.
         :return: Dictionary of processor-specific context data

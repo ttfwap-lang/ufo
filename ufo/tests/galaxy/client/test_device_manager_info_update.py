@@ -4,12 +4,11 @@ Test for Device Manager AgentProfile Update
 Tests that device system info is properly retrieved and stored in AgentProfile.
 """
 
-import pytest
-import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
-from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+import pytest
 from ufo.galaxy.client.components.types import DeviceStatus
+from ufo.galaxy.client.device_manager import ConstellationDeviceManager
 
 
 class TestDeviceManagerInfoUpdate:

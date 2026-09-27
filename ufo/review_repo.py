@@ -9,12 +9,11 @@ touching the vendored open-source tree's test suite.
 from __future__ import annotations
 
 import ast
-import io
 import json
 import os
 import re
 import sys
-from typing import Any, Dict, List
+from typing import Any
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -113,7 +112,7 @@ STUB_MARKERS = ("TO" + "DO", "FIX" + "ME", "X" + "XX", "HA" + "CK",
 SELF = os.path.basename(__file__)
 
 
-def py_files() -> List[str]:
+def py_files() -> list[str]:
     out = []
     for dirpath, dirnames, filenames in os.walk(ROOT):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
@@ -123,7 +122,7 @@ def py_files() -> List[str]:
     return out
 
 
-def ps1_files() -> List[str]:
+def ps1_files() -> list[str]:
     out = []
     for dirpath, dirnames, filenames in os.walk(ROOT):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
@@ -137,11 +136,11 @@ def rel(p: str) -> str:
     return os.path.relpath(p, ROOT).replace("\\", "/")
 
 
-def compile_check(paths: List[str]) -> List[Dict[str, Any]]:
+def compile_check(paths: list[str]) -> list[dict[str, Any]]:
     bad = []
     for p in paths:
         try:
-            src = io.open(p, encoding="utf-8", errors="replace").read()
+            src = open(p, encoding="utf-8", errors="replace").read()
             compile(src, p, "exec")
         except SyntaxError as e:
             bad.append({"file": rel(p), "line": e.lineno, "error": str(e)})
@@ -150,14 +149,14 @@ def compile_check(paths: List[str]) -> List[Dict[str, Any]]:
     return bad
 
 
-def ast_checks(paths: List[str]) -> Dict[str, List[Dict[str, Any]]]:
+def ast_checks(paths: list[str]) -> dict[str, list[dict[str, Any]]]:
     stubs, empties, bare_except, mutable_default = [], [], [], []
     for p in paths:
         try:
-            tree = ast.parse(io.open(p, encoding="utf-8", errors="replace").read())
+            tree = ast.parse(open(p, encoding="utf-8", errors="replace").read())
         except Exception:                             # already reported
             continue
-        src = io.open(p, encoding="utf-8", errors="replace").read()
+        src = open(p, encoding="utf-8", errors="replace").read()
         if os.path.basename(p) == SELF:
             continue
         for i, line in enumerate(src.splitlines(), 1):
@@ -217,7 +216,7 @@ def is_allowlisted(path: str, line_text: str) -> bool:
     return False
 
 
-def secret_scan(paths: List[str]) -> List[Dict[str, Any]]:
+def secret_scan(paths: list[str]) -> list[dict[str, Any]]:
     hits = []
     # This file and its self-test contain credential-shaped strings on purpose.
     # Scanning them guarantees noise and guarantees a finding nobody reads.
@@ -226,7 +225,7 @@ def secret_scan(paths: List[str]) -> List[Dict[str, Any]]:
         if os.path.basename(p) in self_names:
             continue
         try:
-            text = io.open(p, encoding="utf-8", errors="replace").read()
+            text = open(p, encoding="utf-8", errors="replace").read()
         except Exception:                             # noqa: BLE001
             continue
         lines = text.splitlines()
@@ -250,9 +249,9 @@ def secret_scan(paths: List[str]) -> List[Dict[str, Any]]:
     return hits
 
 
-def hygiene() -> Dict[str, Any]:
+def hygiene() -> dict[str, Any]:
     gitignore = os.path.join(ROOT, ".gitignore")
-    ignored = io.open(gitignore, encoding="utf-8").read() if os.path.exists(gitignore) else ""
+    ignored = open(gitignore, encoding="utf-8").read() if os.path.exists(gitignore) else ""
     tracked = os.popen(f'git -C "{ROOT}" ls-files').read().splitlines()
     suspicious = []
     # A file whose NAME contains "token" is usually a secret, but sometimes it

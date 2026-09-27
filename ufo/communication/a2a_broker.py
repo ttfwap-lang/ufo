@@ -38,7 +38,7 @@ import logging
 import queue
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -56,7 +56,7 @@ class AgentMessage(BaseModel):
     payload_type: str = Field(
         ..., description="Message type: extracted_table, auth_token, status_flag, etc."
     )
-    data: Dict[str, Any] = Field(default_factory=dict)
+    data: dict[str, Any] = Field(default_factory=dict)
     timestamp: float = Field(default_factory=time.time)
     correlation_id: str = Field(default="", description="For request/response pairing")
 
@@ -67,7 +67,7 @@ class BrokerStats(BaseModel):
     total_published: int = 0
     total_consumed: int = 0
     total_dropped: int = 0
-    pending_messages: Dict[str, int] = Field(default_factory=dict)
+    pending_messages: dict[str, int] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -89,8 +89,8 @@ class MessageBroker:
     _init_lock = threading.Lock()
 
     def __init__(self, max_queue_size: int = 100) -> None:
-        self._queues: Dict[str, queue.Queue] = {}
-        self._agents: Dict[str, Dict[str, Any]] = {}  # agent_id -> metadata
+        self._queues: dict[str, queue.Queue] = {}
+        self._agents: dict[str, dict[str, Any]] = {}  # agent_id -> metadata
         self._lock = threading.Lock()
         self._max_queue_size = max_queue_size
         self._stats_published = 0
@@ -117,7 +117,7 @@ class MessageBroker:
     # -----------------------------------------------------------------------
 
     def register_agent(
-        self, agent_id: str, metadata: Optional[Dict[str, Any]] = None
+        self, agent_id: str, metadata: dict[str, Any] | None = None
     ) -> None:
         """
         Register an agent's mailbox.
@@ -144,7 +144,7 @@ class MessageBroker:
         """Check if an agent is registered."""
         return agent_id in self._queues
 
-    def list_agents(self) -> List[str]:
+    def list_agents(self) -> list[str]:
         """List all registered agent IDs."""
         return list(self._queues.keys())
 
@@ -190,7 +190,7 @@ class MessageBroker:
 
     def subscribe(
         self, agent_id: str, timeout: float = 10.0
-    ) -> Optional[AgentMessage]:
+    ) -> AgentMessage | None:
         """
         Subscribe (blocking) to receive the next message for this agent.
 
@@ -217,7 +217,7 @@ class MessageBroker:
         except queue.Empty:
             return None
 
-    def try_get(self, agent_id: str) -> Optional[AgentMessage]:
+    def try_get(self, agent_id: str) -> AgentMessage | None:
         """
         Non-blocking attempt to get a message.
 
@@ -251,8 +251,8 @@ class MessageBroker:
         self,
         source_agent: str,
         payload_type: str,
-        data: Dict[str, Any],
-        exclude: Optional[List[str]] = None,
+        data: dict[str, Any],
+        exclude: list[str] | None = None,
     ) -> int:
         """
         Broadcast a message to ALL registered agents (except source and exclusions).

@@ -1,15 +1,15 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from ufo.llm import AgentType
 from ufo.llm.llm_result import LLMResult
 from ufo.llm.refusal_rotator import (
-    is_refusal_text,
-    is_refusal_response,
-    is_refusal_exception,
     adapt_messages_for_text_model,
     execute_refusal_cascade,
-    ROTATION_TIERS,
+    is_refusal_exception,
+    is_refusal_response,
+    is_refusal_text,
 )
-from ufo.llm import AgentType
 
 
 class TestRefusalTextDetection:

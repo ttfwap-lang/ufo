@@ -14,7 +14,8 @@ while providing enhanced modularity, error handling, and extensibility.
 """
 import json
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
 from ufo import utils
 from ufo.agents.memory.memory import MemoryItem
 from ufo.agents.processors.context.host_agent_processing_context import HostAgentProcessorContext
@@ -25,11 +26,12 @@ from ufo.agents.processors.schemas.log_schema import HostAgentRequestLog
 from ufo.agents.processors.schemas.response_schema import HostAgentResponse
 from ufo.agents.processors.schemas.target import TargetInfo, TargetKind, TargetRegistry
 from ufo.agents.processors.strategies.processing_strategy import BaseProcessingStrategy
-from ufo.config.config_loader import LazyUFOConfig
 from ufo.aip.messages import Command, Result, ResultStatus
+from ufo.config.config_loader import LazyUFOConfig
 from ufo.llm import AgentType
 from ufo.module.context import ContextNames
 from ufo.module.dispatcher import BasicCommandDispatcher
+
 ufo_config = LazyUFOConfig()
 if TYPE_CHECKING:
     from ufo.agents.agent.host_agent import HostAgent
@@ -118,7 +120,7 @@ class DesktopDataCollectionStrategy(BaseProcessingStrategy):
             utils.save_image_string(desktop_screenshot_url, save_path)
             return desktop_screenshot_url
 
-    async def _get_desktop_application_info(self, command_dispatcher: BasicCommandDispatcher) -> List[TargetInfo]:
+    async def _get_desktop_application_info(self, command_dispatcher: BasicCommandDispatcher) -> list[TargetInfo]:
         """
         Get comprehensive desktop application information with filtering.
         :param command_dispatcher: Command dispatcher for executing commands
@@ -152,7 +154,7 @@ class DesktopDataCollectionStrategy(BaseProcessingStrategy):
         except Exception as e:
             raise Exception(f'Failed to get desktop application info: {str(e)}')
 
-    def _register_applications_and_agents(self, app_windows_info: List[TargetInfo], target_registry: TargetRegistry=None) -> TargetRegistry:
+    def _register_applications_and_agents(self, app_windows_info: list[TargetInfo], target_registry: TargetRegistry=None) -> TargetRegistry:
         """
         Register desktop applications and third-party agents in target registry.
         :param app_windows_info: List of application window information
@@ -245,7 +247,7 @@ class HostLLMInteractionStrategy(BaseProcessingStrategy):
             self.logger.error(error_msg)
             return self.handle_error(e, ProcessingPhase.LLM_INTERACTION, context)
 
-    def _get_prev_plan(self, agent: 'HostAgent') -> List[str]:
+    def _get_prev_plan(self, agent: 'HostAgent') -> list[str]:
         """
         Get the previous plan from the agent's memory.
         :param agent: The AppAgent instance
@@ -262,7 +264,7 @@ class HostLLMInteractionStrategy(BaseProcessingStrategy):
             self.logger.error(f'Failed to get previous plan: {str(e)}')
             return []
 
-    async def _build_comprehensive_prompt(self, agent: 'HostAgent', target_info_list: List[Any], desktop_screenshot_url: str, prev_plan: List[Any], previous_subtasks: List[Any], request: str, session_step: int, request_logger) -> Dict[str, Any]:
+    async def _build_comprehensive_prompt(self, agent: 'HostAgent', target_info_list: list[Any], desktop_screenshot_url: str, prev_plan: list[Any], previous_subtasks: list[Any], request: str, session_step: int, request_logger) -> dict[str, Any]:
         """
         Build comprehensive prompt message with all available context information.
         :param agent: The HostAgent instance.
@@ -276,7 +278,7 @@ class HostLLMInteractionStrategy(BaseProcessingStrategy):
         :return: Complete prompt message dictionary for LLM interaction
         """
         try:
-            host_agent: 'HostAgent' = agent
+            host_agent: HostAgent = agent
             blackboard_prompt = []
             if not host_agent.blackboard.is_empty():
                 blackboard_prompt = host_agent.blackboard.blackboard_to_prompt()
@@ -288,7 +290,7 @@ class HostLLMInteractionStrategy(BaseProcessingStrategy):
         except Exception as e:
             raise Exception(f'Failed to build prompt message: {str(e)}')
 
-    def _log_request_data(self, session_step: int, desktop_screenshot_url: str, target_info_list: List[Any], prev_plan: List[Any], previous_subtasks: List[Any], request: str, blackboard_prompt: List[str], prompt_message: Dict[str, Any], request_logger: 'FileWriter') -> None:
+    def _log_request_data(self, session_step: int, desktop_screenshot_url: str, target_info_list: list[Any], prev_plan: list[Any], previous_subtasks: list[Any], request: str, blackboard_prompt: list[str], prompt_message: dict[str, Any], request_logger: 'FileWriter') -> None:
         """
         Log request data for debugging and analysis (only in debug mode).
         :param session_step: Current session step
@@ -309,7 +311,7 @@ class HostLLMInteractionStrategy(BaseProcessingStrategy):
         except Exception as e:
             self.logger.warning(f'Failed to log request data: {str(e)}')
 
-    async def _get_llm_response_with_retry(self, host_agent: 'HostAgent', prompt_message: Dict[str, Any]) -> tuple[str, float]:
+    async def _get_llm_response_with_retry(self, host_agent: 'HostAgent', prompt_message: dict[str, Any]) -> tuple[str, float]:
         """
         Get LLM response with retry logic for JSON parsing failures.
         :param host_agent: Host agent instance
@@ -427,7 +429,7 @@ class HostLLMInteractionStrategy(BaseProcessingStrategy):
             elif not allow_pending or response.status.upper() != 'PENDING':
                 response.status = 'ERROR'
 
-    def _extract_structured_response_data(self, response: HostAgentResponse) -> Dict[str, Any]:
+    def _extract_structured_response_data(self, response: HostAgentResponse) -> dict[str, Any]:
         """
         Extract structured data from parsed response for use by subsequent strategies.
         :param response: Parsed response object
@@ -502,12 +504,12 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
             self.logger.error(error_msg)
             return self.handle_error(e, ProcessingPhase.ACTION_EXECUTION, context)
 
-    async def _execute_constellation_dag(self, parsed_response, context: ProcessingContext) -> List[Any]:
+    async def _execute_constellation_dag(self, parsed_response, context: ProcessingContext) -> list[Any]:
         """Execute a predefined Constellation DAG for a specific task."""
+        from ufo.aip.messages import Result, ResultStatus
+        from ufo.galaxy.client.device_manager import ConstellationDeviceManager
         from ufo.galaxy.constellation.editor.constellation_editor import ConstellationEditor
         from ufo.galaxy.constellation.orchestrator.orchestrator import TaskConstellationOrchestrator
-        from ufo.galaxy.client.device_manager import ConstellationDeviceManager
-        from ufo.aip.messages import Result, ResultStatus
         try:
             config = parsed_response.arguments.get('config', {})
             self.logger.info(f"Executing Constellation DAG with {len(config.get('tasks', []))} tasks")
@@ -516,12 +518,12 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
             device_manager = ConstellationDeviceManager()
             orchestrator = TaskConstellationOrchestrator(device_manager=device_manager)
             result_data = await orchestrator.orchestrate_constellation(constellation)
-            return [Result(status=ResultStatus.SUCCESS, result=f'Constellation DAG executed successfully.', data=result_data)]
+            return [Result(status=ResultStatus.SUCCESS, result='Constellation DAG executed successfully.', data=result_data)]
         except Exception as e:
             self.logger.error(f'Constellation execution failed: {e}')
             return [Result(status=ResultStatus.ERROR, result=f'Error executing DAG: {e}', error=str(e))]
 
-    def _resolve_target(self, target_registry: Optional[TargetRegistry], target_id: Any) -> Optional[TargetInfo]:
+    def _resolve_target(self, target_registry: TargetRegistry | None, target_id: Any) -> TargetInfo | None:
         """Resolve the model's `id` argument to a target: exact ID first, then name.
 
         Smaller local models often answer with the window title instead of its
@@ -545,7 +547,7 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
             self.logger.warning(f"Ambiguous target name '{target_id}' matched {len(candidates)} windows; using the first.")
         return candidates[0]
 
-    async def _execute_application_selection(self, parsed_response: HostAgentResponse, target_registry: TargetRegistry, command_dispatcher: BasicCommandDispatcher) -> List[Result]:
+    async def _execute_application_selection(self, parsed_response: HostAgentResponse, target_registry: TargetRegistry, command_dispatcher: BasicCommandDispatcher) -> list[Result]:
         """
         Execute application selection with proper handling of different target types.
         :param parsed_response: Parsed response containing function arguments
@@ -572,7 +574,7 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
         except Exception as e:
             raise Exception(f'Application selection failed: {str(e)}')
 
-    async def _select_third_party_agent(self, target: TargetInfo) -> List[Result]:
+    async def _select_third_party_agent(self, target: TargetInfo) -> list[Result]:
         """
         Handle third-party agent selection and assignment.
         This method processes the selection of a third-party agent and records
@@ -587,7 +589,7 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
         except Exception as e:
             raise Exception(f'Third-party agent selection failed: {str(e)}')
 
-    async def _select_regular_application(self, target: TargetInfo, command_dispatcher: BasicCommandDispatcher) -> List[Result]:
+    async def _select_regular_application(self, target: TargetInfo, command_dispatcher: BasicCommandDispatcher) -> list[Result]:
         """
         Handle regular application selection and window management.
         This method executes the application selection command and manages
@@ -609,7 +611,7 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
         except Exception as e:
             raise Exception(f'Regular application selection failed: {str(e)}')
 
-    async def _execute_generic_command(self, parsed_response: HostAgentResponse, command_dispatcher: BasicCommandDispatcher) -> List[Result]:
+    async def _execute_generic_command(self, parsed_response: HostAgentResponse, command_dispatcher: BasicCommandDispatcher) -> list[Result]:
         """
         Execute generic command using command dispatcher.
         This method handles the execution of arbitrary commands that are not
@@ -642,7 +644,7 @@ class HostActionExecutionStrategy(BaseProcessingStrategy):
         except Exception as e:
             raise Exception(f'Generic command execution failed: {str(e)}')
 
-    def _create_action_info(self, parsed_response: HostAgentResponse, execution_result: List[Result], target_registry: TargetRegistry, selected_target_id: str) -> ActionCommandInfo:
+    def _create_action_info(self, parsed_response: HostAgentResponse, execution_result: list[Result], target_registry: TargetRegistry, selected_target_id: str) -> ActionCommandInfo:
         """
         Create action information object for memory and tracking.
         This method constructs a comprehensive action information object that
@@ -747,7 +749,7 @@ class HostMemoryUpdateStrategy(BaseProcessingStrategy):
         except Exception as e:
             raise Exception(f'Failed to create additional memory data: {str(e)}')
 
-    def _calculate_time_costs(self) -> Dict[str, float]:
+    def _calculate_time_costs(self) -> dict[str, float]:
         """
         Calculate time costs for different processing phases.
         :return: Dictionary mapping phase names to execution times
@@ -759,7 +761,7 @@ class HostMemoryUpdateStrategy(BaseProcessingStrategy):
             self.logger.warning(f'Failed to calculate time costs: {str(e)}')
             return {}
 
-    def _create_control_log(self, action_info: Optional[ActionCommandInfo], control_text: str='') -> Dict[str, Any]:
+    def _create_control_log(self, action_info: ActionCommandInfo | None, control_text: str='') -> dict[str, Any]:
         """
         Create control log information for debugging and analysis.
         :param action_info: Action information if available
@@ -788,7 +790,7 @@ class HostMemoryUpdateStrategy(BaseProcessingStrategy):
                 memory_item.add_values_from_dict(parsed_response.model_dump())
             memory_item.add_values_from_dict(additional_memory.to_dict(selective=True))
             return memory_item
-        except Exception as e:
+        except Exception:
             import traceback
             raise Exception(f'Failed to create and populate memory item: {str(traceback.format_exc())}')
 

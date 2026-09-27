@@ -9,12 +9,12 @@ import sys
 if platform.system() != 'Windows':
     logging.warning(f'word_wincom_mcp_server.py requires Windows platform. Current: {platform.system()}. Skipping module initialization.')
     sys.exit(0)
-from typing import Annotated, Any, Callable, Optional
+from collections.abc import Callable
+from typing import Annotated, Any
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
-
 from ufo.automator.app_apis.office_com import OfficeComSession
 from ufo.automator.app_apis.word.wordclient import WordWinCOMReceiver
 from ufo.client.mcp.mcp_registry import MCPRegistry
@@ -85,7 +85,7 @@ def create_word_mcp_server(process_name: str = '', *args, **kwargs) -> FastMCP:
         return run(lambda r: r.select_paragraph(start_index, end_index, non_empty))
 
     @mcp.tool(tags={'AppAgent'})
-    def set_font(font_name: Annotated[Optional[str], Field(description="Font name, e.g. 'Arial'. None keeps the current font.")] = None, font_size: Annotated[Optional[int], Field(description='Font size, e.g. 12. None keeps the current size.')] = None) -> str:
+    def set_font(font_name: Annotated[str | None, Field(description="Font name, e.g. 'Arial'. None keeps the current font.")] = None, font_size: Annotated[int | None, Field(description='Font size, e.g. 12. None keeps the current size.')] = None) -> str:
         """Set the font of the currently selected text (select it first)."""
         return run(lambda r: r.set_font(font_name, font_size))
 

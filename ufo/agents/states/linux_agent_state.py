@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, Optional, Type
+from typing import TYPE_CHECKING
 
 from ufo.agents.states.basic import AgentState, AgentStateManager
 from ufo.config.config_loader import LazyUFOConfig
@@ -30,7 +30,7 @@ class LinuxAgentStatus(Enum):
 
 class LinuxAgentStateManager(AgentStateManager):
 
-    _state_mapping: Dict[str, Type[LinuxAgentState]] = {}
+    _state_mapping: dict[str, type[LinuxAgentState]] = {}
 
     @property
     def none_state(self) -> AgentState:
@@ -46,7 +46,7 @@ class LinuxAgentState(AgentState):
     """
 
     async def handle(
-        self, agent: "LinuxAgent", context: Optional["Context"] = None
+        self, agent: LinuxAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -56,7 +56,7 @@ class LinuxAgentState(AgentState):
         pass
 
     @classmethod
-    def agent_class(cls) -> Type[LinuxAgent]:
+    def agent_class(cls) -> type[LinuxAgent]:
         """
         The agent class of the state.
         :return: The agent class.
@@ -67,7 +67,7 @@ class LinuxAgentState(AgentState):
 
         return LinuxAgent
 
-    def next_agent(self, agent: "LinuxAgent") -> "LinuxAgent":
+    def next_agent(self, agent: LinuxAgent) -> LinuxAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -75,7 +75,7 @@ class LinuxAgentState(AgentState):
         """
         return agent
 
-    def next_state(self, agent: "LinuxAgent") -> LinuxAgentState:
+    def next_state(self, agent: LinuxAgent) -> LinuxAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -100,7 +100,7 @@ class FinishLinuxAgentState(LinuxAgentState):
     The class for the finish linux agent state.
     """
 
-    def next_agent(self, agent: "LinuxAgent") -> "LinuxAgent":
+    def next_agent(self, agent: LinuxAgent) -> LinuxAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -108,7 +108,7 @@ class FinishLinuxAgentState(LinuxAgentState):
         """
         return agent
 
-    def next_state(self, agent: "LinuxAgent") -> LinuxAgentState:
+    def next_state(self, agent: LinuxAgent) -> LinuxAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -146,7 +146,7 @@ class ContinueLinuxAgentState(LinuxAgentState):
     """
 
     async def handle(
-        self, agent: "LinuxAgent", context: Optional["Context"] = None
+        self, agent: LinuxAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -178,7 +178,7 @@ class FailLinuxAgentState(LinuxAgentState):
     The class for the fail linux agent state.
     """
 
-    def next_agent(self, agent: "LinuxAgent") -> "LinuxAgent":
+    def next_agent(self, agent: LinuxAgent) -> LinuxAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -186,7 +186,7 @@ class FailLinuxAgentState(LinuxAgentState):
         """
         return agent
 
-    def next_state(self, agent: "LinuxAgent") -> LinuxAgentState:
+    def next_state(self, agent: LinuxAgent) -> LinuxAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -223,7 +223,7 @@ class NoneLinuxAgentState(LinuxAgentState):
     The class for the none linux agent state.
     """
 
-    def next_agent(self, agent: "LinuxAgent") -> "LinuxAgent":
+    def next_agent(self, agent: LinuxAgent) -> LinuxAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -231,7 +231,7 @@ class NoneLinuxAgentState(LinuxAgentState):
         """
         return agent
 
-    def next_state(self, agent: "LinuxAgent") -> LinuxAgentState:
+    def next_state(self, agent: LinuxAgent) -> LinuxAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.

@@ -2,14 +2,13 @@
 综合测试 WSManager 和 UFOWebSocketHandler 的客户端类型区分功能
 """
 import asyncio
-import json
 import logging
-import sys
-import websockets
-import pytest
 from datetime import datetime, timezone
+
+import pytest
+import websockets
 from ufo.aip.messages import ClientMessage, ClientMessageType, TaskStatus
-from ufo.server.services.ws_manager import WSManager
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 

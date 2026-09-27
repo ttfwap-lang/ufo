@@ -2,7 +2,6 @@ import asyncio
 from types import SimpleNamespace
 
 from PIL import Image
-
 from ufo.agents.evaluation_agent import state_verifier as sv
 
 

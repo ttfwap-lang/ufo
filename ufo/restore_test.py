@@ -1,8 +1,11 @@
 """Can the daemon (SYSTEM) restore the minimized Telegram window?"""
-import ctypes, time
-from ctypes import wintypes
-import win32gui, win32con, win32process
+import ctypes
+import time
+
 import psutil
+import win32con
+import win32gui
+import win32process
 
 target = None
 best = None

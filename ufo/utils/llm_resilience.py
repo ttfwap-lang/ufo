@@ -21,20 +21,20 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
-from typing import List, Optional
+
 logger = logging.getLogger(__name__)
 
 class LLMServerConfig:
     """Configuration for a single llama-server instance."""
 
-    def __init__(self, name: str, port: int, model_path: str, mmproj_path: Optional[str]=None, threads: int=8, context_size: int=8192):
+    def __init__(self, name: str, port: int, model_path: str, mmproj_path: str | None=None, threads: int=8, context_size: int=8192):
         self.name = name
         self.port = port
         self.model_path = model_path
         self.mmproj_path = mmproj_path
         self.threads = threads
         self.context_size = context_size
-        self.process: Optional[subprocess.Popen] = None
+        self.process: subprocess.Popen | None = None
         self.restart_count: int = 0
         self.max_restarts: int = 3
         self.last_healthy: float = 0.0
@@ -57,7 +57,7 @@ DEFAULT_SERVERS = [
 LLAMA_SERVER_PATH = str(_LLAMA_SERVER)
 
 
-def _servers_for_active_backend() -> List[LLMServerConfig]:
+def _servers_for_active_backend() -> list[LLMServerConfig]:
     """Only watch/restart local llama-servers the active backend actually uses.
 
     The watchdog used to monitor the hardcoded :8080/:8081 llama-server layout
@@ -91,7 +91,7 @@ class LLMWatchdog:
     This is the Phase 4 Zero-Fail auto-restart daemon.
     """
 
-    def __init__(self, servers: Optional[List[LLMServerConfig]]=None, check_interval: float=30.0, health_timeout: float=5.0):
+    def __init__(self, servers: list[LLMServerConfig] | None=None, check_interval: float=30.0, health_timeout: float=5.0):
         """
         Initialize the watchdog.
 
@@ -102,7 +102,7 @@ class LLMWatchdog:
         self.servers = servers if servers is not None else _servers_for_active_backend()
         self.check_interval = check_interval
         self.health_timeout = health_timeout
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
 
@@ -231,7 +231,7 @@ class LLMWatchdog:
                 logger.error('LLM Watchdog: Cloud failover failed — could not load or validate cloud configuration.')
         except Exception as e:
             logger.error(f'Cloud failover failed: {e}')
-_watchdog_instance: Optional[LLMWatchdog] = None
+_watchdog_instance: LLMWatchdog | None = None
 
 def get_watchdog() -> LLMWatchdog:
     """Get or create the global LLM watchdog instance."""

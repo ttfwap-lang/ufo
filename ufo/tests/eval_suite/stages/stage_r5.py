@@ -5,7 +5,7 @@ Stage R5 Handler: Multi-Agent Task.
 """
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from tests.eval_suite.verifiers import get_desktop_dir, resolve_log_path, verify_file_on_desktop, verify_session_logs
 
@@ -52,7 +52,7 @@ def pre_cleanup(summary_filename: str=DEFAULT_SUMMARY_FILENAME) -> None:
     except Exception as e:
         logger.warning(f'[Stage R5 Pre-Cleanup] Could not pre-launch target apps: {e}')
 
-def verify_r5(stage_data: Optional[Union[Dict[str, Any], str, Path]]=None, output_dir: Optional[Union[str, Path]]=None, task_log_dir: Optional[Union[str, Path]]=None, dry_run: bool=False, summary_filename: str=DEFAULT_SUMMARY_FILENAME, expected_keyword: str='balance') -> Dict[str, Any]:
+def verify_r5(stage_data: dict[str, Any] | str | Path | None=None, output_dir: str | Path | None=None, task_log_dir: str | Path | None=None, dry_run: bool=False, summary_filename: str=DEFAULT_SUMMARY_FILENAME, expected_keyword: str='balance') -> dict[str, Any]:
     """
     Verify Stage R5 execution results.
 
@@ -95,7 +95,7 @@ def post_cleanup() -> None:
     except Exception as e:
         logger.warning(f'[Stage R5 Post-Cleanup] Could not terminate target apps: {e}')
 
-def get_stage_config() -> Dict[str, Any]:
+def get_stage_config() -> dict[str, Any]:
     """
     Get stage configuration dictionary for Stage R5.
 

@@ -7,9 +7,12 @@ component dependencies and improve testability.
 import inspect
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, get_type_hints
+from typing import Any, TypeVar, get_type_hints
+
 from ..core.types import GalaxyFrameworkError
+
 T = TypeVar('T')
 
 class LifecycleScope(Enum):
@@ -25,7 +28,7 @@ class DependencyInjectionError(GalaxyFrameworkError):
 class ServiceDescriptor:
     """Describes how a service should be constructed."""
 
-    def __init__(self, service_type: Type[T], implementation_type: Optional[Type[T]]=None, factory: Optional[Callable[..., T]]=None, instance: Optional[T]=None, scope: LifecycleScope=LifecycleScope.TRANSIENT):
+    def __init__(self, service_type: type[T], implementation_type: type[T] | None=None, factory: Callable[..., T] | None=None, instance: T | None=None, scope: LifecycleScope=LifecycleScope.TRANSIENT):
         """
         Initialize service descriptor.
 
@@ -47,7 +50,7 @@ class IDependencyContainer(ABC):
     """Interface for dependency injection container."""
 
     @abstractmethod
-    def register_singleton(self, service_type: Type[T], implementation_type: Optional[Type[T]]=None, factory: Optional[Callable[..., T]]=None, instance: Optional[T]=None) -> None:
+    def register_singleton(self, service_type: type[T], implementation_type: type[T] | None=None, factory: Callable[..., T] | None=None, instance: T | None=None) -> None:
         """
         Register a service as singleton.
 
@@ -59,7 +62,7 @@ class IDependencyContainer(ABC):
         pass
 
     @abstractmethod
-    def register_transient(self, service_type: Type[T], implementation_type: Optional[Type[T]]=None, factory: Optional[Callable[..., T]]=None) -> None:
+    def register_transient(self, service_type: type[T], implementation_type: type[T] | None=None, factory: Callable[..., T] | None=None) -> None:
         """
         Register a service as transient.
 
@@ -70,7 +73,7 @@ class IDependencyContainer(ABC):
         pass
 
     @abstractmethod
-    def register_scoped(self, service_type: Type[T], implementation_type: Optional[Type[T]]=None, factory: Optional[Callable[..., T]]=None) -> None:
+    def register_scoped(self, service_type: type[T], implementation_type: type[T] | None=None, factory: Callable[..., T] | None=None) -> None:
         """
         Register a service as scoped.
 
@@ -81,7 +84,7 @@ class IDependencyContainer(ABC):
         pass
 
     @abstractmethod
-    def resolve(self, service_type: Type[T]) -> T:
+    def resolve(self, service_type: type[T]) -> T:
         """
         Resolve a service instance.
 
@@ -91,7 +94,7 @@ class IDependencyContainer(ABC):
         pass
 
     @abstractmethod
-    def try_resolve(self, service_type: Type[T]) -> Optional[T]:
+    def try_resolve(self, service_type: type[T]) -> T | None:
         """
         Try to resolve a service instance.
 
@@ -110,13 +113,13 @@ class DependencyContainer(IDependencyContainer):
 
     def __init__(self):
         """Initialize the container."""
-        self._services: Dict[Type, ServiceDescriptor] = {}
-        self._singletons: Dict[Type, Any] = {}
-        self._scoped_instances: Dict[Type, Any] = {}
-        self._building: List[Type] = []
+        self._services: dict[type, ServiceDescriptor] = {}
+        self._singletons: dict[type, Any] = {}
+        self._scoped_instances: dict[type, Any] = {}
+        self._building: list[type] = []
         self.logger = logging.getLogger(__name__)
 
-    def register_singleton(self, service_type: Type[T], implementation_type: Optional[Type[T]]=None, factory: Optional[Callable[..., T]]=None, instance: Optional[T]=None) -> None:
+    def register_singleton(self, service_type: type[T], implementation_type: type[T] | None=None, factory: Callable[..., T] | None=None, instance: T | None=None) -> None:
         """
         Register a service as singleton.
 
@@ -131,7 +134,7 @@ class DependencyContainer(IDependencyContainer):
         self._services[service_type] = descriptor
         self.logger.debug(f'Registered singleton service: {service_type.__name__}')
 
-    def register_transient(self, service_type: Type[T], implementation_type: Optional[Type[T]]=None, factory: Optional[Callable[..., T]]=None) -> None:
+    def register_transient(self, service_type: type[T], implementation_type: type[T] | None=None, factory: Callable[..., T] | None=None) -> None:
         """
         Register a service as transient.
 
@@ -143,7 +146,7 @@ class DependencyContainer(IDependencyContainer):
         self._services[service_type] = descriptor
         self.logger.debug(f'Registered transient service: {service_type.__name__}')
 
-    def register_scoped(self, service_type: Type[T], implementation_type: Optional[Type[T]]=None, factory: Optional[Callable[..., T]]=None) -> None:
+    def register_scoped(self, service_type: type[T], implementation_type: type[T] | None=None, factory: Callable[..., T] | None=None) -> None:
         """
         Register a service as scoped.
 
@@ -155,7 +158,7 @@ class DependencyContainer(IDependencyContainer):
         self._services[service_type] = descriptor
         self.logger.debug(f'Registered scoped service: {service_type.__name__}')
 
-    def resolve(self, service_type: Type[T]) -> T:
+    def resolve(self, service_type: type[T]) -> T:
         """
         Resolve a service instance.
 
@@ -168,7 +171,7 @@ class DependencyContainer(IDependencyContainer):
             raise DependencyInjectionError(f'Service {service_type.__name__} is not registered')
         return instance
 
-    def try_resolve(self, service_type: Type[T]) -> Optional[T]:
+    def try_resolve(self, service_type: type[T]) -> T | None:
         """
         Try to resolve a service instance.
 
@@ -196,7 +199,7 @@ class DependencyContainer(IDependencyContainer):
         else:
             return self._create_instance(descriptor)
 
-    def _create_instance(self, descriptor: ServiceDescriptor) -> Optional[Any]:
+    def _create_instance(self, descriptor: ServiceDescriptor) -> Any | None:
         """
         Create an instance based on the service descriptor.
 
@@ -222,7 +225,7 @@ class DependencyContainer(IDependencyContainer):
             if descriptor.service_type in self._building:
                 self._building.remove(descriptor.service_type)
 
-    def _create_with_constructor_injection(self, implementation_type: Type[T]) -> T:
+    def _create_with_constructor_injection(self, implementation_type: type[T]) -> T:
         """
         Create an instance using constructor injection.
 
@@ -280,7 +283,7 @@ class DependencyContainer(IDependencyContainer):
         self._scoped_instances.clear()
         self.logger.debug('Cleared scoped instances')
 
-    def get_registered_services(self) -> List[Type]:
+    def get_registered_services(self) -> list[type]:
         """
         Get list of registered service types.
 
@@ -288,7 +291,7 @@ class DependencyContainer(IDependencyContainer):
         """
         return list(self._services.keys())
 
-    def is_registered(self, service_type: Type) -> bool:
+    def is_registered(self, service_type: type) -> bool:
         """
         Check if a service type is registered.
 
@@ -296,7 +299,7 @@ class DependencyContainer(IDependencyContainer):
         :return: True if registered
         """
         return service_type in self._services
-_global_container: Optional[DependencyContainer] = None
+_global_container: DependencyContainer | None = None
 
 def get_container() -> DependencyContainer:
     """
@@ -318,7 +321,7 @@ def set_container(container: DependencyContainer) -> None:
     global _global_container
     _global_container = container
 
-def resolve(service_type: Type[T]) -> T:
+def resolve(service_type: type[T]) -> T:
     """
     Resolve a service from the global container.
 
@@ -327,7 +330,7 @@ def resolve(service_type: Type[T]) -> T:
     """
     return get_container().resolve(service_type)
 
-def try_resolve(service_type: Type[T]) -> Optional[T]:
+def try_resolve(service_type: type[T]) -> T | None:
     """
     Try to resolve a service from the global container.
 
@@ -336,7 +339,7 @@ def try_resolve(service_type: Type[T]) -> Optional[T]:
     """
     return get_container().try_resolve(service_type)
 
-def injectable(service_type: Optional[Type]=None, scope: LifecycleScope=LifecycleScope.TRANSIENT):
+def injectable(service_type: type | None=None, scope: LifecycleScope=LifecycleScope.TRANSIENT):
     """
     Decorator to automatically register a class as a service.
 

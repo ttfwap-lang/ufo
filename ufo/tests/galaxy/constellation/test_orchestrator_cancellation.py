@@ -9,19 +9,20 @@ Tests the cancel_execution method and execution loop interruption.
 """
 
 import asyncio
-import pytest
-import pytest_asyncio
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+import pytest_asyncio
 
 # Add project root to path
 UFO_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(UFO_ROOT))
 
-from ufo.galaxy.constellation.orchestrator.orchestrator import TaskConstellationOrchestrator
 from ufo.galaxy.constellation import TaskConstellation, TaskStar
-from ufo.galaxy.constellation.enums import TaskStatus, ConstellationState, TaskPriority
+from ufo.galaxy.constellation.enums import ConstellationState, TaskPriority
+from ufo.galaxy.constellation.orchestrator.orchestrator import TaskConstellationOrchestrator
 
 
 async def _running_task():

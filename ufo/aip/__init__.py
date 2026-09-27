@@ -80,7 +80,6 @@ from .protocol import (
     TaskExecutionProtocol,
 )
 from .resilience import HeartbeatManager, ReconnectionStrategy, TimeoutManager
-
 from .transport import Transport, WebSocketTransport
 
 __all__.extend(

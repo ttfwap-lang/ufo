@@ -23,10 +23,11 @@ Usage:
     # mode == "react" → use ReAct engine with optional RAG
 """
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
-def _load_execution_config() -> Dict[str, Any]:
+def _load_execution_config() -> dict[str, Any]:
     """Load execution mode config from system.yaml."""
     defaults = {'STRICT_DETERMINISM': True, 'HUMAN_IN_THE_LOOP': False, 'ENABLE_EXPERIENCE_MEMORY': False, 'ENABLE_SET_OF_MARKS': False, 'ENABLE_API_PLUGINS': True}
     try:
@@ -91,7 +92,7 @@ class OrchestratorRouter:
         logger.info('[Router] Strict mode disabled → ReAct exploratory mode.')
         return ExecutionMode.REACT
 
-    def get_active_features(self) -> Dict[str, bool]:
+    def get_active_features(self) -> dict[str, bool]:
         """
         Get which optional features are active for the current mode.
 
@@ -102,7 +103,7 @@ class OrchestratorRouter:
             return {'experience_memory': False, 'set_of_marks': False, 'api_plugins': self._config.get('ENABLE_API_PLUGINS', True), 'human_in_the_loop': self._config.get('HUMAN_IN_THE_LOOP', False)}
         return {'experience_memory': self._config.get('ENABLE_EXPERIENCE_MEMORY', False), 'set_of_marks': self._config.get('ENABLE_SET_OF_MARKS', False), 'api_plugins': self._config.get('ENABLE_API_PLUGINS', True), 'human_in_the_loop': self._config.get('HUMAN_IN_THE_LOOP', False)}
 
-    def execute_with_routing(self, user_intent: str, is_financial_routing: bool=False, dag_engine: Any=None, react_engine: Any=None) -> Dict[str, Any]:
+    def execute_with_routing(self, user_intent: str, is_financial_routing: bool=False, dag_engine: Any=None, react_engine: Any=None) -> dict[str, Any]:
         """
         Route and execute a user request through the appropriate engine.
 
@@ -118,7 +119,7 @@ class OrchestratorRouter:
         else:
             return self._execute_react(user_intent, react_engine)
 
-    def _execute_dag(self, user_intent: str, dag_engine: Any=None) -> Dict[str, Any]:
+    def _execute_dag(self, user_intent: str, dag_engine: Any=None) -> dict[str, Any]:
         """Execute via strict DAG engine."""
         logger.info(f"[DAG] Executing: '{user_intent[:80]}...'")
         if dag_engine is None:
@@ -126,7 +127,7 @@ class OrchestratorRouter:
             return {'mode': ExecutionMode.DAG, 'status': 'no_engine', 'intent': user_intent}
         return {'mode': ExecutionMode.DAG, 'status': 'routed', 'intent': user_intent, 'engine': dag_engine}
 
-    def _execute_react(self, user_intent: str, react_engine: Any=None) -> Dict[str, Any]:
+    def _execute_react(self, user_intent: str, react_engine: Any=None) -> dict[str, Any]:
         """Execute via ReAct exploratory engine with optional memory."""
         logger.info(f"[ReAct] Executing: '{user_intent[:80]}...'")
         features = self.get_active_features()
@@ -146,7 +147,7 @@ class OrchestratorRouter:
             result['engine'] = react_engine
         return result
 
-    def handle_fatal_failure(self, task_id: str, error_trace: str, dag_state: Optional[Dict[str, Any]]=None, screenshot_path: Optional[str]=None) -> str:
+    def handle_fatal_failure(self, task_id: str, error_trace: str, dag_state: dict[str, Any] | None=None, screenshot_path: str | None=None) -> str:
         """
         Handle a fatal failure based on HITL config.
 
@@ -185,7 +186,7 @@ class OrchestratorRouter:
             return 'aborted'
 
     @staticmethod
-    def _serialize_to_dlq(task_id: str, error_trace: str, dag_state: Optional[Dict[str, Any]], screenshot_path: Optional[str]) -> str:
+    def _serialize_to_dlq(task_id: str, error_trace: str, dag_state: dict[str, Any] | None, screenshot_path: str | None) -> str:
         """Serialize failure to DLQ silently."""
         try:
             from ufo.resilience.dlq_manager import DeadLetterQueueManager

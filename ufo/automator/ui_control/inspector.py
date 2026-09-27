@@ -1,10 +1,13 @@
 from __future__ import annotations
+
 import functools
 import logging
 import platform
 import time
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, List, Optional, cast, TYPE_CHECKING, Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, cast
+
 import psutil
 
 logger = logging.getLogger(__name__)
@@ -49,7 +52,7 @@ class BackendStrategy(ABC):
     """
 
     @abstractmethod
-    def get_desktop_windows(self, remove_empty: bool) -> List[UIAWrapper]:
+    def get_desktop_windows(self, remove_empty: bool) -> list[UIAWrapper]:
         """
         Get all the apps on the desktop.
         :param remove_empty: Whether to remove empty titles.
@@ -58,7 +61,7 @@ class BackendStrategy(ABC):
         pass
 
     @abstractmethod
-    def find_control_elements_in_descendants(self, window: UIAWrapper, control_type_list: List[str]=[], class_name_list: List[str]=[], title_list: List[str]=[], is_visible: bool=True, is_enabled: bool=True, depth: int=0) -> List[UIAWrapper]:
+    def find_control_elements_in_descendants(self, window: UIAWrapper, control_type_list: list[str]=None, class_name_list: list[str]=None, title_list: list[str]=None, is_visible: bool=True, is_enabled: bool=True, depth: int=0) -> list[UIAWrapper]:
         """
         Find control elements in descendants of the window.
         :param window: The window to find control elements.
@@ -76,7 +79,7 @@ class UIAElementInfoFix(UIAElementInfo):
     _cached_rect = None
     _time_delay_marker = False
 
-    def __init__(self, element, is_ref=False, source: Optional[str]=None):
+    def __init__(self, element, is_ref=False, source: str | None=None):
         super().__init__(element, is_ref)
         self._source = source
 
@@ -159,7 +162,7 @@ class UIABackendStrategy(BackendStrategy):
     The backend strategy for UIA.
     """
 
-    def get_desktop_windows(self, remove_empty: bool) -> List[UIAWrapper]:
+    def get_desktop_windows(self, remove_empty: bool) -> list[UIAWrapper]:
         """
         Get all the apps on the desktop.
         :param remove_empty: Whether to remove empty titles.
@@ -169,10 +172,10 @@ class UIABackendStrategy(BackendStrategy):
         desktop_windows = [app for app in desktop_windows if app.is_visible()]
         if remove_empty:
             desktop_windows = [app for app in desktop_windows if app.window_text() != '' and app.element_info.class_name not in ['IME', 'MSCTFIME UI']]
-        uia_desktop_windows: List[UIAWrapper] = [UIAWrapper(UIAElementInfo(handle_or_elem=window.handle)) for window in desktop_windows]
+        uia_desktop_windows: list[UIAWrapper] = [UIAWrapper(UIAElementInfo(handle_or_elem=window.handle)) for window in desktop_windows]
         return uia_desktop_windows
 
-    def find_control_elements_in_descendants(self, window: Optional[UIAWrapper], control_type_list: List[str]=[], class_name_list: List[str]=[], title_list: List[str]=[], is_visible: bool=True, is_enabled: bool=True, depth: int=0) -> List[UIAWrapper]:
+    def find_control_elements_in_descendants(self, window: UIAWrapper | None, control_type_list: list[str]=None, class_name_list: list[str]=None, title_list: list[str]=None, is_visible: bool=True, is_enabled: bool=True, depth: int=0) -> list[UIAWrapper]:
         """
         Find control elements in descendants of the window for uia backend.
         :param window: The window to find control elements.
@@ -184,6 +187,12 @@ class UIABackendStrategy(BackendStrategy):
         :param depth: The depth of the descendants to find.
         :return: The control elements found.
         """
+        if title_list is None:
+            title_list = []
+        if class_name_list is None:
+            class_name_list = []
+        if control_type_list is None:
+            control_type_list = []
         try:
             window.is_enabled()
         except Exception as e:
@@ -202,7 +211,7 @@ class UIABackendStrategy(BackendStrategy):
             if not elem_rect or elem_rect.right - elem_rect.left <= 0 or elem_rect.bottom - elem_rect.top <= 0 or (elem_rect.right <= 0) or (elem_rect.bottom <= 0):
                 continue
             elem_info_list.append((elem, elem.CachedControlType, elem.CachedName, elem_rect, elem.CachedClassName))
-        control_elements: List[UIAWrapper] = []
+        control_elements: list[UIAWrapper] = []
         for elem, elem_type, elem_name, elem_rect, elem_class in elem_info_list:
             element_info = UIAElementInfoFix(elem, True, source='uia')
             elem_type_name = UIABackendStrategy._get_uia_control_name_map().get(elem_type, '')
@@ -233,7 +242,7 @@ class UIABackendStrategy(BackendStrategy):
         return iuia.known_control_type_ids
 
     @staticmethod
-    @functools.lru_cache()
+    @functools.lru_cache
     def _get_cache_request():
         iuia_com, iuia_dll = UIABackendStrategy._get_uia_defs()
         cache_request = iuia_com.CreateCacheRequest()
@@ -244,7 +253,9 @@ class UIABackendStrategy(BackendStrategy):
         return cache_request
 
     @staticmethod
-    def _get_control_filter_condition(control_type_list: List[str]=[], is_visible: bool=True, is_enabled: bool=True):
+    def _get_control_filter_condition(control_type_list: list[str]=None, is_visible: bool=True, is_enabled: bool=True):
+        if control_type_list is None:
+            control_type_list = []
         iuia_com, iuia_dll = UIABackendStrategy._get_uia_defs()
         condition = iuia_com.CreateAndConditionFromArray([iuia_com.CreatePropertyCondition(iuia_dll.UIA_IsEnabledPropertyId, is_enabled), iuia_com.CreatePropertyCondition(iuia_dll.UIA_IsOffscreenPropertyId, not is_visible), iuia_com.CreatePropertyCondition(iuia_dll.UIA_IsControlElementPropertyId, True), iuia_com.CreateOrConditionFromArray([iuia_com.CreatePropertyCondition(iuia_dll.UIA_ControlTypePropertyId, control_type if control_type is int else UIABackendStrategy._get_uia_control_id_map()[control_type]) for control_type in control_type_list])])
         return condition
@@ -261,7 +272,7 @@ class Win32BackendStrategy(BackendStrategy):
     The backend strategy for Win32.
     """
 
-    def get_desktop_windows(self, remove_empty: bool) -> List[UIAWrapper]:
+    def get_desktop_windows(self, remove_empty: bool) -> list[UIAWrapper]:
         """
         Get all the apps on the desktop.
         :param remove_empty: Whether to remove empty titles.
@@ -273,7 +284,7 @@ class Win32BackendStrategy(BackendStrategy):
             desktop_windows = [app for app in desktop_windows if app.window_text() != '' and app.element_info.class_name not in ['IME', 'MSCTFIME UI']]
         return desktop_windows
 
-    def find_control_elements_in_descendants(self, window: UIAWrapper, control_type_list: List[str]=[], class_name_list: List[str]=[], title_list: List[str]=[], is_visible: bool=True, is_enabled: bool=True, depth: int=0) -> List[UIAWrapper]:
+    def find_control_elements_in_descendants(self, window: UIAWrapper, control_type_list: list[str]=None, class_name_list: list[str]=None, title_list: list[str]=None, is_visible: bool=True, is_enabled: bool=True, depth: int=0) -> list[UIAWrapper]:
         """
         Find control elements in descendants of the window for win32 backend.
         :param window: The window to find control elements.
@@ -285,6 +296,12 @@ class Win32BackendStrategy(BackendStrategy):
         :param depth: The depth of the descendants to find.
         :return: The control elements found.
         """
+        if title_list is None:
+            title_list = []
+        if class_name_list is None:
+            class_name_list = []
+        if control_type_list is None:
+            control_type_list = []
         if window == None:
             return []
         control_elements = []
@@ -313,7 +330,7 @@ class ControlInspectorFacade:
     """
     _instances = {}
 
-    def __new__(cls, backend: str='uia') -> 'ControlInspectorFacade':
+    def __new__(cls, backend: str='uia') -> ControlInspectorFacade:
         """
         Singleton pattern.
         """
@@ -331,7 +348,7 @@ class ControlInspectorFacade:
         """
         self.backend = backend
 
-    def get_desktop_windows(self, remove_empty: bool=True) -> List[UIAWrapper]:
+    def get_desktop_windows(self, remove_empty: bool=True) -> list[UIAWrapper]:
         """
         Get all the apps on the desktop.
         :param remove_empty: Whether to remove empty titles.
@@ -339,7 +356,7 @@ class ControlInspectorFacade:
         """
         return self.backend_strategy.get_desktop_windows(remove_empty)
 
-    def find_control_elements_in_descendants(self, window: UIAWrapper, control_type_list: List[str]=[], class_name_list: List[str]=[], title_list: List[str]=[], is_visible: bool=True, is_enabled: bool=True, depth: int=0) -> List[UIAWrapper]:
+    def find_control_elements_in_descendants(self, window: UIAWrapper, control_type_list: list[str]=None, class_name_list: list[str]=None, title_list: list[str]=None, is_visible: bool=True, is_enabled: bool=True, depth: int=0) -> list[UIAWrapper]:
         """
         Find control elements in descendants of the window.
         :param window: The window to find control elements.
@@ -351,6 +368,12 @@ class ControlInspectorFacade:
         :param depth: The depth of the descendants to find.
         :return: The control elements found.
         """
+        if title_list is None:
+            title_list = []
+        if class_name_list is None:
+            class_name_list = []
+        if control_type_list is None:
+            control_type_list = []
         if self.backend == 'uia':
             return self.backend_strategy.find_control_elements_in_descendants(window, control_type_list, [], title_list, is_visible, is_enabled, depth)
         elif self.backend == 'win32':
@@ -358,7 +381,7 @@ class ControlInspectorFacade:
         else:
             return []
 
-    def get_desktop_app_dict(self, remove_empty: bool=True) -> Dict[str, UIAWrapper]:
+    def get_desktop_app_dict(self, remove_empty: bool=True) -> dict[str, UIAWrapper]:
         """
         Get all the apps on the desktop and return as a dict.
         :param remove_empty: Whether to remove empty titles.
@@ -375,37 +398,43 @@ class ControlInspectorFacade:
         desktop_windows_dict = dict(zip([str(i + 1) for i in range(len(desktop_windows_with_gui))], desktop_windows_with_gui))
         return desktop_windows_dict
 
-    def get_desktop_app_info(self, desktop_windows_dict: Dict[str, UIAWrapper], field_list: List[str]=['control_text', 'control_type']) -> List[Dict[str, str]]:
+    def get_desktop_app_info(self, desktop_windows_dict: dict[str, UIAWrapper], field_list: list[str]=None) -> list[dict[str, str]]:
         """
         Get control info of all the apps on the desktop.
         :param desktop_windows_dict: The dict of apps on the desktop.
         :param field_list: The fields of app info to get.
         :return: The control info of all the apps on the desktop.
         """
+        if field_list is None:
+            field_list = ['control_text', 'control_type']
         desktop_windows_info = self.get_control_info_list_of_dict(desktop_windows_dict, field_list)
         return desktop_windows_info
 
-    def get_control_info_batch(self, window_list: List[UIAWrapper], field_list: List[str]=[]) -> List[Dict[str, str]]:
+    def get_control_info_batch(self, window_list: list[UIAWrapper], field_list: list[str]=None) -> list[dict[str, str]]:
         """
         Get control info of the window.
         :param window_list: The list of windows to get control info.
         :param field_list: The fields to get.
         return: The list of control info of the window.
         """
+        if field_list is None:
+            field_list = []
         control_info_list = []
         for window in window_list:
             control_info_list.append(self.get_control_info(window, field_list))
         return control_info_list
 
-    def get_control_info_list_of_dict(self, window_dict: Dict[str, UIAWrapper], field_list: List[str]=[]) -> List[Dict[str, str]]:
+    def get_control_info_list_of_dict(self, window_dict: dict[str, UIAWrapper], field_list: list[str]=None) -> list[dict[str, str]]:
         """
         Get control info of the window.
         :param window_dict: The dict of windows to get control info.
         :param field_list: The fields to get.
         return: The list of control info of the window.
         """
+        if field_list is None:
+            field_list = []
         control_info_list = []
-        for key in window_dict.keys():
+        for key in window_dict:
             window = window_dict[key]
             control_info = self.get_control_info(window, field_list)
             control_info['label'] = key
@@ -434,14 +463,16 @@ class ControlInspectorFacade:
             return None
 
     @staticmethod
-    def get_control_info(window: UIAWrapper, field_list: List[str]=[]) -> Dict[str, str]:
+    def get_control_info(window: UIAWrapper, field_list: list[str]=None) -> dict[str, str]:
         """
         Get control info of the window.
         :param window: The window to get control info.
         :param field_list: The fields to get.
         return: The control info of the window.
         """
-        control_info: Dict[str, str] = {}
+        if field_list is None:
+            field_list = []
+        control_info: dict[str, str] = {}
 
         def assign(prop_name: str, prop_value_func: Callable[[], str]) -> None:
             if len(field_list) > 0 and prop_name not in field_list:

@@ -23,11 +23,11 @@ from __future__ import annotations
 
 import ipaddress
 import socket
-from typing import Any, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any
 from urllib.parse import urljoin
 
 import requests
-
 
 # Private/reserved IP networks that should be blocked for SSRF protection.
 _BLOCKED_IP_NETWORKS = (
@@ -127,10 +127,10 @@ _MAX_REDIRECTS = 5
 def safe_get(
     url: str,
     *,
-    headers: Optional[dict] = None,
-    timeout: Optional[float] = 30.0,
+    headers: dict | None = None,
+    timeout: float | None = 30.0,
     max_redirects: int = _MAX_REDIRECTS,
-    session: Optional[requests.Session] = None,
+    session: requests.Session | None = None,
     **kwargs: Any,
 ) -> requests.Response:
     """

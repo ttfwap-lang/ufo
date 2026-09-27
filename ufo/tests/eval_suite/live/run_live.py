@@ -23,10 +23,10 @@ import subprocess
 import sys
 import time
 import zipfile
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
 
 import yaml
 
@@ -55,13 +55,13 @@ class LiveTask:
     id: str
     title: str
     request: str
-    verify: Dict
-    apps: List[str] = field(default_factory=list)
-    depends_on: List[str] = field(default_factory=list)
+    verify: dict
+    apps: list[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
     galaxy: bool = False
 
 
-def load_tasks(sandbox: Path, path: Path = TASKS_FILE) -> List[LiveTask]:
+def load_tasks(sandbox: Path, path: Path = TASKS_FILE) -> list[LiveTask]:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     tasks = []
     for raw in data["tasks"]:
@@ -78,7 +78,7 @@ def load_tasks(sandbox: Path, path: Path = TASKS_FILE) -> List[LiveTask]:
 
 # ---------------------------------------------------------------- verifiers
 
-Verdict = Tuple[Optional[bool], str]
+Verdict = tuple[bool | None, str]
 
 
 def _read_text(path: Path) -> str:
@@ -94,7 +94,7 @@ def _norm(text: str) -> str:
     return " ".join(text.split()).lower()
 
 
-def v_file_text(sandbox: Path, spec: Dict) -> Verdict:
+def v_file_text(sandbox: Path, spec: dict) -> Verdict:
     p = sandbox / spec["path"]
     if not p.is_file():
         return False, f"{p.name} not found"
@@ -105,7 +105,7 @@ def v_file_text(sandbox: Path, spec: Dict) -> Verdict:
     return (not missing), (f"missing {missing}" if missing else f"{p.name} contains all expected text")
 
 
-def v_file_regex(sandbox: Path, spec: Dict) -> Verdict:
+def v_file_regex(sandbox: Path, spec: dict) -> Verdict:
     p = sandbox / spec["path"]
     if not p.is_file():
         return False, f"{p.name} not found"
@@ -113,7 +113,7 @@ def v_file_regex(sandbox: Path, spec: Dict) -> Verdict:
     return bool(m), (f"found {m.group(0)!r}" if m else "pattern not found")
 
 
-def v_docx(sandbox: Path, spec: Dict) -> Verdict:
+def v_docx(sandbox: Path, spec: dict) -> Verdict:
     import docx
 
     p = sandbox / spec["path"]
@@ -135,7 +135,7 @@ def v_docx(sandbox: Path, spec: Dict) -> Verdict:
     return (not problems), ("; ".join(problems) or "document content and formatting as requested")
 
 
-def v_xlsx(sandbox: Path, spec: Dict) -> Verdict:
+def v_xlsx(sandbox: Path, spec: dict) -> Verdict:
     import openpyxl
 
     p = sandbox / spec["path"]
@@ -159,7 +159,7 @@ def v_xlsx(sandbox: Path, spec: Dict) -> Verdict:
     return (not problems), ("; ".join(problems) or "cells, formula and chart present")
 
 
-def v_pptx(sandbox: Path, spec: Dict) -> Verdict:
+def v_pptx(sandbox: Path, spec: dict) -> Verdict:
     from pptx import Presentation
 
     p = sandbox / spec["path"]
@@ -178,7 +178,7 @@ def v_pptx(sandbox: Path, spec: Dict) -> Verdict:
     return (not problems), ("; ".join(problems) or f"{len(prs.slides)} slides with expected titles and bullets")
 
 
-def v_fs(sandbox: Path, spec: Dict) -> Verdict:
+def v_fs(sandbox: Path, spec: dict) -> Verdict:
     problems = [f"{p} missing" for p in spec.get("exists", []) if not (sandbox / p).exists()]
     problems += [f"{p} still present" for p in spec.get("missing", []) if (sandbox / p).exists()]
     return (not problems), ("; ".join(problems) or "file system matches")
@@ -191,7 +191,7 @@ def windows_display_version() -> str:
         return str(winreg.QueryValueEx(k, "DisplayVersion")[0])
 
 
-def v_winver(sandbox: Path, spec: Dict) -> Verdict:
+def v_winver(sandbox: Path, spec: dict) -> Verdict:
     p = sandbox / spec["path"]
     if not p.is_file():
         return False, f"{p.name} not found"
@@ -200,7 +200,7 @@ def v_winver(sandbox: Path, spec: Dict) -> Verdict:
     return ok, (f"contains {expected}" if ok else f"does not contain {expected}")
 
 
-def v_png_not_blank(sandbox: Path, spec: Dict) -> Verdict:
+def v_png_not_blank(sandbox: Path, spec: dict) -> Verdict:
     from PIL import Image
 
     p = sandbox / spec["path"]
@@ -214,13 +214,13 @@ def v_png_not_blank(sandbox: Path, spec: Dict) -> Verdict:
     return ok, f"{drawn / total:.1%} of pixels differ from the background"
 
 
-def dgx_readings() -> Tuple[str, int]:
+def dgx_readings() -> tuple[str, int]:
     out = subprocess.run(DGX_SSH + ["df -h / | tail -1 | awk '{print $4}'; docker ps -q | wc -l"],
                          capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL).stdout.split()
     return out[0], int(out[1])
 
 
-def v_dgx_report(sandbox: Path, spec: Dict) -> Verdict:
+def v_dgx_report(sandbox: Path, spec: dict) -> Verdict:
     p = sandbox / spec["path"]
     if not p.is_file():
         return False, f"{p.name} not found"
@@ -232,7 +232,7 @@ def v_dgx_report(sandbox: Path, spec: Dict) -> Verdict:
     return size_ok and count_ok, detail
 
 
-VERIFIERS: Dict[str, Callable[[Path, Dict], Verdict]] = {
+VERIFIERS: dict[str, Callable[[Path, dict], Verdict]] = {
     "file_text": v_file_text, "file_regex": v_file_regex, "docx": v_docx, "xlsx": v_xlsx,
     "pptx": v_pptx, "fs": v_fs, "winver": v_winver, "png_not_blank": v_png_not_blank,
     "dgx_report": v_dgx_report,
@@ -248,7 +248,7 @@ def verify(task: LiveTask, sandbox: Path) -> Verdict:
 
 # ---------------------------------------------------------------- cleanup
 
-def process_snapshot(names: List[str]) -> Dict[int, str]:
+def process_snapshot(names: list[str]) -> dict[int, str]:
     import psutil
 
     wanted = {n.lower() for n in names}
@@ -299,7 +299,7 @@ def _close_explorer_windows(sandbox: Path) -> None:
         print(f"    cleanup: explorer windows: {e}")
 
 
-def cleanup(task: LiveTask, before: Dict[int, str], sandbox: Path) -> List[str]:
+def cleanup(task: LiveTask, before: dict[int, str], sandbox: Path) -> list[str]:
     """Close what the task opened; never touch processes that existed before it."""
     import psutil
     import win32con
@@ -338,7 +338,7 @@ def cleanup(task: LiveTask, before: Dict[int, str], sandbox: Path) -> List[str]:
 
 # ---------------------------------------------------------------- running UFO
 
-def ufo_env() -> Dict[str, str]:
+def ufo_env() -> dict[str, str]:
     env = dict(os.environ)
     env.update({"UFO_DGX_HOST": "127.0.0.1", "PYTHONIOENCODING": "utf-8", "PYTHONPATH": str(REPO_ROOT),
                 "UFO_MAX_ATTEMPTS": env.get("UFO_MAX_ATTEMPTS", "2")})
@@ -360,12 +360,12 @@ def python_exe() -> str:
 class WindowsDevice:
     """Local UFO server + client registered as Galaxy device 'windowsagent' (G1)."""
 
-    def __init__(self, env: Dict[str, str], log_dir: Path):
+    def __init__(self, env: dict[str, str], log_dir: Path):
         self.env = dict(env)
         self.token = secrets.token_hex(24)
         self.env["UFO_WS_TOKEN"] = self.token  # read from the environment, never argv
         self.log_dir = log_dir
-        self.procs: List[subprocess.Popen] = []
+        self.procs: list[subprocess.Popen] = []
 
     def __enter__(self):
         py = python_exe()
@@ -382,7 +382,7 @@ class WindowsDevice:
         time.sleep(10)
         return self
 
-    def galaxy_env(self) -> Dict[str, str]:
+    def galaxy_env(self) -> dict[str, str]:
         env = dict(self.env)
         env.pop("UFO_WS_TOKEN", None)
         env["UFO_WIN_WS_TOKEN"] = self.token
@@ -405,9 +405,9 @@ class TaskResult:
     status: str  # pass | fail | inconclusive | skipped | error
     detail: str
     seconds: float = 0.0
-    attempts: List[Dict] = field(default_factory=list)
+    attempts: list[dict] = field(default_factory=list)
     log_dir: str = ""
-    closed: List[str] = field(default_factory=list)
+    closed: list[str] = field(default_factory=list)
 
 
 def run_task(task: LiveTask, sandbox: Path, report_dir: Path, stamp: str) -> TaskResult:
@@ -444,7 +444,7 @@ def run_task(task: LiveTask, sandbox: Path, report_dir: Path, stamp: str) -> Tas
 
 # ---------------------------------------------------------------- report
 
-def write_report(results: List[TaskResult], report_dir: Path) -> Path:
+def write_report(results: list[TaskResult], report_dir: Path) -> Path:
     (report_dir / "report.json").write_text(json.dumps([asdict(r) for r in results], indent=2), encoding="utf-8")
     passed = sum(r.status == "pass" for r in results)
     lines = [f"# UFO live showcase — {datetime.now():%Y-%m-%d %H:%M}", "",
@@ -461,7 +461,7 @@ def write_report(results: List[TaskResult], report_dir: Path) -> Path:
 
 # ---------------------------------------------------------------- main
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--tasks", help="comma-separated task ids (default: all)")
     parser.add_argument("--list", action="store_true", help="list tasks and exit")
@@ -490,8 +490,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     report_dir = REPO_ROOT / "logs" / f"live_e2e_{stamp}"
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    results: List[TaskResult] = []
-    status_by_id: Dict[str, str] = {}
+    results: list[TaskResult] = []
+    status_by_id: dict[str, str] = {}
     try:
         for task in tasks:
             blocked = [d for d in task.depends_on if status_by_id.get(d) != "pass"]

@@ -1,5 +1,4 @@
 import pytest
-
 from ufo.ops import api_server
 
 

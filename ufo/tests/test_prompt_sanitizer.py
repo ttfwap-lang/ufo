@@ -3,18 +3,15 @@
 
 """Tests for the prompt_sanitizer module."""
 
+from unittest.mock import patch
+
 import pytest
 
 from ufo.prompter.prompt_sanitizer import (
-    sanitize_user_input,
     _MAX_INPUT_LENGTH,
-    _INJECTION_ROLE_PATTERN,
-    _INJECTION_ROLE_HEADER_PATTERN,
-    _CONFIRMATION_BYPASS_PATTERN,
-    _INSTRUCTION_OVERRIDE_PATTERN,
+    sanitize_user_input,
 )
 
-from unittest.mock import patch
 
 @pytest.fixture(autouse=True)
 def mock_get_config():
@@ -298,7 +295,7 @@ class TestEdgeCases:
 
     def test_whitespace_only_input(self):
         result = sanitize_user_input("   ", "req")
-        assert '<user_input name="req">   </user_input>' == result
+        assert result == '<user_input name="req">   </user_input>'
 
     def test_newlines_preserved(self):
         result = sanitize_user_input("line1\nline2\nline3", "req")

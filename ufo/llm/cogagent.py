@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -23,9 +23,9 @@ class CogAgentService(BaseService):
         self,
         messages,
         n,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        top_p: Optional[float] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
         **kwargs: Any,
     ) -> LLMResult:
         """

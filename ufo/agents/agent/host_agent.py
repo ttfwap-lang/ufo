@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from rich.align import Align
 from rich.box import DOUBLE
@@ -47,7 +47,7 @@ class AgentConfigResolver:
     @staticmethod
     def resolve_app_agent_config(
         root: str, process: str, mode: RunningMode
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Return configuration dict for standard app agents."""
 
         ufo_config = get_ufo_config()
@@ -79,7 +79,7 @@ class AgentConfigResolver:
     @staticmethod
     def resolve_operator_agent_config(
         root: str, process: str, mode: RunningMode
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Return configuration dict for operator agents."""
         if mode == RunningMode.NORMAL_OPERATOR:
             agent_name = f"OpenAIOperator/{root}/{process}"
@@ -98,7 +98,7 @@ class AgentConfigResolver:
     @staticmethod
     def resolve_third_party_config(
         agent_name: str, mode: RunningMode
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Return configuration dict for third-party agents."""
         ufo_config = get_ufo_config()
         cfg = ufo_config.system.third_party_agent_config.get(agent_name, {})
@@ -129,16 +129,14 @@ class AgentFactory:
 
         if agent_type == "host":
             return HostAgent(*args, **kwargs)
-        elif agent_type == "app":
-            return AppAgent(*args, **kwargs)
-        elif agent_type == "batch_normal":
+        elif agent_type == "app" or agent_type == "batch_normal":
             return AppAgent(*args, **kwargs)
         elif agent_type == "operator":
             return OpenAIOperatorAgent(*args, **kwargs)
         elif agent_type in AgentRegistry.list_agents():
             return AgentRegistry.get(agent_type)(*args, **kwargs)
         else:
-            raise ValueError("Invalid agent type: {}".format(agent_type))
+            raise ValueError(f"Invalid agent type: {agent_type}")
 
 
 @AgentRegistry.register(agent_name="hostagent")
@@ -220,13 +218,13 @@ class HostAgent(BasicAgent):
 
     def message_constructor(
         self,
-        image_list: List[str],
+        image_list: list[str],
         os_info: str,
-        plan: List[str],
-        prev_subtask: List[Dict[str, str]],
+        plan: list[str],
+        prev_subtask: list[dict[str, str]],
         request: str,
-        blackboard_prompt: List[Dict[str, str]],
-    ) -> List[Dict[str, Union[str, List[Dict[str, str]]]]]:
+        blackboard_prompt: list[dict[str, str]],
+    ) -> list[dict[str, str | list[dict[str, str]]]]:
         """
         Construct the message.
         :param image_list: The list of screenshot images.
@@ -409,7 +407,7 @@ class HostAgent(BasicAgent):
 
         self.prompter.create_api_prompt_template(tools=tools_info)
 
-    def create_subagent(self, context: Optional["Context"] = None) -> "AppAgent":
+    def create_subagent(self, context: Context | None = None) -> AppAgent:
         """
         Orchestrate creation of the appropriate sub-agent.
         Decides between third-party agent and built-in app/operator agent.

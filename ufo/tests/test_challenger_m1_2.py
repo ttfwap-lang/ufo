@@ -1,8 +1,10 @@
 import asyncio
 import inspect
 import time
+
 import pytest
-from ufo.agents.memory.memory import MemoryItem, Memory
+
+from ufo.agents.memory.memory import Memory, MemoryItem
 from ufo.module.basic import BaseRound
 from ufo.module.sessions.session import FromFileSession, OpenAIOperatorSession, Session
 

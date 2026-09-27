@@ -8,8 +8,10 @@ Delegates device/state management to ConstellationManager.
 import asyncio
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
 from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+
 if TYPE_CHECKING:
     from ...session.observers.constellation_sync_observer import ConstellationModificationSynchronizer
 from ...core.events import ConstellationEvent, EventType, TaskEvent, get_event_bus
@@ -17,6 +19,7 @@ from ..enums import TaskStatus
 from ..task_constellation import TaskConstellation
 from ..task_star import TaskStar
 from .constellation_manager import ConstellationManager
+
 
 class TaskConstellationOrchestrator:
     """
@@ -27,7 +30,7 @@ class TaskConstellationOrchestrator:
     ConstellationManager.
     """
 
-    def __init__(self, device_manager: Optional[ConstellationDeviceManager]=None, enable_logging: bool=True, event_bus=None):
+    def __init__(self, device_manager: ConstellationDeviceManager | None=None, enable_logging: bool=True, event_bus=None):
         """
         Initialize the TaskConstellationOrchestrator.
 
@@ -42,10 +45,10 @@ class TaskConstellationOrchestrator:
             self._event_bus = get_event_bus()
         else:
             self._event_bus = event_bus
-        self._execution_tasks: Dict[str, asyncio.Task] = {}
+        self._execution_tasks: dict[str, asyncio.Task] = {}
         self._cancellation_requested = False
-        self._cancelled_constellations: Dict[str, bool] = {}
-        self._modification_synchronizer: Optional['ConstellationModificationSynchronizer'] = None
+        self._cancelled_constellations: dict[str, bool] = {}
+        self._modification_synchronizer: ConstellationModificationSynchronizer | None = None
 
     def set_device_manager(self, device_manager: ConstellationDeviceManager) -> None:
         """
@@ -95,7 +98,7 @@ class TaskConstellationOrchestrator:
             self._logger.info(f'✅ Constellation {constellation_id} cancellation completed')
         return True
 
-    async def orchestrate_constellation(self, constellation: TaskConstellation, device_assignments: Optional[Dict[str, str]]=None, assignment_strategy: Optional[str]=None, metadata: Optional[Dict]=None) -> Dict[str, Any]:
+    async def orchestrate_constellation(self, constellation: TaskConstellation, device_assignments: dict[str, str] | None=None, assignment_strategy: str | None=None, metadata: dict | None=None) -> dict[str, Any]:
         """
         Orchestrate DAG execution using event-driven pattern.
 
@@ -139,7 +142,7 @@ class TaskConstellationOrchestrator:
                 self._execution_tasks.clear()
             await self._cleanup_constellation(constellation)
 
-    async def _validate_and_prepare_constellation(self, constellation: TaskConstellation, device_assignments: Optional[Dict[str, str]], assignment_strategy: Optional[str]=None) -> None:
+    async def _validate_and_prepare_constellation(self, constellation: TaskConstellation, device_assignments: dict[str, str] | None, assignment_strategy: str | None=None) -> None:
         """
         Validate DAG structure and prepare device assignments.
 
@@ -163,7 +166,7 @@ class TaskConstellationOrchestrator:
         if not is_valid:
             raise ValueError(f'Device assignment validation failed: {errors}')
 
-    async def _assign_devices_to_tasks(self, constellation: TaskConstellation, device_assignments: Optional[Dict[str, str]], assignment_strategy: Optional[str]=None) -> None:
+    async def _assign_devices_to_tasks(self, constellation: TaskConstellation, device_assignments: dict[str, str] | None, assignment_strategy: str | None=None) -> None:
         """
         Assign devices to tasks either manually or automatically.
 
@@ -216,14 +219,14 @@ class TaskConstellationOrchestrator:
         if tasks_with_invalid_device:
             error_parts.append(f'Tasks with invalid device IDs: {tasks_with_invalid_device}')
         if error_parts:
-            error_msg = f'Device assignment validation failed:\n' + '\n'.join((f'  - {part}' for part in error_parts)) + f'\n  Available devices: {list(valid_device_ids)}' + "\n  Please provide either 'device_assignments' or 'assignment_strategy' parameter."
+            error_msg = 'Device assignment validation failed:\n' + '\n'.join(f'  - {part}' for part in error_parts) + f'\n  Available devices: {list(valid_device_ids)}' + "\n  Please provide either 'device_assignments' or 'assignment_strategy' parameter."
             if self._logger:
                 self._logger.error(error_msg)
             raise ValueError(error_msg)
         if self._logger:
             self._logger.debug(f'All tasks have valid device assignments. Total tasks validated: {len(constellation.tasks)}, Available devices: {list(valid_device_ids)}')
 
-    async def _start_constellation_execution(self, constellation: TaskConstellation, device_assignments: Optional[Dict[str, str]], assignment_strategy: str, metadata: Optional[Dict]=None) -> ConstellationEvent:
+    async def _start_constellation_execution(self, constellation: TaskConstellation, device_assignments: dict[str, str] | None, assignment_strategy: str, metadata: dict | None=None) -> ConstellationEvent:
         """
         Start constellation execution and publish started event.
 
@@ -276,7 +279,7 @@ class TaskConstellationOrchestrator:
             constellation = self._modification_synchronizer.merge_and_sync_constellation_states(orchestrator_constellation=constellation)
         return constellation
 
-    async def _schedule_ready_tasks(self, ready_tasks: List[TaskStar], constellation: TaskConstellation) -> None:
+    async def _schedule_ready_tasks(self, ready_tasks: list[TaskStar], constellation: TaskConstellation) -> None:
         """
         Schedule ready tasks for execution.
 
@@ -336,7 +339,7 @@ class TaskConstellationOrchestrator:
             finally:
                 self._execution_tasks.clear()
 
-    async def _finalize_constellation_execution(self, constellation: TaskConstellation, start_event: ConstellationEvent) -> Dict[str, Any]:
+    async def _finalize_constellation_execution(self, constellation: TaskConstellation, start_event: ConstellationEvent) -> dict[str, Any]:
         """
         Finalize constellation execution and publish completion event.
 
@@ -455,7 +458,7 @@ class TaskConstellationOrchestrator:
                 self._logger.error(f'Failed to inject recovery node: {e}')
             return False
 
-    async def execute_single_task(self, task: TaskStar, target_device_id: Optional[str]=None) -> Any:
+    async def execute_single_task(self, task: TaskStar, target_device_id: str | None=None) -> Any:
         """
         Execute a single task on a specific device.
 
@@ -473,7 +476,7 @@ class TaskConstellationOrchestrator:
         result = await task.execute(self._device_manager)
         return result.result
 
-    async def get_constellation_status(self, constellation: TaskConstellation) -> Dict[str, Any]:
+    async def get_constellation_status(self, constellation: TaskConstellation) -> dict[str, Any]:
         """
         Get detailed status of a constellation using ConstellationManager.
 
@@ -482,7 +485,7 @@ class TaskConstellationOrchestrator:
         """
         return await self._constellation_manager.get_constellation_status(constellation.constellation_id)
 
-    async def get_available_devices(self) -> List[Dict[str, Any]]:
+    async def get_available_devices(self) -> list[dict[str, Any]]:
         """
         Get list of available devices from ConstellationManager.
 
@@ -490,7 +493,7 @@ class TaskConstellationOrchestrator:
         """
         return await self._constellation_manager.get_available_devices()
 
-    async def assign_devices_automatically(self, constellation: TaskConstellation, strategy: str='round_robin', device_preferences: Optional[Dict[str, str]]=None) -> Dict[str, str]:
+    async def assign_devices_automatically(self, constellation: TaskConstellation, strategy: str='round_robin', device_preferences: dict[str, str] | None=None) -> dict[str, str]:
         """
         Automatically assign devices to tasks using ConstellationManager.
 
@@ -501,7 +504,7 @@ class TaskConstellationOrchestrator:
         """
         return await self._constellation_manager.assign_devices_automatically(constellation, strategy, device_preferences)
 
-    async def create_simple_constellation(self, task_descriptions: List[str], name: str='Simple Constellation', sequential: bool=True) -> TaskConstellation:
+    async def create_simple_constellation(self, task_descriptions: list[str], name: str='Simple Constellation', sequential: bool=True) -> TaskConstellation:
         """Create a simple constellation from task descriptions."""
         constellation = TaskConstellation(name=name)
         prev_task_id = None
@@ -516,7 +519,7 @@ class TaskConstellationOrchestrator:
             self._constellation_manager.register_constellation(constellation)
         return constellation
 
-    async def create_constellation_from_json(self, json_data: str, name: Optional[str]=None) -> TaskConstellation:
+    async def create_constellation_from_json(self, json_data: str, name: str | None=None) -> TaskConstellation:
         """Create a constellation from JSON data."""
         constellation = TaskConstellation.from_json(json_data)
         if name:
@@ -567,7 +570,7 @@ class TaskConstellationOrchestrator:
         else:
             raise ValueError(f'Unsupported import format: {format}')
 
-    def add_task_to_constellation(self, constellation: TaskConstellation, task: TaskStar, dependencies: Optional[List[str]]=None) -> bool:
+    def add_task_to_constellation(self, constellation: TaskConstellation, task: TaskStar, dependencies: list[str] | None=None) -> bool:
         """Add a task to a constellation."""
         constellation.add_task(task)
         if dependencies:
@@ -580,7 +583,7 @@ class TaskConstellationOrchestrator:
         constellation.remove_task(task_id)
         return True
 
-    def clone_constellation(self, constellation: TaskConstellation, name: Optional[str]=None) -> TaskConstellation:
+    def clone_constellation(self, constellation: TaskConstellation, name: str | None=None) -> TaskConstellation:
         """Clone an existing constellation."""
         import uuid
         cloned = TaskConstellation.from_json(constellation.to_json())

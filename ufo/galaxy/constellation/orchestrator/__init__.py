@@ -5,8 +5,7 @@
 Orchestrator package for Constellation V2.
 """
 
-from .orchestrator import TaskConstellationOrchestrator
-
 from .constellation_manager import ConstellationManager
+from .orchestrator import TaskConstellationOrchestrator
 
 __all__ = ["TaskConstellationOrchestrator", "ConstellationManager"]

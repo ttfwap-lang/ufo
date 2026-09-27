@@ -6,7 +6,8 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
+
 
 class EventType(Enum):
     """
@@ -41,7 +42,7 @@ class Event:
     event_type: EventType
     source_id: str
     timestamp: float
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
 @dataclass
 class TaskEvent(Event):
@@ -54,7 +55,7 @@ class TaskEvent(Event):
     task_id: str
     status: str
     result: Any = None
-    error: Optional[Exception] = None
+    error: Exception | None = None
 
 @dataclass
 class ConstellationEvent(Event):
@@ -66,7 +67,7 @@ class ConstellationEvent(Event):
     """
     constellation_id: str
     constellation_state: str
-    new_ready_tasks: List[str] = None
+    new_ready_tasks: list[str] = None
 
 @dataclass
 class AgentEvent(Event):
@@ -79,7 +80,7 @@ class AgentEvent(Event):
     agent_name: str
     agent_type: str
     output_type: str
-    output_data: Dict[str, Any]
+    output_data: dict[str, Any]
 
 @dataclass
 class DeviceEvent(Event):
@@ -91,8 +92,8 @@ class DeviceEvent(Event):
     """
     device_id: str
     device_status: str
-    device_info: Dict[str, Any]
-    all_devices: Dict[str, Dict[str, Any]]
+    device_info: dict[str, Any]
+    all_devices: dict[str, dict[str, Any]]
 
 class IEventObserver(ABC):
     """
@@ -124,7 +125,7 @@ class IEventPublisher(ABC):
     """
 
     @abstractmethod
-    def subscribe(self, observer: IEventObserver, event_types: Set[EventType]=None) -> None:
+    def subscribe(self, observer: IEventObserver, event_types: set[EventType]=None) -> None:
         """
         Subscribe an observer to events.
 
@@ -180,11 +181,11 @@ class EventBus(IEventPublisher):
 
         :return: None
         """
-        self._observers: Dict[EventType, Set[IEventObserver]] = {}
-        self._all_observers: Set[IEventObserver] = set()
+        self._observers: dict[EventType, set[IEventObserver]] = {}
+        self._all_observers: set[IEventObserver] = set()
         self.logger = logging.getLogger(__name__)
 
-    def subscribe(self, observer: IEventObserver, event_types: Set[EventType]=None) -> None:
+    def subscribe(self, observer: IEventObserver, event_types: set[EventType]=None) -> None:
         """
         Subscribe an observer to specific event types or all events.
 
@@ -229,7 +230,7 @@ class EventBus(IEventPublisher):
         :param event: The event object to publish to subscribers
         :return: None
         """
-        observers_to_notify: Set[IEventObserver] = set()
+        observers_to_notify: set[IEventObserver] = set()
         self.logger.info(f'Publishing event: {event.event_type} from {event.source_id}')
         if event.event_type in self._observers:
             observers_to_notify.update(self._observers[event.event_type])

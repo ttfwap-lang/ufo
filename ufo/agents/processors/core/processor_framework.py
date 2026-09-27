@@ -1,11 +1,22 @@
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, TypeVar
-from ufo.agents.processors.context.processing_context import BasicProcessorContext, ProcessingContext, ProcessingPhase, ProcessingResult
-from ufo.agents.processors.core.strategy_dependency import StrategyDependencyValidator, StrategyMetadataRegistry, validate_provides_consistency
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from ufo.agents.processors.context.processing_context import (
+    BasicProcessorContext,
+    ProcessingContext,
+    ProcessingPhase,
+    ProcessingResult,
+)
+from ufo.agents.processors.core.strategy_dependency import (
+    StrategyDependencyValidator,
+    StrategyMetadataRegistry,
+    validate_provides_consistency,
+)
 from ufo.agents.processors.strategies.processing_strategy import ProcessingStrategy
 from ufo.module.context import Context, ContextNames
+
 if TYPE_CHECKING:
     from ufo.agents.agent.basic import BasicAgent
     from ufo.agents.processors.core.processing_middleware import ProcessorMiddleware
@@ -16,7 +27,7 @@ class ProcessingException(Exception):
     Exception raised during processing that contains additional context.
     """
 
-    def __init__(self, message: str, phase: Optional[ProcessingPhase]=None, context_data: Optional[Dict[str, Any]]=None, original_exception: Optional[Exception]=None):
+    def __init__(self, message: str, phase: ProcessingPhase | None=None, context_data: dict[str, Any] | None=None, original_exception: Exception | None=None):
         super().__init__(message)
         self.phase = phase
         self.context_data = context_data or {}
@@ -29,7 +40,7 @@ class ProcessorTemplate(ABC):
     Subclasses can override the processor_context_class to use their own
     ProcessorContext type for enhanced type safety and functionality.
     """
-    processor_context_class: Type[BasicProcessorContext] = BasicProcessorContext
+    processor_context_class: type[BasicProcessorContext] = BasicProcessorContext
 
     def __init__(self, agent: 'BasicAgent', global_context: Context):
         """
@@ -39,10 +50,10 @@ class ProcessorTemplate(ABC):
         """
         self.agent = agent
         self.global_context = global_context
-        self.strategies: Dict[ProcessingPhase, ProcessingStrategy] = {}
-        self.middleware_chain: List[ProcessorMiddleware] = []
+        self.strategies: dict[ProcessingPhase, ProcessingStrategy] = {}
+        self.middleware_chain: list[ProcessorMiddleware] = []
         self.logger = logging.getLogger(self.__class__.__name__)
-        self._exceptions: List[Dict[str, Any]] = []
+        self._exceptions: list[dict[str, Any]] = []
         self.dependency_validator = StrategyDependencyValidator()
         self._setup_strategies()
         self._setup_middleware()
@@ -75,7 +86,7 @@ class ProcessorTemplate(ABC):
         local_context = self._create_local_context(context_class)
         return ProcessingContext(global_context=self.global_context, local_context=local_context)
 
-    def get_processor_context_class(self) -> Type[BasicProcessorContext]:
+    def get_processor_context_class(self) -> type[BasicProcessorContext]:
         """
         Get the processor context class to use for this processor.
 
@@ -86,7 +97,7 @@ class ProcessorTemplate(ABC):
         """
         return self.processor_context_class
 
-    def _create_local_context(self, context_class: Type[BasicProcessorContext]) -> BasicProcessorContext:
+    def _create_local_context(self, context_class: type[BasicProcessorContext]) -> BasicProcessorContext:
         """
         Create and initialize the local context instance.
 
@@ -113,7 +124,7 @@ class ProcessorTemplate(ABC):
                         setattr(instance, key, value)
                 return instance
 
-    def _get_common_context_data(self) -> Dict[str, Any]:
+    def _get_common_context_data(self) -> dict[str, Any]:
         """
         Get common context data that most processors need.
 
@@ -121,7 +132,7 @@ class ProcessorTemplate(ABC):
         """
         return {'command_dispatcher': self.global_context.command_dispatcher, 'agent_name': self.agent.name, 'session_step': self.global_context.get(ContextNames.SESSION_STEP), 'round_step': self.global_context.get(ContextNames.CURRENT_ROUND_STEP), 'round_num': self.global_context.get(ContextNames.CURRENT_ROUND_ID), 'request': self.global_context.get(ContextNames.REQUEST), 'log_path': self.global_context.get(ContextNames.LOG_PATH)}
 
-    def _get_processor_specific_context_data(self) -> Dict[str, Any]:
+    def _get_processor_specific_context_data(self) -> dict[str, Any]:
         """
         Get processor-specific context data.
 

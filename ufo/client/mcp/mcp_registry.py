@@ -3,7 +3,8 @@ MCP Registry System
 Provides a centralized registry for MCP server instances and factories.
 """
 
-from typing import Callable, Dict
+from collections.abc import Callable
+
 from fastmcp import FastMCP
 
 
@@ -13,8 +14,8 @@ class MCPRegistry:
     Supports both direct registration and factory-based lazy initialization.
     """
 
-    _instances: Dict[str, FastMCP] = {}
-    _factories: Dict[str, Callable[[], FastMCP] | Callable[[str], FastMCP]] = {}
+    _instances: dict[str, FastMCP] = {}
+    _factories: dict[str, Callable[[], FastMCP] | Callable[[str], FastMCP]] = {}
 
     @classmethod
     def register_factory(cls, name: str, factory: Callable[[], FastMCP] | Callable[[str], FastMCP]) -> None:
@@ -117,7 +118,7 @@ class MCPRegistry:
         return name in cls._instances or name in cls._factories
 
     @classmethod
-    def get_info(cls) -> Dict[str, Dict[str, bool]]:
+    def get_info(cls) -> dict[str, dict[str, bool]]:
         """
         Get information about all registered servers.
         :return: Dictionary with server names and their status.

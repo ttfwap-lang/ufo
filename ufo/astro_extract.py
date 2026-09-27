@@ -3,7 +3,10 @@
 The captures include the sidebar, so we keep only words inside the chat pane
 (x >= CHAT_X_MIN in bitmap pixels) and rebuild lines by y-clustering.
 """
-import os, re, subprocess, json
+import json
+import os
+import re
+import subprocess
 
 BASE = r"C:\Users\lnxzf\Desktop\projects\ufo\ufo"
 OCR = os.path.join(BASE, "ocr_shot.ps1")

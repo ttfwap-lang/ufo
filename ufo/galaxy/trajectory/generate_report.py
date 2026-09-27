@@ -6,9 +6,12 @@ Quick script to generate markdown reports for Galaxy task execution logs.
 import argparse
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from ufo.galaxy.trajectory import GalaxyTrajectory
 from rich.console import Console
+
+from ufo.galaxy.trajectory import GalaxyTrajectory
+
 console = Console()
 
 def main():
@@ -42,7 +45,7 @@ def main():
         import traceback
         traceback.print_exc()
         return 1
-    console.print(f'\n[GREEN][OK] Report successfully generated!')
+    console.print('\n[GREEN][OK] Report successfully generated!')
     console.print(f'[GREEN]    Location: {output_path}')
     return 0
 if __name__ == '__main__':

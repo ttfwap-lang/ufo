@@ -3,15 +3,16 @@ Test config migration for ufo/prompter, ufo/automator, ufo/experience, ufo/rag d
 Verifies that migrated config values match old config values and tests for AttributeError.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from ufo.config.config_loader import get_ufo_config
 from ufo.config import Config
+from ufo.config.config_loader import get_ufo_config
 
 
 class TestMiscConfigMigration:
@@ -198,7 +199,7 @@ class TestMiscConfigMigration:
 
         # Test app_agent attributes
         try:
-            value = getattr(self.new_config.app_agent, "visual_mode")
+            value = self.new_config.app_agent.visual_mode
             assert value is not None or hasattr(
                 self.new_config.app_agent, "visual_mode"
             ), "Attribute visual_mode not accessible"
@@ -207,7 +208,7 @@ class TestMiscConfigMigration:
 
         # Test rag attributes
         try:
-            value = getattr(self.new_config.rag, "bing_api_key")
+            value = self.new_config.rag.bing_api_key
             assert value is not None or hasattr(
                 self.new_config.rag, "bing_api_key"
             ), "Attribute bing_api_key not accessible"

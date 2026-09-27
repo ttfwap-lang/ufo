@@ -5,6 +5,7 @@ This script demonstrates the configuration loading behavior in different scenari
 """
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 def test_ufo_config():

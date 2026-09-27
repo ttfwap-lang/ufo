@@ -1,5 +1,5 @@
+from ufo.llm.endpoint import is_cloud_agent_config, is_local_agent_config
 from ufo.security.pii_redactor import PIIRedactor
-from ufo.llm.endpoint import is_local_endpoint, is_cloud_agent_config, is_local_agent_config
 
 
 def test_pii_redactor_text_scrubbing():

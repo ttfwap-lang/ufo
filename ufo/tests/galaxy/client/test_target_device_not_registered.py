@@ -28,14 +28,12 @@ After fix:
 """
 
 import asyncio
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
-import websockets
-
-from ufo.galaxy.client.device_manager import ConstellationDeviceManager
-from ufo.galaxy.client.components import DeviceStatus, AgentProfile
 from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
-
+from ufo.galaxy.client.components import DeviceStatus
+from ufo.galaxy.client.device_manager import ConstellationDeviceManager
 
 # Restrict mocks to the websockets client API so the AIP transport picks the
 # websockets adapter (a bare AsyncMock also looks like a FastAPI WebSocket).

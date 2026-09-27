@@ -37,7 +37,7 @@ class TestConfigLoader(unittest.TestCase):
         self.original_cwd = os.getcwd()
         os.chdir(self.test_dir)
         self.addCleanup(os.chdir, self.original_cwd)
-        
+
         # Ensure singleton uses test directory
         from ufo.config.config_loader import ConfigLoader, clear_config_cache
         clear_config_cache()
@@ -286,7 +286,7 @@ class TestUFOConfig(unittest.TestCase):
         }
         self.create_config_file("config/ufo/test.yaml", config_data)
 
-        from ufo.config.config_loader import get_ufo_config, clear_config_cache, ConfigLoader
+        from ufo.config.config_loader import ConfigLoader, clear_config_cache, get_ufo_config
 
         clear_config_cache()
         ConfigLoader.get_instance(base_path=f"{self.test_dir}/config")
@@ -305,7 +305,7 @@ class TestUFOConfig(unittest.TestCase):
         }
         self.create_config_file("config/ufo/test.yaml", config_data)
 
-        from ufo.config.config_loader import get_ufo_config, clear_config_cache, ConfigLoader
+        from ufo.config.config_loader import ConfigLoader, clear_config_cache, get_ufo_config
 
         clear_config_cache()
         ConfigLoader.get_instance(base_path=f"{self.test_dir}/config")
@@ -324,7 +324,7 @@ class TestUFOConfig(unittest.TestCase):
         }
         self.create_config_file("config/ufo/test.yaml", config_data)
 
-        from ufo.config.config_loader import get_ufo_config, clear_config_cache, ConfigLoader
+        from ufo.config.config_loader import ConfigLoader, clear_config_cache, get_ufo_config
 
         clear_config_cache()
         ConfigLoader.get_instance(base_path=f"{self.test_dir}/config")
@@ -340,7 +340,7 @@ class TestUFOConfig(unittest.TestCase):
         config_data = {"CUSTOM_SECTION": {"nested_field": "nested_value", "count": 42}}
         self.create_config_file("config/ufo/test.yaml", config_data)
 
-        from ufo.config.config_loader import get_ufo_config, clear_config_cache, ConfigLoader
+        from ufo.config.config_loader import ConfigLoader, clear_config_cache, get_ufo_config
 
         clear_config_cache()
         ConfigLoader.get_instance(base_path=f"{self.test_dir}/config")
@@ -385,7 +385,7 @@ class TestGalaxyConfig(unittest.TestCase):
         }
         self.create_config_file("config/galaxy/agent.yaml", config_data)
 
-        from ufo.config.config_loader import get_galaxy_config, clear_config_cache, ConfigLoader
+        from ufo.config.config_loader import ConfigLoader, clear_config_cache, get_galaxy_config
 
         clear_config_cache()
         ConfigLoader.get_instance(base_path=f"{self.test_dir}/config")
@@ -470,9 +470,10 @@ class TestConfigCaching(unittest.TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        import tempfile, shutil, os
-        from pathlib import Path
-        import yaml
+        import os
+        import shutil
+        import tempfile
+
         self.test_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.test_dir)
         from ufo.config.config_loader import clear_config_cache
@@ -482,7 +483,7 @@ class TestConfigCaching(unittest.TestCase):
         self.original_cwd = os.getcwd()
         os.chdir(self.test_dir)
         self.addCleanup(os.chdir, self.original_cwd)
-        
+
         # Ensure singleton uses test directory
         from ufo.config.config_loader import ConfigLoader, clear_config_cache
         clear_config_cache()
@@ -490,8 +491,9 @@ class TestConfigCaching(unittest.TestCase):
 
     def create_config_file(self, path: str, content: dict):
         """Helper to create a config file."""
-        import yaml
         from pathlib import Path
+
+        import yaml
         file_path = Path(self.test_dir) / path
         file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(file_path, "w", encoding="utf-8") as f:
@@ -501,10 +503,9 @@ class TestConfigCaching(unittest.TestCase):
     def test_global_config_cache(self):
         """Test global configuration caching."""
         from ufo.config.config_loader import (
-            get_ufo_config,
-            clear_config_cache,
-            _global_ufo_config,
             ConfigLoader,
+            clear_config_cache,
+            get_ufo_config,
         )
 
         # Create config
@@ -524,7 +525,7 @@ class TestConfigCaching(unittest.TestCase):
 
     def test_cache_reload(self):
         """Test configuration reload functionality."""
-        from ufo.config.config_loader import get_ufo_config, clear_config_cache, ConfigLoader
+        from ufo.config.config_loader import ConfigLoader, clear_config_cache, get_ufo_config
 
         # Create config
         self.create_config_file("config/ufo/test.yaml", {"MAX_STEP": 50})
@@ -552,14 +553,14 @@ class TestCloudFailoverRouting(unittest.TestCase):
 
     def test_valid_cloud_route_activation(self):
         """Test activating cloud route when agents_cloud.yaml is valid."""
+        from unittest.mock import patch
+
+        from ufo.llm import AgentType
         from ufo.llm.config_helper import (
-            set_active_agent_route,
             get_active_agent_route,
             get_agent_config,
+            set_active_agent_route,
         )
-        from ufo.llm import AgentType
-
-        from unittest.mock import patch
 
         # The cloud profile reads its key from the environment; a placeholder is enough here.
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
@@ -573,7 +574,7 @@ class TestCloudFailoverRouting(unittest.TestCase):
 
     def test_reset_route_to_default(self):
         """Test resetting route to None."""
-        from ufo.llm.config_helper import set_active_agent_route, get_active_agent_route
+        from ufo.llm.config_helper import get_active_agent_route, set_active_agent_route
 
         set_active_agent_route("cloud")
         set_active_agent_route(None)

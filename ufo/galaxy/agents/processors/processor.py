@@ -7,30 +7,22 @@ Constellation Agent Processor - Processor for Constellation Agent using the new 
 
 
 import logging
-
 import traceback
-
-from typing import TYPE_CHECKING, Any, Dict, Type
-
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
-
 from rich.panel import Panel
-
-
-from ufo.galaxy.agents.processors.processor_context import ConstellationProcessorContext
-
-from ufo.galaxy.agents.processors.strategies.constellation_factory import (    ConstellationStrategyFactory,
-)
-from ufo.galaxy.constellation.task_constellation import TaskConstellation
-
 from ufo.agents.processors.core.processing_middleware import EnhancedLoggingMiddleware
-
 from ufo.agents.processors.core.processor_framework import (
     ProcessingContext,
     ProcessingPhase,
     ProcessorTemplate,
 )
+from ufo.galaxy.agents.processors.processor_context import ConstellationProcessorContext
+from ufo.galaxy.agents.processors.strategies.constellation_factory import (
+    ConstellationStrategyFactory,
+)
+from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.module.context import Context, ContextNames
 
 if TYPE_CHECKING:
@@ -56,7 +48,7 @@ class ConstellationAgentProcessor(ProcessorTemplate):
     """
 
     # Override the processor context class to use ConstellationProcessorContext
-    processor_context_class: Type[ConstellationProcessorContext] = (
+    processor_context_class: type[ConstellationProcessorContext] = (
         ConstellationProcessorContext
     )
 
@@ -109,7 +101,7 @@ class ConstellationAgentProcessor(ProcessorTemplate):
             ConstellationLoggingMiddleware(),  # Specialized logging for Constellation Agent
         ]
 
-    def _get_processor_specific_context_data(self) -> Dict[str, Any]:
+    def _get_processor_specific_context_data(self) -> dict[str, Any]:
         """
         Get processor-specific context data.
 

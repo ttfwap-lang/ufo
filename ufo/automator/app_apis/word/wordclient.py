@@ -1,14 +1,15 @@
 import os
-from typing import Dict, Type
+
 from ufo.automator.app_apis.basic import WinCOMCommand, WinCOMReceiverBasic
 from ufo.automator.basic import CommandBasic
 from ufo.automator.path_validator import validate_save_path
+
 
 class WordWinCOMReceiver(WinCOMReceiverBasic):
     """
     The base class for Windows COM client.
     """
-    _command_registry: Dict[str, Type[CommandBasic]] = {}
+    _command_registry: dict[str, type[CommandBasic]] = {}
 
     def get_object_from_process_name(self) -> None:
         """

@@ -4,10 +4,11 @@ Test runner for DAG visualization tests.
 This script runs all DAG visualization tests in the correct order.
 """
 import os
-import sys
 import subprocess
+import sys
 import time
 from datetime import datetime
+
 project_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, project_root)
 

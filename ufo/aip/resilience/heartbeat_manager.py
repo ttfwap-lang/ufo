@@ -6,8 +6,9 @@ and detect disconnections early.
 """
 import asyncio
 import logging
-from typing import Dict, Optional
+
 from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+
 
 class HeartbeatManager:
     """
@@ -30,10 +31,10 @@ class HeartbeatManager:
         self.protocol = protocol
         self.default_interval = default_interval
         self.logger = logging.getLogger(f'{__name__}.HeartbeatManager')
-        self._heartbeat_tasks: Dict[str, asyncio.Task] = {}
-        self._intervals: Dict[str, float] = {}
+        self._heartbeat_tasks: dict[str, asyncio.Task] = {}
+        self._intervals: dict[str, float] = {}
 
-    async def start_heartbeat(self, client_id: str, interval: Optional[float]=None) -> None:
+    async def start_heartbeat(self, client_id: str, interval: float | None=None) -> None:
         """
         Start heartbeat for a client.
 
@@ -82,7 +83,7 @@ class HeartbeatManager:
         task = self._heartbeat_tasks.get(client_id)
         return task is not None and (not task.done())
 
-    def get_interval(self, client_id: str) -> Optional[float]:
+    def get_interval(self, client_id: str) -> float | None:
         """
         Get heartbeat interval for a client.
 

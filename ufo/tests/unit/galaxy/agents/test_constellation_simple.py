@@ -8,11 +8,11 @@ This test suite focuses on verifying the core factory functionality works.
 """
 
 import pytest
-from ufo.galaxy.agents.schema import WeavingMode
 from ufo.galaxy.agents.processors.strategies.constellation_factory import (
-    ConstellationStrategyFactory,
     ConstellationPrompterFactory,
+    ConstellationStrategyFactory,
 )
+from ufo.galaxy.agents.schema import WeavingMode
 
 
 class TestConstellationRefactor:
@@ -90,7 +90,6 @@ class TestConstellationRefactor:
         )
 
         # Both should have the required processing phases
-        from ufo.agents.processors.core.processor_framework import ProcessingPhase
 
         assert "llm_interaction" in creation_strategies
         assert "action_execution" in creation_strategies

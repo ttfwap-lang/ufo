@@ -3,13 +3,13 @@
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
+from rich.console import Console
 
 from ufo.agents.processors.schemas.target import TargetInfo
 from ufo.aip.messages import Result, ResultStatus
-from rich.console import Console
 
 console = Console()
 
@@ -26,7 +26,7 @@ class BaseControlLog:
     control_automation_id: str = ""
     control_friendly_class_name: str = ""
     control_matched: bool = True
-    control_coordinates: Dict[str, int] = field(default_factory=dict)
+    control_coordinates: dict[str, int] = field(default_factory=dict)
 
     def is_empty(self) -> bool:
         return self == BaseControlLog()
@@ -51,8 +51,8 @@ class ActionCommandInfo(BaseModel):
 
     function: str = ""
     status: str = ""
-    arguments: Dict[str, Any] = Field(default_factory=dict)
-    target: Optional[TargetInfo] = None
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    target: TargetInfo | None = None
     result: Result = Field(default_factory=lambda: Result(status="none"))
     action_string: str = ""
     action_representation: str = ""
@@ -64,7 +64,7 @@ class ActionCommandInfo(BaseModel):
         self.action_string = ActionCommandInfo.to_string(self.function, self.arguments)
 
     @staticmethod
-    def to_string(command_name: str, params: Dict[str, Any]) -> str:
+    def to_string(command_name: str, params: dict[str, Any]) -> str:
         """
         Generate a function call string.
         """
@@ -99,7 +99,7 @@ class ListActionCommandInfo:
     A sequence of one-step actions.
     """
 
-    def __init__(self, actions: Optional[List[ActionCommandInfo]] = None):
+    def __init__(self, actions: list[ActionCommandInfo] | None = None):
 
         if actions is None:
             actions = []
@@ -108,7 +108,7 @@ class ListActionCommandInfo:
         self._length = len(actions)
 
     @property
-    def actions(self) -> List[ActionCommandInfo]:
+    def actions(self) -> list[ActionCommandInfo]:
         """
         Get the actions.
         :return: The actions.
@@ -149,9 +149,9 @@ class ListActionCommandInfo:
     def to_list_of_dicts(
         self,
         success_only: bool = False,
-        keep_keys: Optional[List[str]] = None,
-        previous_actions: Optional[List[ActionCommandInfo | Dict[str, Any]]] = None,
-    ) -> List[Dict[str, Any]]:
+        keep_keys: list[str] | None = None,
+        previous_actions: list[ActionCommandInfo | dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Convert the action sequence to a dictionary.
         :param success_only: Whether to convert the successful actions only.
@@ -175,7 +175,7 @@ class ListActionCommandInfo:
     def to_string(
         self,
         success_only: bool = False,
-        previous_actions: Optional[List[ActionCommandInfo]] = None,
+        previous_actions: list[ActionCommandInfo] | None = None,
     ) -> str:
         """
         Convert the action sequence to a string.
@@ -190,7 +190,7 @@ class ListActionCommandInfo:
     def to_representation(
         self,
         success_only: bool = False,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Convert the action sequence to a representation string.
         :param success_only: Whether to convert the successful actions only.
@@ -208,16 +208,16 @@ class ListActionCommandInfo:
         Pretty-print the action sequence using presenter.
         :param success_only: Whether to print only successful actions.
         """
-        
+
         from ufo.agents.presenters import PresenterFactory
-        
+
         presenter = PresenterFactory.create_presenter("rich")
         presenter.present_action_list(self, success_only=success_only)
 
     @staticmethod
     def is_same_action(
-        action1: ActionCommandInfo | Dict[str, Any],
-        action2: ActionCommandInfo | Dict[str, Any],
+        action1: ActionCommandInfo | dict[str, Any],
+        action2: ActionCommandInfo | dict[str, Any],
     ) -> bool:
         """
         Check whether the two actions are the same.
@@ -243,7 +243,7 @@ class ListActionCommandInfo:
     def count_repeat_times(
         self,
         target_action: ActionCommandInfo,
-        previous_actions: List[ActionCommandInfo | Dict[str, Any]],
+        previous_actions: list[ActionCommandInfo | dict[str, Any]],
     ) -> int:
         """
         Get the times of the same action in the previous actions.
@@ -260,7 +260,7 @@ class ListActionCommandInfo:
                 break
         return count
 
-    def get_results(self, success_only: bool = False) -> List[Dict[str, Any]]:
+    def get_results(self, success_only: bool = False) -> list[dict[str, Any]]:
         """
         Get the results of the actions.
         :param success_only: Whether to get the successful actions only.
@@ -272,7 +272,7 @@ class ListActionCommandInfo:
             if not success_only or action.result.status == ResultStatus.SUCCESS
         ]
 
-    def get_target_info(self, success_only: bool = False) -> List[Dict[str, Any]]:
+    def get_target_info(self, success_only: bool = False) -> list[dict[str, Any]]:
         """
         Get the control logs of the actions.
         :param success_only: Whether to get the successful actions only.
@@ -290,7 +290,7 @@ class ListActionCommandInfo:
 
         return target_info
 
-    def get_target_objects(self, success_only: bool = False) -> List[TargetInfo]:
+    def get_target_objects(self, success_only: bool = False) -> list[TargetInfo]:
         """
         Get the control logs of the actions.
         :param success_only: Whether to get the successful actions only.
@@ -305,7 +305,7 @@ class ListActionCommandInfo:
 
         return target_objects
 
-    def get_function_calls(self, is_success_only: bool = False) -> List[str]:
+    def get_function_calls(self, is_success_only: bool = False) -> list[str]:
         """
         Get the function calls of the actions.
         :param is_success_only: Whether to get the successful actions only.

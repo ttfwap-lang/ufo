@@ -29,20 +29,19 @@ Config in system.yaml:
       API_KEY: ""                 # If set, required in X-API-Key header
       REDIS_URL: "redis://127.0.0.1:6379/0"
 """
-import base64
 import json
 import logging
-import os
 import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-from fastapi import FastAPI, HTTPException, Header, Query
-from fastapi.responses import Response
+from typing import Any
+
+from fastapi import FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel, Field
+
 from ufo.ops.telemetry_viewer import router as telemetry_router
+
 logger = logging.getLogger(__name__)
 
-def _load_ops_config() -> Dict[str, Any]:
+def _load_ops_config() -> dict[str, Any]:
     """Load control plane config from system.yaml."""
     defaults = {'ENABLED': False, 'HOST': '127.0.0.1', 'PORT': 8800, 'API_KEY': '', 'REDIS_URL': 'redis://127.0.0.1:6379/0'}
     try:
@@ -70,7 +69,7 @@ def _get_redis():
             _redis_client = None
     return _redis_client
 
-def _verify_api_key(x_api_key: Optional[str]=Header(None)) -> None:
+def _verify_api_key(x_api_key: str | None=Header(None)) -> None:
     """Verify API key if configured."""
     required = _config.get('API_KEY', '')
     if required and x_api_key != required:
@@ -80,7 +79,7 @@ class HumanResolution(BaseModel):
     """Operator's decision for a paused workflow."""
     workflow_id: str = Field(..., description='The workflow to resolve')
     decision: str = Field(..., description='APPROVE, ABORT, or MANUAL_REWIRE')
-    override_payload: Optional[str] = Field(None, description='Optional replacement instructions for MANUAL_REWIRE')
+    override_payload: str | None = Field(None, description='Optional replacement instructions for MANUAL_REWIRE')
     operator_id: str = Field(..., description='Who is making this decision')
     reason: str = Field(default='', description="Operator's rationale")
 
@@ -89,13 +88,13 @@ class WorkflowSubmission(BaseModel):
     instructions: str = Field(..., description='Task instructions')
     is_irrevocable: bool = Field(default=False)
     priority: str = Field(default='normal')
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 class StatusResponse(BaseModel):
     """Standard API response."""
     status: str
     message: str
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
 app = FastAPI(title='UFO Fleet Control Plane', description='Operator monitoring, HITL triage, and fleet management API.', version='1.0.0')
 app.include_router(telemetry_router)
 
@@ -132,7 +131,7 @@ async def get_fleet_status():
             worker_list.append({'worker_id': worker_id, 'last_heartbeat': last_beat, 'silence_seconds': silence, 'alive': silence <= timeout, 'active_tasks': active})
         global_queue = r.llen('ufo:queue:bankfidelity_tasks')
         dlq_depth = r.llen('ufo:queue:dlq')
-        return {'workers': worker_list, 'total_workers': len(worker_list), 'alive': sum((1 for w in worker_list if w['alive'])), 'dead': sum((1 for w in worker_list if not w['alive'])), 'global_queue_depth': global_queue, 'dlq_depth': dlq_depth}
+        return {'workers': worker_list, 'total_workers': len(worker_list), 'alive': sum(1 for w in worker_list if w['alive']), 'dead': sum(1 for w in worker_list if not w['alive']), 'global_queue_depth': global_queue, 'dlq_depth': dlq_depth}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

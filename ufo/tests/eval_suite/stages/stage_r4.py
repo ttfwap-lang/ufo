@@ -5,7 +5,7 @@ Stage R4 Handler: Complex BankFidelity Task.
 """
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from tests.eval_suite.verifiers import (
     get_desktop_dir,
@@ -50,7 +50,7 @@ def pre_cleanup(report_filename: str=DEFAULT_REPORT_FILENAME) -> None:
     except Exception as e:
         logger.warning(f'[Stage R4 Pre-Cleanup] Could not pre-launch BankFidelity: {e}')
 
-def verify_r4(stage_data: Optional[Union[Dict[str, Any], str, Path]]=None, output_dir: Optional[Union[str, Path]]=None, task_log_dir: Optional[Union[str, Path]]=None, dry_run: bool=False, report_filename: str=DEFAULT_REPORT_FILENAME) -> Dict[str, Any]:
+def verify_r4(stage_data: dict[str, Any] | str | Path | None=None, output_dir: str | Path | None=None, task_log_dir: str | Path | None=None, dry_run: bool=False, report_filename: str=DEFAULT_REPORT_FILENAME) -> dict[str, Any]:
     """
     Verify Stage R4 execution results.
 
@@ -87,7 +87,7 @@ def verify_r4(stage_data: Optional[Union[Dict[str, Any], str, Path]]=None, outpu
         details_msg += f' (CSV report missing or empty on Desktop: checked {candidate_filenames})'
     return {'verified': overall_verified, 'stage_id': STAGE_ID, 'dry_run': False, 'process_detected': process_ver['verified'], 'running_processes': process_ver.get('running_processes', []), 'trajectory_verified': trajectory_ver.get('verified', False), 'report_verified': report_exists, 'details': details_msg}
 
-def get_stage_config() -> Dict[str, Any]:
+def get_stage_config() -> dict[str, Any]:
     """
     Get stage configuration dictionary for Stage R4.
 

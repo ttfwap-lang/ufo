@@ -2,9 +2,8 @@
 # Licensed under the MIT License.
 
 import json
-from typing import Any, Dict, List
+from typing import Any
 
-from ufo.config.config_loader import get_ufo_config
 from ufo.prompter.agent_prompter import AppAgentPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
 
@@ -30,7 +29,7 @@ class LinuxAgentPrompter(AppAgentPrompter):
         super().__init__(None, prompt_template, example_prompt_template)
         self.api_prompt_template = None
 
-    def system_prompt_construction(self, additional_examples: List[str] = None) -> str:
+    def system_prompt_construction(self, additional_examples: list[str] = None) -> str:
         """
         Construct the prompt for app selection.
         :param additional_examples: The additional examples added to the prompt.
@@ -46,10 +45,10 @@ class LinuxAgentPrompter(AppAgentPrompter):
 
     def user_prompt_construction(
         self,
-        prev_plan: List[str],
+        prev_plan: list[str],
         user_request: str,
         retrieved_docs: str = "",
-        last_success_actions: List[Dict[str, Any]] = [],
+        last_success_actions: list[dict[str, Any]] = None,
     ) -> str:
         """
         Construct the prompt for action selection.
@@ -65,6 +64,8 @@ class LinuxAgentPrompter(AppAgentPrompter):
         :param last_success_actions: The list of successful actions in the last step.
         return: The prompt for action selection.
         """
+        if last_success_actions is None:
+            last_success_actions = []
         prompt = self.prompt_template["user"].format(
             prev_plan=json.dumps(prev_plan),
             user_request=sanitize_user_input(user_request, "user_request"),
@@ -76,11 +77,11 @@ class LinuxAgentPrompter(AppAgentPrompter):
 
     def user_content_construction(
         self,
-        prev_plan: List[str],
+        prev_plan: list[str],
         user_request: str,
         retrieved_docs: str = "",
-        last_success_actions: List[Dict[str, Any]] = [],
-    ) -> List[Dict[str, str]]:
+        last_success_actions: list[dict[str, Any]] = None,
+    ) -> list[dict[str, str]]:
         """
         Construct the prompt for LLMs.
         :param image_list: The list of images.
@@ -95,6 +96,8 @@ class LinuxAgentPrompter(AppAgentPrompter):
         return: The prompt for LLMs.
         """
 
+        if last_success_actions is None:
+            last_success_actions = []
         user_content = []
 
         user_content.append(
@@ -115,7 +118,7 @@ class LinuxAgentPrompter(AppAgentPrompter):
         self,
         header: str = "## Response Examples",
         separator: str = "Example",
-        additional_examples: List[Dict[str, Any]] = [],
+        additional_examples: list[dict[str, Any]] = None,
     ) -> str:
         """
         Construct the prompt for examples.
@@ -126,6 +129,8 @@ class LinuxAgentPrompter(AppAgentPrompter):
         return: The prompt for examples.
         """
 
+        if additional_examples is None:
+            additional_examples = []
         template = """
         [User Request]:
             {request}

@@ -5,9 +5,11 @@ This service handles device-related operations including registration,
 configuration management, and device snapshot creation.
 """
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
+
 from ufo.galaxy.webui.dependencies import AppState
 from ufo.galaxy.webui.security import ServerUrlValidationError, validate_server_url
+
 
 class DeviceService:
     """
@@ -26,7 +28,7 @@ class DeviceService:
         self.app_state = app_state
         self.logger: logging.Logger = logging.getLogger(__name__)
 
-    def build_device_snapshot(self) -> Optional[Dict[str, Dict[str, Any]]]:
+    def build_device_snapshot(self) -> dict[str, dict[str, Any]] | None:
         """
         Construct a serializable snapshot of all known devices.
 
@@ -48,7 +50,7 @@ class DeviceService:
             self.logger.warning('Device manager not available')
             return None
         try:
-            snapshot: Dict[str, Dict[str, Any]] = {}
+            snapshot: dict[str, dict[str, Any]] = {}
             for device_id, device in device_manager.get_all_devices().items():
                 snapshot[device_id] = {'device_id': device.device_id, 'status': getattr(device.status, 'value', str(device.status)), 'os': device.os, 'server_url': device.server_url, 'capabilities': list(device.capabilities) if device.capabilities else [], 'metadata': dict(device.metadata) if device.metadata else {}, 'last_heartbeat': device.last_heartbeat.isoformat() if device.last_heartbeat else None, 'connection_attempts': device.connection_attempts, 'max_retries': device.max_retries, 'current_task_id': device.current_task_id}
             self.logger.debug(f'Built device snapshot with {len(snapshot)} devices')
@@ -57,7 +59,7 @@ class DeviceService:
             self.logger.warning(f'Failed to build device snapshot: {exc}', exc_info=True)
             return None
 
-    def get_device_manager(self) -> Optional[Any]:
+    def get_device_manager(self) -> Any | None:
         """
         Get the device manager from the Galaxy client.
 
@@ -71,7 +73,7 @@ class DeviceService:
             return None
         return getattr(constellation_client, 'device_manager', None)
 
-    async def register_and_connect_device(self, device_id: str, server_url: str, os: str, capabilities: list, metadata: Optional[Dict[str, Any]], max_retries: int, auto_connect: bool) -> bool:
+    async def register_and_connect_device(self, device_id: str, server_url: str, os: str, capabilities: list, metadata: dict[str, Any] | None, max_retries: int, auto_connect: bool) -> bool:
         """
         Register a device with the device manager and optionally connect to it.
 

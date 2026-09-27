@@ -1,11 +1,11 @@
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
-from datetime import datetime
-import uuid
 import threading
+import uuid
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-from enum import Enum
 
 from ufo.agents.processors.schemas.actions import ActionCommandInfo
 
@@ -128,28 +128,28 @@ class TaskStarSchema(BaseModel):
     Pydantic BaseModel for TaskStar serialization/deserialization.
     """
 
-    task_id: Optional[str] = Field(default=None)
+    task_id: str | None = Field(default=None)
     name: str
     description: str
-    tips: Optional[List[str]] = None
-    target_device_id: Optional[str] = None
-    device_type: Optional[str] = None
+    tips: list[str] | None = None
+    target_device_id: str | None = None
+    device_type: str | None = None
     priority: Any = "MEDIUM"  # Can accept int or str
     status: Any = "PENDING"  # Can accept int or str
-    result: Optional[Any] = None
-    error: Optional[str] = None
-    timeout: Optional[float] = None
+    result: Any | None = None
+    error: str | None = None
+    timeout: float | None = None
     retry_count: int = 0
     current_retry: int = 0
-    task_data: Dict[str, Any] = Field(default_factory=dict)
-    expected_output_type: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    execution_start_time: Optional[str] = None
-    execution_end_time: Optional[str] = None
-    execution_duration: Optional[float] = None
-    dependencies: List[str] = Field(default_factory=list)
-    dependents: List[str] = Field(default_factory=list)
+    task_data: dict[str, Any] = Field(default_factory=dict)
+    expected_output_type: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    execution_start_time: str | None = None
+    execution_end_time: str | None = None
+    execution_duration: float | None = None
+    dependencies: list[str] = Field(default_factory=list)
+    dependents: list[str] = Field(default_factory=list)
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -195,17 +195,17 @@ class TaskStarLineSchema(BaseModel):
     Pydantic BaseModel for TaskStarLine serialization/deserialization.
     """
 
-    line_id: Optional[str] = Field(default=None)
+    line_id: str | None = Field(default=None)
     from_task_id: str
     to_task_id: str
     dependency_type: Any = "UNCONDITIONAL"  # Can accept enum value
     condition_description: str = ""
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     is_satisfied: bool = False
-    last_evaluation_result: Optional[bool] = None
-    last_evaluation_time: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    last_evaluation_result: bool | None = None
+    last_evaluation_time: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
     @field_validator("dependency_type", mode="before")
     @classmethod
@@ -231,21 +231,21 @@ class TaskConstellationSchema(BaseModel):
     Pydantic BaseModel for TaskConstellation serialization/deserialization.
     """
 
-    constellation_id: Optional[str] = Field(default=None)
-    name: Optional[str] = Field(default=None)
+    constellation_id: str | None = Field(default=None)
+    name: str | None = Field(default=None)
     state: Any = "CREATED"  # Can accept enum value
-    tasks: Union[Dict[str, TaskStarSchema], List[TaskStarSchema]] = Field(
+    tasks: dict[str, TaskStarSchema] | list[TaskStarSchema] = Field(
         default_factory=dict
     )
-    dependencies: Union[Dict[str, TaskStarLineSchema], List[TaskStarLineSchema]] = (
+    dependencies: dict[str, TaskStarLineSchema] | list[TaskStarLineSchema] = (
         Field(default_factory=dict)
     )
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    execution_start_time: Optional[str] = None
-    execution_end_time: Optional[str] = None
-    execution_duration: Optional[float] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: str | None = None
+    updated_at: str | None = None
+    execution_start_time: str | None = None
+    execution_end_time: str | None = None
+    execution_duration: float | None = None
 
     @field_validator("state", mode="before")
     @classmethod
@@ -338,15 +338,15 @@ class TaskConstellationSchema(BaseModel):
 
         return self
 
-    def get_tasks_as_list(self) -> List[TaskStarSchema]:
+    def get_tasks_as_list(self) -> list[TaskStarSchema]:
         """Convert tasks dict to list format."""
         return list(self.tasks.values())
 
-    def get_dependencies_as_list(self) -> List[TaskStarLineSchema]:
+    def get_dependencies_as_list(self) -> list[TaskStarLineSchema]:
         """Convert dependencies dict to list format."""
         return list(self.dependencies.values())
 
-    def to_dict_with_lists(self) -> Dict[str, Any]:
+    def to_dict_with_lists(self) -> dict[str, Any]:
         """Export constellation data with tasks and dependencies as lists."""
         data = self.model_dump()
         # Convert tasks to list of dictionaries
@@ -365,8 +365,8 @@ class ConstellationAgentResponse(BaseModel):
 
     thought: str
     status: str
-    constellation: Optional[TaskConstellationSchema] = None
-    action: Optional[List[ActionCommandInfo]] = None
+    constellation: TaskConstellationSchema | None = None
+    action: list[ActionCommandInfo] | None = None
     results: Any = None
 
 
@@ -381,4 +381,4 @@ class ConstellationRequestLog:
     device_info: str
     constellation: str
     request: str
-    prompt: Dict[str, Any]
+    prompt: dict[str, Any]

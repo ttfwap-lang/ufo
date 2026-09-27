@@ -19,14 +19,14 @@ Pipeline (upstream OmniParser): YOLO icon_detect -> EasyOCR text boxes -> merge
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import os
 import sys
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("OMNIPARSER_PORT", "7871"))
@@ -55,12 +55,11 @@ def log(msg: str) -> None:
 
 
 sys.path.insert(0, HERE)
-from omni_merge import area, clamp, merge  # noqa: E402
-
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 from fastapi import FastAPI  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
+from omni_merge import area, clamp, merge  # noqa: E402
 from PIL import Image  # noqa: E402
 
 DEVICE = os.environ.get("OMNIPARSER_DEVICE", "").strip().lower() or (
@@ -114,8 +113,8 @@ if _winrt is None and _want in ("auto", "easyocr"):
 
 # batch_size=64: EasyOCR's default recognises boxes one at a time; on a Telegram
 # capture that is 3.98 s vs 1.28 s batched, with identical output (104 boxes).
-def _ocr_boxes(image: Image.Image, raw: Optional[bytes] = None
-               ) -> List[Tuple[Tuple[int, int, int, int], str]]:
+def _ocr_boxes(image: Image.Image, raw: bytes | None = None
+               ) -> list[tuple[tuple[int, int, int, int], str]]:
     w, h = image.size
     if _winrt is not None:
         if raw is None:                       # only re-encode if we were not given bytes
@@ -138,8 +137,8 @@ def _ocr_boxes(image: Image.Image, raw: Optional[bytes] = None
     return out
 
 
-def _caption(crops: List[Image.Image]) -> List[str]:
-    caps: List[str] = []
+def _caption(crops: list[Image.Image]) -> list[str]:
+    caps: list[str] = []
     for i in range(0, len(crops), CAPTION_BATCH):
         real = crops[i:i + CAPTION_BATCH]
         # Always run a FULL batch (repeat the last crop, discard its captions).
@@ -159,10 +158,10 @@ def _caption(crops: List[Image.Image]) -> List[str]:
 
 def parse_image(image: Image.Image, box_threshold: float = 0.05,
                 iou_threshold: float = 0.1, imgsz: int = 640,
-                use_ocr: bool = True, raw: Optional[bytes] = None) -> Dict[str, Any]:
+                use_ocr: bool = True, raw: bytes | None = None) -> dict[str, Any]:
     image = image.convert("RGB")
     w, h = image.size
-    tm: Dict[str, float] = {}
+    tm: dict[str, float] = {}
     _t = time.time()
     det = yolo.predict(image, conf=box_threshold, iou=iou_threshold, imgsz=imgsz,
                        verbose=False, device=DEVICE)[0]
@@ -201,7 +200,7 @@ app = FastAPI(title="OmniParser (local)", version="1.0")
 
 
 @app.get("/api/health")
-def health() -> Dict[str, Any]:
+def health() -> dict[str, Any]:
     return {"ok": True, "device": DEVICE, "model": "omniparser-v2",
             "detector": "yolo icon_detect", "captioner": "florence2",
             "ocr": OCR_NAME, "cuda_available": bool(torch.cuda.is_available()),
@@ -209,7 +208,7 @@ def health() -> Dict[str, Any]:
 
 
 @app.post("/api/parse")
-async def api_parse(payload: Dict[str, Any]) -> Any:
+async def api_parse(payload: dict[str, Any]) -> Any:
     b64 = payload.get("image_b64") or ""
     if not b64:
         return JSONResponse({"error": "image_b64 is required"}, status_code=400)
@@ -222,7 +221,7 @@ async def api_parse(payload: Dict[str, Any]) -> Any:
     except Exception as exc:  # noqa: BLE001
         return JSONResponse({"error": f"bad image: {exc}"}, status_code=400)
 
-    def _job() -> Dict[str, Any]:
+    def _job() -> dict[str, Any]:
         t = time.time()
         out = parse_image(
             image,
@@ -247,7 +246,7 @@ _ocr_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="omniparser-ocr
 
 
 @app.post("/api/ocr")
-async def api_ocr(payload: Dict[str, Any]) -> Any:
+async def api_ocr(payload: dict[str, Any]) -> Any:
     if _winrt is None:
         return JSONResponse({"error": "WinRT OCR not available on this host"}, status_code=503)
     b64 = payload.get("image_b64") or ""
@@ -258,7 +257,7 @@ async def api_ocr(payload: Dict[str, Any]) -> Any:
     except Exception as exc:  # noqa: BLE001
         return JSONResponse({"error": f"bad image: {exc}"}, status_code=400)
 
-    def _job() -> Dict[str, Any]:
+    def _job() -> dict[str, Any]:
         t = time.time()
         words = _winrt.ocr_words(raw)
         return {"words": [list(w) for w in words], "count": len(words),

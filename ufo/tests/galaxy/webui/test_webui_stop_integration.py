@@ -9,19 +9,20 @@ Tests the complete flow from WebUI Stop button through to Galaxy client restart.
 """
 
 import asyncio
-import pytest
-import pytest_asyncio
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+import pytest_asyncio
 
 # Add project root to path
 UFO_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(UFO_ROOT))
 
-from ufo.galaxy.webui.services.galaxy_service import GalaxyService
-from ufo.galaxy.webui.dependencies import AppState
 from ufo.galaxy.galaxy_client import GalaxyClient
+from ufo.galaxy.webui.dependencies import AppState
+from ufo.galaxy.webui.services.galaxy_service import GalaxyService
 
 
 @pytest_asyncio.fixture
@@ -244,17 +245,16 @@ async def test_stop_task_shutdown_uses_force_true(galaxy_service, mock_app_state
 
     with patch.object(
         mock_app_state.galaxy_client, "shutdown", side_effect=track_shutdown_call
-    ):
-        with patch.object(
-            mock_app_state.galaxy_client, "create_next_session", new_callable=AsyncMock
-        ) as mock_create_session:
-            mock_create_session.return_value = {"status": "success"}
+    ), patch.object(
+        mock_app_state.galaxy_client, "create_next_session", new_callable=AsyncMock
+    ) as mock_create_session:
+        mock_create_session.return_value = {"status": "success"}
 
-            # Act
-            await galaxy_service.stop_task_and_restart()
+        # Act
+        await galaxy_service.stop_task_and_restart()
 
-            # Assert
-            assert shutdown_called_with_force is True
+        # Assert
+        assert shutdown_called_with_force is True
 
 
 @pytest.mark.asyncio

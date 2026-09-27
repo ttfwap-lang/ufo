@@ -12,15 +12,15 @@ Supports:
 - Dedicated local adapter types (ollama, llava, cogagent)
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ufo.llm.config_helper import get_dgx_host
 
 
 def is_local_endpoint(
-    api_base: Optional[str] = None,
-    api_key: Optional[str] = None,
-    api_type: Optional[str] = None,
+    api_base: str | None = None,
+    api_key: str | None = None,
+    api_type: str | None = None,
 ) -> bool:
     """
     Check if given API parameters indicate a local model proxy (LiteLLM, llama-server, Ollama, etc.).
@@ -56,7 +56,7 @@ def is_local_endpoint(
     return False
 
 
-def is_local_agent_config(agent_config: Dict[str, Any]) -> bool:
+def is_local_agent_config(agent_config: dict[str, Any]) -> bool:
     """
     Check if an agent configuration dictionary routes to a local model.
     """
@@ -69,7 +69,7 @@ def is_local_agent_config(agent_config: Dict[str, Any]) -> bool:
     )
 
 
-def is_cloud_agent_config(agent_config: Dict[str, Any]) -> bool:
+def is_cloud_agent_config(agent_config: dict[str, Any]) -> bool:
     """
     Check if an agent configuration dictionary routes to a cloud model provider.
     """

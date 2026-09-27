@@ -17,7 +17,7 @@ import copy
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -56,7 +56,7 @@ REFUSAL_ERROR_KEYWORDS = [
 ]
 
 # 4-Tier Model Cascade Definition
-ROTATION_TIERS: List[Dict[str, Any]] = [
+ROTATION_TIERS: list[dict[str, Any]] = [
     {
         "tier": 1,
         "name": "Qwen 2.5 72B Abliterated",
@@ -96,7 +96,7 @@ ROTATION_TIERS: List[Dict[str, Any]] = [
 ]
 
 
-def is_refusal_text(text: Optional[str]) -> bool:
+def is_refusal_text(text: str | None) -> bool:
     """
     Check if a text output contains clear safety refusal or denial language.
     """
@@ -112,7 +112,7 @@ def is_refusal_text(text: Optional[str]) -> bool:
     return False
 
 
-def is_refusal_response(result: Optional[LLMResult]) -> Tuple[bool, str]:
+def is_refusal_response(result: LLMResult | None) -> tuple[bool, str]:
     """
     Inspect an LLMResult to determine if it is a refusal or policy denial.
     Returns (is_refusal, matched_reason).
@@ -141,7 +141,7 @@ def is_refusal_response(result: Optional[LLMResult]) -> Tuple[bool, str]:
     return False, ""
 
 
-def is_refusal_exception(error: Exception) -> Tuple[bool, str]:
+def is_refusal_exception(error: Exception) -> tuple[bool, str]:
     """
     Check if an exception is a safety refusal or content moderation filter.
     Returns (is_refusal, reason).
@@ -162,13 +162,13 @@ def is_refusal_exception(error: Exception) -> Tuple[bool, str]:
     return False, ""
 
 
-def adapt_messages_for_text_model(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def adapt_messages_for_text_model(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Format multimodal messages containing image data into text-friendly format
     for text-only LLMs on Featherless, stripping large base64 image strings while
     preserving all contextual text and OCR information.
     """
-    adapted: List[Dict[str, Any]] = []
+    adapted: list[dict[str, Any]] = []
     for msg in messages:
         if not isinstance(msg, dict):
             adapted.append(msg)
@@ -200,11 +200,11 @@ def adapt_messages_for_text_model(messages: List[Dict[str, Any]]) -> List[Dict[s
 
 
 async def execute_refusal_cascade(
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     agent_type: str = AgentType.APP,
     n: int = 1,
-    configs: Optional[dict] = None,
-    response_schema: Optional[Type[BaseModel]] = None,
+    configs: dict | None = None,
+    response_schema: type[BaseModel] | None = None,
     trigger_reason: str = "Safety refusal detected",
 ) -> LLMResult:
     """
@@ -223,7 +223,7 @@ async def execute_refusal_cascade(
     featherless_key = os.environ.get("FEATHERLESS_API_KEY", "").strip()
 
     total_tiers = len(ROTATION_TIERS)
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
 
     for tier_info in ROTATION_TIERS:
         tier_num = tier_info["tier"]

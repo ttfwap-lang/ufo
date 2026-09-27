@@ -2,12 +2,12 @@
 测试 WebSocket 客户端类型区分功能
 """
 import asyncio
-import json
 import logging
-import sys
-import websockets
 from datetime import datetime, timezone
+
+import websockets
 from ufo.aip.messages import ClientMessage, ClientMessageType, TaskStatus
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ class MockWSClient:
             await self.websocket.close()
             logger.info(f'[{self.client_type.upper()}] {self.client_id} disconnected')
 import pytest
+
 
 @pytest.mark.asyncio
 async def test_client_types():

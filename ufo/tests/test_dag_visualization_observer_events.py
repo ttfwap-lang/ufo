@@ -5,18 +5,20 @@ This test verifies that the DAGVisualizationObserver can properly handle differe
 types of events and produce appropriate visualization output using the refactored
 modular visualization components.
 """
-import sys
-import os
 import asyncio
+import os
+import sys
 import time
 from io import StringIO
+
 from rich.console import Console
-from unittest.mock import MagicMock
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from ufo.galaxy.constellation import TaskConstellation, TaskPriority, TaskStar, TaskStarLine
+from ufo.galaxy.constellation.enums import DependencyType
+from ufo.galaxy.core.events import ConstellationEvent, Event, EventType, TaskEvent
 from ufo.galaxy.session.observers.dag_visualization_observer import DAGVisualizationObserver
-from ufo.galaxy.constellation import TaskConstellation, TaskStar, TaskStarLine, TaskPriority
-from ufo.galaxy.constellation.enums import TaskStatus, ConstellationState, DependencyType
-from ufo.galaxy.core.events import Event, EventType, TaskEvent, ConstellationEvent
+
 
 def create_test_constellation():
     """Create a sample constellation for testing."""

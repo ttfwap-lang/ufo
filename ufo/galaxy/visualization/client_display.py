@@ -9,15 +9,13 @@ including banners, status tables, result displays, and help information.
 """
 
 from pathlib import Path
-from typing import Dict, Any, Optional
-
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
-
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Prompt
+from rich.table import Table
 
 
 class ClientDisplay:
@@ -28,7 +26,7 @@ class ClientDisplay:
     execution results, and interactive help.
     """
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Console | None = None):
         """
         Initialize client display.
 
@@ -117,7 +115,7 @@ class ClientDisplay:
         session_name: str,
         max_rounds: int,
         output_dir: Path,
-        session_info: Dict[str, Any] = None,
+        session_info: dict[str, Any] = None,
     ) -> None:
         """
         Show current session status.
@@ -153,7 +151,7 @@ class ClientDisplay:
 
         self.console.print(status_table)
 
-    def display_result(self, result: Dict[str, Any]) -> None:
+    def display_result(self, result: dict[str, Any]) -> None:
         """
         Display execution result with rich formatting.
 

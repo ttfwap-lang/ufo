@@ -4,11 +4,11 @@ Integration Tests for Device Info Flow
 Tests the complete flow of device info from device client to constellation client.
 """
 
-import pytest
-import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, Mock
 
+import pytest
+from starlette.websockets import WebSocketState
 from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
@@ -17,13 +17,11 @@ from ufo.aip.messages import (
     ServerMessageType,
     TaskStatus,
 )
-from ufo.server.services.ws_manager import WSManager
-from ufo.server.ws.handler import UFOWebSocketHandler
-from ufo.server.ws.handler import ConnectionContext
 from ufo.aip.protocol.device_info import DeviceInfoProtocol
 from ufo.aip.transport.websocket import WebSocketTransport
-from starlette.websockets import WebSocketState
 from ufo.server.services.session_manager import SessionManager
+from ufo.server.services.ws_manager import WSManager
+from ufo.server.ws.handler import ConnectionContext, UFOWebSocketHandler
 
 
 def _fastapi_ws_mock():
@@ -192,8 +190,8 @@ class TestAgentProfileIntegration:
     @pytest.mark.asyncio
     async def test_device_info_with_server_config(self):
         """Test device info merging with server config"""
-        import tempfile
         import os
+        import tempfile
 
         # Create server config
         yaml_content = """

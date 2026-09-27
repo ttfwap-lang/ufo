@@ -4,8 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, Optional, Type, Any
-
+from typing import TYPE_CHECKING, Any
 
 from ufo.agents.agent.basic import BasicAgent
 from ufo.agents.states.basic import AgentState, AgentStateManager
@@ -42,7 +41,7 @@ class AppAgentStatus(Enum):
 
 class AppAgentStateManager(AgentStateManager):
 
-    _state_mapping: Dict[str, Type[AppAgentState]] = {}
+    _state_mapping: dict[str, type[AppAgentState]] = {}
 
     @property
     def none_state(self) -> AgentState:
@@ -58,7 +57,7 @@ class AppAgentState(AgentState):
     """
 
     async def handle(
-        self, agent: "AppAgent", context: Optional["Context"] = None
+        self, agent: AppAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -68,7 +67,7 @@ class AppAgentState(AgentState):
         pass
 
     @classmethod
-    def agent_class(cls) -> Type[AppAgent]:
+    def agent_class(cls) -> type[AppAgent]:
         """
         The agent class of the state.
         :return: The agent class.
@@ -79,7 +78,7 @@ class AppAgentState(AgentState):
 
         return AppAgent
 
-    def next_agent(self, agent: "AppAgent") -> BasicAgent:
+    def next_agent(self, agent: AppAgent) -> BasicAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -87,7 +86,7 @@ class AppAgentState(AgentState):
         """
         return agent
 
-    def next_state(self, agent: "AppAgent") -> AppAgentState:
+    def next_state(self, agent: AppAgent) -> AppAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -99,7 +98,7 @@ class AppAgentState(AgentState):
         return state
 
     async def archive_subtask(
-        self, context: "Context", result: Optional[Any] = None
+        self, context: Context, result: Any | None = None
     ) -> None:
         """
         Update the subtask of the agent.
@@ -130,7 +129,7 @@ class FinishAppAgentState(AppAgentState):
     """
 
     async def handle(
-        self, agent: "AppAgent", context: Optional["Context"] = None
+        self, agent: AppAgent, context: Context | None = None
     ) -> None:
         """
         :param agent: The agent for the current step.
@@ -145,7 +144,7 @@ class FinishAppAgentState(AppAgentState):
 
         await self.archive_subtask(context, result)
 
-    def next_agent(self, agent: "AppAgent") -> HostAgent:
+    def next_agent(self, agent: AppAgent) -> HostAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -153,7 +152,7 @@ class FinishAppAgentState(AppAgentState):
         """
         return agent.host
 
-    def next_state(self, agent: "AppAgent") -> HostAgentState:
+    def next_state(self, agent: AppAgent) -> HostAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -188,7 +187,7 @@ class ContinueAppAgentState(AppAgentState):
     """
 
     async def handle(
-        self, agent: "AppAgent", context: Optional["Context"] = None
+        self, agent: AppAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -260,7 +259,7 @@ class PendingAppAgentState(AppAgentState):
     """
 
     async def handle(
-        self, agent: "AppAgent", context: Optional["Context"] = None
+        self, agent: AppAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -303,7 +302,7 @@ class ErrorAppAgentState(AppAgentState):
     """
 
     async def handle(
-        self, agent: "AppAgent", context: Optional["Context"] = None
+        self, agent: AppAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -320,7 +319,7 @@ class ErrorAppAgentState(AppAgentState):
 
         await self.archive_subtask(context, result)
 
-    def next_agent(self, agent: "AppAgent") -> HostAgent:
+    def next_agent(self, agent: AppAgent) -> HostAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -328,7 +327,7 @@ class ErrorAppAgentState(AppAgentState):
         """
         return agent.host
 
-    def next_state(self, agent: "AppAgent") -> HostAgentState:
+    def next_state(self, agent: AppAgent) -> HostAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -366,7 +365,7 @@ class FailAppAgentState(AppAgentState):
     """
 
     async def handle(
-        self, agent: "AppAgent", context: Optional["Context"] = None
+        self, agent: AppAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -383,7 +382,7 @@ class FailAppAgentState(AppAgentState):
 
         await self.archive_subtask(context, result)
 
-    def next_agent(self, agent: "AppAgent") -> HostAgent:
+    def next_agent(self, agent: AppAgent) -> HostAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -391,7 +390,7 @@ class FailAppAgentState(AppAgentState):
         """
         return agent.host
 
-    def next_state(self, agent: "AppAgent") -> HostAgentState:
+    def next_state(self, agent: AppAgent) -> HostAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.
@@ -428,7 +427,7 @@ class NoneAppAgentState(AppAgentState):
     The class for the none app agent state.
     """
 
-    def next_agent(self, agent: "AppAgent") -> HostAgent:
+    def next_agent(self, agent: AppAgent) -> HostAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -436,7 +435,7 @@ class NoneAppAgentState(AppAgentState):
         """
         return agent.host
 
-    def next_state(self, agent: "AppAgent") -> HostAgentState:
+    def next_state(self, agent: AppAgent) -> HostAgentState:
         """
         Get the next state of the agent.
         :param agent: The agent for the current step.

@@ -44,11 +44,12 @@ Usage:
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
 logger = logging.getLogger(__name__)
 _BUILTIN_PATTERNS = [re.compile('\\$\\s*\\d{1,3}(?:,\\d{3})*(?:\\.\\d{1,2})?', re.IGNORECASE), re.compile('(?:USD|EUR|GBP|AUD)\\s*\\d{1,3}(?:,\\d{3})*(?:\\.\\d{1,2})?', re.IGNORECASE), re.compile('\\b\\d{3}-\\d{2}-\\d{4}\\b'), re.compile('\\b(?:Account|Acc|Acct)[\\s:#\\-]*\\d{4,12}\\b', re.IGNORECASE), re.compile('\\b(?:\\d{4}[-\\s]?){3}\\d{4}\\b'), re.compile('\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}\\b'), re.compile('\\b[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}\\b'), re.compile('\\b(?:ABA|Routing|RTN)[\\s:#\\-]*\\d{9}\\b', re.IGNORECASE), re.compile('\\b(?:DOB|Birth\\s*Date|Date\\s*of\\s*Birth)[\\s:]*\\d{1,2}[/\\-]\\d{1,2}[/\\-]\\d{2,4}\\b', re.IGNORECASE), re.compile('\\b(?:Balance|Available|Current|Pending)[\\s:]*\\$?\\s*\\d{1,3}(?:,\\d{3})*(?:\\.\\d{1,2})?\\b', re.IGNORECASE)]
 
-def _load_redactor_config() -> Dict[str, Any]:
+def _load_redactor_config() -> dict[str, Any]:
     """Load redactor config from system.yaml."""
     defaults = {'ENABLED': True, 'REDACT_FOR_CLOUD_ONLY': True, 'BLUR_KERNEL_SIZE': 51, 'REDACTION_MARKER': '[REDACTED]', 'CUSTOM_PATTERNS': []}
     try:
@@ -75,7 +76,7 @@ class PIIRedactor:
         self._config = _load_redactor_config()
         self._marker = self._config.get('REDACTION_MARKER', '[REDACTED]')
         self._blur_kernel = self._config.get('BLUR_KERNEL_SIZE', 51)
-        self._patterns: List[re.Pattern] = list(_BUILTIN_PATTERNS)
+        self._patterns: list[re.Pattern] = list(_BUILTIN_PATTERNS)
         custom = self._config.get('CUSTOM_PATTERNS', [])
         if custom:
             for pat_str in custom:
@@ -103,7 +104,7 @@ class PIIRedactor:
             return is_cloud
         return True
 
-    def redact_uia_tree(self, node: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def redact_uia_tree(self, node: dict[str, Any] | None) -> dict[str, Any] | None:
         """
         Recursively scrub PII from UIA tree text nodes.
 
@@ -118,7 +119,7 @@ class PIIRedactor:
         self._redact_node(node)
         return node
 
-    def _redact_node(self, node: Dict[str, Any]) -> int:
+    def _redact_node(self, node: dict[str, Any]) -> int:
         """Redact a single node and its children. Returns count of redactions."""
         count = 0
         for field in ('name', 'value', 'text', 'help_text'):
@@ -149,7 +150,7 @@ class PIIRedactor:
             return text
         return self._redact_text(text)
 
-    def redact_screenshot(self, screenshot_path: str, uia_tree: Optional[Dict[str, Any]]=None) -> str:
+    def redact_screenshot(self, screenshot_path: str, uia_tree: dict[str, Any] | None=None) -> str:
         """
         Blur PII regions on a screenshot using redacted UIA tree bounding boxes.
 
@@ -179,7 +180,7 @@ class PIIRedactor:
                 logger.warning('[Redactor] Neither Pillow nor cv2 available for screenshot blur.')
                 return screenshot_path
 
-    def _collect_redacted_regions(self, node: Dict[str, Any], regions: List[Tuple[int, int, int, int]]) -> None:
+    def _collect_redacted_regions(self, node: dict[str, Any], regions: list[tuple[int, int, int, int]]) -> None:
         """Collect bounding boxes of nodes containing the redaction marker.
 
         Supports three rectangle formats found in UFO UIA trees:
@@ -197,7 +198,7 @@ class PIIRedactor:
             self._collect_redacted_regions(child, regions)
 
     @staticmethod
-    def _extract_bbox(node: Dict[str, Any]) -> Optional[Tuple[int, int, int, int]]:
+    def _extract_bbox(node: dict[str, Any]) -> tuple[int, int, int, int] | None:
         """Extract a (left, top, right, bottom) tuple from a UIA node.
 
         Checks bounding_box (list), adjusted_rectangle (dict), rectangle (dict).
@@ -222,7 +223,7 @@ class PIIRedactor:
                     continue
         return None
 
-    def _blur_with_pillow(self, src_path: str, regions: List[Tuple[int, int, int, int]], dst_path: str) -> str:
+    def _blur_with_pillow(self, src_path: str, regions: list[tuple[int, int, int, int]], dst_path: str) -> str:
         """Apply Gaussian blur to regions using Pillow."""
         from PIL import Image, ImageFilter
         image = Image.open(src_path)
@@ -240,7 +241,7 @@ class PIIRedactor:
         logger.info(f'[Redactor] Screenshot PII obfuscated: {len(regions)} regions blurred → {dst_path}')
         return dst_path
 
-    def _blur_with_cv2(self, src_path: str, regions: List[Tuple[int, int, int, int]], dst_path: str) -> str:
+    def _blur_with_cv2(self, src_path: str, regions: list[tuple[int, int, int, int]], dst_path: str) -> str:
         """Apply Gaussian blur to regions using OpenCV."""
         import cv2
         image = cv2.imread(src_path)
@@ -263,7 +264,7 @@ class PIIRedactor:
         logger.info(f'[Redactor] Screenshot PII obfuscated: {len(regions)} regions blurred → {dst_path}')
         return dst_path
 
-    def redact_for_cloud(self, screenshot_path: str, uia_tree: Optional[Dict[str, Any]]=None) -> Tuple[str, Optional[Dict[str, Any]]]:
+    def redact_for_cloud(self, screenshot_path: str, uia_tree: dict[str, Any] | None=None) -> tuple[str, dict[str, Any] | None]:
         """
         One-shot redaction for cloud transmission.
 

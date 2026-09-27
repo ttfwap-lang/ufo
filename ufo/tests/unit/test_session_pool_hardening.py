@@ -11,10 +11,10 @@ Covers:
 4. current_agent_class returning "Unknown" when no rounds exist
 """
 
-import asyncio
 import logging
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 
 class TestSessionPoolRunAll:

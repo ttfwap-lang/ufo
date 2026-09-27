@@ -16,7 +16,6 @@ import os
 import re
 import statistics
 import subprocess
-import time
 import urllib.request
 
 from PIL import Image

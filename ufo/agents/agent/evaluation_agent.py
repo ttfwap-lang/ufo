@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from ufo.agents.agent.basic import BasicAgent
 from ufo.agents.presenters.rich_presenter import RichPresenter
@@ -68,7 +68,7 @@ class EvaluationAgent(BasicAgent):
 
     def message_constructor(
         self, log_path: str, request: str, eva_all_screenshots: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Construct the message.
         :param log_path: The path to the log file.
@@ -113,7 +113,7 @@ class EvaluationAgent(BasicAgent):
         tool_info_dict = context.get(ContextNames.TOOL_INFO)
 
         for agent_name in tool_info_dict:
-            tool_list: List[MCPToolInfo] = tool_info_dict[agent_name]
+            tool_list: list[MCPToolInfo] = tool_info_dict[agent_name]
 
             tool_name_list = [tool.tool_name for tool in tool_list] if tool_list else []
 
@@ -128,8 +128,8 @@ class EvaluationAgent(BasicAgent):
         request: str,
         log_path: str,
         eva_all_screenshots: bool = True,
-        context: Optional[Context] = None,
-    ) -> Tuple[Dict[str, str], float]:
+        context: Context | None = None,
+    ) -> tuple[dict[str, str], float]:
         """
         Evaluate the task completion asynchronously.
         :param log_path: The path to the log file.
@@ -156,7 +156,7 @@ class EvaluationAgent(BasicAgent):
         """
         pass
 
-    def print_response(self, response_dict: Dict[str, str]) -> None:
+    def print_response(self, response_dict: dict[str, str]) -> None:
         """
         Pretty-print the evaluation response using RichPresenter.
         :param response_dict: The response dictionary.

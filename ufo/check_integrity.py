@@ -12,10 +12,8 @@ from __future__ import annotations
 
 import ast
 import builtins
-import io
 import os
 import sys
-from typing import Dict, List, Set, Tuple
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -34,7 +32,7 @@ KNOWN_EXTERNAL = {
     "base64", "threading", "traceback", "subprocess", "tempfile", "shutil",
     "stat", "collections", "itertools", "functools", "dataclasses", "typing",
     "pathlib", "io", "math", "random", "string", "textwrap", "argparse",
-    "datetime", "hashlib", "hmac", "logging", "traceback", "warnings",
+    "datetime", "hashlib", "hmac", "logging", "warnings",
     "ctypes", "struct", "glob", "csv", "socket", "ssl", "signal", "copy",
     "PIL", "psutil", "win32gui", "win32con", "win32process", "win32ui",
     "ufo", "venus_client", "astro_collect", "uac_run", "automator",
@@ -43,8 +41,8 @@ KNOWN_EXTERNAL = {
 }
 
 
-def collect_defined(tree: ast.AST) -> Set[str]:
-    names: Set[str] = set()
+def collect_defined(tree: ast.AST) -> set[str]:
+    names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
                              ast.ClassDef)):
@@ -65,8 +63,8 @@ def collect_defined(tree: ast.AST) -> Set[str]:
     return names
 
 
-def called_names(tree: ast.AST) -> Dict[str, int]:
-    out: Dict[str, int] = {}
+def called_names(tree: ast.AST) -> dict[str, int]:
+    out: dict[str, int] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             fn = node.func
@@ -82,13 +80,13 @@ def called_names(tree: ast.AST) -> Dict[str, int]:
 
 
 def main() -> int:
-    problems: List[str] = []
+    problems: list[str] = []
     for rel in OWNED:
         path = os.path.join(ROOT, rel)
         if not os.path.exists(path):
             problems.append(f"{rel}: MISSING FILE")
             continue
-        src = io.open(path, encoding="utf-8", errors="replace").read()
+        src = open(path, encoding="utf-8", errors="replace").read()
         try:
             tree = ast.parse(src)
         except SyntaxError as e:

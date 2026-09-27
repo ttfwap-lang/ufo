@@ -5,7 +5,7 @@ Stage R3 Handler: Basic BankFidelity Task.
 """
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from tests.eval_suite.verifiers import (
     resolve_log_path,
@@ -41,7 +41,7 @@ def pre_cleanup() -> None:
     except Exception as e:
         logger.warning(f'[Stage R3 Pre-Cleanup] Could not pre-launch BankFidelity: {e}')
 
-def verify_r3(stage_data: Optional[Union[Dict[str, Any], str, Path]]=None, output_dir: Optional[Union[str, Path]]=None, task_log_dir: Optional[Union[str, Path]]=None, dry_run: bool=False) -> Dict[str, Any]:
+def verify_r3(stage_data: dict[str, Any] | str | Path | None=None, output_dir: str | Path | None=None, task_log_dir: str | Path | None=None, dry_run: bool=False) -> dict[str, Any]:
     """
     Verify Stage R3 execution results.
 
@@ -63,7 +63,7 @@ def verify_r3(stage_data: Optional[Union[Dict[str, Any], str, Path]]=None, outpu
     overall_verified = process_ver['verified'] and trajectory_ver.get('verified', False)
     return {'verified': overall_verified, 'stage_id': STAGE_ID, 'dry_run': False, 'process_detected': process_ver['verified'], 'running_processes': process_ver.get('running_processes', []), 'trajectory_verified': trajectory_ver.get('verified', False), 'details': f"BankFidelity process detected: {process_ver['verified']}, Trajectory verified: {trajectory_ver.get('verified', False)}"}
 
-def get_stage_config() -> Dict[str, Any]:
+def get_stage_config() -> dict[str, Any]:
     """
     Get stage configuration dictionary for Stage R3.
 

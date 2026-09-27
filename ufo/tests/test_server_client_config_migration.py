@@ -3,15 +3,16 @@ Test config migration for ufo/server and ufo/client directories.
 Verifies that migrated config values match old config values and tests for AttributeError.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from ufo.config.config_loader import get_ufo_config
 from ufo.config import Config
+from ufo.config.config_loader import get_ufo_config
 
 
 class TestServerClientConfigMigration:
@@ -57,7 +58,7 @@ class TestServerClientConfigMigration:
         """Test that all migrated attributes are accessible without AttributeError."""
         # Test system.eva_session attribute
         try:
-            value = getattr(self.new_config.system, "eva_session")
+            value = self.new_config.system.eva_session
             assert value is not None or hasattr(
                 self.new_config.system, "eva_session"
             ), "Attribute eva_session not accessible"

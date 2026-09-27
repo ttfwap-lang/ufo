@@ -5,11 +5,14 @@ Provides the core AIP protocol abstractions and message handling infrastructure.
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from collections.abc import Awaitable, Callable
+from typing import Any
+
 from ufo.aip.messages import ServerMessage
 from ufo.aip.transport import Transport
+
 MessageHandler = Callable[[Any], Awaitable[None]]
-ProtocolHandler = Callable[[Any], Awaitable[Optional[Any]]]
+ProtocolHandler = Callable[[Any], Awaitable[Any | None]]
 
 class AIPProtocol:
     """
@@ -37,8 +40,8 @@ class AIPProtocol:
         :param transport: Transport layer for sending/receiving messages
         """
         self.transport = transport
-        self.message_handlers: Dict[str, List[MessageHandler]] = {}
-        self.middleware_chain: List['ProtocolMiddleware'] = []
+        self.message_handlers: dict[str, list[MessageHandler]] = {}
+        self.middleware_chain: list[ProtocolMiddleware] = []
         self.logger = logging.getLogger(f'{__name__}.AIPProtocol')
 
     async def send_message(self, msg: Any) -> None:
@@ -64,7 +67,7 @@ class AIPProtocol:
                 raise ValueError(f'Unsupported message type: {type(msg)}')
             await self.transport.send(serialized)
             self.logger.debug(f'Sent message: {msg.__class__.__name__}')
-        except (ConnectionError, IOError, OSError) as e:
+        except (ConnectionError, OSError) as e:
             error_msg = str(e).lower()
             if 'closed' in error_msg or 'not connected' in error_msg:
                 self.logger.debug(f'Cannot send message (connection closed): {e}')
@@ -98,7 +101,7 @@ class AIPProtocol:
                 msg = await middleware.process_incoming(msg)
             self.logger.debug(f'Received message: {msg.__class__.__name__}')
             return msg
-        except (ConnectionError, IOError, OSError) as e:
+        except (ConnectionError, OSError) as e:
             error_msg = str(e).lower()
             if 'closed' in error_msg or 'not connected' in error_msg:
                 self.logger.debug(f'Cannot receive message (connection closed): {e}')
@@ -153,7 +156,7 @@ class AIPProtocol:
         """Check if protocol transport is connected."""
         return self.transport.is_connected
 
-    async def send_error(self, error_msg: str, response_id: Optional[str]=None) -> None:
+    async def send_error(self, error_msg: str, response_id: str | None=None) -> None:
         """
         Send a generic error message (server-side).
 
@@ -162,11 +165,12 @@ class AIPProtocol:
         """
         import datetime
         import uuid
+
         from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
         error_message = ServerMessage(type=ServerMessageType.ERROR, status=TaskStatus.ERROR, error=error_msg, timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(), response_id=response_id or str(uuid.uuid4()))
         await self.send_message(error_message)
 
-    async def send_ack(self, session_id: Optional[str]=None, response_id: Optional[str]=None) -> None:
+    async def send_ack(self, session_id: str | None=None, response_id: str | None=None) -> None:
         """
         Send a generic acknowledgment message (server-side).
 
@@ -175,6 +179,7 @@ class AIPProtocol:
         """
         import datetime
         import uuid
+
         from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
         ack_message = ServerMessage(type=ServerMessageType.HEARTBEAT, status=TaskStatus.OK, session_id=session_id, timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(), response_id=response_id or str(uuid.uuid4()))
         await self.send_message(ack_message)
@@ -183,7 +188,7 @@ class AIPProtocol:
         """Close protocol and transport."""
         await self.transport.close()
 
-    async def send_binary_message(self, data: bytes, metadata: Optional[Dict[str, Any]]=None) -> None:
+    async def send_binary_message(self, data: bytes, metadata: dict[str, Any] | None=None) -> None:
         """
         Send a binary message with optional metadata.
 
@@ -234,7 +239,7 @@ class AIPProtocol:
             self.logger.error(f'Error sending binary message: {e}')
             raise
 
-    async def receive_binary_message(self, validate_size: bool=True) -> tuple[bytes, Dict[str, Any]]:
+    async def receive_binary_message(self, validate_size: bool=True) -> tuple[bytes, dict[str, Any]]:
         """
         Receive a binary message with metadata.
 
@@ -311,8 +316,8 @@ class AIPProtocol:
         file_size = os.path.getsize(file_path)
         file_name = os.path.basename(file_path)
         total_chunks = (file_size + chunk_size - 1) // chunk_size
-        import mimetypes
         import json
+        import mimetypes
         mime_type, _ = mimetypes.guess_type(file_path)
         header_msg = {'type': 'file_transfer_start', 'filename': file_name, 'size': file_size, 'chunk_size': chunk_size, 'total_chunks': total_chunks, 'mime_type': mime_type}
         await self.transport.send(json.dumps(header_msg).encode('utf-8'))
@@ -334,7 +339,7 @@ class AIPProtocol:
         await self.transport.send(json.dumps(completion_msg).encode('utf-8'))
         self.logger.info(f'File transfer complete: {file_name}')
 
-    async def receive_file(self, output_path: str, validate_checksum: bool=True) -> Dict[str, Any]:
+    async def receive_file(self, output_path: str, validate_checksum: bool=True) -> dict[str, Any]:
         """
         Receive a file that was sent in chunks.
 

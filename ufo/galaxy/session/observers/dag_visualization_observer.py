@@ -2,12 +2,14 @@
 Main DAG visualization observer with delegated handlers.
 """
 import logging
-from typing import Dict, Optional
+
 from ufo.galaxy.visualization.dag_visualizer import DAGVisualizer
+
 from ...constellation import TaskConstellation
 from ...core.events import ConstellationEvent, Event, IEventObserver, TaskEvent
 from .constellation_visualization_handler import ConstellationVisualizationHandler
 from .task_visualization_handler import TaskVisualizationHandler
+
 
 class DAGVisualizationObserver(IEventObserver):
     """
@@ -29,7 +31,7 @@ class DAGVisualizationObserver(IEventObserver):
         self.logger = logging.getLogger(__name__)
         self._visualizer = None
         self._console = console
-        self._constellations: Dict[str, TaskConstellation] = {}
+        self._constellations: dict[str, TaskConstellation] = {}
         self._task_handler = None
         self._constellation_handler = None
         if self.enable_visualization:
@@ -94,7 +96,7 @@ class DAGVisualizationObserver(IEventObserver):
         if self._task_handler:
             await self._task_handler.handle_task_event(event, constellation)
 
-    def _extract_constellation_from_event(self, event: ConstellationEvent) -> Optional[TaskConstellation]:
+    def _extract_constellation_from_event(self, event: ConstellationEvent) -> TaskConstellation | None:
         """
         Extract constellation from event data.
 
@@ -120,7 +122,7 @@ class DAGVisualizationObserver(IEventObserver):
         if enabled and (not self._visualizer):
             self._init_visualizer()
 
-    def get_constellation(self, constellation_id: str) -> Optional[TaskConstellation]:
+    def get_constellation(self, constellation_id: str) -> TaskConstellation | None:
         """
         Get stored constellation by ID.
 

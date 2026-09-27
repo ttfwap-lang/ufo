@@ -5,16 +5,15 @@
 Test for the new modular observer structure.
 """
 
-import asyncio
-import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
+import pytest
+from ufo.galaxy.core.events import EventType, TaskEvent
 from ufo.galaxy.session.observers import (
     ConstellationProgressObserver,
-    SessionMetricsObserver,
     DAGVisualizationObserver,
+    SessionMetricsObserver,
 )
-from ufo.galaxy.core.events import TaskEvent, ConstellationEvent, EventType
 
 
 class TestModularObservers:

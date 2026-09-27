@@ -15,20 +15,14 @@ Tests cover:
 """
 
 import asyncio
-import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch, call
-from typing import Dict, Any
-import websockets
+from unittest.mock import AsyncMock, MagicMock, Mock
 
-from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+import pytest
+import websockets
 from ufo.galaxy.client.components import (
     DeviceStatus,
-    AgentProfile,
-    TaskRequest,
-    MessageProcessor,
 )
-from ufo.galaxy.core.types import ExecutionResult
-from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
+from ufo.galaxy.client.device_manager import ConstellationDeviceManager
 
 
 class TestDeviceDisconnectionReconnection:
@@ -213,7 +207,7 @@ class TestDeviceDisconnectionReconnection:
         )
         device_manager.heartbeat_manager.start_heartbeat = Mock()
         device_manager._publish_device_event = AsyncMock()
-        
+
 
         # Mock websocket connection
         mock_websocket = MagicMock()
@@ -280,7 +274,7 @@ class TestDeviceDisconnectionReconnection:
         )
         device_manager.heartbeat_manager.start_heartbeat = Mock()
         device_manager._publish_device_event = AsyncMock()
-        
+
 
         # Mock websocket
         mock_websocket = MagicMock()
@@ -363,7 +357,7 @@ class TestDeviceDisconnectionReconnection:
         # Verify task was marked as failed
         device_manager.task_queue_manager.fail_task.assert_called_once()
         call_args = device_manager.task_queue_manager.fail_task.call_args
-        
+
         assert call_args[0][1] == task_id
         assert isinstance(call_args[0][2], ConnectionError)
 
@@ -417,7 +411,7 @@ class TestDeviceDisconnectionReconnection:
         )
         device_manager.heartbeat_manager.start_heartbeat = Mock()
         device_manager._publish_device_event = AsyncMock()
-        
+
 
         # Mock websocket
         mock_websocket = MagicMock()
@@ -429,8 +423,8 @@ class TestDeviceDisconnectionReconnection:
 
         # Verify connection event was triggered
         device_manager._publish_device_event.assert_called()
-        
-        
+
+
 
     # ========================================================================
     # Test 11: Multiple disconnection/reconnection cycles
@@ -451,7 +445,7 @@ class TestDeviceDisconnectionReconnection:
         )
         device_manager.heartbeat_manager.start_heartbeat = Mock()
         device_manager._publish_device_event = AsyncMock()
-        
+
         device_manager._publish_device_event = AsyncMock()
 
         # Mock websocket
@@ -476,7 +470,7 @@ class TestDeviceDisconnectionReconnection:
 
         # Verify events were called 3 times each
         assert device_manager._publish_device_event.call_count == 6
-        
+
 
     # ========================================================================
     # Test 12: Heartbeat stops on disconnection

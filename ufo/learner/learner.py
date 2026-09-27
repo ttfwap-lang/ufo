@@ -3,8 +3,8 @@
 
 import argparse
 
-
 from ufo.learner import indexer
+
 args = argparse.ArgumentParser()
 args.add_argument(
     "--app", help="The name of application to learn.", type=str, default="./"

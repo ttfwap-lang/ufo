@@ -19,7 +19,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -31,19 +31,19 @@ from tests.eval_suite.stages.stage_r3 import verify_r3
 from tests.eval_suite.stages.stage_r4 import verify_r4
 from tests.eval_suite.stages.stage_r5 import verify_r5
 
-EVAL_STAGES: Dict[str, Dict[str, Any]] = {'R1': stage_r1.get_stage_config(), 'R2': stage_r2.get_stage_config(), 'R3': stage_r3.get_stage_config(), 'R4': stage_r4.get_stage_config(), 'R5': stage_r5.get_stage_config()}
+EVAL_STAGES: dict[str, dict[str, Any]] = {'R1': stage_r1.get_stage_config(), 'R2': stage_r2.get_stage_config(), 'R3': stage_r3.get_stage_config(), 'R4': stage_r4.get_stage_config(), 'R5': stage_r5.get_stage_config()}
 
-def _write_json_file(filepath: Path, data: Dict[str, Any]) -> None:
+def _write_json_file(filepath: Path, data: dict[str, Any]) -> None:
     """Helper to write JSON data to file synchronously."""
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2)
 
-async def _write_json_file_async(filepath: Path, data: Dict[str, Any]) -> None:
+async def _write_json_file_async(filepath: Path, data: dict[str, Any]) -> None:
     """Helper to write JSON data to file asynchronously using asyncio.to_thread()."""
     await asyncio.to_thread(_write_json_file, filepath, data)
 _REPORT_PATH_LOCK = threading.Lock()
 
-def _generate_unique_report_paths(output_dir: Path, timestamp: str) -> Tuple[Path, Path]:
+def _generate_unique_report_paths(output_dir: Path, timestamp: str) -> tuple[Path, Path]:
     """Helper to determine non-colliding JSON and Markdown report file paths thread-safely."""
     with _REPORT_PATH_LOCK:
         json_path = output_dir / f'eval_results_{timestamp}.json'
@@ -67,13 +67,13 @@ def _generate_unique_report_paths(output_dir: Path, timestamp: str) -> Tuple[Pat
             counter += 1
         return (json_path, md_path)
 
-def _collect_trajectory_logs(task_log_dir: Path, logger: logging.Logger) -> List[Dict[str, Any]]:
+def _collect_trajectory_logs(task_log_dir: Path, logger: logging.Logger) -> list[dict[str, Any]]:
     """Helper to synchronously search and read trajectory JSON files from log dir."""
-    trajectories: List[Dict[str, Any]] = []
+    trajectories: list[dict[str, Any]] = []
     if task_log_dir.exists():
         for log_file in task_log_dir.glob('*.json'):
             try:
-                with open(log_file, 'r', encoding='utf-8') as f:
+                with open(log_file, encoding='utf-8') as f:
                     data = json.load(f)
                     trajectories.append({'file': log_file.name, 'content': data})
             except Exception as e:
@@ -85,7 +85,7 @@ class EvaluationRunner:
     Test harness and runner for executing UFO evaluation stages programmatically.
     """
 
-    def __init__(self, output_dir: Optional[str]=None, exec_method: str='api', dry_run: bool=False, log_level: str='INFO'):
+    def __init__(self, output_dir: str | None=None, exec_method: str='api', dry_run: bool=False, log_level: str='INFO'):
         """
         Initialize the EvaluationRunner.
 
@@ -101,7 +101,7 @@ class EvaluationRunner:
         logging.basicConfig(level=getattr(logging, log_level.upper(), logging.INFO))
         self.logger = logging.getLogger('EvalRunner')
 
-    async def run_stage(self, stage_id: str, request_override: Optional[str]=None, task_name_override: Optional[str]=None, mode: str='normal') -> Dict[str, Any]:
+    async def run_stage(self, stage_id: str, request_override: str | None=None, task_name_override: str | None=None, mode: str='normal') -> dict[str, Any]:
         """
         Run a single evaluation stage.
 
@@ -136,7 +136,7 @@ class EvaluationRunner:
         start_iso = datetime.now().isoformat()
         status = 'SUCCESS'
         error_msg = None
-        trajectories: List[Dict[str, Any]] = []
+        trajectories: list[dict[str, Any]] = []
         verifier_fn = stage_meta.get('verifier')
         if self.dry_run:
             self.logger.info(f'[DRY RUN] Simulating execution for Stage {stage_id}')
@@ -171,7 +171,7 @@ class EvaluationRunner:
                     error_msg = f'Stage {stage_id} timed out after 3600 seconds'
                     self.logger.error(error_msg)
             elif self.exec_method == 'cli':
-                cmd: List[str] = [sys.executable, '-m', 'ufo', '--task', task_name, '--request', request_text, '--mode', mode]
+                cmd: list[str] = [sys.executable, '-m', 'ufo', '--task', task_name, '--request', request_text, '--mode', mode]
                 self.logger.info(f"Executing CLI command: {' '.join(cmd)}")
                 proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=str(PROJECT_ROOT))
                 timeout_seconds = stage_meta.get('timeout', 3600)
@@ -226,7 +226,7 @@ class EvaluationRunner:
         return result
     run_single_stage = run_stage
 
-    async def run_suite(self, stages: Optional[List[str]]=None, request_override: Optional[str]=None, task_prefix: Optional[str]=None, mode: str='normal') -> Dict[str, Any]:
+    async def run_suite(self, stages: list[str] | None=None, request_override: str | None=None, task_prefix: str | None=None, mode: str='normal') -> dict[str, Any]:
         """
         Run multiple evaluation stages sequentially and produce structured results.
 
@@ -257,7 +257,7 @@ class EvaluationRunner:
             raise ValueError(f"Request override '--request' can only be specified when running a single stage (got {len(selected_stages)} stages: {selected_stages}).")
         suite_start_time = time.time()
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-        suite_results: List[Dict[str, Any]] = []
+        suite_results: list[dict[str, Any]] = []
         self.logger.info(f"=== Starting UFO Evaluation Suite ({len(selected_stages)} Stages: {', '.join(selected_stages)}) ===")
         passed_count = 0
         failed_count = 0
@@ -280,11 +280,11 @@ class EvaluationRunner:
         self.logger.info(f'Markdown summary report saved to: {md_report_path}')
         return summary
 
-    async def _write_markdown_summary_async(self, summary: Dict[str, Any], filepath: Path) -> None:
+    async def _write_markdown_summary_async(self, summary: dict[str, Any], filepath: Path) -> None:
         """Write human-readable Markdown summary report asynchronously using asyncio.to_thread()."""
         await asyncio.to_thread(self._write_markdown_summary, summary, filepath)
 
-    def _write_markdown_summary(self, summary: Dict[str, Any], filepath: Path) -> None:
+    def _write_markdown_summary(self, summary: dict[str, Any], filepath: Path) -> None:
         """Write human-readable Markdown summary report."""
         lines = [f"# {summary['title']}", '', f"- **Timestamp**: {summary['timestamp']}", f"- **Execution Method**: `{summary['execution_method']}` (Dry Run: `{summary['dry_run']}`)", f"- **Total Duration**: {summary['duration_seconds']}s", f"- **Results**: {summary['passed_stages']} Passed / {summary['failed_stages']} Failed (Total: {summary['total_stages']})", '', '## Stage Summary Table', '', '| Stage | Name | Target App | Status | Duration (s) | Task Name |', '|---|---|---|---|---|---|']
         for r in summary['stage_results']:
@@ -298,7 +298,7 @@ class EvaluationRunner:
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write('\n'.join(lines))
 
-def parse_args(args_list: Optional[List[str]]=None) -> argparse.Namespace:
+def parse_args(args_list: list[str] | None=None) -> argparse.Namespace:
     """Parse CLI arguments for EvaluationRunner."""
     parser = argparse.ArgumentParser(description='UFO 5-Stage Evaluation Suite Test Harness & Runner')
     parser.add_argument('--stage', '-s', help='Evaluation stage(s) to run (R1, R2, R3, R4, R5, or ALL). Multiple can be comma-separated (e.g. R1,R2). Default: ALL', type=str, default='ALL')

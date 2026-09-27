@@ -3,10 +3,12 @@ Base observer classes for constellation progress and session metrics.
 """
 import asyncio
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
+
 from ...agents.constellation_agent import ConstellationAgent
 from ...core.events import ConstellationEvent, Event, EventType, IEventObserver, TaskEvent
 from ...visualization.change_detector import VisualizationChangeDetector
+
 
 class ConstellationProgressObserver(IEventObserver):
     """
@@ -15,7 +17,7 @@ class ConstellationProgressObserver(IEventObserver):
     This replaces the complex callback logic in GalaxyRound.
     """
 
-    def __init__(self, agent: ConstellationAgent, context: Optional[Any]=None):
+    def __init__(self, agent: ConstellationAgent, context: Any | None=None):
         """
         Initialize ConstellationProgressObserver.
 
@@ -24,7 +26,7 @@ class ConstellationProgressObserver(IEventObserver):
         """
         self.agent = agent
         self.context = context
-        self.task_results: Dict[str, Dict[str, Any]] = {}
+        self.task_results: dict[str, dict[str, Any]] = {}
         self.logger = logging.getLogger(__name__)
 
     async def on_event(self, event: Event) -> None:
@@ -88,14 +90,14 @@ class SessionMetricsObserver(IEventObserver):
     Observer that collects session metrics and statistics.
     """
 
-    def __init__(self, session_id: str, logger: Optional[logging.Logger]=None):
+    def __init__(self, session_id: str, logger: logging.Logger | None=None):
         """
         Initialize SessionMetricsObserver.
 
         :param session_id: Unique session identifier for metrics tracking
         :param logger: Optional logger instance (creates default if None)
         """
-        self.metrics: Dict[str, Any] = {'session_id': session_id, 'task_count': 0, 'completed_tasks': 0, 'failed_tasks': 0, 'total_execution_time': 0.0, 'task_timings': {}, 'constellation_count': 0, 'completed_constellations': 0, 'failed_constellations': 0, 'total_constellation_time': 0.0, 'constellation_timings': {}, 'constellation_modifications': {}}
+        self.metrics: dict[str, Any] = {'session_id': session_id, 'task_count': 0, 'completed_tasks': 0, 'failed_tasks': 0, 'total_execution_time': 0.0, 'task_timings': {}, 'constellation_count': 0, 'completed_constellations': 0, 'failed_constellations': 0, 'total_constellation_time': 0.0, 'constellation_timings': {}, 'constellation_modifications': {}}
         self.logger = logger or logging.getLogger(__name__)
 
     async def on_event(self, event: Event) -> None:
@@ -213,7 +215,7 @@ class SessionMetricsObserver(IEventObserver):
             modification_record = {'timestamp': event.timestamp, 'modification_type': event.data.get('modification_type', 'unknown'), 'on_task_id': event.data.get('on_task_id', []), 'changes': changes, 'new_statistics': new_statistics, 'processing_start_time': event.data.get('processing_start_time'), 'processing_end_time': event.data.get('processing_end_time'), 'processing_duration': event.data.get('processing_duration')}
             self.metrics['constellation_modifications'][constellation_id].append(modification_record)
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """
         Get collected metrics with computed statistics.
 
@@ -228,7 +230,7 @@ class SessionMetricsObserver(IEventObserver):
         metrics['modification_statistics'] = modification_stats
         return metrics
 
-    def _compute_task_statistics(self) -> Dict[str, Any]:
+    def _compute_task_statistics(self) -> dict[str, Any]:
         """
         Compute task-related statistics.
 
@@ -238,7 +240,7 @@ class SessionMetricsObserver(IEventObserver):
         durations = [timing['duration'] for timing in task_timings.values() if 'duration' in timing]
         return {'total_tasks': self.metrics.get('task_count', 0), 'completed_tasks': self.metrics.get('completed_tasks', 0), 'failed_tasks': self.metrics.get('failed_tasks', 0), 'success_rate': self.metrics.get('completed_tasks', 0) / self.metrics.get('task_count', 1) if self.metrics.get('task_count', 0) > 0 else 0.0, 'failure_rate': self.metrics.get('failed_tasks', 0) / self.metrics.get('task_count', 1) if self.metrics.get('task_count', 0) > 0 else 0.0, 'average_task_duration': sum(durations) / len(durations) if durations else 0.0, 'min_task_duration': min(durations) if durations else 0.0, 'max_task_duration': max(durations) if durations else 0.0, 'total_task_execution_time': self.metrics.get('total_execution_time', 0.0)}
 
-    def _compute_constellation_statistics(self) -> Dict[str, Any]:
+    def _compute_constellation_statistics(self) -> dict[str, Any]:
         """
         Compute constellation-related statistics.
 
@@ -255,14 +257,14 @@ class SessionMetricsObserver(IEventObserver):
                 constellation_count += 1
         return {'total_constellations': self.metrics.get('constellation_count', 0), 'completed_constellations': self.metrics.get('completed_constellations', 0), 'failed_constellations': self.metrics.get('failed_constellations', 0), 'success_rate': self.metrics.get('completed_constellations', 0) / self.metrics.get('constellation_count', 1) if self.metrics.get('constellation_count', 0) > 0 else 0.0, 'average_constellation_duration': sum(durations) / len(durations) if durations else 0.0, 'min_constellation_duration': min(durations) if durations else 0.0, 'max_constellation_duration': max(durations) if durations else 0.0, 'total_constellation_time': self.metrics.get('total_constellation_time', 0.0), 'average_tasks_per_constellation': total_tasks_in_constellations / constellation_count if constellation_count > 0 else 0.0}
 
-    def _compute_modification_statistics(self) -> Dict[str, Any]:
+    def _compute_modification_statistics(self) -> dict[str, Any]:
         """
         Compute constellation modification statistics.
 
         :return: Dictionary containing computed modification statistics
         """
         modifications = self.metrics.get('constellation_modifications', {})
-        total_modifications = sum((len(mods) for mods in modifications.values()))
+        total_modifications = sum(len(mods) for mods in modifications.values())
         modifications_per_constellation = {const_id: len(mods) for const_id, mods in modifications.items()}
         avg_modifications = total_modifications / len(modifications) if modifications else 0.0
         most_modified_constellation = None

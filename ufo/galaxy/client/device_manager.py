@@ -7,13 +7,26 @@ Uses modular components for clean separation of concerns.
 import asyncio
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import websockets
-from ufo.galaxy.core.types import ExecutionResult
-from ufo.galaxy.core.events import DeviceEvent, EventType, get_event_bus
-from ufo.utils.redact import redact
+
 from ufo.aip.messages import TaskStatus
-from .components import AgentProfile, DeviceRegistry, DeviceStatus, HeartbeatManager, MessageProcessor, TaskQueueManager, TaskRequest, WebSocketConnectionManager
+from ufo.galaxy.core.events import DeviceEvent, EventType, get_event_bus
+from ufo.galaxy.core.types import ExecutionResult
+from ufo.utils.redact import redact
+
+from .components import (
+    AgentProfile,
+    DeviceRegistry,
+    DeviceStatus,
+    HeartbeatManager,
+    MessageProcessor,
+    TaskQueueManager,
+    TaskRequest,
+    WebSocketConnectionManager,
+)
+
 
 class ConstellationDeviceManager:
     """
@@ -43,11 +56,11 @@ class ConstellationDeviceManager:
         self.message_processor = MessageProcessor(self.device_registry, self.heartbeat_manager, self.connection_manager)
         self.task_queue_manager = TaskQueueManager()
         self.message_processor.set_disconnection_handler(self._handle_device_disconnection)
-        self._reconnect_tasks: Dict[str, asyncio.Task] = {}
+        self._reconnect_tasks: dict[str, asyncio.Task] = {}
         self.event_bus = get_event_bus()
         self.logger = logging.getLogger(__name__)
 
-    def _get_device_registry_snapshot(self) -> Dict[str, Dict[str, Any]]:
+    def _get_device_registry_snapshot(self) -> dict[str, dict[str, Any]]:
         """
         Create a snapshot of all devices in the registry.
 
@@ -76,7 +89,7 @@ class ConstellationDeviceManager:
         except Exception as e:
             self.logger.error(f'❌ Failed to publish device event for {device_id}: {e}', exc_info=True)
 
-    async def register_device(self, device_id: str, server_url: str, os: str, capabilities: Optional[List[str]]=None, metadata: Optional[Dict[str, Any]]=None, auto_connect: bool=True) -> bool:
+    async def register_device(self, device_id: str, server_url: str, os: str, capabilities: list[str] | None=None, metadata: dict[str, Any] | None=None, auto_connect: bool=True) -> bool:
         """
         Register a device and optionally connect to it.
 
@@ -275,7 +288,7 @@ class ConstellationDeviceManager:
         finally:
             self._reconnect_tasks.pop(device_id, None)
 
-    async def assign_task_to_device(self, task_id: str, device_id: str, task_description: str, task_data: Dict[str, Any], timeout: float=1000) -> ExecutionResult:
+    async def assign_task_to_device(self, task_id: str, device_id: str, task_description: str, task_data: dict[str, Any], timeout: float=1000) -> ExecutionResult:
         """
         Assign a task to a specific device.
         If device is BUSY, the task will be queued and executed when device becomes IDLE.
@@ -326,7 +339,7 @@ class ConstellationDeviceManager:
             # Queued callers get the same FAILED result as direct callers.
             self.task_queue_manager.complete_task(device_id, task_request.task_id, result)
             return result
-        except asyncio.TimeoutError as e:
+        except asyncio.TimeoutError:
             self.logger.error(f'❌ Task {task_request.task_id} timed out on device {device_id}')
             result = ExecutionResult(task_id=task_request.task_id, status=TaskStatus.FAILED, error=f'Task execution timed out after {task_request.timeout} seconds', result={'error_type': 'timeout', 'message': f'Task timed out after {task_request.timeout} seconds', 'device_id': device_id, 'task_id': task_request.task_id}, metadata={'device_id': device_id, 'timeout': task_request.timeout, 'error_category': 'timeout_error'})
             # Queued callers get the same FAILED result as direct callers.
@@ -357,19 +370,19 @@ class ConstellationDeviceManager:
                 self.logger.info(f'🚀 Processing next queued task {next_task.task_id} for device {device_id}')
                 asyncio.create_task(self._execute_task_on_device(device_id, next_task))
 
-    def get_device_info(self, device_id: str) -> Optional[AgentProfile]:
+    def get_device_info(self, device_id: str) -> AgentProfile | None:
         """Get device information"""
         return self.device_registry.get_device(device_id)
 
-    def get_connected_devices(self) -> List[str]:
+    def get_connected_devices(self) -> list[str]:
         """Get list of connected device IDs"""
         return self.device_registry.get_connected_devices()
 
-    def get_device_capabilities(self, device_id: str) -> Dict[str, Any]:
+    def get_device_capabilities(self, device_id: str) -> dict[str, Any]:
         """Get device capabilities and information"""
         return self.device_registry.get_device_capabilities(device_id)
 
-    def get_device_system_info(self, device_id: str) -> Optional[Dict[str, Any]]:
+    def get_device_system_info(self, device_id: str) -> dict[str, Any] | None:
         """
         Get device system information (hardware, OS, features).
         Delegates to DeviceRegistry.
@@ -379,7 +392,7 @@ class ConstellationDeviceManager:
         """
         return self.device_registry.get_device_system_info(device_id)
 
-    def get_all_devices(self, connected=False) -> Dict[str, AgentProfile]:
+    def get_all_devices(self, connected=False) -> dict[str, AgentProfile]:
         """
         Get all registered devices
         :param connected: If True, return only connected devices
@@ -387,14 +400,14 @@ class ConstellationDeviceManager:
         """
         return self.device_registry.get_all_devices(connected=connected)
 
-    def get_device_status(self, device_id: str) -> Dict[str, Any]:
+    def get_device_status(self, device_id: str) -> dict[str, Any]:
         """Get device status information"""
         device_info = self.device_registry.get_device(device_id)
         if not device_info:
             return {'error': f'Device {device_id} not found'}
         return {'device_id': device_info.device_id, 'status': device_info.status.value, 'server_url': redact(device_info.server_url), 'capabilities': device_info.capabilities, 'metadata': device_info.metadata, 'last_heartbeat': device_info.last_heartbeat.isoformat() if device_info.last_heartbeat else None, 'connection_attempts': device_info.connection_attempts, 'max_retries': device_info.max_retries, 'current_task_id': device_info.current_task_id, 'queued_tasks': self.task_queue_manager.get_queue_size(device_id), 'queued_task_ids': self.task_queue_manager.get_queued_task_ids(device_id)}
 
-    def get_task_queue_status(self, device_id: str) -> Dict[str, Any]:
+    def get_task_queue_status(self, device_id: str) -> dict[str, Any]:
         """
         Get task queue status for a device.
 
@@ -403,7 +416,7 @@ class ConstellationDeviceManager:
         """
         return {'device_id': device_id, 'is_busy': self.device_registry.is_device_busy(device_id), 'current_task_id': self.device_registry.get_current_task(device_id), 'queue_size': self.task_queue_manager.get_queue_size(device_id), 'queued_task_ids': self.task_queue_manager.get_queued_task_ids(device_id), 'pending_task_ids': self.task_queue_manager.get_pending_task_ids(device_id)}
 
-    async def ensure_devices_connected(self) -> Dict[str, bool]:
+    async def ensure_devices_connected(self) -> dict[str, bool]:
         """
         Ensure all registered devices are connected.
         Attempts to reconnect any disconnected devices.
@@ -433,7 +446,7 @@ class ConstellationDeviceManager:
                 except Exception as e:
                     self.logger.error(f'❌ Error connecting device {device_id}: {e}')
                     results[device_id] = False
-        connected_count = sum((1 for connected in results.values() if connected))
+        connected_count = sum(1 for connected in results.values() if connected)
         total_count = len(results)
         self.logger.info(f'🔌 Connection check complete: {connected_count}/{total_count} devices connected')
         return results

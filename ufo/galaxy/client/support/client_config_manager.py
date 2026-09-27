@@ -5,9 +5,11 @@ Handles configuration-based initialization and device registration.
 Single responsibility: Configuration coordination.
 """
 import logging
-from typing import Dict, List, Optional, Any
-from ..device_manager import ConstellationDeviceManager
+from typing import Any
+
 from ..config_loader import ConstellationConfig, DeviceConfig
+from ..device_manager import ConstellationDeviceManager
+
 
 class ClientConfigManager:
     """
@@ -24,7 +26,7 @@ class ClientConfigManager:
         self.device_manager = device_manager
         self.logger = logging.getLogger(f'{__name__}.ClientConfigManager')
 
-    async def initialize_from_config(self, config: ConstellationConfig) -> Dict[str, bool]:
+    async def initialize_from_config(self, config: ConstellationConfig) -> dict[str, bool]:
         """
         Initialize devices from configuration.
 
@@ -40,7 +42,7 @@ class ClientConfigManager:
                 self.logger.info(f'✅ Registered device {device_config.device_id}')
             else:
                 self.logger.error(f'❌ Failed to register device {device_config.device_id}')
-        successful_registrations = sum((1 for success in registration_results.values() if success))
+        successful_registrations = sum(1 for success in registration_results.values() if success)
         total_devices = len(registration_results)
         self.logger.info(f'📊 Device registration complete: {successful_registrations}/{total_devices} successful')
         return registration_results
@@ -58,7 +60,7 @@ class ClientConfigManager:
             self.logger.error(f'❌ Failed to register device {device_config.device_id}: {e}')
             return False
 
-    async def add_device_to_config(self, config: ConstellationConfig, device_id: str, server_url: str, local_client_ids: List[str], capabilities: Optional[List[str]]=None, metadata: Optional[Dict[str, Any]]=None, auto_connect: bool=True, register_immediately: bool=True) -> bool:
+    async def add_device_to_config(self, config: ConstellationConfig, device_id: str, server_url: str, local_client_ids: list[str], capabilities: list[str] | None=None, metadata: dict[str, Any] | None=None, auto_connect: bool=True, register_immediately: bool=True) -> bool:
         """
         Add a new device to the configuration and optionally register it.
 
@@ -88,7 +90,7 @@ class ClientConfigManager:
             self.logger.error(f'❌ Failed to add device {device_id} to configuration: {e}')
             return False
 
-    def validate_config(self, config: ConstellationConfig) -> Dict[str, Any]:
+    def validate_config(self, config: ConstellationConfig) -> dict[str, Any]:
         """
         Validate a constellation configuration.
 
@@ -122,7 +124,7 @@ class ClientConfigManager:
             validation_results['warnings'].append('Heartbeat interval is very short (< 10s)')
         return validation_results
 
-    def _validate_device_config(self, device_config: DeviceConfig) -> Dict[str, Any]:
+    def _validate_device_config(self, device_config: DeviceConfig) -> dict[str, Any]:
         """
         Validate a single device configuration.
 
@@ -131,7 +133,7 @@ class ClientConfigManager:
         """
         validation = {'valid': True, 'errors': [], 'warnings': []}
         if not device_config.device_id or len(device_config.device_id.strip()) == 0:
-            validation['errors'].append(f'Device ID is required')
+            validation['errors'].append('Device ID is required')
             validation['valid'] = False
         if not device_config.server_url or len(device_config.server_url.strip()) == 0:
             validation['errors'].append(f'Server URL is required for device {device_config.device_id}')
@@ -147,11 +149,11 @@ class ClientConfigManager:
                 validation['valid'] = False
         return validation
 
-    def get_config_summary(self, config: ConstellationConfig) -> Dict[str, Any]:
+    def get_config_summary(self, config: ConstellationConfig) -> dict[str, Any]:
         """
         Get a summary of the configuration.
 
         :param config: Configuration to summarize
         :return: Configuration summary
         """
-        return {'task_name': config.task_name, 'device_count': len(config.devices), 'total_local_clients': sum((len(d.local_client_ids) for d in config.devices)), 'devices_with_capabilities': sum((1 for d in config.devices if d.capabilities)), 'auto_connect_devices': sum((1 for d in config.devices if d.auto_connect)), 'configuration_parameters': {'heartbeat_interval': config.heartbeat_interval, 'reconnect_delay': config.reconnect_delay, 'max_concurrent_tasks': config.max_concurrent_tasks}, 'validation': self.validate_config(config)}
+        return {'task_name': config.task_name, 'device_count': len(config.devices), 'total_local_clients': sum(len(d.local_client_ids) for d in config.devices), 'devices_with_capabilities': sum(1 for d in config.devices if d.capabilities), 'auto_connect_devices': sum(1 for d in config.devices if d.auto_connect), 'configuration_parameters': {'heartbeat_interval': config.heartbeat_interval, 'reconnect_delay': config.reconnect_delay, 'max_concurrent_tasks': config.max_concurrent_tasks}, 'validation': self.validate_config(config)}

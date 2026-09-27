@@ -5,8 +5,9 @@ Galaxy Framework Refactoring Summary Test
 This script demonstrates the successful completion of the visualization refactoring
 and validates the new modular architecture described in the updated documentation.
 """
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 def test_refactoring_completion():
@@ -15,7 +16,13 @@ def test_refactoring_completion():
     print('=' * 60)
     print('\n📦 Testing Modular Visualization Components:')
     try:
-        from ufo.galaxy.visualization import DAGVisualizer, TaskDisplay, ConstellationDisplay, VisualizationChangeDetector, visualize_dag
+        from ufo.galaxy.visualization import (
+            ConstellationDisplay,
+            DAGVisualizer,
+            TaskDisplay,
+            VisualizationChangeDetector,
+            visualize_dag,
+        )
         print('  ✅ All visualization components imported successfully')
         print('  ✅ DAGVisualizer: DAG topology and structure')
         print('  ✅ TaskDisplay: Task-specific displays and formatting')
@@ -27,7 +34,11 @@ def test_refactoring_completion():
         return False
     print('\n🎯 Testing Session Observer Integration:')
     try:
-        from ufo.galaxy.session.observers import DAGVisualizationObserver, ConstellationProgressObserver, SessionMetricsObserver
+        from ufo.galaxy.session.observers import (
+            ConstellationProgressObserver,
+            DAGVisualizationObserver,
+            SessionMetricsObserver,
+        )
         print('  ✅ All session observers imported successfully')
         print('  ✅ Observers now delegate to visualization components')
         print('  ✅ Legacy handlers deprecated and logic moved')
@@ -37,8 +48,8 @@ def test_refactoring_completion():
     print('\n🚀 Testing Galaxy Framework Integration:')
     try:
         from ufo.galaxy import GalaxyClient, GalaxySession
-        from ufo.galaxy.constellation import TaskConstellation
         from ufo.galaxy.agents import ConstellationAgent
+        from ufo.galaxy.constellation import TaskConstellation
         print('  ✅ Galaxy framework components imported successfully')
         print('  ✅ Full integration between all modules')
     except ImportError as e:
@@ -58,7 +69,7 @@ def test_refactoring_completion():
         from ufo.galaxy.visualization import DAGVisualizer
         visualizer = DAGVisualizer()
         print('  ✅ DAGVisualizer still works for backwards compatibility')
-        from ufo.galaxy.visualization import TaskDisplay, ConstellationDisplay
+        from ufo.galaxy.visualization import ConstellationDisplay, TaskDisplay
         task_display = TaskDisplay()
         constellation_display = ConstellationDisplay()
         print('  ✅ New modular components work independently')

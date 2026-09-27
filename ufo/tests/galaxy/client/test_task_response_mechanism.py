@@ -16,30 +16,28 @@ This test suite validates:
 """
 
 import asyncio
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch, call
-from websockets import WebSocketClientProtocol
 
 # Import components under test
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from websockets import WebSocketClientProtocol
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-
-from ufo.galaxy.client.components.connection_manager import WebSocketConnectionManager
-from ufo.galaxy.client.components.message_processor import MessageProcessor
-from ufo.galaxy.client.components.device_registry import DeviceRegistry
-from ufo.galaxy.client.components.heartbeat_manager import HeartbeatManager
-from ufo.galaxy.client.components.types import AgentProfile, TaskRequest
 
 from ufo.aip.messages import (
     ServerMessage,
     ServerMessageType,
     TaskStatus,
-    ClientMessage,
-    ClientMessageType,
 )
+from ufo.galaxy.client.components.connection_manager import WebSocketConnectionManager
+from ufo.galaxy.client.components.device_registry import DeviceRegistry
+from ufo.galaxy.client.components.heartbeat_manager import HeartbeatManager
+from ufo.galaxy.client.components.message_processor import MessageProcessor
+from ufo.galaxy.client.components.types import AgentProfile, TaskRequest
 
 
 def _attach(connection_manager, device_id, mock_websocket):

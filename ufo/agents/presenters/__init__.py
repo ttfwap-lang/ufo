@@ -9,10 +9,8 @@ allowing for flexible output formatting and easy extension to new output formats
 """
 
 from .base_presenter import BasePresenter
-
-from .rich_presenter import RichPresenter
-
 from .presenter_factory import PresenterFactory
+from .rich_presenter import RichPresenter
 
 __all__ = [
     "BasePresenter",

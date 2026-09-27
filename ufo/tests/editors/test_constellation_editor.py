@@ -9,18 +9,18 @@ Tests the editor's command pattern functionality including:
 - File operations
 - Validation and analysis
 """
-import sys
 import os
+import sys
 import tempfile
-import json
 from pathlib import Path
+
 project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
-from ufo.galaxy.constellation.editor import ConstellationEditor
-from ufo.galaxy.constellation.task_star import TaskStar
-from ufo.galaxy.constellation.task_star_line import TaskStarLine
-from ufo.galaxy.constellation.enums import TaskPriority, DependencyType
 from ufo.galaxy.agents.schema import TaskConstellationSchema
+from ufo.galaxy.constellation.editor import ConstellationEditor
+from ufo.galaxy.constellation.enums import DependencyType, TaskPriority
+from ufo.galaxy.constellation.task_star import TaskStar
+
 
 def test_basic_task_operations():
     """Test basic task CRUD operations."""

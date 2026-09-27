@@ -5,12 +5,13 @@ allowing high-precision interaction on Canvas, Electron, DirectX, and hostile ap
 """
 
 import logging
-from typing import Annotated, Optional
+from typing import Annotated
+
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
-from ufo.client.mcp.mcp_registry import MCPRegistry
 from ufo.automator.ui_tars_bridge import UITarsBridge
+from ufo.client.mcp.mcp_registry import MCPRegistry
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,12 @@
+import logging
 import os
 import shutil
-import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Optional, Union
+from collections.abc import Callable
+from typing import Any, Union
 
 from fastmcp import FastMCP
 from fastmcp.client.transports import StdioTransport
-
 from ufo.client.mcp.mcp_registry import MCPRegistry
 
 # MCPServerType can be either a URL string for HTTP servers or a FastMCP instance for local in-memory servers, or a StdioTransport instance.
@@ -18,13 +18,13 @@ class BaseMCPServer(ABC):
     Base class for MCP servers. This class should be extended by specific MCP server implementations.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """
         Initialize the MCP server with the given configuration.
         :param config: Configuration dictionary for the MCP server.
         """
         self._config = config
-        self._server: Optional[FastMCP] = None
+        self._server: FastMCP | None = None
         self._namespace = config.get("namespace") or config.get("name") or "default"
         self.logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class BaseMCPServer(ABC):
         pass
 
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> dict[str, Any]:
         """
         Get the configuration of the MCP server.
         :return: Configuration dictionary.
@@ -66,7 +66,7 @@ class BaseMCPServer(ABC):
         return self._namespace
 
     @property
-    def server(self) -> Optional[MCPServerType]:
+    def server(self) -> MCPServerType | None:
         """
         Get the MCPServerType server instance.
         :return: MCPServerType instance or None if not started.
@@ -183,13 +183,13 @@ class MCPServerManager:
 
     _logger = logging.getLogger(__name__)
 
-    _server_type_mapping: Dict[str, Callable[[Dict[str, Any]], BaseMCPServer]] = {
+    _server_type_mapping: dict[str, Callable[[dict[str, Any]], BaseMCPServer]] = {
         "http": HTTPMCPServer,
         "local": LocalMCPServer,
         "stdio": StdioMCPServer,
     }
 
-    _servers_mapping: Dict[str, BaseMCPServer] = {}
+    _servers_mapping: dict[str, BaseMCPServer] = {}
 
     @classmethod
     def register_server(cls, namespace: str, server: BaseMCPServer) -> None:
@@ -206,7 +206,7 @@ class MCPServerManager:
 
     @classmethod
     def create_mcp_server(
-        cls, mcp_config: Dict[str, Any], *args, **kwargs
+        cls, mcp_config: dict[str, Any], *args, **kwargs
     ) -> BaseMCPServer:
         """
         Create an MCP server based on the type and parameters.
@@ -236,7 +236,7 @@ class MCPServerManager:
         return server_instance
 
     @classmethod
-    def get_server(cls, namespace: str) -> Optional[BaseMCPServer]:
+    def get_server(cls, namespace: str) -> BaseMCPServer | None:
         """
         Get the MCP server by its namespace.
         :param namespace: The namespace of the server.
@@ -246,7 +246,7 @@ class MCPServerManager:
 
     @classmethod
     def create_or_get_server(
-        cls, mcp_config: Dict[str, Any], reset: bool = False, *args, **kwargs
+        cls, mcp_config: dict[str, Any], reset: bool = False, *args, **kwargs
     ) -> BaseMCPServer:
         """
         Create a new MCP server or return an existing one based on the configuration.

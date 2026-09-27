@@ -4,17 +4,17 @@ Debug script for constellation modification event handling.
 """
 
 import asyncio
-import sys
 import os
+import sys
 from datetime import datetime
 
 # Add the project root to the path
 sys.path.insert(0, os.path.abspath("."))
 
+from rich.console import Console
 from ufo.galaxy.constellation import TaskConstellation, TaskStar, TaskStarLine
 from ufo.galaxy.core.events import ConstellationEvent, EventType
 from ufo.galaxy.session.observers import DAGVisualizationObserver
-from rich.console import Console
 
 
 async def test_constellation_modified_handling():
@@ -69,7 +69,7 @@ async def test_constellation_modified_handling():
     original_handle = observer._handle_constellation_modified
 
     async def debug_handle_constellation_modified(event, constellation):
-        console.print(f"[cyan]DEBUG: _handle_constellation_modified called[/cyan]")
+        console.print("[cyan]DEBUG: _handle_constellation_modified called[/cyan]")
         console.print(
             f"[cyan]DEBUG: event.data = {event.data.keys() if event.data else 'None'}[/cyan]"
         )
@@ -79,7 +79,7 @@ async def test_constellation_modified_handling():
         )
 
         result = await original_handle(event, constellation)
-        console.print(f"[cyan]DEBUG: _handle_constellation_modified finished[/cyan]")
+        console.print("[cyan]DEBUG: _handle_constellation_modified finished[/cyan]")
         return result
 
     observer._handle_constellation_modified = debug_handle_constellation_modified

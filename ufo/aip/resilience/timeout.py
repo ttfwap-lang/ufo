@@ -5,7 +5,9 @@ Handles timeout enforcement for asynchronous operations in AIP.
 """
 import asyncio
 import logging
-from typing import Any, Awaitable, Optional, TypeVar
+from collections.abc import Awaitable
+from typing import TypeVar
+
 T = TypeVar('T')
 
 class TimeoutManager:
@@ -28,7 +30,7 @@ class TimeoutManager:
         self.default_timeout = default_timeout
         self.logger = logging.getLogger(f'{__name__}.TimeoutManager')
 
-    async def with_timeout(self, coro: Awaitable[T], timeout: Optional[float]=None, operation_name: str='operation') -> T:
+    async def with_timeout(self, coro: Awaitable[T], timeout: float | None=None, operation_name: str='operation') -> T:
         """
         Execute a coroutine with timeout.
 
@@ -51,7 +53,7 @@ class TimeoutManager:
             self.logger.error(f'Error in {operation_name}: {e}', exc_info=True)
             raise
 
-    async def with_timeout_or_none(self, coro: Awaitable[T], timeout: Optional[float]=None, operation_name: str='operation') -> Optional[T]:
+    async def with_timeout_or_none(self, coro: Awaitable[T], timeout: float | None=None, operation_name: str='operation') -> T | None:
         """
         Execute a coroutine with timeout, returning None on timeout.
 

@@ -9,8 +9,8 @@ Usage:
     python tests/galaxy/client/run_disconnection_tests.py
 """
 
-import sys
 import subprocess
+import sys
 
 
 def main():

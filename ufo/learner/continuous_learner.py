@@ -8,11 +8,10 @@ recipes into a local knowledge base to optimize future agent runs.
 
 import json
 import logging
-import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 logger = logging.getLogger("UFO_ContinuousLearner")
 
@@ -25,9 +24,9 @@ class ContinuousLearner:
 
     def __init__(
         self,
-        logs_dir: Optional[Path] = None,
-        memory_dir: Optional[Path] = None,
-        ufo_root: Optional[Union[str, Path]] = None,
+        logs_dir: Path | None = None,
+        memory_dir: Path | None = None,
+        ufo_root: str | Path | None = None,
     ):
         self.ufo_root = Path(ufo_root) if ufo_root else Path.cwd()
         self.logs_dir = logs_dir or (self.ufo_root / "logs")
@@ -35,26 +34,26 @@ class ContinuousLearner:
         self.memory_dir.mkdir(parents=True, exist_ok=True)
         self.recipes_file = self.memory_dir / "learned_recipes.json"
         self.flaky_controls_file = self.memory_dir / "flaky_controls.json"
-        self._recipes: Dict[str, Any] = self._load_json(self.recipes_file)
-        self._flaky_controls: Dict[str, Any] = self._load_json(self.flaky_controls_file)
+        self._recipes: dict[str, Any] = self._load_json(self.recipes_file)
+        self._flaky_controls: dict[str, Any] = self._load_json(self.flaky_controls_file)
 
-    def _load_json(self, path: Path) -> Dict[str, Any]:
+    def _load_json(self, path: Path) -> dict[str, Any]:
         if path.exists():
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
                 logger.warning(f"Failed to load {path}: {e}")
         return {}
 
-    def _save_json(self, path: Path, data: Dict[str, Any]) -> None:
+    def _save_json(self, path: Path, data: dict[str, Any]) -> None:
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save {path}: {e}")
 
-    def harvest_all_logs(self) -> Dict[str, int]:
+    def harvest_all_logs(self) -> dict[str, int]:
         """Scan logs/ directory and ingest any unparsed completed sessions."""
         if not self.logs_dir.exists():
             return {"processed": 0, "successful": 0, "failed": 0}
@@ -65,7 +64,7 @@ class ContinuousLearner:
                 result_file = task_folder / "result.json"
                 if result_file.exists():
                     try:
-                        with open(result_file, "r", encoding="utf-8") as f:
+                        with open(result_file, encoding="utf-8") as f:
                             result_data = json.load(f)
                         stats["processed"] += 1
                         task_id = task_folder.name
@@ -84,7 +83,7 @@ class ContinuousLearner:
         self._save_json(self.flaky_controls_file, self._flaky_controls)
         return stats
 
-    def _ingest_successful_session(self, task_id: str, task_folder: Path, result_data: Dict[str, Any]) -> None:
+    def _ingest_successful_session(self, task_id: str, task_folder: Path, result_data: dict[str, Any]) -> None:
         """Extract steps and actions from a successful run."""
         output_str = str(result_data.get("output", ""))
         output_md = task_folder / "output.md"
@@ -93,7 +92,7 @@ class ContinuousLearner:
 
         if output_md.exists():
             try:
-                with open(output_md, "r", encoding="utf-8", errors="ignore") as f:
+                with open(output_md, encoding="utf-8", errors="ignore") as f:
                     content = f.read()
                 # Parse markdown steps
                 for line in content.splitlines():
@@ -106,7 +105,7 @@ class ContinuousLearner:
         if not plan_steps:
             for step_file in sorted(task_folder.glob("step_*.json")):
                 try:
-                    with open(step_file, "r", encoding="utf-8") as sf:
+                    with open(step_file, encoding="utf-8") as sf:
                         sdata = json.load(sf)
                     if not app_name and "application" in sdata:
                         app_name = sdata["application"]
@@ -129,11 +128,11 @@ class ContinuousLearner:
             "learned_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    def _ingest_failed_session(self, task_id: str, task_folder: Path, result_data: Dict[str, Any]) -> None:
+    def _ingest_failed_session(self, task_id: str, task_folder: Path, result_data: dict[str, Any]) -> None:
         """Record error patterns and failing controls."""
         error_type = result_data.get("error_type", "UnknownError")
         error_msg = str(result_data.get("error_message", ""))
-        
+
         self._flaky_controls[task_id] = {
             "task_id": task_id,
             "error_type": error_type,
@@ -141,7 +140,7 @@ class ContinuousLearner:
             "recorded_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    def query_recipe(self, query: str) -> Optional[Dict[str, Any]]:
+    def query_recipe(self, query: str) -> dict[str, Any] | None:
         """Find a previously learned execution recipe matching the query string."""
         query_terms = set(re.findall(r"\w+", query.lower()))
         best_match = None
@@ -156,12 +155,12 @@ class ContinuousLearner:
 
         return best_match
 
-    def find_recipes_for_task(self, task_name: str, app_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def find_recipes_for_task(self, task_name: str, app_name: str | None = None) -> list[dict[str, Any]]:
         """Search and return all matching learned recipes for a given task and application."""
         terms = set(re.findall(r"\w+", task_name.lower()))
         if app_name:
             terms.add(app_name.lower())
-            
+
         matches = []
         for rec in self._recipes.values():
             text = (rec.get("task_id", "") + " " + rec.get("output_summary", "") + " " + rec.get("app", "")).lower()

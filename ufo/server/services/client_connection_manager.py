@@ -2,11 +2,13 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from fastapi import WebSocket
 from ufo.aip.messages import ClientType
 from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.aip.transport.websocket import WebSocketTransport
+
 
 @dataclass
 class ClientInfo:
@@ -14,11 +16,11 @@ class ClientInfo:
     websocket: WebSocket
     client_type: ClientType
     connected_at: datetime
-    metadata: Dict = None
+    metadata: dict = None
     platform: str = 'windows'
-    system_info: Dict = None
-    transport: Optional[WebSocketTransport] = None
-    task_protocol: Optional[TaskExecutionProtocol] = None
+    system_info: dict = None
+    transport: WebSocketTransport | None = None
+    task_protocol: TaskExecutionProtocol | None = None
 
 class DuplicateClientError(Exception):
     """
@@ -49,17 +51,17 @@ class ClientConnectionManager:
     Supports both device clients and constellation clients.
     """
 
-    def __init__(self, device_config_path: Optional[str]=None):
+    def __init__(self, device_config_path: str | None=None):
         """
         Initialize the ClientConnectionManager.
         :param device_config_path: Optional path to device configuration file (YAML/JSON)
         """
-        self.online_clients: Dict[str, ClientInfo] = {}
+        self.online_clients: dict[str, ClientInfo] = {}
         self.lock = threading.Lock()
         self.device_config_path = device_config_path
-        self._device_configs: Dict[str, Dict[str, Any]] = {}
-        self._constellation_sessions: Dict[str, List[str]] = {}
-        self._device_sessions: Dict[str, List[str]] = {}
+        self._device_configs: dict[str, dict[str, Any]] = {}
+        self._constellation_sessions: dict[str, list[str]] = {}
+        self._device_sessions: dict[str, list[str]] = {}
         if device_config_path:
             self._load_device_configs(device_config_path)
 
@@ -75,7 +77,7 @@ class ClientConnectionManager:
                 self._constellation_sessions[client_id] = []
             self._constellation_sessions[client_id].append(session_id)
 
-    def get_constellation_sessions(self, client_id: str) -> List[str]:
+    def get_constellation_sessions(self, client_id: str) -> list[str]:
         """
         Get all session IDs associated with a constellation client.
 
@@ -85,7 +87,7 @@ class ClientConnectionManager:
         with self.lock:
             return self._constellation_sessions.get(client_id, []).copy()
 
-    def remove_constellation_sessions(self, client_id: str) -> List[str]:
+    def remove_constellation_sessions(self, client_id: str) -> list[str]:
         """
         Remove and return all sessions for a constellation client.
 
@@ -107,7 +109,7 @@ class ClientConnectionManager:
                 self._device_sessions[device_id] = []
             self._device_sessions[device_id].append(session_id)
 
-    def get_device_sessions(self, device_id: str) -> List[str]:
+    def get_device_sessions(self, device_id: str) -> list[str]:
         """
         Get all session IDs running on a specific device.
 
@@ -117,7 +119,7 @@ class ClientConnectionManager:
         with self.lock:
             return self._device_sessions.get(device_id, []).copy()
 
-    def remove_device_sessions(self, device_id: str) -> List[str]:
+    def remove_device_sessions(self, device_id: str) -> list[str]:
         """
         Remove and return all sessions for a device.
 
@@ -127,7 +129,7 @@ class ClientConnectionManager:
         with self.lock:
             return self._device_sessions.pop(device_id, [])
 
-    def add_client(self, client_id: str, platform: str='windows', ws: Optional[WebSocket]=None, client_type: ClientType=ClientType.DEVICE, metadata: Optional[Dict]=None, transport: Optional[WebSocketTransport]=None, task_protocol: Optional[TaskExecutionProtocol]=None):
+    def add_client(self, client_id: str, platform: str='windows', ws: WebSocket | None=None, client_type: ClientType=ClientType.DEVICE, metadata: dict | None=None, transport: WebSocketTransport | None=None, task_protocol: TaskExecutionProtocol | None=None):
         """
         Add a new client to the online clients list.
         :param client_id: The ID of the client to add.
@@ -188,7 +190,7 @@ class ClientConnectionManager:
         with self.lock:
             return self.online_clients.get(client_id)
 
-    def get_task_protocol(self, client_id: str) -> Optional[TaskExecutionProtocol]:
+    def get_task_protocol(self, client_id: str) -> TaskExecutionProtocol | None:
         """
         Get the AIP TaskExecutionProtocol for a client.
         :param client_id: The ID of the client.
@@ -208,7 +210,7 @@ class ClientConnectionManager:
             client_info = self.online_clients.get(client_id)
             return client_info.client_type if client_info else None
 
-    def list_clients(self) -> List[str]:
+    def list_clients(self) -> list[str]:
         """
         List all online clients.
         :return: A list of online client IDs.
@@ -226,7 +228,7 @@ class ClientConnectionManager:
             client_info = self.online_clients.get(device_id)
             return client_info is not None and client_info.client_type == ClientType.DEVICE
 
-    def list_clients_by_type(self, client_type: ClientType) -> List[str]:
+    def list_clients_by_type(self, client_type: ClientType) -> list[str]:
         """
         List all online clients of a specific type.
         :param client_type: The type of clients to list ("device" or "constellation").
@@ -235,17 +237,17 @@ class ClientConnectionManager:
         with self.lock:
             return [client_id for client_id, client_info in self.online_clients.items() if client_info.client_type == client_type]
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """
         Get statistics about connected clients.
         :return: A dictionary with client statistics.
         """
         with self.lock:
-            device_count = sum((1 for info in self.online_clients.values() if info.client_type == ClientType.DEVICE))
-            constellation_count = sum((1 for info in self.online_clients.values() if info.client_type == ClientType.CONSTELLATION))
+            device_count = sum(1 for info in self.online_clients.values() if info.client_type == ClientType.DEVICE)
+            constellation_count = sum(1 for info in self.online_clients.values() if info.client_type == ClientType.CONSTELLATION)
             return {'total': len(self.online_clients), 'device_clients': device_count, 'constellation_clients': constellation_count}
 
-    def get_device_system_info(self, device_id: str) -> Optional[Dict[str, Any]]:
+    def get_device_system_info(self, device_id: str) -> dict[str, Any] | None:
         """
         Get device system information by device ID.
 
@@ -258,7 +260,7 @@ class ClientConnectionManager:
                 return client_info.system_info
             return None
 
-    def get_all_devices_info(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_devices_info(self) -> dict[str, dict[str, Any]]:
         """
         Get system information for all connected devices.
 
@@ -291,11 +293,11 @@ class ClientConnectionManager:
                 return
             if config_path.endswith('.yaml') or config_path.endswith('.yml'):
                 import yaml
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with open(config_path, encoding='utf-8') as f:
                     config = yaml.safe_load(f)
             elif config_path.endswith('.json'):
                 import json
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with open(config_path, encoding='utf-8') as f:
                     config = json.load(f)
             else:
                 logger.warning(f'[ClientConnectionManager] Unsupported config file format: {config_path}')
@@ -308,7 +310,7 @@ class ClientConnectionManager:
         except Exception as e:
             logger.error(f'[ClientConnectionManager] Error loading device configs: {e}', exc_info=True)
 
-    def _merge_device_info(self, system_info: Dict[str, Any], server_config: Dict[str, Any]) -> Dict[str, Any]:
+    def _merge_device_info(self, system_info: dict[str, Any], server_config: dict[str, Any]) -> dict[str, Any]:
         """
         Merge device system information with server configuration.
 

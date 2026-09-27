@@ -5,11 +5,11 @@ import base64
 import json
 import threading
 import urllib.request
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from ufo.llm.base import BaseService
 
-_clients: Dict[str, "OmniParser"] = {}
+_clients: dict[str, "OmniParser"] = {}
 _clients_lock = threading.Lock()
 
 
@@ -65,7 +65,7 @@ class OmniParser(BaseService):
         :param endpoint: The endpoint address of the OmniParser service.
         """
         self.endpoint = endpoint.rstrip("/")
-        self._rest_available: Optional[bool] = None
+        self._rest_available: bool | None = None
         self._gradio_client: Any = None
         self._handle_file: Any = None
 
@@ -77,7 +77,7 @@ class OmniParser(BaseService):
         iou_threshold: float,
         use_paddleocr: bool,
         imgsz: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """POST /api/parse and normalise the response to fractional bboxes."""
         with open(image_path, "rb") as handle:
             b64 = base64.b64encode(handle.read()).decode("ascii")
@@ -100,7 +100,7 @@ class OmniParser(BaseService):
         width = float(data.get("width") or 0) or 1.0
         height = float(data.get("height") or 0) or 1.0
 
-        elements: List[Dict[str, Any]] = []
+        elements: list[dict[str, Any]] = []
         for raw in data.get("elements") or []:
             box = raw.get("bbox_xyxy")
             if not box or len(box) != 4:
@@ -150,7 +150,7 @@ class OmniParser(BaseService):
 
     def _gradio_predict(
         self, image_path, box_threshold, iou_threshold, use_paddleocr, imgsz, api_name
-    ) -> Tuple[Any, str]:
+    ) -> tuple[Any, str]:
         self._ensure_gradio()
         return self._gradio_client.predict(
             image_input=self._handle_file(filepath_or_url=image_path),

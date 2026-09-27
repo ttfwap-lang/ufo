@@ -5,12 +5,13 @@ This script tests the to_json() and from_json() methods of TaskConstellation
 along with its constituent TaskStar and TaskStarLine objects.
 """
 import json
-import tempfile
 import os
+import tempfile
+import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
-import uuid
+from typing import Any
+
 
 class TaskStatus(str, Enum):
     PENDING = 'pending'
@@ -55,11 +56,11 @@ class MinimalTaskStar:
         self.error = None
         self.tips = kwargs.get('tips', [])
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {'task_id': self.task_id, 'name': self.name, 'description': self.description, 'status': self.status.value, 'priority': self.priority.value, 'target_device_id': self.target_device_id, 'device_type': self.device_type.value if self.device_type else None, 'result': self.result, 'error': str(self.error) if self.error else None, 'tips': self.tips, 'created_at': self.created_at.isoformat(), 'updated_at': self.updated_at.isoformat()}
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]):
+    def from_dict(cls, data: dict[str, Any]):
         task = cls(name=data.get('name', ''), description=data.get('description', ''), target_device_id=data.get('target_device_id'), device_type=DeviceType(data['device_type']) if data.get('device_type') else None, tips=data.get('tips', []))
         task.task_id = data.get('task_id', task.task_id)
         task.status = TaskStatus(data.get('status', TaskStatus.PENDING.value))
@@ -85,11 +86,11 @@ class MinimalTaskStarLine:
         self.updated_at = self.created_at
         self.is_satisfied = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {'line_id': self.line_id, 'from_task_id': self.from_task_id, 'to_task_id': self.to_task_id, 'dependency_type': self.dependency_type.value, 'condition_description': self.condition_description, 'is_satisfied': self.is_satisfied, 'created_at': self.created_at.isoformat(), 'updated_at': self.updated_at.isoformat()}
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]):
+    def from_dict(cls, data: dict[str, Any]):
         line = cls(from_task_id=data['from_task_id'], to_task_id=data['to_task_id'], condition_description=data.get('condition_description', ''))
         line.line_id = data.get('line_id', line.line_id)
         line.dependency_type = DependencyType(data.get('dependency_type', DependencyType.UNCONDITIONAL.value))
@@ -102,7 +103,7 @@ class MinimalTaskStarLine:
 
 class MinimalTaskConstellation:
 
-    def __init__(self, constellation_id: Optional[str]=None, name: Optional[str]=None, **kwargs):
+    def __init__(self, constellation_id: str | None=None, name: str | None=None, **kwargs):
         self._constellation_id = constellation_id or f'constellation_{str(uuid.uuid4())[:8]}'
         self._name = name or self._constellation_id
         self._state = ConstellationState.CREATED
@@ -117,7 +118,7 @@ class MinimalTaskConstellation:
         self._execution_end_time = None
 
     @property
-    def execution_duration(self) -> Optional[float]:
+    def execution_duration(self) -> float | None:
         if self._execution_start_time and self._execution_end_time:
             return (self._execution_end_time - self._execution_start_time).total_seconds()
         return None
@@ -128,7 +129,7 @@ class MinimalTaskConstellation:
     def add_dependency(self, dependency: MinimalTaskStarLine):
         self._dependencies[dependency.line_id] = dependency
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         tasks_dict = {}
         for task_id, task in self._tasks.items():
             tasks_dict[task_id] = task.to_dict()
@@ -138,7 +139,7 @@ class MinimalTaskConstellation:
         return {'constellation_id': self._constellation_id, 'name': self._name, 'state': self._state.value, 'tasks': tasks_dict, 'dependencies': dependencies_dict, 'metadata': self._metadata, 'llm_source': self._llm_source, 'enable_visualization': self._enable_visualization, 'created_at': self._created_at.isoformat(), 'updated_at': self._updated_at.isoformat(), 'execution_start_time': self._execution_start_time.isoformat() if self._execution_start_time else None, 'execution_end_time': self._execution_end_time.isoformat() if self._execution_end_time else None, 'execution_duration': self.execution_duration}
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]):
+    def from_dict(cls, data: dict[str, Any]):
         constellation = cls(constellation_id=data.get('constellation_id'), name=data.get('name'), enable_visualization=data.get('enable_visualization', True))
         constellation._state = ConstellationState(data.get('state', ConstellationState.CREATED.value))
         constellation._metadata = data.get('metadata', {})
@@ -159,7 +160,7 @@ class MinimalTaskConstellation:
             constellation._dependencies[dep_id] = dependency
         return constellation
 
-    def to_json(self, save_path: Optional[str]=None) -> str:
+    def to_json(self, save_path: str | None=None) -> str:
         import json
         constellation_dict = self.to_dict()
         json_str = json.dumps(constellation_dict, indent=2, ensure_ascii=False)
@@ -169,14 +170,14 @@ class MinimalTaskConstellation:
         return json_str
 
     @classmethod
-    def from_json(cls, json_data: Optional[str]=None, file_path: Optional[str]=None):
+    def from_json(cls, json_data: str | None=None, file_path: str | None=None):
         import json
         if json_data is None and file_path is None:
             raise ValueError('Either json_data or file_path must be provided')
         if json_data is not None and file_path is not None:
             raise ValueError('Only one of json_data or file_path should be provided')
         if file_path:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 data = json.load(f)
         else:
             data = json.loads(json_data)
@@ -202,7 +203,7 @@ def test_task_constellation_json():
         dep2 = MinimalTaskStarLine(from_task_id=task2.task_id, to_task_id=task3.task_id, condition_description='Task 2 must complete before Task 3')
         constellation.add_dependency(dep1)
         constellation.add_dependency(dep2)
-        print(f'Created TaskConstellation:')
+        print('Created TaskConstellation:')
         print(f'  ID: {constellation._constellation_id}')
         print(f'  Name: {constellation._name}')
         print(f'  State: {constellation._state}')
@@ -217,7 +218,7 @@ def test_task_constellation_json():
         print(f"✓ Contains {len(parsed['dependencies'])} dependencies")
         print('\n2. Testing from_json() with string...')
         restored_constellation = MinimalTaskConstellation.from_json(json_data=json_str)
-        print(f'✓ TaskConstellation restored from JSON string')
+        print('✓ TaskConstellation restored from JSON string')
         assert restored_constellation._constellation_id == constellation._constellation_id
         assert restored_constellation._name == constellation._name
         assert restored_constellation._state == constellation._state

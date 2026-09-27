@@ -1,17 +1,21 @@
 from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Type
+from typing import Any
+
 import html2text
 import requests
+
 from ufo.automator.basic import CommandBasic, ReceiverBasic
 from ufo.utils.url_security import safe_get
+
 logger = logging.getLogger(__name__)
 
 class WebReceiver(ReceiverBasic):
     """
     The base class for Web COM client using crawl4ai.
     """
-    _command_registry: Dict[str, Type[WebCommand]] = {}
+    _command_registry: dict[str, type[WebCommand]] = {}
 
     def __init__(self) -> None:
         """
@@ -43,7 +47,7 @@ class WebReceiver(ReceiverBasic):
             logger.warning('Error fetching the URL: %s', e)
             return f'Error fetching the URL: {e}'
 
-    def navigate_to_url(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def navigate_to_url(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Navigate browser to a specific URL.
         """
@@ -59,7 +63,7 @@ class WebReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to navigate to URL: {str(e)}', 'url': url}
 
-    def get_page_content(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_page_content(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Get the text content of the current web page.
         """
@@ -90,7 +94,7 @@ class WebReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to get page content: {str(e)}'}
 
-    def get_page_title(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_page_title(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Get the title of the current web page.
         """
@@ -111,7 +115,7 @@ class WebReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to get page title: {str(e)}'}
 
-    def get_element_text(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_element_text(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Get the text content of a specific element.
         """
@@ -132,7 +136,7 @@ class WebReceiver(ReceiverBasic):
         except Exception as e:
             return {'error': f'Failed to get element text: {str(e)}'}
 
-    def get_element_attribute(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_element_attribute(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Get an attribute value of a specific element.
         """
@@ -168,7 +172,7 @@ class WebCommand(CommandBasic):
     The base class for Web commands.
     """
 
-    def __init__(self, receiver: WebReceiver, params: Dict[str, Any]) -> None:
+    def __init__(self, receiver: WebReceiver, params: dict[str, Any]) -> None:
         """
         Initialize the Web command.
         :param receiver: The receiver of the command.

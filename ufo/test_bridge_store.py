@@ -11,7 +11,6 @@ Run: python test_bridge_store.py
 from __future__ import annotations
 
 import importlib.util
-import io
 import os
 import sys
 import time
@@ -23,7 +22,7 @@ BRIDGE = os.path.join(HERE, "ufo_bridge.py")
 def load_bridge():
     spec = importlib.util.spec_from_file_location("ufo_bridge_t", BRIDGE)
     mod = importlib.util.module_from_spec(spec)
-    src = io.open(BRIDGE, encoding="utf-8").read()
+    src = open(BRIDGE, encoding="utf-8").read()
     # the module starts a server under __main__ only, so exec_module is safe;
     # it does create the token file, which is gitignored.
     spec.loader.exec_module(mod)

@@ -8,7 +8,7 @@ Tests reconnection, heartbeat management, and timeout handling.
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -87,7 +87,7 @@ class TestHeartbeatManager:
     @pytest.fixture
     def mock_protocol(self):
         """Create mock heartbeat protocol."""
-        from ufo.aip.transport import Transport, TransportState
+        from ufo.aip.transport import Transport
 
         class MockTransport(Transport):
             def __init__(self):

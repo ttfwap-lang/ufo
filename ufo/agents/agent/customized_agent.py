@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Dict, List, Union
+from typing import Any
+
 from ufo.agents.agent.app_agent import AppAgent
 from ufo.agents.agent.basic import AgentRegistry
 from ufo.agents.memory.blackboard import Blackboard
@@ -99,13 +100,13 @@ class LinuxAgent(CustomizedAgent):
 
     def message_constructor(
         self,
-        dynamic_examples: List[str],
+        dynamic_examples: list[str],
         dynamic_knowledge: str,
-        plan: List[str],
+        plan: list[str],
         request: str,
-        blackboard_prompt: List[Dict[str, str]],
-        last_success_actions: List[Dict[str, Any]],
-    ) -> List[Dict[str, Union[str, List[Dict[str, str]]]]]:
+        blackboard_prompt: list[dict[str, str]],
+        last_success_actions: list[dict[str, Any]],
+    ) -> list[dict[str, str | list[dict[str, str]]]]:
         """
         Construct the prompt message for the AppAgent.
         :param dynamic_examples: The dynamic examples retrieved from the self-demonstration and human demonstration.
@@ -206,17 +207,17 @@ class MobileAgent(CustomizedAgent):
 
     def message_constructor(
         self,
-        dynamic_examples: List[str],
+        dynamic_examples: list[str],
         dynamic_knowledge: str,
-        plan: List[str],
+        plan: list[str],
         request: str,
-        installed_apps: List[Dict[str, Any]],
-        current_controls: List[Dict[str, Any]],
+        installed_apps: list[dict[str, Any]],
+        current_controls: list[dict[str, Any]],
         screenshot_url: str = None,
         annotated_screenshot_url: str = None,
-        blackboard_prompt: List[Dict[str, str]] = None,
-        last_success_actions: List[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Union[str, List[Dict[str, str]]]]]:
+        blackboard_prompt: list[dict[str, str]] = None,
+        last_success_actions: list[dict[str, Any]] = None,
+    ) -> list[dict[str, str | list[dict[str, str]]]]:
         """
         Construct the prompt message for the MobileAgent.
         :param dynamic_examples: The dynamic examples retrieved from demonstrations.

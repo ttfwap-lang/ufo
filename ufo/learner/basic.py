@@ -1,7 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-from ufo.learner import utils
 from abc import ABC, abstractmethod
+
+from ufo.learner import utils
 
 
 class BasicDocumentLoader(ABC):

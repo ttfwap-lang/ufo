@@ -3,10 +3,10 @@
 
 import copy
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from ufo.config.config_loader import get_ufo_config
 from ufo.aip.messages import MCPToolInfo
+from ufo.config.config_loader import get_ufo_config
 from ufo.prompter.basic import BasicPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
 
@@ -33,7 +33,7 @@ class HostAgentPrompter(BasicPrompter):
         super().__init__(is_visual, prompt_template, example_prompt_template)
         self.api_prompt_template = self.load_prompt_template(api_prompt_template)
 
-    def create_api_prompt_template(self, tools: List[MCPToolInfo]):
+    def create_api_prompt_template(self, tools: list[MCPToolInfo]):
         """
         Create the API prompt template.
         :param tools: The list of tools.
@@ -60,9 +60,9 @@ class HostAgentPrompter(BasicPrompter):
 
     def user_prompt_construction(
         self,
-        control_item: List[str],
-        prev_subtask: List[Dict[str, str]],
-        prev_plan: List[str],
+        control_item: list[str],
+        prev_subtask: list[dict[str, str]],
+        prev_plan: list[str],
         user_request: str,
         retrieved_docs: str = "",
     ) -> str:
@@ -106,13 +106,13 @@ class HostAgentPrompter(BasicPrompter):
 
     def user_content_construction(
         self,
-        image_list: List[str],
-        control_item: List[str],
-        prev_subtask: List[Dict[str, str]],
+        image_list: list[str],
+        control_item: list[str],
+        prev_subtask: list[dict[str, str]],
         prev_plan: str,
         user_request: str,
         retrieved_docs: str = "",
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """
         Construct the prompt for LLMs.
         :param image_list: The list of images.
@@ -212,14 +212,14 @@ class AppAgentPrompter(BasicPrompter):
         super().__init__(is_visual, prompt_template, example_prompt_template)
         self.api_prompt_template = None
 
-    def create_api_prompt_template(self, tools: List[MCPToolInfo]):
+    def create_api_prompt_template(self, tools: list[MCPToolInfo]):
         """
         Create the API prompt template.
         :param tools: The list of tools.
         """
         self.api_prompt_template = BasicPrompter.tools_to_llm_prompt(tools)
 
-    def system_prompt_construction(self, additional_examples: Optional[List[str]] = None) -> str:
+    def system_prompt_construction(self, additional_examples: list[str] | None = None) -> str:
         """
         Construct the prompt for app selection.
         :param additional_examples: The additional examples added to the prompt.
@@ -245,15 +245,15 @@ class AppAgentPrompter(BasicPrompter):
 
     def user_prompt_construction(
         self,
-        control_item: List[str],
-        prev_subtask: List[Dict[str, str]],
-        prev_plan: List[str],
+        control_item: list[str],
+        prev_subtask: list[dict[str, str]],
+        prev_plan: list[str],
         user_request: str,
         subtask: str,
         current_application: str,
-        host_message: List[str],
+        host_message: list[str],
         retrieved_docs: str = "",
-        last_success_actions: Optional[List[Dict[str, Any]]] = None,
+        last_success_actions: list[dict[str, Any]] | None = None,
     ) -> str:
         """
         Construct the prompt for action selection.
@@ -295,18 +295,18 @@ class AppAgentPrompter(BasicPrompter):
 
     def user_content_construction(
         self,
-        image_list: List[str],
-        control_item: List[str],
-        prev_subtask: List[str],
-        prev_plan: List[str],
+        image_list: list[str],
+        control_item: list[str],
+        prev_subtask: list[str],
+        prev_plan: list[str],
         user_request: str,
         subtask: str,
         current_application: str,
-        host_message: List[str],
+        host_message: list[str],
         retrieved_docs: str = "",
-        last_success_actions: Optional[List[Dict[str, Any]]] = None,
+        last_success_actions: list[dict[str, Any]] | None = None,
         include_last_screenshot: bool = True,
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """
         Construct the prompt for LLMs.
         :param image_list: The list of images.
@@ -358,7 +358,7 @@ class AppAgentPrompter(BasicPrompter):
         self,
         header: str = "## Response Examples",
         separator: str = "Example",
-        additional_examples: Optional[List[Dict[str, Any]]] = None,
+        additional_examples: list[dict[str, Any]] | None = None,
     ) -> str:
         """
         Construct the prompt for examples.
@@ -420,7 +420,7 @@ class AppAgentPrompter(BasicPrompter):
         return self.retrieved_documents_prompt_helper(header, separator, example_list)
 
     @staticmethod
-    def action2action_sequence(response: Dict[str, Any]) -> Dict[str, Any]:
+    def action2action_sequence(response: dict[str, Any]) -> dict[str, Any]:
         """
         Delete the key in the example["Response"], and replaced it with the key "ActionList".
         :param example: The action.

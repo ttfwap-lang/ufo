@@ -3,11 +3,14 @@ List/Dict 兼容性示例
 
 展示 TaskConstellationSchema 如何支持 tasks 和 dependencies 的 List 和 Dict 格式。
 """
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from ufo.galaxy.agents.schema import TaskStarSchema, TaskStarLineSchema, TaskConstellationSchema
 import json
+
+from ufo.galaxy.agents.schema import TaskConstellationSchema, TaskStarLineSchema, TaskStarSchema
+
 
 def example_list_format():
     """示例：使用 List 格式创建星座"""
@@ -59,16 +62,16 @@ def example_format_conversion():
     print('\n🎯 格式转换方法示例')
     print('=' * 50)
     constellation = TaskConstellationSchema(name='转换示例星座', tasks=[{'name': 'Web开发', 'description': '前端开发'}, {'name': 'API开发', 'description': '后端API'}, {'name': '测试', 'description': '质量保证'}], dependencies=[{'from_task_id': 'task_001', 'to_task_id': 'task_002'}, {'from_task_id': 'task_002', 'to_task_id': 'task_003'}])
-    print(f'✅ 原始格式（内部存储为 Dict）:')
+    print('✅ 原始格式（内部存储为 Dict）:')
     print(f'   - 任务数: {len(constellation.tasks)}')
     print(f'   - 依赖数: {len(constellation.dependencies)}')
     tasks_as_list = constellation.get_tasks_as_list()
     deps_as_list = constellation.get_dependencies_as_list()
-    print(f'\n📋 转换为 List 格式:')
+    print('\n📋 转换为 List 格式:')
     print(f'   - 任务列表长度: {len(tasks_as_list)}')
     print(f'   - 依赖列表长度: {len(deps_as_list)}')
     dict_with_lists = constellation.to_dict_with_lists()
-    print(f'\n📤 导出为 List 格式字典:')
+    print('\n📤 导出为 List 格式字典:')
     print(f"   - Tasks 类型: {type(dict_with_lists['tasks']).__name__}")
     print(f"   - Dependencies 类型: {type(dict_with_lists['dependencies']).__name__}")
     return (constellation, dict_with_lists)
@@ -85,7 +88,7 @@ def example_json_compatibility():
     print(f'✅ List 格式 JSON 长度: {len(list_json)} 字符')
     restored_from_dict = TaskConstellationSchema.model_validate_json(dict_json)
     restored_from_list = TaskConstellationSchema(**json.loads(list_json))
-    print(f'\n🔄 恢复验证:')
+    print('\n🔄 恢复验证:')
     print(f'   - 从 Dict JSON 恢复: ✅ {restored_from_dict.name}')
     print(f'   - 从 List JSON 恢复: ✅ {restored_from_list.name}')
     print(f'   - 任务数量一致: ✅ {len(restored_from_dict.tasks) == len(restored_from_list.tasks)}')
@@ -93,9 +96,9 @@ def example_json_compatibility():
         f.write(list_json)
     with open('dict_format_example.json', 'w', encoding='utf-8') as f:
         f.write(dict_json)
-    print(f'\n💾 已保存示例文件:')
-    print(f'   - list_format_example.json')
-    print(f'   - dict_format_example.json')
+    print('\n💾 已保存示例文件:')
+    print('   - list_format_example.json')
+    print('   - dict_format_example.json')
     return constellation
 
 def main():
@@ -117,7 +120,7 @@ def main():
         print('   🌐 支持两种格式的 JSON 序列化/反序列化')
         print('   🆔 在 List 格式中自动生成缺失的 ID')
         print('\n📊 演示统计:')
-        print(f'   • 创建了 5 个不同类型的星座')
+        print('   • 创建了 5 个不同类型的星座')
         print('   • 展示了 List、Dict 和混合格式')
         print('   • 验证了格式转换和 JSON 兼容性')
         print('   • 生成了示例 JSON 文件')

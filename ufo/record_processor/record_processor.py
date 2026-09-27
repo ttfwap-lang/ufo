@@ -3,7 +3,6 @@
 
 import argparse
 import os
-from typing import Tuple
 
 from ufo.config.config_loader import LazyUFOConfig
 from ufo.utils import print_with_color, resolve_data_path
@@ -78,14 +77,14 @@ def main():
                 [summaries[index]], os.path.join(demonstration_path, "demonstration_db")
             )
 
-        formatted_cost = "${:.2f}".format(total_cost)
+        formatted_cost = f"${total_cost:.2f}"
         print_with_color(f"Request total cost is {formatted_cost}", "yellow")
 
     except ValueError as e:
         print_with_color(str(e), "red")
 
 
-def __asker(summaries) -> Tuple[bool, int]:
+def __asker(summaries) -> tuple[bool, int]:
     print_with_color(
         """Here are the plans summarized from your demonstration: """, "cyan"
     )

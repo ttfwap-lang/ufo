@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import openai
 from rich.align import Align
@@ -80,7 +80,7 @@ class AppAgent(BasicAgent):
         self._context_provision_executed = False
         self.logger = logging.getLogger(__name__)
 
-        self._processor: Optional[AppAgentProcessor] = None
+        self._processor: AppAgentProcessor | None = None
 
     def get_prompter(
         self,
@@ -101,18 +101,18 @@ class AppAgent(BasicAgent):
         self,
         dynamic_examples: str,
         dynamic_knowledge: str,
-        image_list: List,
+        image_list: list,
         control_info: str,
-        prev_subtask: List[Dict[str, str]],
-        plan: List[str],
+        prev_subtask: list[dict[str, str]],
+        plan: list[str],
         request: str,
         subtask: str,
         current_application: str,
-        host_message: List[str],
-        blackboard_prompt: List[Dict[str, str]],
-        last_success_actions: List[Dict[str, Any]],
+        host_message: list[str],
+        blackboard_prompt: list[dict[str, str]],
+        last_success_actions: list[dict[str, Any]],
         include_last_screenshot: bool,
-    ) -> List[Dict[str, Union[str, List[Dict[str, str]]]]]:
+    ) -> list[dict[str, str | list[dict[str, str]]]]:
         """
         Construct the prompt message for the AppAgent.
         :param dynamic_examples: The dynamic examples retrieved from the self-demonstration and human demonstration.
@@ -213,7 +213,7 @@ class AppAgent(BasicAgent):
         """
         self.presenter.present_app_agent_response(response, print_action=print_action)
 
-    def demonstration_prompt_helper(self, request) -> Tuple[List[Dict[str, Any]]]:
+    def demonstration_prompt_helper(self, request) -> tuple[list[dict[str, Any]]]:
         """
         Get the examples and tips for the AppAgent using the demonstration retriever.
         :param request: The request for the AppAgent.
@@ -241,7 +241,7 @@ class AppAgent(BasicAgent):
 
     def external_knowledge_prompt_helper(
         self, request: str, offline_top_k: int, online_top_k: int
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Retrieve the external knowledge and construct the prompt.
         :param request: The request.
@@ -292,7 +292,7 @@ class AppAgent(BasicAgent):
 
     def rag_experience_retrieve(
         self, request: str, experience_top_k: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Retrieving experience examples for the user request.
         :param request: The user request.
@@ -329,7 +329,7 @@ class AppAgent(BasicAgent):
 
     def rag_demonstration_retrieve(
         self, request: str, demonstration_top_k: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Retrieving demonstration examples for the user request.
         :param request: The user request.
@@ -561,7 +561,7 @@ class AppAgent(BasicAgent):
         return ContinueAppAgentState()
 
     @property
-    def tools_info(self) -> List[MCPToolInfo]:
+    def tools_info(self) -> list[MCPToolInfo]:
         """
         Get the tools information.
         :return: The list of MCPToolInfo objects.
@@ -571,7 +571,7 @@ class AppAgent(BasicAgent):
         return self._tools_info
 
     @tools_info.setter
-    def tools_info(self, tools: List[MCPToolInfo]) -> None:
+    def tools_info(self, tools: list[MCPToolInfo]) -> None:
         """
         Set the tools information.
         :param tools: The list of MCPToolInfo objects.
@@ -646,13 +646,13 @@ class OpenAIOperatorAgent(AppAgent):
         self,
         subtask: str,
         image: str,
-        tools: List[Dict[str, str]],
+        tools: list[dict[str, str]],
         response_id: str,
         previous_computer_id: str,
-        host_message: List[str],
-        acknowledged_safety_checks: List[str],
+        host_message: list[str],
+        acknowledged_safety_checks: list[str],
         is_first_step: bool,
-    ) -> List[Dict[str, Union[str, List[Dict[str, str]]]]]:
+    ) -> list[dict[str, str | list[dict[str, str]]]]:
         """
         Construct the prompt message for the AppAgent.
         :param subtask: The subtask for the current OpenAIOperatorAgent to process.
@@ -744,7 +744,7 @@ class OpenAIOperatorAgent(AppAgent):
             return self._blackboard
 
     @property
-    def response_id(self) -> Optional[str]:
+    def response_id(self) -> str | None:
         """
         Get the response id.
         """
@@ -759,7 +759,7 @@ class OpenAIOperatorAgent(AppAgent):
         self._response_id = response_id
 
     @property
-    def previous_computer_id(self) -> Optional[str]:
+    def previous_computer_id(self) -> str | None:
         """
         Get the previous computer id.
         """
@@ -789,14 +789,14 @@ class OpenAIOperatorAgent(AppAgent):
         self._message = message
 
     @property
-    def pending_safety_checks(self) -> List[str]:
+    def pending_safety_checks(self) -> list[str]:
         """
         Get the pending safety checks.
         """
         return self._pending_safety_checks
 
     @pending_safety_checks.setter
-    def pending_safety_checks(self, safety_checks: List[str]) -> None:
+    def pending_safety_checks(self, safety_checks: list[str]) -> None:
         """
         Set the pending safety checks.
         :param safety_checks: The safety checks.

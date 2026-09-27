@@ -3,12 +3,14 @@ import json
 import os
 import platform
 import traceback
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
 if TYPE_CHECKING or platform.system() == 'Windows':
     from pywinauto.controls.uiawrapper import UIAWrapper
 else:
     UIAWrapper = Any
 from ufo.automator.ui_control.screenshot import PhotographerDecorator
+
 
 class UITree:
     """
@@ -24,7 +26,7 @@ class UITree:
         self.node_counter = 0
         try:
             self._ui_tree = self._get_ui_tree(self.root)
-        except Exception as e:
+        except Exception:
             self._ui_tree = {'error': traceback.format_exc()}
 
     def _generate_node_id(self) -> str:
@@ -35,7 +37,7 @@ class UITree:
         self.node_counter += 1
         return node_id
 
-    def _get_ui_tree(self, root: UIAWrapper, level: int=0, self_root_rect: Optional[Any]=None) -> Dict[str, Any]:
+    def _get_ui_tree(self, root: UIAWrapper, level: int=0, self_root_rect: Any | None=None) -> dict[str, Any]:
         """
         Get the UI tree.
         :param root: The root element of the UI tree.
@@ -58,12 +60,12 @@ class UITree:
                     is_positive_area = child_rect.right - child_rect.left > 0 and child_rect.bottom - child_rect.top > 0
                     if is_positive_area or len(child.children()) > 0:
                         ui_tree['children'].append(self._get_ui_tree(child, level + 1, self_root_rect))
-                except Exception as e:
+                except Exception:
                     ui_tree['error'] = traceback.format_exc()
         return ui_tree
 
     @property
-    def ui_tree(self) -> Dict[str, Any]:
+    def ui_tree(self) -> dict[str, Any]:
         """
         The UI tree.
         """
@@ -80,12 +82,12 @@ class UITree:
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(self.ui_tree, file, indent=4)
 
-    def flatten_ui_tree(self) -> List[Dict[str, Any]]:
+    def flatten_ui_tree(self) -> list[dict[str, Any]]:
         """
         Flatten the UI tree into a list in width-first order.
         """
 
-        def flatten_tree(tree: Dict[str, Any], result: List[Dict[str, Any]]):
+        def flatten_tree(tree: dict[str, Any], result: list[dict[str, Any]]):
             """
             Flatten the tree.
             :param tree: The tree to flatten.
@@ -100,7 +102,7 @@ class UITree:
         return result
 
     @staticmethod
-    def ui_tree_diff(ui_tree_1: Dict[str, Any], ui_tree_2: Dict[str, Any]):
+    def ui_tree_diff(ui_tree_1: dict[str, Any], ui_tree_2: dict[str, Any]):
         """
         Compute the difference between two UI trees.
         :param ui_tree_1: The first UI tree.
@@ -148,7 +150,7 @@ class UITree:
         return diff
 
     @staticmethod
-    def apply_ui_tree_diff(ui_tree_1: Dict[str, Any], diff: Dict[str, Any]) -> Dict[str, Any]:
+    def apply_ui_tree_diff(ui_tree_1: dict[str, Any], diff: dict[str, Any]) -> dict[str, Any]:
         """
         Apply a UI tree diff to ui_tree_1 to get ui_tree_2.
         :param ui_tree_1: The original UI tree.

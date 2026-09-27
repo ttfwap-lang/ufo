@@ -7,20 +7,25 @@ This module contains data collection strategies for Mobile Agent including:
 - Current screen controls information collection
 """
 import traceback
-from typing import TYPE_CHECKING, List, Dict, Any
+from typing import TYPE_CHECKING, Any
+
 from ufo import utils
+from ufo.agents.processors.app_agent_processor import AppAgentLoggingMiddleware
 from ufo.agents.processors.context.processing_context import ProcessingContext, ProcessingPhase, ProcessingResult
 from ufo.agents.processors.core.strategy_dependency import depends_on, provides
-from ufo.agents.processors.app_agent_processor import AppAgentLoggingMiddleware
-from ufo.agents.processors.strategies.app_agent_processing_strategy import AppLLMInteractionStrategy, AppActionExecutionStrategy
+from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
+from ufo.agents.processors.schemas.target import TargetInfo, TargetKind
+from ufo.agents.processors.strategies.app_agent_processing_strategy import (
+    AppActionExecutionStrategy,
+    AppLLMInteractionStrategy,
+)
 from ufo.agents.processors.strategies.processing_strategy import BaseProcessingStrategy
+from ufo.aip.messages import Command, Result, ResultStatus
 from ufo.automator.ui_control.screenshot import PhotographerFacade
 from ufo.config.config_loader import LazyUFOConfig
-from ufo.aip.messages import Command, ResultStatus, Result
-from ufo.module.dispatcher import BasicCommandDispatcher
-from ufo.agents.processors.schemas.actions import ListActionCommandInfo, ActionCommandInfo
 from ufo.llm.response_schema import AppAgentResponse
-from ufo.agents.processors.schemas.target import TargetInfo, TargetKind
+from ufo.module.dispatcher import BasicCommandDispatcher
+
 ufo_config = LazyUFOConfig()
 if TYPE_CHECKING:
     from ufo.agents.agent.customized_agent import MobileAgent
@@ -152,7 +157,7 @@ class MobileAppsCollectionStrategy(BaseProcessingStrategy):
             self.logger.error(error_msg)
             return self.handle_error(e, ProcessingPhase.DATA_COLLECTION, context)
 
-    def _target_info_to_dict(self, target_info: TargetInfo) -> Dict[str, Any]:
+    def _target_info_to_dict(self, target_info: TargetInfo) -> dict[str, Any]:
         """
         Convert TargetInfo object to dictionary for prompt.
         :param target_info: TargetInfo object
@@ -160,7 +165,7 @@ class MobileAppsCollectionStrategy(BaseProcessingStrategy):
         """
         return {'id': target_info.id, 'name': target_info.name, 'package': target_info.type}
 
-    def _dict_to_app_dict(self, app_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def _dict_to_app_dict(self, app_dict: dict[str, Any]) -> dict[str, Any]:
         """
         Convert MCP returned dictionary to app dictionary for prompt.
         :param app_dict: Dictionary from MCP server
@@ -250,7 +255,7 @@ class MobileControlsCollectionStrategy(BaseProcessingStrategy):
             self.logger.error(error_msg)
             return self.handle_error(e, ProcessingPhase.DATA_COLLECTION, context)
 
-    def _target_info_to_dict(self, target_info: TargetInfo) -> Dict[str, Any]:
+    def _target_info_to_dict(self, target_info: TargetInfo) -> dict[str, Any]:
         """
         Convert TargetInfo object to dictionary for prompt.
         :param target_info: TargetInfo object
@@ -261,7 +266,7 @@ class MobileControlsCollectionStrategy(BaseProcessingStrategy):
             result['rect'] = target_info.rect
         return result
 
-    def _dict_to_control_dict(self, control_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def _dict_to_control_dict(self, control_dict: dict[str, Any]) -> dict[str, Any]:
         """
         Convert MCP returned dictionary to control dictionary for prompt.
         Validates rectangle and returns None if invalid.
@@ -282,7 +287,7 @@ class MobileControlsCollectionStrategy(BaseProcessingStrategy):
             result['rect'] = rect
         return result
 
-    def _controls_to_target_info_list(self, controls_data: List) -> List[TargetInfo]:
+    def _controls_to_target_info_list(self, controls_data: list) -> list[TargetInfo]:
         """
         Convert control dictionaries to TargetInfo objects.
         Filters out controls with invalid rectangles.
@@ -318,7 +323,7 @@ class MobileControlsCollectionStrategy(BaseProcessingStrategy):
             self.logger.warning(f'Filtered out {invalid_count} controls with invalid rectangles')
         return target_info_list
 
-    def _save_annotated_screenshot(self, clean_screenshot_path: str, target_list: List[TargetInfo], save_path: str) -> str:
+    def _save_annotated_screenshot(self, clean_screenshot_path: str, target_list: list[TargetInfo], save_path: str) -> str:
         """
         Save annotated screenshot using photographer.
         :param clean_screenshot_path: Path to the clean screenshot
@@ -427,7 +432,7 @@ class MobileActionExecutionStrategy(AppActionExecutionStrategy):
             self.logger.error(error_msg)
             return self.handle_error(e, ProcessingPhase.ACTION_EXECUTION, context)
 
-    def _create_action_info(self, actions: ActionCommandInfo | List[ActionCommandInfo], execution_results: List[Result]) -> List[ActionCommandInfo]:
+    def _create_action_info(self, actions: ActionCommandInfo | list[ActionCommandInfo], execution_results: list[Result]) -> list[ActionCommandInfo]:
         """
         Create action information for memory tracking.
         :param actions: The action or list of actions

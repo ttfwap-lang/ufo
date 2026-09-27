@@ -14,8 +14,8 @@ actions.  It also works with clients that call the tools directly.
 
 from __future__ import annotations
 
-import atexit
 import asyncio
+import atexit
 import hmac
 import logging
 import os
@@ -23,13 +23,12 @@ import re
 import threading
 import time
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Dict, Mapping, Optional
+from typing import Annotated, Any
 
 from fastmcp import FastMCP
 from pydantic import Field
-from typing import Annotated
-
 from ufo.automation.browseract_adapter import (
     BrowserActCLI,
     BrowserActConfig,
@@ -37,7 +36,6 @@ from ufo.automation.browseract_adapter import (
     validate_navigation_url,
 )
 from ufo.client.mcp.mcp_registry import MCPRegistry
-
 
 _SESSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 _INDEX_RE = re.compile(r"^[0-9]{1,6}$")
@@ -63,7 +61,7 @@ class _Settings:
         self.values = dict(values or {})
 
     @classmethod
-    def load(cls) -> "_Settings":
+    def load(cls) -> _Settings:
         try:
             from ufo.config.config_loader import get_ufo_config
 
@@ -187,7 +185,7 @@ class BrowserActSessionManager:
     def __init__(self, settings: _Settings | None = None, cli: BrowserActCLI | None = None) -> None:
         self.settings = settings or _Settings.load()
         self.cli = cli or BrowserActCLI(self.settings.adapter_config())
-        self._sessions: Dict[str, _Session] = {}
+        self._sessions: dict[str, _Session] = {}
         self._lock = threading.RLock()
 
     @staticmethod
@@ -235,7 +233,7 @@ class BrowserActSessionManager:
             record.last_used = time.monotonic()
             return record
 
-    def _put_state(self, record: _Session, payload: Mapping[str, Any]) -> Dict[str, Any]:
+    def _put_state(self, record: _Session, payload: Mapping[str, Any]) -> dict[str, Any]:
         token = self._new_token()
         record.state_token = token
         # BrowserAct's JSON wrapper uses a ``state`` member.  Expose that
@@ -274,7 +272,7 @@ class BrowserActSessionManager:
                 remaining -= len(str(bounded))
             return result
         if isinstance(value, dict):
-            result_dict: Dict[str, Any] = {}
+            result_dict: dict[str, Any] = {}
             remaining = limit
             for key, item in value.items():
                 if remaining <= 0:
@@ -314,7 +312,7 @@ class BrowserActSessionManager:
             )
         raise BrowserActError("Multiple BrowserAct browsers are available; pass browser_id explicitly or set BROWSERACT_BROWSER_ID")
 
-    def _state_call(self, record: _Session) -> Dict[str, Any]:
+    def _state_call(self, record: _Session) -> dict[str, Any]:
         # Invalidate before the read: a timeout/error must not leave an old
         # index/token usable for a subsequent mutation.
         record.state_token = ""
@@ -327,12 +325,12 @@ class BrowserActSessionManager:
         if not record.state_token or not hmac.compare_digest(str(token), record.state_token):
             raise BrowserActError("Stale or invalid BrowserAct state_token; call browser_action(action='state') again before mutating the page")
 
-    def _mutate(self, record: _Session, args: list[str], *, refresh: bool = True) -> Dict[str, Any]:
+    def _mutate(self, record: _Session, args: list[str], *, refresh: bool = True) -> dict[str, Any]:
         # Invalidate before the subprocess starts.  A timeout can leave the
         # remote page in an unknown state, and retrying a click would be unsafe.
         record.state_token = ""
         result = self.cli.run(args, session=record.name)
-        response: Dict[str, Any] = {"ok": True, "session": record.name, "action_result": self._bounded(result, self.settings.max_state_chars)}
+        response: dict[str, Any] = {"ok": True, "session": record.name, "action_result": self._bounded(result, self.settings.max_state_chars)}
         if refresh:
             try:
                 response.update(self._state_call(record))
@@ -345,7 +343,7 @@ class BrowserActSessionManager:
             response["state"] = None
         return response
 
-    def open(self, *, url: str, browser_id: str | None = None, headed: bool = False) -> Dict[str, Any]:
+    def open(self, *, url: str, browser_id: str | None = None, headed: bool = False) -> dict[str, Any]:
         self._check_enabled()
         adapter = self.settings.adapter_config()
         safe_url = self.settings._safe_url(url, allow_about_blank=adapter.allow_about_blank)
@@ -380,26 +378,26 @@ class BrowserActSessionManager:
         response["open_result"] = self._bounded(result, self.settings.max_state_chars)
         return response
 
-    def state(self, session: str) -> Dict[str, Any]:
+    def state(self, session: str) -> dict[str, Any]:
         record = self._get(session)
         with record.lock:
             return self._state_call(record)
 
-    def navigate(self, session: str, *, state_token: str, url: str) -> Dict[str, Any]:
+    def navigate(self, session: str, *, state_token: str, url: str) -> dict[str, Any]:
         record = self._get(session)
         safe_url = self.settings._safe_url(url, allow_about_blank=self.settings.adapter_config().allow_about_blank)
         with record.lock:
             self._require_fresh_token(record, state_token)
             return self._mutate(record, ["navigate", safe_url])
 
-    def click(self, session: str, *, state_token: str, index: int | None = None, selector: str | None = None) -> Dict[str, Any]:
+    def click(self, session: str, *, state_token: str, index: int | None = None, selector: str | None = None) -> dict[str, Any]:
         record = self._get(session)
         args = self._target_args("click", index, selector)
         with record.lock:
             self._require_fresh_token(record, state_token)
             return self._mutate(record, args)
 
-    def input(self, session: str, *, state_token: str, text: str, index: int | None = None, selector: str | None = None, mode: str = "fill") -> Dict[str, Any]:
+    def input(self, session: str, *, state_token: str, text: str, index: int | None = None, selector: str | None = None, mode: str = "fill") -> dict[str, Any]:
         record = self._get(session)
         value = self._safe_cli_value(text, "input text")
         if not value:
@@ -427,7 +425,7 @@ class BrowserActSessionManager:
                 raise BrowserActError("BrowserAct input requires index or selector")
             return self._mutate(record, args)
 
-    def select(self, session: str, *, state_token: str, option: str, index: int | None = None, selector: str | None = None) -> Dict[str, Any]:
+    def select(self, session: str, *, state_token: str, option: str, index: int | None = None, selector: str | None = None) -> dict[str, Any]:
         record = self._get(session)
         option = self._safe_cli_value(option, "select option")
         if not option.strip():
@@ -437,7 +435,7 @@ class BrowserActSessionManager:
             args = self._target_args("select", index, selector, option=str(option))
             return self._mutate(record, args)
 
-    def keys(self, session: str, *, state_token: str, keys: str) -> Dict[str, Any]:
+    def keys(self, session: str, *, state_token: str, keys: str) -> dict[str, Any]:
         record = self._get(session)
         value = self._safe_cli_value(keys, "keys").strip()
         if not value:
@@ -446,7 +444,7 @@ class BrowserActSessionManager:
             self._require_fresh_token(record, state_token)
             return self._mutate(record, ["keys", value])
 
-    def scroll(self, session: str, *, state_token: str, direction: str, amount: int | None = None) -> Dict[str, Any]:
+    def scroll(self, session: str, *, state_token: str, direction: str, amount: int | None = None) -> dict[str, Any]:
         record = self._get(session)
         direction = str(direction or "").lower()
         if direction not in {"up", "down"}:
@@ -458,7 +456,7 @@ class BrowserActSessionManager:
                 args.extend(["--amount", str(max(1, min(int(amount), 20_000)))])
             return self._mutate(record, args)
 
-    def scroll_into_view(self, session: str, *, state_token: str, selector: str) -> Dict[str, Any]:
+    def scroll_into_view(self, session: str, *, state_token: str, selector: str) -> dict[str, Any]:
         record = self._get(session)
         if not str(selector or "").strip():
             raise BrowserActError("BrowserAct scrollintoview requires a selector")
@@ -466,7 +464,7 @@ class BrowserActSessionManager:
             self._require_fresh_token(record, state_token)
             return self._mutate(record, ["scrollintoview", "--selector", selector])
 
-    def wait(self, session: str, *, state_token: str | None = None, selector: str | None = None, timeout_ms: int | None = None) -> Dict[str, Any]:
+    def wait(self, session: str, *, state_token: str | None = None, selector: str | None = None, timeout_ms: int | None = None) -> dict[str, Any]:
         record = self._get(session)
         with record.lock:
             if selector:
@@ -479,7 +477,7 @@ class BrowserActSessionManager:
             # mutation but does not need a state token.
             return self._mutate(record, args, refresh=True)
 
-    def get(self, session: str, *, kind: str, index: int | None = None, selector: str | None = None) -> Dict[str, Any]:
+    def get(self, session: str, *, kind: str, index: int | None = None, selector: str | None = None) -> dict[str, Any]:
         record = self._get(session)
         kind = str(kind or "").lower()
         if kind not in {"title", "markdown", "text", "value", "html"}:
@@ -501,7 +499,7 @@ class BrowserActSessionManager:
             result = self.cli.run(args, session=record.name)
         return {"ok": True, "session": record.name, "kind": kind, "result": self._bounded(result, self.settings.max_state_chars)}
 
-    def screenshot(self, session: str, *, full: bool = False) -> Dict[str, Any]:
+    def screenshot(self, session: str, *, full: bool = False) -> dict[str, Any]:
         record = self._get(session)
         args = ["screenshot"]
         if full:
@@ -510,7 +508,7 @@ class BrowserActSessionManager:
             result = self.cli.run(args, session=record.name)
         return {"ok": True, "session": record.name, "screenshot": self._bounded(result, self.settings.max_state_chars)}
 
-    def close(self, session: str) -> Dict[str, Any]:
+    def close(self, session: str) -> dict[str, Any]:
         self._check_enabled()
         name = self._validate_session_name(session)
         with self._lock:
@@ -535,7 +533,7 @@ class BrowserActSessionManager:
             self._sessions.pop(name, None)
         return {"ok": True, "session": name, "close_result": self._bounded(result, 4_000)}
 
-    def remote_assist(self, session: str, *, objective: str, confirm: bool) -> Dict[str, Any]:
+    def remote_assist(self, session: str, *, objective: str, confirm: bool) -> dict[str, Any]:
         if not self.settings.remote_assist_enabled:
             raise BrowserActError("BrowserAct remote-assist is disabled by configuration")
         if not confirm:
@@ -549,7 +547,7 @@ class BrowserActSessionManager:
             record.handoff = True
         return {"ok": True, "session": record.name, "handoff": True, "result": self._bounded(result, self.settings.max_state_chars)}
 
-    def stealth_extract(self, *, url: str, content_type: str = "markdown", timeout_seconds: int = 60) -> Dict[str, Any]:
+    def stealth_extract(self, *, url: str, content_type: str = "markdown", timeout_seconds: int = 60) -> dict[str, Any]:
         if not self.settings.stealth_extract_enabled:
             raise BrowserActError("BrowserAct stealth extraction is disabled by configuration")
         safe_url = self.settings._safe_url(url, allow_about_blank=False)
@@ -559,13 +557,13 @@ class BrowserActSessionManager:
         args = ["stealth-extract", safe_url, "--content-type", content_type, "--timeout", str(max(5, min(int(timeout_seconds), 180)))]
         return {"ok": True, "url": safe_url, "content_type": content_type, "result": self._bounded(self.cli.run(args), self.settings.max_state_chars)}
 
-    def browser_list(self) -> Dict[str, Any]:
+    def browser_list(self) -> dict[str, Any]:
         self._check_enabled()
         return self.cli.browser_list()
 
-    def diagnostics(self) -> Dict[str, Any]:
+    def diagnostics(self) -> dict[str, Any]:
         self._check_enabled()
-        result: Dict[str, Any] = {"ok": True, "enabled": True}
+        result: dict[str, Any] = {"ok": True, "enabled": True}
         try:
             result["version"] = self.cli.version()
         except BrowserActError as exc:
@@ -634,7 +632,7 @@ def get_manager() -> BrowserActSessionManager:
         return _MANAGER
 
 
-async def _call(method: str, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+async def _call(method: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
     """Run a synchronous manager method without blocking FastMCP's loop."""
     manager = get_manager()
     try:
@@ -663,25 +661,25 @@ def create_browseract_mcp_server(*args: Any, **kwargs: Any) -> FastMCP:
     @mcp.tool()
     async def browser_action(
         action: Annotated[str, Field(description="One of: diagnostics, list_browsers, open, state, navigate, click, input, select, keys, scroll, scrollintoview, wait, get, screenshot, close, remote_assist, stealth_extract.")],
-        url: Annotated[Optional[str], Field(description="HTTP(S) URL for open/navigate/stealth_extract.")] = None,
-        browser_id: Annotated[Optional[str], Field(description="Optional browser ID; when configured by the operator it must match BROWSERACT_BROWSER_ID.")] = None,
-        session: Annotated[Optional[str], Field(description="Session handle returned by a prior open/state result.")] = None,
-        state_token: Annotated[Optional[str], Field(description="Current token returned by the latest state observation; required for mutations.")] = None,
-        index: Annotated[Optional[int], Field(description="Element index from the latest state output.")] = None,
-        selector: Annotated[Optional[str], Field(description="Optional CSS selector instead of an index.")] = None,
-        text: Annotated[Optional[str], Field(description="Text for input.")] = None,
-        option: Annotated[Optional[str], Field(description="Visible option for select.")] = None,
-        keys: Annotated[Optional[str], Field(description="BrowserAct key combination for keys, e.g. Enter.")] = None,
-        direction: Annotated[Optional[str], Field(description="Scroll direction: up or down.")] = None,
-        amount: Annotated[Optional[int], Field(description="Scroll amount in pixels.")] = None,
-        kind: Annotated[Optional[str], Field(description="For get: title, markdown, text, value, or html.")] = None,
+        url: Annotated[str | None, Field(description="HTTP(S) URL for open/navigate/stealth_extract.")] = None,
+        browser_id: Annotated[str | None, Field(description="Optional browser ID; when configured by the operator it must match BROWSERACT_BROWSER_ID.")] = None,
+        session: Annotated[str | None, Field(description="Session handle returned by a prior open/state result.")] = None,
+        state_token: Annotated[str | None, Field(description="Current token returned by the latest state observation; required for mutations.")] = None,
+        index: Annotated[int | None, Field(description="Element index from the latest state output.")] = None,
+        selector: Annotated[str | None, Field(description="Optional CSS selector instead of an index.")] = None,
+        text: Annotated[str | None, Field(description="Text for input.")] = None,
+        option: Annotated[str | None, Field(description="Visible option for select.")] = None,
+        keys: Annotated[str | None, Field(description="BrowserAct key combination for keys, e.g. Enter.")] = None,
+        direction: Annotated[str | None, Field(description="Scroll direction: up or down.")] = None,
+        amount: Annotated[int | None, Field(description="Scroll amount in pixels.")] = None,
+        kind: Annotated[str | None, Field(description="For get: title, markdown, text, value, or html.")] = None,
         full: Annotated[bool, Field(description="Capture a full-page screenshot.")] = False,
         headed: Annotated[bool, Field(description="Open BrowserAct with a visible browser (requires operator-approved local browser configuration).")] = False,
         mode: Annotated[str, Field(description="Input mode: fill (default) or append.")] = "fill",
-        timeout_ms: Annotated[Optional[int], Field(description="Wait timeout in milliseconds.")] = None,
-        timeout_seconds: Annotated[Optional[int], Field(description="Stealth extraction timeout in seconds.")] = 60,
+        timeout_ms: Annotated[int | None, Field(description="Wait timeout in milliseconds.")] = None,
+        timeout_seconds: Annotated[int | None, Field(description="Stealth extraction timeout in seconds.")] = 60,
         confirm: Annotated[bool, Field(description="Required true for remote_assist; never inferred by the model.")] = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Execute one constrained BrowserAct operation.
 
         The normal sequence is::
@@ -764,16 +762,16 @@ def create_browseract_mcp_server(*args: Any, **kwargs: Any) -> FastMCP:
     @mcp.tool()
     async def browseract_open(
         url: Annotated[str, Field(description="HTTP(S) URL to open.")],
-        browser_id: Annotated[Optional[str], Field(description="BrowserAct browser ID.")] = None,
+        browser_id: Annotated[str | None, Field(description="BrowserAct browser ID.")] = None,
         headed: Annotated[bool, Field(description="Use a visible browser.")] = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Open a new BrowserAct session and return its first indexed state."""
         return await _call("open", url=url, browser_id=browser_id, headed=headed)
 
     @mcp.tool()
     async def browseract_state(
         session: Annotated[str, Field(description="Session handle returned by browseract_open.")],
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Read fresh compact BrowserAct state and issue a new state token."""
         return await _call("state", session)
 
@@ -781,9 +779,9 @@ def create_browseract_mcp_server(*args: Any, **kwargs: Any) -> FastMCP:
     async def browseract_click(
         session: Annotated[str, Field(description="Current BrowserAct session handle.")],
         state_token: Annotated[str, Field(description="Token from the latest state observation.")],
-        index: Annotated[Optional[int], Field(description="Current indexed element.")] = None,
-        selector: Annotated[Optional[str], Field(description="Optional CSS selector.")] = None,
-    ) -> Dict[str, Any]:
+        index: Annotated[int | None, Field(description="Current indexed element.")] = None,
+        selector: Annotated[str | None, Field(description="Optional CSS selector.")] = None,
+    ) -> dict[str, Any]:
         """Click one current-state element and return fresh state."""
         return await _call("click", session, state_token=state_token, index=index, selector=selector)
 
@@ -792,34 +790,34 @@ def create_browseract_mcp_server(*args: Any, **kwargs: Any) -> FastMCP:
         session: Annotated[str, Field(description="Current BrowserAct session handle.")],
         state_token: Annotated[str, Field(description="Token from the latest state observation.")],
         text: Annotated[str, Field(description="Text to enter.")],
-        index: Annotated[Optional[int], Field(description="Current indexed input element.")] = None,
-        selector: Annotated[Optional[str], Field(description="Optional CSS selector.")] = None,
+        index: Annotated[int | None, Field(description="Current indexed input element.")] = None,
+        selector: Annotated[str | None, Field(description="Optional CSS selector.")] = None,
         mode: Annotated[str, Field(description="fill or append")] = "fill",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Enter text into one current-state field and return fresh state."""
         return await _call("input", session, state_token=state_token, text=text, index=index, selector=selector, mode=mode)
 
     @mcp.tool()
     async def browseract_get_markdown(
         session: Annotated[str, Field(description="Current BrowserAct session handle.")],
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Return bounded rendered Markdown for the current page."""
         return await _call("get", session, kind="markdown")
 
     @mcp.tool()
     async def browseract_close(
         session: Annotated[str, Field(description="Session handle to close.")],
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Close a BrowserAct session owned by this UFO process."""
         return await _call("close", session)
 
     @mcp.tool()
-    async def browseract_diagnostics() -> Dict[str, Any]:
+    async def browseract_diagnostics() -> dict[str, Any]:
         """Report CLI availability, configured browsers, and active sessions without mutating anything."""
         return await _call("diagnostics")
 
     @mcp.tool()
-    async def browseract_browser_list() -> Dict[str, Any]:
+    async def browseract_browser_list() -> dict[str, Any]:
         """List BrowserAct browser identities so the operator can select one explicitly."""
         return await _call("browser_list")
 

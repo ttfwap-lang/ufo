@@ -6,11 +6,13 @@ Single responsibility: Health monitoring with AIP abstraction.
 """
 import asyncio
 import logging
-from typing import Dict
+
 from ufo.aip.messages import ClientType
 from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+
 from .connection_manager import WebSocketConnectionManager
 from .device_registry import DeviceRegistry
+
 
 class HeartbeatManager:
     """
@@ -22,8 +24,8 @@ class HeartbeatManager:
         self.connection_manager = connection_manager
         self.device_registry = device_registry
         self.heartbeat_interval = heartbeat_interval
-        self._heartbeat_tasks: Dict[str, asyncio.Task] = {}
-        self._heartbeat_protocols: Dict[str, HeartbeatProtocol] = {}
+        self._heartbeat_tasks: dict[str, asyncio.Task] = {}
+        self._heartbeat_protocols: dict[str, HeartbeatProtocol] = {}
         self.logger = logging.getLogger(f'{__name__}.HeartbeatManager')
 
     def start_heartbeat(self, device_id: str) -> None:

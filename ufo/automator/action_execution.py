@@ -1,6 +1,7 @@
 import logging
 import platform
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
 if TYPE_CHECKING or platform.system() == 'Windows':
     from pywinauto.controls.uiawrapper import UIAWrapper
 else:
@@ -8,6 +9,7 @@ else:
 from ufo import utils
 from ufo.agents.processors.schemas.actions import ActionCommandInfo, BaseControlLog
 from ufo.automator.puppeteer import AppPuppeteer
+
 
 class ActionExecutor:
     """
@@ -35,7 +37,7 @@ class ActionExecutor:
             return False
 
     @staticmethod
-    def _get_control_log(action: ActionCommandInfo, control_selected: Optional[UIAWrapper]=None, application_window: Optional[UIAWrapper]=None) -> BaseControlLog:
+    def _get_control_log(action: ActionCommandInfo, control_selected: UIAWrapper | None=None, application_window: UIAWrapper | None=None) -> BaseControlLog:
         """
         Get the control log data for the selected control.
         :param action: The action being executed.
@@ -49,7 +51,7 @@ class ActionExecutor:
         control_log = BaseControlLog(control_name=control_selected.element_info.name, control_class=control_selected.element_info.class_name, control_type=control_selected.element_info.control_type, control_matched=control_selected.element_info.name == action.target.name if action.target else False, control_automation_id=control_selected.element_info.automation_id, control_friendly_class_name=control_selected.friendly_class_name(), control_coordinates={'left': control_coordinates[0], 'top': control_coordinates[1], 'right': control_coordinates[2], 'bottom': control_coordinates[3]})
         return control_log
 
-    def execute(self, action: ActionCommandInfo, puppeteer: AppPuppeteer, control_dict: Dict[str, UIAWrapper], application_window: Optional[UIAWrapper]=None) -> Any:
+    def execute(self, action: ActionCommandInfo, puppeteer: AppPuppeteer, control_dict: dict[str, UIAWrapper], application_window: UIAWrapper | None=None) -> Any:
         """
         Execute the action flow.
         :param action: The action to execute.
@@ -59,7 +61,7 @@ class ActionExecutor:
         :return: The action result.
         """
         control_id = action.target.id if action.target else None
-        control_selected = control_dict.get(control_id, None)
+        control_selected = control_dict.get(control_id)
         if control_selected is not None and (not ActionExecutor._control_validation(control_selected)):
             raise ValueError(f'Control {control_id}: {action.target.name} is not available or not interactable for the action {action.to_representation()}, please refresh the application state to get the latest interactable control information.')
         if application_window:

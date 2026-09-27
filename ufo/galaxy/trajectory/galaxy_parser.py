@@ -8,7 +8,8 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 try:
     import matplotlib
     matplotlib.use('Agg')
@@ -21,6 +22,7 @@ try:
 except ImportError:
     nx = None
 from rich.console import Console
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 logger = logging.getLogger(__name__)
 console = Console()
@@ -53,10 +55,10 @@ class GalaxyTrajectory:
         self._evaluation_log = self._load_evaluation_data()
         self.logger = logging.getLogger(__name__)
 
-    def _load_response_data(self) -> List[Dict[str, Any]]:
+    def _load_response_data(self) -> list[dict[str, Any]]:
         """Load JSONL response data from log file."""
         step_data = []
-        with open(self._response_file_path, 'r', encoding='utf-8') as file:
+        with open(self._response_file_path, encoding='utf-8') as file:
             for line_num, line in enumerate(file, 1):
                 try:
                     line = line.strip()
@@ -70,12 +72,12 @@ class GalaxyTrajectory:
                     continue
         return step_data
 
-    def _load_evaluation_data(self) -> Dict[str, Any]:
+    def _load_evaluation_data(self) -> dict[str, Any]:
         """Load evaluation data if available."""
         evaluation_log_path = self.folder_path / self._evaluation_file
         if evaluation_log_path.exists():
             try:
-                with open(evaluation_log_path, 'r', encoding='utf-8') as file:
+                with open(evaluation_log_path, encoding='utf-8') as file:
                     return json.load(file)
             except json.JSONDecodeError:
                 logger.warning(f'Failed to parse evaluation log at {evaluation_log_path}')
@@ -84,17 +86,17 @@ class GalaxyTrajectory:
             return {}
 
     @property
-    def step_log(self) -> List[Dict[str, Any]]:
+    def step_log(self) -> list[dict[str, Any]]:
         """Get all step logs."""
         return self._step_log
 
     @property
-    def evaluation_log(self) -> Dict[str, Any]:
+    def evaluation_log(self) -> dict[str, Any]:
         """Get evaluation results."""
         return self._evaluation_log
 
     @property
-    def request(self) -> Optional[str]:
+    def request(self) -> str | None:
         """Get the original user request."""
         if len(self.step_log) == 0:
             return None
@@ -108,14 +110,14 @@ class GalaxyTrajectory:
     @property
     def total_cost(self) -> float:
         """Calculate total LLM cost."""
-        return sum((step.get('cost', 0.0) for step in self.step_log))
+        return sum(step.get('cost', 0.0) for step in self.step_log)
 
     @property
     def total_time(self) -> float:
         """Calculate total execution time."""
-        return sum((step.get('total_time', 0.0) for step in self.step_log))
+        return sum(step.get('total_time', 0.0) for step in self.step_log)
 
-    def _parse_constellation(self, constellation_json: Optional[str]) -> Optional[Dict[str, Any]]:
+    def _parse_constellation(self, constellation_json: str | None) -> dict[str, Any] | None:
         """
         Safely parse constellation JSON string with compatibility for string-serialized tasks.
 
@@ -148,7 +150,7 @@ class GalaxyTrajectory:
             logger.warning(f'Unexpected error parsing constellation: {e}')
             return {'parse_error': {'field': 'constellation', 'error_type': 'unexpected_error', 'message': f'Unexpected error: {str(e)}'}}
 
-    def _format_task_table(self, tasks: Dict[str, Any]) -> str:
+    def _format_task_table(self, tasks: dict[str, Any]) -> str:
         """
         Generate markdown table for tasks.
 
@@ -171,7 +173,7 @@ class GalaxyTrajectory:
             table += f'| {task_id} | {name} | {status} | {device} | {duration} |\n'
         return table + '\n'
 
-    def _generate_topology_image(self, dependencies: Dict[str, Any], tasks: Dict[str, Any], constellation_id: str, step_number: int, state: str='before') -> Optional[str]:
+    def _generate_topology_image(self, dependencies: dict[str, Any], tasks: dict[str, Any], constellation_id: str, step_number: int, state: str='before') -> str | None:
         """
         Generate a beautiful topology graph image using networkx and matplotlib.
 
@@ -185,7 +187,7 @@ class GalaxyTrajectory:
         if not tasks:
             return None
         G = nx.DiGraph()
-        for task_id in tasks.keys():
+        for task_id in tasks:
             G.add_node(task_id)
         satisfied_edges = []
         pending_edges = []
@@ -229,7 +231,6 @@ class GalaxyTrajectory:
         ax.axis('off')
         plt.title('Task Dependency Topology', fontsize=15, fontweight='bold', pad=15, color='#2C3E50')
         from matplotlib.lines import Line2D
-        from matplotlib.patches import Circle
         statuses_present = set()
         for node in G.nodes():
             task_info = tasks.get(node, {})
@@ -254,7 +255,7 @@ class GalaxyTrajectory:
         plt.close('all')
         return f'topology_images/{image_filename}'
 
-    def _format_dependency_graph(self, dependencies: Dict[str, Any], tasks: Dict[str, Any], constellation_id: str='', step_number: int=0, state: str='before') -> str:
+    def _format_dependency_graph(self, dependencies: dict[str, Any], tasks: dict[str, Any], constellation_id: str='', step_number: int=0, state: str='before') -> str:
         """
         Generate dependency graph visualization with image.
 
@@ -275,7 +276,7 @@ class GalaxyTrajectory:
             md += '_Failed to generate topology image_\n\n'
         return md
 
-    def _format_dependency_details(self, dependencies: Dict[str, Any]) -> str:
+    def _format_dependency_details(self, dependencies: dict[str, Any]) -> str:
         """
         Generate detailed dependency/edge information.
 
@@ -306,7 +307,7 @@ class GalaxyTrajectory:
                 if len(condition_lines) == 1:
                     md += f'- **Condition**: {condition_desc}\n'
                 else:
-                    md += f'- **Condition**:\n'
+                    md += '- **Condition**:\n'
                     for line in condition_lines:
                         md += f'  {line}\n'
             if (last_eval := dep.get('last_evaluation_result')):
@@ -324,7 +325,7 @@ class GalaxyTrajectory:
         md += '</details>\n\n'
         return md
 
-    def _format_task_details(self, tasks: Dict[str, Any]) -> str:
+    def _format_task_details(self, tasks: dict[str, Any]) -> str:
         """
         Generate detailed task information.
 
@@ -348,7 +349,7 @@ class GalaxyTrajectory:
                     for line in desc_lines[1:]:
                         md += f'  {line}\n'
             if (tips := task.get('tips')):
-                md += f'- **Tips**:\n'
+                md += '- **Tips**:\n'
                 for tip in tips[:3]:
                     tip_lines = str(tip).split('\n')
                     if len(tip_lines) == 1:
@@ -358,7 +359,7 @@ class GalaxyTrajectory:
                         for line in tip_lines[1:]:
                             md += f'    {line}\n'
             if (result := task.get('result')):
-                md += f'- **Result**: \n'
+                md += '- **Result**: \n'
                 if isinstance(result, dict):
                     if (result_data := result.get('result')):
                         if isinstance(result_data, list) and len(result_data) > 0:
@@ -377,11 +378,11 @@ class GalaxyTrajectory:
                 if len(error_lines) == 1:
                     md += f'- **Error**: `{error}`\n'
                 else:
-                    md += f'- **Error**:\n'
-                    md += f'  ```\n'
+                    md += '- **Error**:\n'
+                    md += '  ```\n'
                     for line in error_lines:
                         md += f'  {line}\n'
-                    md += f'  ```\n'
+                    md += '  ```\n'
             if (start_time := task.get('execution_start_time')):
                 md += f'- **Started**: {start_time}\n'
             if (end_time := task.get('execution_end_time')):
@@ -432,7 +433,7 @@ class GalaxyTrajectory:
                 if (cost := step.get('cost')):
                     file.write(f'- **Cost**: ${cost:.4f}\n')
                 if (exec_times := step.get('execution_times')):
-                    file.write(f'- **Time Breakdown**:\n')
+                    file.write('- **Time Breakdown**:\n')
                     for key, value in exec_times.items():
                         if value > 0:
                             file.write(f'  - {key}: {value:.2f}s\n')
@@ -582,7 +583,7 @@ if __name__ == '__main__':
             console.print(f'[FAIL] {str(e)[:50]}', style='red')
             error_count += 1
     console.print('\n' + '=' * 60, style='cyan')
-    console.print(f'[BOLD] Summary:', style='cyan bold')
+    console.print('[BOLD] Summary:', style='cyan bold')
     console.print(f'  Total: {len(task_dirs)}', style='white')
     console.print(f'  Success: {success_count}', style='green')
     console.print(f'  Skipped: {skipped_count}', style='yellow')

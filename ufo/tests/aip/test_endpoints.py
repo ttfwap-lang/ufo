@@ -7,14 +7,13 @@ Test AIP Endpoints
 Tests endpoint implementations for server, client, and constellation.
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from ufo.aip.endpoints import (
-    AIPEndpoint,
-    DeviceServerEndpoint,
-    DeviceClientEndpoint,
     ConstellationEndpoint,
+    DeviceServerEndpoint,
 )
 
 

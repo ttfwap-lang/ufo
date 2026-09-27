@@ -9,10 +9,11 @@ Provides the foundation for all AIP endpoint implementations.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ufo.aip.protocol import AIPProtocol
 from ufo.aip.resilience import ReconnectionStrategy, TimeoutManager
+
 
 class AIPEndpoint(ABC):
     """
@@ -32,7 +33,7 @@ class AIPEndpoint(ABC):
     def __init__(
         self,
         protocol: AIPProtocol,
-        reconnection_strategy: Optional[ReconnectionStrategy] = None,
+        reconnection_strategy: ReconnectionStrategy | None = None,
         heartbeat_interval: float = 30.0,
         default_timeout: float = 120.0,
     ):
@@ -52,7 +53,7 @@ class AIPEndpoint(ABC):
         self.timeout_manager = TimeoutManager(default_timeout=default_timeout)
 
         # Session tracking
-        self.session_handlers: Dict[str, Any] = {}
+        self.session_handlers: dict[str, Any] = {}
 
     @abstractmethod
     async def start(self) -> None:
@@ -90,7 +91,7 @@ class AIPEndpoint(ABC):
         return self.protocol.is_connected()
 
     async def send_with_timeout(
-        self, msg: Any, timeout: Optional[float] = None
+        self, msg: Any, timeout: float | None = None
     ) -> None:
         """
         Send a message with timeout.
@@ -103,7 +104,7 @@ class AIPEndpoint(ABC):
         )
 
     async def receive_with_timeout(
-        self, message_type: type, timeout: Optional[float] = None
+        self, message_type: type, timeout: float | None = None
     ) -> Any:
         """
         Receive a message with timeout.

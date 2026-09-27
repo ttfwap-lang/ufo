@@ -9,13 +9,13 @@ Proves both strategies pass supported AgentType to agent.get_response() and hand
 import os
 import shutil
 import tempfile
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from PIL import Image
 
-from ufo.agents.processors.strategies.live_verification_strategy import LiveVisualVerifier
-from ufo.agents.processors.strategies.doer_checker_swarm import DoerCheckerSwarmStrategy
+import pytest
+from PIL import Image
 from ufo.agents.processors.schemas.verification_schema import ActionVerificationRequest
+from ufo.agents.processors.strategies.doer_checker_swarm import DoerCheckerSwarmStrategy
+from ufo.agents.processors.strategies.live_verification_strategy import LiveVisualVerifier
 from ufo.llm import AgentType
 from ufo.llm.llm_result import LLMResult
 

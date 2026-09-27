@@ -3,14 +3,21 @@
 Goal: honestly measure what works and where the automation breaks, so we can
 critique and harden it. No errors are swallowed.
 """
-import sys, asyncio, traceback
+import asyncio
+import sys
+import traceback
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, "C:\\Users\\lnxzf\\Desktop\\projects\\ufo")
-from ufo.automator.app_apis.telegram import (
-    TelegramGUIController, AutonomousTelegramAgent, ExecutionConfig,
-    PrivacyRedactor, ConversationLearner, BotSkill, ScreenLockout,
-)
 from ufo.automation.factory import get_desktop_automation
+from ufo.automator.app_apis.telegram import (
+    AutonomousTelegramAgent,
+    BotSkill,
+    ConversationLearner,
+    ExecutionConfig,
+    PrivacyRedactor,
+    TelegramGUIController,
+)
 
 RESULTS = []
 

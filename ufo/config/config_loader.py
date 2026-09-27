@@ -43,9 +43,12 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
+
 import yaml
-from ufo.config.config_schemas import UFOConfig, GalaxyConfig
+
+from ufo.config.config_schemas import GalaxyConfig, UFOConfig
+
 logger = logging.getLogger(__name__)
 
 class DynamicConfig:
@@ -65,7 +68,7 @@ class DynamicConfig:
         value = config.HOST_AGENT.API_MODEL
     """
 
-    def __init__(self, data: Dict[str, Any], name: str='config'):
+    def __init__(self, data: dict[str, Any], name: str='config'):
         """
         Initialize DynamicConfig.
 
@@ -110,7 +113,7 @@ class DynamicConfig:
             return self._nested_configs[key]
         return self._data.get(key, default)
 
-    def keys(self) -> List[str]:
+    def keys(self) -> list[str]:
         """Get all keys"""
         return self._data.keys()
 
@@ -122,7 +125,7 @@ class DynamicConfig:
         """Get all values"""
         return self._data.values()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to plain dictionary"""
         return self._data.copy()
 
@@ -155,7 +158,7 @@ class ConfigLoader:
     """
     _instance: Optional['ConfigLoader'] = None
 
-    def __init__(self, base_path: Optional[str]=None):
+    def __init__(self, base_path: str | None=None):
         """
         Initialize ConfigLoader.
 
@@ -163,11 +166,11 @@ class ConfigLoader:
         """
         ufo_root = Path(__file__).resolve().parent.parent
         self.base_path = Path(base_path) if base_path else ufo_root / 'config'
-        self._cache: Dict[str, Any] = {}
+        self._cache: dict[str, Any] = {}
         self._env = os.getenv('UFO_ENV', 'production')
 
     @classmethod
-    def get_instance(cls, base_path: Optional[str]=None) -> 'ConfigLoader':
+    def get_instance(cls, base_path: str | None=None) -> 'ConfigLoader':
         """
         Get or create ConfigLoader singleton.
 
@@ -183,7 +186,7 @@ class ConfigLoader:
         """Reset singleton instance (useful for testing)"""
         cls._instance = None
 
-    def _load_yaml(self, path: Path) -> Optional[Dict[str, Any]]:
+    def _load_yaml(self, path: Path) -> dict[str, Any] | None:
         """
         Load YAML file safely with caching.
 
@@ -196,7 +199,7 @@ class ConfigLoader:
         if not path.exists():
             return None
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, encoding='utf-8') as f:
                 data = yaml.safe_load(f) or {}
             data = self._expand_env_vars(data)
             self._cache[cache_key] = data
@@ -205,7 +208,7 @@ class ConfigLoader:
             logger.warning(f'Error loading {path}: {e}')
             return None
 
-    def _deep_merge(self, target: Dict[str, Any], source: Dict[str, Any]) -> None:
+    def _deep_merge(self, target: dict[str, Any], source: dict[str, Any]) -> None:
         """
         Deep merge source dictionary into target dictionary.
 
@@ -245,7 +248,7 @@ class ConfigLoader:
             return self.ENV_PLACEHOLDER_PATTERN.sub(replacer, value)
         return value
 
-    def _discover_yaml_files(self, directory: Path) -> List[Path]:
+    def _discover_yaml_files(self, directory: Path) -> list[Path]:
         """
         Discover all YAML files in a directory.
 
@@ -259,11 +262,11 @@ class ConfigLoader:
             return []
         yaml_files = []
         for file in directory.glob('*.yaml'):
-            if not any((file.stem.endswith(suffix) for suffix in ['_dev', '_test', '_prod'])):
+            if not any(file.stem.endswith(suffix) for suffix in ['_dev', '_test', '_prod']):
                 yaml_files.append(file)
         return sorted(yaml_files)
 
-    def _load_module_configs(self, module_dir: Path, env: Optional[str]=None) -> Dict[str, Any]:
+    def _load_module_configs(self, module_dir: Path, env: str | None=None) -> dict[str, Any]:
         """
         Load all configuration files from a module directory and merge them.
 
@@ -291,7 +294,7 @@ class ConfigLoader:
                     self._deep_merge(merged_config, env_data)
         return merged_config
 
-    def _load_with_fallback(self, module: str, env: Optional[str]=None) -> Dict[str, Any]:
+    def _load_with_fallback(self, module: str, env: str | None=None) -> dict[str, Any]:
         """
         Load configuration for a module (e.g. 'ufo' or 'galaxy').
 
@@ -305,7 +308,7 @@ class ConfigLoader:
             raise FileNotFoundError(f"No configuration found for '{module}'.\nExpected at: {module_path}/\n")
         return config
 
-    def _apply_env_overrides(self, config_data: Dict[str, Any], prefix: str='UFO_', reserved_suffixes: Optional[tuple]=('ENV', 'ROOT', 'DIR', 'DGX_HOST')) -> None:
+    def _apply_env_overrides(self, config_data: dict[str, Any], prefix: str='UFO_', reserved_suffixes: tuple | None=('ENV', 'ROOT', 'DIR', 'DGX_HOST')) -> None:
         """
         Apply explicit environment variable overrides starting with the specified prefix.
         Does NOT bulk-copy os.environ and ignores environment variables matching reserved suffixes (e.g. UFO_ENV).
@@ -354,7 +357,7 @@ class ConfigLoader:
                     target[last_part.upper()] = parsed_val
             else:
                 matched_key = None
-                for k in config_data.keys():
+                for k in config_data:
                     if k.lower() == suffix.lower():
                         matched_key = k
                         break
@@ -363,7 +366,7 @@ class ConfigLoader:
                 else:
                     config_data[suffix.upper()] = parsed_val
 
-    def load_ufo_config(self, env: Optional[str]=None) -> UFOConfig:
+    def load_ufo_config(self, env: str | None=None) -> UFOConfig:
         """
         Load UFO configuration.
 
@@ -382,7 +385,7 @@ class ConfigLoader:
         self._apply_legacy_transforms(config_data)
         return UFOConfig.from_dict(config_data)
 
-    def load_galaxy_config(self, env: Optional[str]=None) -> GalaxyConfig:
+    def load_galaxy_config(self, env: str | None=None) -> GalaxyConfig:
         """
         Load Galaxy configuration.
 
@@ -396,7 +399,7 @@ class ConfigLoader:
         self._apply_legacy_transforms(config_data)
         return GalaxyConfig.from_dict(config_data)
 
-    def _apply_legacy_transforms(self, config: Dict[str, Any]) -> None:
+    def _apply_legacy_transforms(self, config: dict[str, Any]) -> None:
         """
         Apply legacy configuration transformations.
 
@@ -409,7 +412,7 @@ class ConfigLoader:
             config['CONTROL_BACKEND'] = [config['CONTROL_BACKEND']]
 
     @staticmethod
-    def _update_api_base(config: Dict[str, Any], agent_key: str) -> None:
+    def _update_api_base(config: dict[str, Any], agent_key: str) -> None:
         """
         Update API base URL based on API type (legacy behavior).
 
@@ -434,8 +437,8 @@ class ConfigLoader:
         elif api_type == 'openai':
             if not agent_config.get('API_BASE'):
                 agent_config['API_BASE'] = 'https://api.openai.com/v1/chat/completions'
-_global_ufo_config: Optional[UFOConfig] = None
-_global_galaxy_config: Optional[GalaxyConfig] = None
+_global_ufo_config: UFOConfig | None = None
+_global_galaxy_config: GalaxyConfig | None = None
 
 def get_ufo_config(reload: bool=False) -> UFOConfig:
     """
@@ -547,7 +550,7 @@ class LazyUFOConfig:
     def values(self):
         return get_ufo_config().values()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return get_ufo_config().to_dict()
 
     def __repr__(self) -> str:
@@ -580,7 +583,7 @@ class LazyGalaxyConfig:
     def values(self):
         return get_galaxy_config().values()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return get_galaxy_config().to_dict()
 
     def __repr__(self) -> str:

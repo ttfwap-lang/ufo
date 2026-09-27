@@ -8,24 +8,21 @@ This module provides factory classes that create appropriate strategies and prom
 based on the weaving mode, following the Factory pattern for better modularity.
 """
 
-from typing import Dict, Type
 
-
-from ufo.galaxy.agents.prompters.base_constellation_prompter import (    ConstellationPrompterFactory,
-)
-
-from ufo.galaxy.agents.processors.strategies.base_constellation_strategy import (    ConstellationLLMInteractionStrategy,
+from ufo.agents.processors.strategies.processing_strategy import BaseProcessingStrategy
+from ufo.galaxy.agents.processors.strategies.base_constellation_strategy import (
+    ConstellationLLMInteractionStrategy,
     ConstellationMemoryUpdateStrategy,
 )
-from ufo.galaxy.agents.processors.strategies.constellation_creation_strategy import (    ConstellationCreationActionExecutionStrategy,
+from ufo.galaxy.agents.processors.strategies.constellation_creation_strategy import (
+    ConstellationCreationActionExecutionStrategy,
     ConstellationCreationLLMInteractionStrategy,
 )
-from ufo.galaxy.agents.processors.strategies.constellation_editing_strategy import (    ConstellationEditingActionExecutionStrategy,
+from ufo.galaxy.agents.processors.strategies.constellation_editing_strategy import (
+    ConstellationEditingActionExecutionStrategy,
     ConstellationEditingLLMInteractionStrategy,
 )
 from ufo.galaxy.agents.schema import WeavingMode
-
-from ufo.agents.processors.strategies.processing_strategy import BaseProcessingStrategy
 
 
 class PhaseStrategyDict(dict):
@@ -59,12 +56,12 @@ class ConstellationStrategyFactory:
     - Clear separation of concerns
     """
 
-    _llm_interaction_strategies: Dict[WeavingMode, Type[BaseProcessingStrategy]] = {
+    _llm_interaction_strategies: dict[WeavingMode, type[BaseProcessingStrategy]] = {
         WeavingMode.CREATION: ConstellationCreationLLMInteractionStrategy,
         WeavingMode.EDITING: ConstellationEditingLLMInteractionStrategy,
     }
 
-    _action_execution_strategies: Dict[WeavingMode, Type[BaseProcessingStrategy]] = {
+    _action_execution_strategies: dict[WeavingMode, type[BaseProcessingStrategy]] = {
         WeavingMode.CREATION: ConstellationCreationActionExecutionStrategy,
         WeavingMode.EDITING: ConstellationEditingActionExecutionStrategy,
     }
@@ -141,7 +138,7 @@ class ConstellationStrategyFactory:
         llm_fail_fast: bool = True,
         action_fail_fast: bool = False,
         memory_fail_fast: bool = False,
-    ) -> Dict[str, BaseProcessingStrategy]:
+    ) -> dict[str, BaseProcessingStrategy]:
         """
         Create all required strategies for a weaving mode.
 
@@ -176,7 +173,7 @@ class ConstellationStrategyFactory:
 
 def create_constellation_strategies_for_mode(
     weaving_mode: WeavingMode,
-) -> Dict[str, BaseProcessingStrategy]:
+) -> dict[str, BaseProcessingStrategy]:
     """
     Convenience function to create all strategies for a specific weaving mode.
 

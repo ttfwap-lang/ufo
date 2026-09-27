@@ -6,8 +6,10 @@ particularly the devices.yaml file.
 """
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import yaml
+
 
 class ConfigService:
     """
@@ -27,7 +29,7 @@ class ConfigService:
         self.devices_config_path = config_dir / 'devices.yaml'
         self.logger: logging.Logger = logging.getLogger(__name__)
 
-    def load_devices_config(self) -> Dict[str, Any]:
+    def load_devices_config(self) -> dict[str, Any]:
         """
         Load the devices configuration from devices.yaml.
 
@@ -38,7 +40,7 @@ class ConfigService:
         if not self.devices_config_path.exists():
             raise FileNotFoundError(f'Configuration file not found: {self.devices_config_path}')
         try:
-            with open(self.devices_config_path, 'r', encoding='utf-8') as f:
+            with open(self.devices_config_path, encoding='utf-8') as f:
                 config_data = yaml.safe_load(f) or {}
             self.logger.debug(f'Loaded devices config from {self.devices_config_path}')
             return config_data
@@ -46,7 +48,7 @@ class ConfigService:
             self.logger.error(f'Failed to parse YAML config: {e}')
             raise
 
-    def save_devices_config(self, config_data: Dict[str, Any]) -> None:
+    def save_devices_config(self, config_data: dict[str, Any]) -> None:
         """
         Save the devices configuration to devices.yaml.
 
@@ -58,11 +60,11 @@ class ConfigService:
             with open(self.devices_config_path, 'w', encoding='utf-8') as f:
                 yaml.dump(config_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
             self.logger.debug(f'Saved devices config to {self.devices_config_path}')
-        except IOError as e:
+        except OSError as e:
             self.logger.error(f'Failed to write config file: {e}')
             raise
 
-    def get_all_device_ids(self) -> List[str]:
+    def get_all_device_ids(self) -> list[str]:
         """
         Get a list of all device IDs in the configuration.
 
@@ -86,7 +88,7 @@ class ConfigService:
         existing_ids = self.get_all_device_ids()
         return device_id in existing_ids
 
-    def add_device_to_config(self, device_id: str, server_url: str, os: str, capabilities: List[str], metadata: Optional[Dict[str, Any]], auto_connect: bool, max_retries: int) -> Dict[str, Any]:
+    def add_device_to_config(self, device_id: str, server_url: str, os: str, capabilities: list[str], metadata: dict[str, Any] | None, auto_connect: bool, max_retries: int) -> dict[str, Any]:
         """
         Add a new device to the configuration.
 

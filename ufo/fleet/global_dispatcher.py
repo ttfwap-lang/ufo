@@ -35,10 +35,11 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
-def _load_dispatcher_config() -> Dict[str, Any]:
+def _load_dispatcher_config() -> dict[str, Any]:
     """Load dispatcher config from system.yaml."""
     defaults = {'ENABLED': False, 'REDIS_URL': 'redis://127.0.0.1:6379/0', 'WORKER_ID': 'auto', 'QUEUE_NAME': 'ufo:queue:bankfidelity_tasks', 'DLQ_QUEUE': 'ufo:queue:dlq', 'FETCH_TIMEOUT_SECONDS': 5}
     try:
@@ -68,7 +69,7 @@ class GlobalDispatcher:
     after fetching.
     """
 
-    def __init__(self, redis_url: Optional[str]=None, worker_id: Optional[str]=None) -> None:
+    def __init__(self, redis_url: str | None=None, worker_id: str | None=None) -> None:
         self._config = _load_dispatcher_config()
         self._redis_url = redis_url or self._config.get('REDIS_URL')
         self._worker_id = worker_id or _resolve_worker_id(self._config.get('WORKER_ID', 'auto'))
@@ -78,7 +79,7 @@ class GlobalDispatcher:
         self._processing_queue = f'ufo:queue:processing:{self._worker_id}'
         self._redis = None
         self._available = False
-        self._current_raw: Optional[str] = None
+        self._current_raw: str | None = None
         self._init_redis()
 
     def _init_redis(self) -> None:
@@ -104,7 +105,7 @@ class GlobalDispatcher:
     def is_available(self) -> bool:
         return self._available
 
-    def fetch_next_workflow(self) -> Optional[Dict[str, Any]]:
+    def fetch_next_workflow(self) -> dict[str, Any] | None:
         """
         Atomically pop a task from the global queue and move it to this
         worker's processing queue.
@@ -136,7 +137,7 @@ class GlobalDispatcher:
             logger.error(f'[Dispatcher] Fetch failed: {e}')
             return None
 
-    def mark_workflow_complete(self, workflow_id: str, raw_payload: Optional[str]=None) -> bool:
+    def mark_workflow_complete(self, workflow_id: str, raw_payload: str | None=None) -> bool:
         """
         Remove the completed task from the processing queue.
 
@@ -162,7 +163,7 @@ class GlobalDispatcher:
             logger.error(f'[Dispatcher] Complete marking failed: {e}')
             return False
 
-    def mark_workflow_failed(self, workflow_id: str, error: str='', raw_payload: Optional[str]=None) -> bool:
+    def mark_workflow_failed(self, workflow_id: str, error: str='', raw_payload: str | None=None) -> bool:
         """
         Move a failed task from processing queue to DLQ.
 
@@ -189,7 +190,7 @@ class GlobalDispatcher:
             logger.error(f'[Dispatcher] DLQ move failed: {e}')
             return False
 
-    def submit_workflow(self, task: Dict[str, Any]) -> bool:
+    def submit_workflow(self, task: dict[str, Any]) -> bool:
         """
         Push a new task to the global queue for any worker to pick up.
 

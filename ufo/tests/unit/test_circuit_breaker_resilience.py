@@ -6,6 +6,7 @@ Unit tests for thread-safe Circuit Breaker resilience logic in llm_call.
 """
 
 import time
+
 from ufo.llm.llm_call import _CircuitBreakerState
 
 
@@ -108,7 +109,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_open_circuit_breaker_blocks_when_fallback_unavailable():
     """Verify get_completions raises and does not dispatch when circuit is OPEN and no fallback is available."""
-    from ufo.llm.llm_call import get_completions, _circuit_breaker
+    from ufo.llm.llm_call import _circuit_breaker, get_completions
 
     _circuit_breaker.reset()
     _circuit_breaker._initialized = True
@@ -142,7 +143,8 @@ async def test_open_circuit_breaker_blocks_when_fallback_unavailable():
 async def test_open_circuit_breaker_records_dlq_before_raising():
     """Verify circuit-open terminal failures record a DLQ snapshot before raising."""
     from unittest.mock import patch
-    from ufo.llm.llm_call import get_completions, _circuit_breaker
+
+    from ufo.llm.llm_call import _circuit_breaker, get_completions
 
     _circuit_breaker.reset()
     _circuit_breaker._initialized = True

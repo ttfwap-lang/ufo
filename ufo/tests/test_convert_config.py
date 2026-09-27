@@ -12,10 +12,13 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+
 import yaml
+
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 from ufo.tools.convert_config import ConfigConverter
+
 
 class TestConfigConversion(unittest.TestCase):
     """Test cases for configuration conversion."""
@@ -61,7 +64,7 @@ class TestConfigConversion(unittest.TestCase):
             temp_path = Path(f.name)
         try:
             converter.save_yaml(test_data, temp_path, 'Test Header')
-            with open(temp_path, 'r', encoding='utf-8') as f:
+            with open(temp_path, encoding='utf-8') as f:
                 content = f.read()
             self.assertNotIn('{', content, 'Should not contain flow-style braces')
             self.assertIn('HOST_AGENT:', content, 'Should have block-style keys')
@@ -119,7 +122,7 @@ class TestConfigConversion(unittest.TestCase):
             converter.write_converted_configs(converted, dry_run=False)
             for yaml_file in temp_path.glob('*.yaml'):
                 try:
-                    with open(yaml_file, 'r', encoding='utf-8') as f:
+                    with open(yaml_file, encoding='utf-8') as f:
                         data = yaml.safe_load(f)
                     self.assertIsInstance(data, dict, f'{yaml_file.name} should load as dict')
                     self.assertGreater(len(data), 0, f'{yaml_file.name} should not be empty')

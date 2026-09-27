@@ -4,13 +4,14 @@ Constellation Configuration Loader
 Loads device registration configuration from various sources including
 config files, command line arguments, and environment variables.
 """
+import argparse
 import json
 import logging
 import os
-import argparse
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
+
 try:
     import yaml
 except ImportError:
@@ -22,8 +23,8 @@ class DeviceConfig:
     device_id: str
     server_url: str
     os: str = 'unknown'
-    capabilities: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    capabilities: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
     auto_connect: bool = True
     max_retries: int = 5
 
@@ -57,7 +58,7 @@ class ConstellationConfig:
     heartbeat_interval: float = 30.0
     reconnect_delay: float = 5.0
     max_concurrent_tasks: int = 100
-    devices: List[DeviceConfig] = field(default_factory=list)
+    devices: list[DeviceConfig] = field(default_factory=list)
 
     @classmethod
     def from_file(cls, config_path: str) -> 'ConstellationConfig':
@@ -82,7 +83,7 @@ class ConstellationConfig:
         :return: ConstellationConfig instance
         """
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, encoding='utf-8') as f:
                 config_data = json.load(f)
             devices = []
             for device_data in config_data.get('devices', []):
@@ -105,7 +106,7 @@ class ConstellationConfig:
             raise ImportError('PyYAML is required for YAML configuration files. Install with: pip install PyYAML')
         config_path = _resolve_config_path(config_path)
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, encoding='utf-8') as f:
                 config_data = yaml.safe_load(f)
             devices = []
             for device_data in config_data.get('devices', []):
@@ -226,7 +227,7 @@ class ConstellationConfig:
         except Exception as e:
             logging.getLogger(__name__).error(f'Failed to save config to {config_path}: {e}')
 
-    def add_device(self, device_id: str, server_url: str, capabilities: Optional[List[str]]=None, metadata: Optional[Dict[str, Any]]=None, auto_connect: bool=True) -> None:
+    def add_device(self, device_id: str, server_url: str, capabilities: list[str] | None=None, metadata: dict[str, Any] | None=None, auto_connect: bool=True) -> None:
         """
         Add a device to the configuration.
 
@@ -252,7 +253,7 @@ class ConstellationConfig:
                 return True
         return False
 
-    def get_device_config(self, device_id: str) -> Optional[DeviceConfig]:
+    def get_device_config(self, device_id: str) -> DeviceConfig | None:
         """
         Get device configuration by ID.
 

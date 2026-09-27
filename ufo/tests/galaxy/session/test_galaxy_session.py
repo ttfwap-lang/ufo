@@ -5,11 +5,12 @@ import asyncio
 import logging
 import os
 import sys
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-from ufo.galaxy.session.galaxy_session import GalaxySession
 from ufo.galaxy.client.constellation_client import ConstellationClient
-from ufo.galaxy.constellation import TaskConstellation
+from ufo.galaxy.session.galaxy_session import GalaxySession
+
 
 async def test_galaxy_session_basic_functionality():
     """Test basic GalaxySession functionality."""
@@ -107,9 +108,9 @@ async def test_galaxy_session_issues():
     issues_found = []
     print('=== Checking for Common Issues ===')
     try:
-        from ufo.galaxy.session.galaxy_session import GalaxySession, GalaxyRound
         from ufo.galaxy.agents.constellation_agent import ConstellationAgent
         from ufo.galaxy.constellation import TaskConstellationOrchestrator
+        from ufo.galaxy.session.galaxy_session import GalaxyRound, GalaxySession
         print('✅ All imports available')
     except ImportError as e:
         issues_found.append(f'Import error: {e}')
@@ -143,7 +144,7 @@ async def test_galaxy_session_issues():
     except Exception as e:
         issues_found.append(f'Attribute check error: {e}')
         print(f'❌ Attribute check error: {e}')
-    print(f'\n📊 Issues Summary:')
+    print('\n📊 Issues Summary:')
     if issues_found:
         print(f'❌ Found {len(issues_found)} issues:')
         for i, issue in enumerate(issues_found, 1):

@@ -10,14 +10,17 @@ Coordinate model: OCR bitmap pixels -> physical = bitmap + (WIN_X, WIN_Y),
 where the window origin in PHYSICAL pixels is measured before the run
 (125% DPI: physical = logical * 1.25).
 """
-import sys, asyncio, time, json, os
-import re
+import asyncio
+import json
+import os
+import sys
+import time
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, "C:\\Users\\lnxzf\\Desktop\\projects\\ufo")
-from ufo.automator.app_apis.telegram import TelegramGUIController
-from ufo.automation.factory import get_desktop_automation
+
 from ufo.automation.desktop import Rect
-import ctypes
+from ufo.automator.app_apis.telegram import TelegramGUIController
 
 # ---- geometry (physical px) -------------------------------------------------
 WIN_X, WIN_Y = 63, 50   # measured: logical (50,40) * 1.25
@@ -108,7 +111,8 @@ def find_box(boxes, needle, exact=True, rightmost=False, y_min=None, y_max=None)
 def fit_window(c):
     """Pin the window to the geometry the click map was measured on."""
     try:
-        import win32gui, win32con
+        import win32con
+        import win32gui
         h = c.get_concrete_hwnd()
         if h:
             win32gui.ShowWindow(h, win32con.SW_RESTORE)
@@ -249,7 +253,9 @@ async def click_box(c, box, label):
 
 def _restore_telegram_window():
     """Show + reposition any Telegram main window (Qt QWindowIcon)."""
-    import win32gui, win32con, win32process
+    import win32con
+    import win32gui
+    import win32process
     try:
         import psutil
     except Exception:
@@ -273,7 +279,8 @@ TELEGRAM_EXE = os.path.join(
 
 
 def _telegram_running() -> bool:
-    import win32gui, win32process
+    import win32gui
+    import win32process
     try:
         import psutil
     except Exception:
@@ -423,7 +430,6 @@ async def accept_miniapp_consent(c, words=None):
     The button is located by OCR: the sheet's primary action is the bottom-
     right control, and its label is one of the known accept strings.
     """
-    from ufo.automation.desktop import Rect
 
     for label in ("Open", "Continue", "Accept", "Agree", "OK"):
         box = find_box(words, label, exact=True, y_min=600)

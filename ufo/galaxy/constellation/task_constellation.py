@@ -7,13 +7,16 @@ dynamic modification, and advanced dependency handling capabilities.
 import uuid
 from collections import defaultdict, deque
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
+
 from ufo.galaxy.constellation.enums import ConstellationState
 from ufo.galaxy.visualization.dag_visualizer import DAGVisualizer
+
 from ..core.interfaces import IConstellation
 from .enums import ConstellationState, TaskStatus
 from .task_star import TaskStar
 from .task_star_line import TaskStarLine
+
 if TYPE_CHECKING:
     from ufo.galaxy.agents.schema import TaskConstellationSchema
 
@@ -31,7 +34,7 @@ class TaskConstellation(IConstellation):
     Implements IDAGManager interface for consistent DAG operations.
     """
 
-    def __init__(self, constellation_id: Optional[str]=None, name: Optional[str]=None, enable_visualization: bool=True, *args, **kwargs) -> None:
+    def __init__(self, constellation_id: str | None=None, name: str | None=None, enable_visualization: bool=True, *args, **kwargs) -> None:
         """
         Initialize a TaskConstellation.
 
@@ -41,13 +44,13 @@ class TaskConstellation(IConstellation):
         self._constellation_id: str = constellation_id or f"constellation_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{str(uuid.uuid4())[:8]}"
         self._name: str = name or self._constellation_id
         self._state: ConstellationState = ConstellationState.CREATED
-        self._tasks: Dict[str, TaskStar] = {}
-        self._dependencies: Dict[str, TaskStarLine] = {}
+        self._tasks: dict[str, TaskStar] = {}
+        self._dependencies: dict[str, TaskStarLine] = {}
         self._created_at: datetime = datetime.now(timezone.utc)
         self._updated_at: datetime = self._created_at
-        self._execution_start_time: Optional[datetime] = None
-        self._execution_end_time: Optional[datetime] = None
-        self._metadata: Dict[str, Any] = {}
+        self._execution_start_time: datetime | None = None
+        self._execution_end_time: datetime | None = None
+        self._metadata: dict[str, Any] = {}
 
     @property
     def constellation_id(self) -> str:
@@ -77,12 +80,12 @@ class TaskConstellation(IConstellation):
         self._updated_at = datetime.now(timezone.utc)
 
     @property
-    def tasks(self) -> Dict[str, TaskStar]:
+    def tasks(self) -> dict[str, TaskStar]:
         """Get a copy of all tasks."""
         return self._tasks.copy()
 
     @property
-    def dependencies(self) -> Dict[str, TaskStarLine]:
+    def dependencies(self) -> dict[str, TaskStarLine]:
         """Get a copy of all dependencies."""
         return self._dependencies.copy()
 
@@ -107,28 +110,28 @@ class TaskConstellation(IConstellation):
         return self._updated_at
 
     @property
-    def execution_start_time(self) -> Optional[datetime]:
+    def execution_start_time(self) -> datetime | None:
         """Get the execution start timestamp."""
         return self._execution_start_time
 
     @property
-    def execution_end_time(self) -> Optional[datetime]:
+    def execution_end_time(self) -> datetime | None:
         """Get the execution end timestamp."""
         return self._execution_end_time
 
     @property
-    def execution_duration(self) -> Optional[float]:
+    def execution_duration(self) -> float | None:
         """Get the execution duration in seconds."""
         if self._execution_start_time and self._execution_end_time:
             return (self._execution_end_time - self._execution_start_time).total_seconds()
         return None
 
     @property
-    def metadata(self) -> Dict[str, Any]:
+    def metadata(self) -> dict[str, Any]:
         """Get a copy of the metadata."""
         return self._metadata.copy()
 
-    def update_metadata(self, metadata: Dict[str, Any]) -> None:
+    def update_metadata(self, metadata: dict[str, Any]) -> None:
         """Update the constellation metadata."""
         self._metadata.update(metadata)
         self._updated_at = datetime.now(timezone.utc)
@@ -168,7 +171,7 @@ class TaskConstellation(IConstellation):
         self._updated_at = datetime.now(timezone.utc)
         self.update_state()
 
-    def get_task(self, task_id: str) -> Optional[TaskStar]:
+    def get_task(self, task_id: str) -> TaskStar | None:
         """
         Get a task by ID.
 
@@ -177,7 +180,7 @@ class TaskConstellation(IConstellation):
         """
         return self._tasks.get(task_id)
 
-    def add_dependency(self, dependency: Union[TaskStarLine, str], to_task_id: Optional[str]=None) -> None:
+    def add_dependency(self, dependency: TaskStarLine | str, to_task_id: str | None=None) -> None:
         """
         Add a dependency to the constellation.
 
@@ -222,7 +225,7 @@ class TaskConstellation(IConstellation):
         self._updated_at = datetime.now(timezone.utc)
         self.update_state()
 
-    def get_dependency(self, dependency_id: str) -> Optional[TaskStarLine]:
+    def get_dependency(self, dependency_id: str) -> TaskStarLine | None:
         """
         Get a dependency by ID.
 
@@ -231,7 +234,7 @@ class TaskConstellation(IConstellation):
         """
         return self._dependencies.get(dependency_id)
 
-    def get_ready_tasks(self) -> List[TaskStar]:
+    def get_ready_tasks(self) -> list[TaskStar]:
         """
         Get all tasks that are ready to execute.
 
@@ -245,35 +248,35 @@ class TaskConstellation(IConstellation):
         ready_tasks.sort(key=lambda t: t.priority.value, reverse=True)
         return ready_tasks
 
-    def get_running_tasks(self) -> List[TaskStar]:
+    def get_running_tasks(self) -> list[TaskStar]:
         """Get all currently running tasks."""
         return [task for task in self._tasks.values() if task.status == TaskStatus.RUNNING]
 
-    def get_completed_tasks(self) -> List[TaskStar]:
+    def get_completed_tasks(self) -> list[TaskStar]:
         """Get all completed tasks."""
         return [task for task in self._tasks.values() if task.status == TaskStatus.COMPLETED]
 
-    def get_failed_tasks(self) -> List[TaskStar]:
+    def get_failed_tasks(self) -> list[TaskStar]:
         """Get all failed tasks."""
         return [task for task in self._tasks.values() if task.status == TaskStatus.FAILED]
 
-    def get_pending_tasks(self) -> List[TaskStar]:
+    def get_pending_tasks(self) -> list[TaskStar]:
         """Get all pending tasks."""
         return [task for task in self._tasks.values() if task.status == TaskStatus.PENDING]
 
-    def get_all_tasks(self) -> List[TaskStar]:
+    def get_all_tasks(self) -> list[TaskStar]:
         """Get all tasks in the constellation."""
         return list(self._tasks.values())
 
-    def get_all_dependencies(self) -> List[TaskStarLine]:
+    def get_all_dependencies(self) -> list[TaskStarLine]:
         """Get all dependencies in the constellation."""
         return list(self._dependencies.values())
 
-    def get_task_dependencies(self, task_id: str) -> List[TaskStarLine]:
+    def get_task_dependencies(self, task_id: str) -> list[TaskStarLine]:
         """Get dependencies for a specific task."""
         return [dep for dep in self._dependencies.values() if dep.to_task_id == task_id]
 
-    def get_modifiable_tasks(self) -> List[TaskStar]:
+    def get_modifiable_tasks(self) -> list[TaskStar]:
         """
         Get all tasks that can be modified (PENDING or WAITING_DEPENDENCY status).
 
@@ -282,7 +285,7 @@ class TaskConstellation(IConstellation):
         modifiable_statuses = {TaskStatus.PENDING, TaskStatus.WAITING_DEPENDENCY}
         return [task for task in self._tasks.values() if task.status in modifiable_statuses]
 
-    def get_modifiable_dependencies(self) -> List[TaskStarLine]:
+    def get_modifiable_dependencies(self) -> list[TaskStarLine]:
         """
         Get all dependencies that can be modified.
         A dependency can be modified if its target task (to_task_id) has not started.
@@ -326,7 +329,7 @@ class TaskConstellation(IConstellation):
 
     def is_complete(self) -> bool:
         """Check if the entire constellation has completed execution."""
-        return all((task.is_terminal for task in self._tasks.values()))
+        return all(task.is_terminal for task in self._tasks.values())
 
     def update_state(self) -> None:
         """Update the constellation state based on task states."""
@@ -335,10 +338,10 @@ class TaskConstellation(IConstellation):
         if not self._tasks:
             self._state = ConstellationState.CREATED
             return
-        all_terminal = all((task.is_terminal for task in self._tasks.values()))
-        has_running = any((task.status == TaskStatus.RUNNING for task in self._tasks.values()))
-        has_failed = any((task.status == TaskStatus.FAILED for task in self._tasks.values()))
-        has_completed = any((task.status == TaskStatus.COMPLETED for task in self._tasks.values()))
+        all_terminal = all(task.is_terminal for task in self._tasks.values())
+        has_running = any(task.status == TaskStatus.RUNNING for task in self._tasks.values())
+        has_failed = any(task.status == TaskStatus.FAILED for task in self._tasks.values())
+        has_completed = any(task.status == TaskStatus.COMPLETED for task in self._tasks.values())
         if all_terminal:
             if has_failed and has_completed:
                 self._state = ConstellationState.PARTIALLY_FAILED
@@ -364,7 +367,7 @@ class TaskConstellation(IConstellation):
         task.start_execution()
         self.update_state()
 
-    def _propagate_outcome(self, task_id: str, outcome: Any) -> List[TaskStar]:
+    def _propagate_outcome(self, task_id: str, outcome: Any) -> list[TaskStar]:
         """Apply a finished task's outcome to its dependents; return newly ready ones.
 
         A dependent whose condition is satisfied has the dependency removed (and
@@ -376,7 +379,7 @@ class TaskConstellation(IConstellation):
         ends. (Before failures were forced to carry an Exception, the non-raising
         failure path hid this by wrongly running such dependents instead.)
         """
-        newly_ready: List[TaskStar] = []
+        newly_ready: list[TaskStar] = []
         queue = [(task_id, outcome)]
         while queue:
             src, src_outcome = queue.pop(0)
@@ -396,7 +399,7 @@ class TaskConstellation(IConstellation):
                     queue.append((dependent.task_id, reason))
         return newly_ready
 
-    def mark_task_completed(self, task_id: str, success: bool, result: Any=None, error: Exception=None) -> List[TaskStar]:
+    def mark_task_completed(self, task_id: str, success: bool, result: Any=None, error: Exception=None) -> list[TaskStar]:
         """
         Mark a task as completed and update dependent tasks.
 
@@ -426,7 +429,7 @@ class TaskConstellation(IConstellation):
         self._updated_at = datetime.now(timezone.utc)
         return newly_ready
 
-    def validate_dag(self) -> Tuple[bool, List[str]]:
+    def validate_dag(self) -> tuple[bool, list[str]]:
         """
         Validate the DAG structure.
 
@@ -442,7 +445,7 @@ class TaskConstellation(IConstellation):
                 errors.append(f'Dependency references non-existent target task {dependency.to_task_id}')
         return (len(errors) == 0, errors)
 
-    def get_topological_order(self) -> List[str]:
+    def get_topological_order(self) -> list[str]:
         """
         Get a topological ordering of the DAG.
 
@@ -471,7 +474,7 @@ class TaskConstellation(IConstellation):
             raise ValueError('DAG contains cycles')
         return result
 
-    def get_longest_path(self) -> Tuple[int, List[str]]:
+    def get_longest_path(self) -> tuple[int, list[str]]:
         """
         Calculate the longest path in the DAG (critical path).
 
@@ -487,8 +490,8 @@ class TaskConstellation(IConstellation):
             adjacency[dependency.from_task_id].append(dependency.to_task_id)
             in_degree[dependency.to_task_id] += 1
         queue = deque([task_id for task_id, degree in in_degree.items() if degree == 0])
-        longest_distance = {task_id: 0 for task_id in self._tasks}
-        parent = {task_id: None for task_id in self._tasks}
+        longest_distance = dict.fromkeys(self._tasks, 0)
+        parent = dict.fromkeys(self._tasks)
         while queue:
             current = queue.popleft()
             current_distance = longest_distance[current]
@@ -543,7 +546,7 @@ class TaskConstellation(IConstellation):
                         queue.append(neighbor)
         return max_width
 
-    def get_critical_path_length_with_time(self) -> Tuple[float, List[str]]:
+    def get_critical_path_length_with_time(self) -> tuple[float, list[str]]:
         """
         Calculate the critical path length using actual execution times.
         Only valid when all tasks are completed or failed.
@@ -560,8 +563,8 @@ class TaskConstellation(IConstellation):
             adjacency[dependency.from_task_id].append(dependency.to_task_id)
             in_degree[dependency.to_task_id] += 1
         queue = deque([task_id for task_id, degree in in_degree.items() if degree == 0])
-        longest_time = {task_id: 0.0 for task_id in self._tasks}
-        parent = {task_id: None for task_id in self._tasks}
+        longest_time = dict.fromkeys(self._tasks, 0.0)
+        parent = dict.fromkeys(self._tasks)
         for task_id in queue:
             task = self._tasks[task_id]
             duration = task.execution_duration or 0.0
@@ -608,7 +611,7 @@ class TaskConstellation(IConstellation):
                 total += duration
         return total
 
-    def get_parallelism_metrics(self) -> Dict[str, Any]:
+    def get_parallelism_metrics(self) -> dict[str, Any]:
         """
         Calculate parallelism metrics including:
         - L: Critical Path Length (longest serial dependency chain)
@@ -623,7 +626,7 @@ class TaskConstellation(IConstellation):
         """
         if not self._tasks:
             return {'critical_path_length': 0, 'total_work': 0, 'parallelism_ratio': 0.0, 'calculation_mode': 'empty', 'critical_path_tasks': []}
-        all_terminal = all((task.is_terminal for task in self._tasks.values()))
+        all_terminal = all(task.is_terminal for task in self._tasks.values())
         if all_terminal:
             critical_path_time, critical_path_tasks = self.get_critical_path_length_with_time()
             total_work = self.get_total_work()
@@ -635,7 +638,7 @@ class TaskConstellation(IConstellation):
             parallelism_ratio = total_nodes / longest_path_length if longest_path_length > 0 else 0.0
             return {'critical_path_length': longest_path_length, 'total_work': total_nodes, 'parallelism_ratio': parallelism_ratio, 'calculation_mode': 'node_count', 'critical_path_tasks': longest_path_tasks}
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """
         Get statistics about the constellation.
 
@@ -649,7 +652,7 @@ class TaskConstellation(IConstellation):
         parallelism_metrics = self.get_parallelism_metrics()
         return {'constellation_id': self._constellation_id, 'name': self._name, 'state': self._state.value, 'total_tasks': len(self._tasks), 'total_dependencies': len(self._dependencies), 'task_status_counts': dict(status_counts), 'longest_path_length': longest_path_length, 'longest_path_tasks': longest_path_tasks, 'max_width': max_width, 'critical_path_length': parallelism_metrics['critical_path_length'], 'total_work': parallelism_metrics['total_work'], 'parallelism_ratio': parallelism_metrics['parallelism_ratio'], 'parallelism_calculation_mode': parallelism_metrics['calculation_mode'], 'critical_path_tasks': parallelism_metrics['critical_path_tasks'], 'execution_duration': self.execution_duration, 'created_at': self._created_at.isoformat(), 'updated_at': self._updated_at.isoformat(), 'execution_start_time': self._execution_start_time.isoformat() if self._execution_start_time else None, 'execution_end_time': self._execution_end_time.isoformat() if self._execution_end_time else None}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert the TaskConstellation to a dictionary representation.
 
@@ -680,7 +683,7 @@ class TaskConstellation(IConstellation):
             return ConstellationState.CREATED
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'TaskConstellation':
+    def from_dict(cls, data: dict[str, Any]) -> 'TaskConstellation':
         """
         Create a TaskConstellation from a dictionary representation.
 
@@ -712,7 +715,7 @@ class TaskConstellation(IConstellation):
                 constellation._dependencies[dep_id] = dependency
         return constellation
 
-    def to_json(self, save_path: Optional[str]=None) -> str:
+    def to_json(self, save_path: str | None=None) -> str:
         """
         Convert the TaskConstellation to a JSON string representation.
 
@@ -729,13 +732,13 @@ class TaskConstellation(IConstellation):
                 with open(save_path, 'w', encoding='utf-8') as f:
                     f.write(json_str)
             except FileNotFoundError as e:
-                raise IOError(f'Directory not found for save path {save_path}: {e}') from e
+                raise OSError(f'Directory not found for save path {save_path}: {e}') from e
             except PermissionError as e:
-                raise IOError(f'Permission denied writing to {save_path}: {e}') from e
+                raise OSError(f'Permission denied writing to {save_path}: {e}') from e
             except OSError as e:
-                raise IOError(f'OS error saving TaskConstellation to {save_path}: {e}') from e
+                raise OSError(f'OS error saving TaskConstellation to {save_path}: {e}') from e
             except Exception as e:
-                raise IOError(f'Unexpected error saving TaskConstellation to {save_path}: {e}') from e
+                raise OSError(f'Unexpected error saving TaskConstellation to {save_path}: {e}') from e
         return json_str
 
     def _ensure_json_serializable(self, data: Any) -> Any:
@@ -746,8 +749,8 @@ class TaskConstellation(IConstellation):
         :return: JSON serializable data
         """
         import json
-        from enum import Enum
         from datetime import datetime
+        from enum import Enum
         if data is None:
             return None
         if isinstance(data, (str, int, float, bool)):
@@ -780,7 +783,7 @@ class TaskConstellation(IConstellation):
         return str(data)
 
     @classmethod
-    def from_json(cls, json_data: Optional[str]=None, file_path: Optional[str]=None) -> 'TaskConstellation':
+    def from_json(cls, json_data: str | None=None, file_path: str | None=None) -> 'TaskConstellation':
         """
         Create a TaskConstellation from a JSON string or JSON file.
 
@@ -799,12 +802,12 @@ class TaskConstellation(IConstellation):
             raise ValueError('Only one of json_data or file_path should be provided')
         if file_path:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, encoding='utf-8') as f:
                     data = json.load(f)
             except FileNotFoundError:
                 raise FileNotFoundError(f'JSON file not found: {file_path}')
             except Exception as e:
-                raise IOError(f'Failed to read JSON file {file_path}: {e}')
+                raise OSError(f'Failed to read JSON file {file_path}: {e}')
         else:
             try:
                 data = json.loads(json_data)

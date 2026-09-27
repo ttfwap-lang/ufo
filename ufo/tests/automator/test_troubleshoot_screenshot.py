@@ -26,7 +26,6 @@ from pathlib import Path
 
 import pytest
 from PIL import Image, ImageDraw
-
 from ufo.automator.app_apis.telegram.telegram_gui import TelegramGUIController
 
 _looks_blank = TelegramGUIController._looks_blank

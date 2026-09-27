@@ -9,16 +9,12 @@ providing comprehensive type definitions for better type safety and IDE support.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import (
     Any,
-    Awaitable,
-    Callable,
-    Dict,
-    List,
-    Optional,
     Protocol,
     TypeVar,
     runtime_checkable,
@@ -87,10 +83,10 @@ SessionId = str
 AgentId = str
 
 # Callback Types
-ProgressCallback = Callable[[TaskId, TaskStatus, Optional[Any]], None]
-AsyncProgressCallback = Callable[[TaskId, TaskStatus, Optional[Any]], Awaitable[None]]
-ErrorCallback = Callable[[Exception, Optional[Dict[str, Any]]], None]
-AsyncErrorCallback = Callable[[Exception, Optional[Dict[str, Any]]], Awaitable[None]]
+ProgressCallback = Callable[[TaskId, TaskStatus, Any | None], None]
+AsyncProgressCallback = Callable[[TaskId, TaskStatus, Any | None], Awaitable[None]]
+ErrorCallback = Callable[[Exception, dict[str, Any] | None], None]
+AsyncErrorCallback = Callable[[Exception, dict[str, Any] | None], Awaitable[None]]
 
 
 # Result Types
@@ -100,14 +96,14 @@ class ExecutionResult:
 
     task_id: TaskId
     status: TaskStatus
-    result: Optional[Any] = None
-    error: Optional[Exception | str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    result: Any | None = None
+    error: Exception | str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    start_time: datetime | None = None
+    end_time: datetime | None = None
 
     @property
-    def execution_time(self) -> Optional[float]:
+    def execution_time(self) -> float | None:
         """Calculate execution time in seconds."""
         if self.start_time and self.end_time:
             return (self.end_time - self.start_time).total_seconds()
@@ -129,13 +125,13 @@ class ConstellationResult:
 
     constellation_id: ConstellationId
     status: ConstellationState
-    task_results: Dict[TaskId, ExecutionResult] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    task_results: dict[TaskId, ExecutionResult] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    start_time: datetime | None = None
+    end_time: datetime | None = None
 
     @property
-    def execution_time(self) -> Optional[float]:
+    def execution_time(self) -> float | None:
         """Calculate total execution time in seconds."""
         if self.start_time and self.end_time:
             return (self.end_time - self.start_time).total_seconds()
@@ -157,11 +153,11 @@ class ConstellationResult:
 class TaskConfiguration:
     """Configuration for a task."""
 
-    timeout: Optional[float] = None
+    timeout: float | None = None
     retry_count: int = 0
     retry_delay: float = 1.0
-    priority: Optional[TaskPriority] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    priority: TaskPriority | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -169,10 +165,10 @@ class ConstellationConfiguration:
     """Configuration for a constellation."""
 
     max_parallel_tasks: int = 10
-    timeout: Optional[float] = None
+    timeout: float | None = None
     enable_retries: bool = True
     enable_progress_callbacks: bool = True
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -181,9 +177,9 @@ class DeviceConfiguration:
 
     device_id: DeviceId
     device_type: DeviceType
-    capabilities: List[str] = field(default_factory=list)
-    connection_config: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    capabilities: list[str] = field(default_factory=list)
+    connection_config: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # Protocols for core interfaces
@@ -191,7 +187,7 @@ class DeviceConfiguration:
 class IExecutable(Protocol):
     """Protocol for executable objects."""
 
-    async def execute(self, context: Optional[TContext] = None) -> ExecutionResult:
+    async def execute(self, context: TContext | None = None) -> ExecutionResult:
         """Execute the object and return a result."""
         ...
 
@@ -200,7 +196,7 @@ class IExecutable(Protocol):
 class IConfigurable(Protocol):
     """Protocol for configurable objects."""
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """Configure the object with the given configuration."""
         ...
 
@@ -230,7 +226,7 @@ class IValidatable(Protocol):
         """Validate the object and return True if valid."""
         ...
 
-    def get_validation_errors(self) -> List[str]:
+    def get_validation_errors(self) -> list[str]:
         """Get a list of validation errors."""
         ...
 
@@ -241,7 +237,7 @@ class ITaskProcessor(ABC):
 
     @abstractmethod
     async def process_task(
-        self, task: "ITask", context: Optional[TContext] = None
+        self, task: "ITask", context: TContext | None = None
     ) -> ExecutionResult:
         """
         Process a single task.
@@ -258,7 +254,7 @@ class IConstellationManager(ABC):
 
     @abstractmethod
     async def create_constellation(
-        self, tasks: List["ITask"], dependencies: Optional[List["IDependency"]] = None
+        self, tasks: list["ITask"], dependencies: list["IDependency"] | None = None
     ) -> "IConstellation":
         """
         Create a new constellation from tasks and dependencies.
@@ -273,7 +269,7 @@ class IConstellationManager(ABC):
     async def execute_constellation(
         self,
         constellation: "IConstellation",
-        progress_callback: Optional[AsyncProgressCallback] = None,
+        progress_callback: AsyncProgressCallback | None = None,
     ) -> ConstellationResult:
         """
         Execute a constellation.
@@ -300,8 +296,8 @@ class IDeviceManager(ABC):
 
     @abstractmethod
     async def get_available_devices(
-        self, capabilities: Optional[List[str]] = None
-    ) -> List[DeviceId]:
+        self, capabilities: list[str] | None = None
+    ) -> list[DeviceId]:
         """
         Get list of available devices optionally filtered by capabilities.
 
@@ -312,7 +308,7 @@ class IDeviceManager(ABC):
 
     @abstractmethod
     async def assign_task_to_device(
-        self, task: "ITask", device_id: Optional[DeviceId] = None
+        self, task: "ITask", device_id: DeviceId | None = None
     ) -> bool:
         """
         Assign a task to a device.
@@ -329,7 +325,7 @@ class IAgentProcessor(ABC):
 
     @abstractmethod
     async def process_request(
-        self, request: str, context: Optional[TContext] = None
+        self, request: str, context: TContext | None = None
     ) -> "IConstellation":
         """
         Process a user request and generate a constellation.
@@ -345,7 +341,7 @@ class IAgentProcessor(ABC):
         self,
         result: ExecutionResult,
         constellation: "IConstellation",
-        context: Optional[TContext] = None,
+        context: TContext | None = None,
     ) -> "IConstellation":
         """
         Process a task result and potentially update the constellation.
@@ -380,8 +376,8 @@ class IConstellation(Protocol):
 
     constellation_id: ConstellationId
     name: str
-    tasks: Dict[TaskId, ITask]
-    dependencies: List[IDependency]
+    tasks: dict[TaskId, ITask]
+    dependencies: list[IDependency]
 
 
 # Exception hierarchy
@@ -391,8 +387,8 @@ class GalaxyFrameworkError(Exception):
     def __init__(
         self,
         message: str,
-        error_code: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        error_code: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         super().__init__(message)
         self.error_code = error_code or self.__class__.__name__
@@ -404,7 +400,7 @@ class TaskExecutionError(GalaxyFrameworkError):
     """Exception raised during task execution."""
 
     def __init__(
-        self, task_id: TaskId, message: str, original_error: Optional[Exception] = None
+        self, task_id: TaskId, message: str, original_error: Exception | None = None
     ):
         super().__init__(f"Task {task_id}: {message}")
         self.task_id = task_id
@@ -436,7 +432,7 @@ class ConfigurationError(GalaxyFrameworkError):
 class ValidationError(GalaxyFrameworkError):
     """Exception raised for validation errors."""
 
-    def __init__(self, message: str, validation_errors: List[str]):
+    def __init__(self, message: str, validation_errors: list[str]):
         super().__init__(message)
         self.validation_errors = validation_errors
 
@@ -451,7 +447,7 @@ class Statistics:
     failed_tasks: int = 0
     average_execution_time: float = 0.0
     success_rate: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def update_from_result(self, result: ExecutionResult) -> None:
         """Update statistics from an execution result."""
@@ -479,16 +475,16 @@ class Statistics:
 class ProcessingContext:
     """Context for processing operations."""
 
-    session_id: Optional[SessionId] = None
-    agent_id: Optional[AgentId] = None
-    user_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    session_id: SessionId | None = None
+    agent_id: AgentId | None = None
+    user_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.utcnow)
-    device_manager: Optional[Any] = (
+    device_manager: Any | None = (
         None  # ConstellationDeviceManager (avoiding circular import)
     )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert context to dictionary."""
         return {
             "session_id": self.session_id,

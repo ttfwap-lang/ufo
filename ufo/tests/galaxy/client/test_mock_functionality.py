@@ -35,11 +35,12 @@ def test_create_simple_test_constellation():
 @pytest.mark.asyncio
 async def test_mock_constellation_agent_creation():
     """Test MockConstellationAgent constellation creation."""
+    from ufo.module.context import Context, ContextNames
+
     from tests.galaxy.mocks import (
         MockConstellationAgent,
         MockTaskConstellationOrchestrator,
     )
-    from ufo.module.context import Context, ContextNames
 
     # Create mock orchestrator
     mock_orchestrator = MockTaskConstellationOrchestrator(enable_logging=False)
@@ -64,8 +65,8 @@ async def test_mock_constellation_agent_creation():
 
 def test_visualization_display():
     """Test basic visualization display functionality."""
-    from ufo.galaxy.visualization.client_display import ClientDisplay
     from rich.console import Console
+    from ufo.galaxy.visualization.client_display import ClientDisplay
 
     console = Console()
     display = ClientDisplay(console)

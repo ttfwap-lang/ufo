@@ -1,5 +1,4 @@
 from PIL import Image
-
 from ufo.automator.ui_control.grounding import omniparser as om
 from ufo.llm.grounding_model import omniparser_service as svc
 

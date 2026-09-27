@@ -10,15 +10,17 @@ This module contains all the processing strategies for Customized Agent includin
 Each strategy is designed to be modular, testable, and follows the dependency injection pattern.
 """
 from typing import TYPE_CHECKING
+
 from ufo import utils
 from ufo.agents.processors.context.processing_context import ProcessingContext, ProcessingPhase, ProcessingResult
 from ufo.agents.processors.core.strategy_dependency import depends_on, provides
 from ufo.agents.processors.strategies.app_agent_processing_strategy import AppLLMInteractionStrategy
 from ufo.agents.processors.strategies.processing_strategy import BaseProcessingStrategy
+from ufo.aip.messages import Command, ResultStatus
 from ufo.automator.ui_control.screenshot import PhotographerFacade
 from ufo.config.config_loader import LazyUFOConfig
-from ufo.aip.messages import Command, ResultStatus
 from ufo.module.dispatcher import BasicCommandDispatcher
+
 ufo_config = LazyUFOConfig()
 if TYPE_CHECKING:
     from ufo.agents.agent.customized_agent import CustomizedAgent

@@ -9,17 +9,19 @@ This script tests:
 """
 import asyncio
 import sys
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock
+
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
-from ufo.galaxy.galaxy_client import GalaxyClient
-from ufo.galaxy.visualization.client_display import ClientDisplay
-from ufo.galaxy.client.constellation_client import ConstellationClient
-from ufo.galaxy.session.galaxy_session import GalaxySession
-from tests.galaxy.mocks import MockConstellationAgent, MockTaskConstellationOrchestrator
 from rich.console import Console
+from ufo.galaxy.client.constellation_client import ConstellationClient
+from ufo.galaxy.galaxy_client import GalaxyClient
+from ufo.galaxy.session.galaxy_session import GalaxySession
+from ufo.galaxy.visualization.client_display import ClientDisplay
+
+from tests.galaxy.mocks import MockConstellationAgent, MockTaskConstellationOrchestrator
+
 
 class MockGalaxyClientTester:
     """Test class for GalaxyClient with mock functionality."""

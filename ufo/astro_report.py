@@ -3,7 +3,10 @@
 Reads astro_horoscope_<sign>.png (evidence captured by astro_collect.py),
 runs the WinRT OCR helper on each, and writes a consolidated text report.
 """
-import os, re, subprocess, json, sys
+import json
+import os
+import re
+import subprocess
 
 BASE = r"C:\Users\lnxzf\Desktop\projects\ufo\ufo"
 OCR = os.path.join(BASE, "ocr_shot.ps1")

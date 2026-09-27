@@ -10,7 +10,8 @@ import platform
 import time
 import warnings
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
+
 if TYPE_CHECKING or platform.system() == 'Windows':
     import pyautogui
     import pywinauto
@@ -24,9 +25,10 @@ else:
     keyboard = None
     UIAWrapper = Any
     RECT = Any
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
 from ufo.automator.basic import CommandBasic, ReceiverBasic, ReceiverFactory
 from ufo.automator.puppeteer import ReceiverManager
+from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
+
 ufo_config = LazyUFOConfig()
 logger = logging.getLogger(__name__)
 _PLAYWRIGHT_CLIENT = None
@@ -74,9 +76,9 @@ class ControlReceiver(ReceiverBasic):
     """
     The control receiver class.
     """
-    _command_registry: Dict[str, Type[CommandBasic]] = {}
+    _command_registry: dict[str, type[CommandBasic]] = {}
 
-    def __init__(self, control: Optional[UIAWrapper], application: Optional[UIAWrapper]) -> None:
+    def __init__(self, control: UIAWrapper | None, application: UIAWrapper | None) -> None:
         """
         Initialize the control receiver.
         :param control: The control element.
@@ -95,7 +97,7 @@ class ControlReceiver(ReceiverBasic):
     def type_name(self):
         return 'UIControl'
 
-    def atomic_execution(self, method_name: str, params: Dict[str, Any]) -> str:
+    def atomic_execution(self, method_name: str, params: dict[str, Any]) -> str:
         """
         Atomic execution of the action on the control elements.
         :param method_name: The name of the method to execute.
@@ -110,14 +112,14 @@ class ControlReceiver(ReceiverBasic):
             message = f"{self.control} doesn't have a method named {method_name}"
             logger.warning(message)
             result = message
-        except Exception as e:
+        except Exception:
             full_traceback = traceback.format_exc()
             message = f'An error occurred: {full_traceback}'
             logger.error(message)
             raise
         return result
 
-    def click_input(self, params: Dict[str, Union[str, bool]]) -> str:
+    def click_input(self, params: dict[str, str | bool]) -> str:
         """
         Click the control element.
         :param params: The arguments of the click method.
@@ -151,6 +153,7 @@ class ControlReceiver(ReceiverBasic):
         """
         import os
         import tempfile
+
         import pyautogui
         if self.application is None:
             return None
@@ -193,7 +196,7 @@ class ControlReceiver(ReceiverBasic):
                 return (rect.left + found.fx * rect.width(), rect.top + found.fy * rect.height())
         return None
 
-    def click_on_coordinates(self, params: Dict[str, str]) -> str:
+    def click_on_coordinates(self, params: dict[str, str]) -> str:
         """
         Click on the coordinates of the control element.
         :param params: The arguments of the click on coordinates method.
@@ -209,7 +212,7 @@ class ControlReceiver(ReceiverBasic):
         pyautogui.click(tranformed_x, tranformed_y, button=button, clicks=2 if double else 1)
         return f"The click action has been executed at ({tranformed_x}, {tranformed_y}) with button '{button}' and {('double' if double else 'single')} click."
 
-    def drag_on_coordinates(self, params: Dict[str, str]) -> str:
+    def drag_on_coordinates(self, params: dict[str, str]) -> str:
         """
         Drag on the coordinates of the control element.
         :param params: The arguments of the drag on coordinates method.
@@ -219,7 +222,7 @@ class ControlReceiver(ReceiverBasic):
         end = self.transform_point(float(params.get('end_x', 0)), float(params.get('end_y', 0)))
         duration = float(params.get('duration', 1))
         button = params.get('button', 'left')
-        key_hold = params.get('key_hold', None)
+        key_hold = params.get('key_hold')
         assert self.application is not None, 'Application window required for drag_on_coordinates'
         self.application.set_focus()
         if key_hold:
@@ -230,7 +233,7 @@ class ControlReceiver(ReceiverBasic):
             pyautogui.keyUp(key_hold)
         return f"The drag action has been executed from {start} to {end}, with a duration of {duration} and a button '{button}' held down."
 
-    def summary(self, params: Dict[str, str]) -> str:
+    def summary(self, params: dict[str, str]) -> str:
         """
         Visual summary of the control element.
         :param params: The arguments of the visual summary method. should contain a key "text" with the text summary.
@@ -245,7 +248,7 @@ class ControlReceiver(ReceiverBasic):
         if ufo_config.system.input_text_enter and method_name in ['type_keys', 'set_text', 'set_edit_text', 'set_window_text']:
             self.atomic_execution('type_keys', params={'keys': '{ENTER}'})
 
-    def _read_control_text(self) -> Optional[str]:
+    def _read_control_text(self) -> str | None:
         """Current text of the control, or None when it cannot be read."""
         try:
             if hasattr(self.control, 'iface_value') and self.control.iface_value:
@@ -260,7 +263,7 @@ class ControlReceiver(ReceiverBasic):
         except Exception:
             return False
 
-    def _text_landed(self, expected: str, attempts: int = 3, delay: float = 0.15) -> Optional[bool]:
+    def _text_landed(self, expected: str, attempts: int = 3, delay: float = 0.15) -> bool | None:
         """Did `expected` end up in the control? True / False / None (cannot tell).
 
         Comparison ignores all whitespace, so a control that stores '\\n' as
@@ -289,7 +292,7 @@ class ControlReceiver(ReceiverBasic):
                 time.sleep(delay)
         return False
 
-    def set_edit_text(self, params: Dict[str, str]) -> str:
+    def set_edit_text(self, params: dict[str, str]) -> str:
         """
         Set the edit text of the control element.
         :param params: The arguments of the set edit text method.
@@ -365,7 +368,7 @@ class ControlReceiver(ReceiverBasic):
             else:
                 return f'An error occurred: {e}'
 
-    def keyboard_input(self, params: Dict[str, str]) -> str:
+    def keyboard_input(self, params: dict[str, str]) -> str:
         """
         Keyboard input on the control element.
         :param params: The arguments of the keyboard input method.
@@ -394,7 +397,7 @@ class ControlReceiver(ReceiverBasic):
                 return f'An error occurred: {fallback_error}'
         return keys
 
-    def key_press(self, params: Dict[str, str]) -> str:
+    def key_press(self, params: dict[str, str]) -> str:
         """
         Key press on the control element.
         :param params: The arguments of the key press method.
@@ -417,7 +420,7 @@ class ControlReceiver(ReceiverBasic):
         assert self.control is not None, 'Control required for texts()'
         return self.control.texts()
 
-    def wheel_mouse_input(self, params: Dict[str, str]):
+    def wheel_mouse_input(self, params: dict[str, str]):
         """
         Wheel mouse input on the control element.
         :param params: The arguments of the wheel mouse input method.
@@ -433,7 +436,7 @@ class ControlReceiver(ReceiverBasic):
             self.application.wheel_mouse_input(wheel_dist=dist)
             return 'The wheel mouse input action has been executed on the application window.'
 
-    def scroll(self, params: Dict[str, str]) -> str:
+    def scroll(self, params: dict[str, str]) -> str:
         """
         Scroll on the control element.
         :param params: The arguments of the scroll method.
@@ -448,7 +451,7 @@ class ControlReceiver(ReceiverBasic):
         pyautogui.hscroll(scroll_x, x=new_x, y=new_y)
         return f'Scroll action executed at ({new_x}, {new_y}) with scroll_x={scroll_x}, scroll_y={scroll_y}'
 
-    def mouse_move(self, params: Dict[str, str]) -> str:
+    def mouse_move(self, params: dict[str, str]) -> str:
         """
         Mouse move on the control element.
         :param params: The arguments of the mouse move method.
@@ -460,7 +463,7 @@ class ControlReceiver(ReceiverBasic):
         pyautogui.moveTo(new_x, new_y, duration=0.1)
         return f'Mouse moved to ({new_x}, {new_y})'
 
-    def type(self, params: Dict[str, str]) -> str:
+    def type(self, params: dict[str, str]) -> str:
         """
         Type on the control element.
         :param params: The arguments of the type method.
@@ -477,7 +480,7 @@ class ControlReceiver(ReceiverBasic):
         """
         return ''
 
-    def annotation(self, params: Dict[str, str], annotation_dict: Dict[str, UIAWrapper]) -> List[UIAWrapper]:
+    def annotation(self, params: dict[str, str], annotation_dict: dict[str, UIAWrapper]) -> list[UIAWrapper]:
         """
         Take a screenshot of the current application window and annotate the control item on the screenshot.
         :param params: The arguments of the annotation method.
@@ -515,7 +518,7 @@ class ControlReceiver(ReceiverBasic):
                 warnings.warn(f'Timeout: {self.control} is not visible.')
                 break
 
-    def transform_point(self, fraction_x: float, fraction_y: float) -> Tuple[int, int]:
+    def transform_point(self, fraction_x: float, fraction_y: float) -> tuple[int, int]:
         """
         Transform the relative coordinates to the absolute coordinates.
         :param fraction_x: The relative x coordinate.
@@ -532,7 +535,7 @@ class ControlReceiver(ReceiverBasic):
         y = application_y + int(application_height * fraction_y)
         return (x, y)
 
-    def transfrom_absolute_point_to_fractional(self, x: int, y: int) -> Tuple[int, int]:
+    def transfrom_absolute_point_to_fractional(self, x: int, y: int) -> tuple[int, int]:
         """
         Transform the absolute coordinates to the relative coordinates.
         :param x: The absolute x coordinate on the application window.
@@ -547,7 +550,7 @@ class ControlReceiver(ReceiverBasic):
         fraction_y = y / application_height
         return (fraction_x, fraction_y)
 
-    def transform_scaled_point_to_raw(self, scaled_x: int, scaled_y: int, scaled_width: int, scaled_height: int, raw_width: int, raw_height: int) -> Tuple[int, int]:
+    def transform_scaled_point_to_raw(self, scaled_x: int, scaled_y: int, scaled_width: int, scaled_height: int, raw_width: int, raw_height: int) -> tuple[int, int]:
         """
         Transform the scaled coordinates to the raw coordinates.
         :param scaled_x: The scaled x coordinate.
@@ -615,7 +618,7 @@ class AtomicCommand(ControlCommand):
     The atomic command class.
     """
 
-    def __init__(self, receiver: ControlReceiver, method_name: str, params=Optional[Dict[str, str]]) -> None:
+    def __init__(self, receiver: ControlReceiver, method_name: str, params=Optional[dict[str, str]]) -> None:
         """
         Initialize the atomic command.
         :param receiver: The receiver of the command.
@@ -795,7 +798,7 @@ class AnnotationCommand(ControlCommand):
     The annotation command class.
     """
 
-    def __init__(self, receiver: ControlReceiver, params: Dict[str, str], annotation_dict: Dict[str, UIAWrapper]) -> None:
+    def __init__(self, receiver: ControlReceiver, params: dict[str, str], annotation_dict: dict[str, UIAWrapper]) -> None:
         """
         Initialize the annotation command.
         :param receiver: The receiver of the command.
@@ -939,7 +942,7 @@ class DragCommand(ControlCommand):
         Execute the drag command.
         :return: The result of the command.
         """
-        result_parts: List[str] = []
+        result_parts: list[str] = []
         path = self.params.get('path', [])
         for i in range(len(path)):
             start_x, start_y = (path[i].get('x', 0), path[i].get('y', 0))

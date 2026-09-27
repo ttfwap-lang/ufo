@@ -11,27 +11,28 @@ This test suite verifies:
 4. Base class inheritance and shared logic
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from typing import Dict, Any
+from unittest.mock import Mock, patch
 
-from ufo.galaxy.agents.schema import WeavingMode
-from ufo.galaxy.agents.processors.strategies.constellation_factory import (
-    ConstellationStrategyFactory,
-    ConstellationPrompterFactory,
+import pytest
+from ufo.agents.processors.core.processor_framework import (
+    ProcessingContext,
+    ProcessingPhase,
 )
 from ufo.galaxy.agents.processors.strategies.base_constellation_strategy import (
-    BaseConstellationLLMInteractionStrategy,
-    ConstellationLLMInteractionStrategy,
     BaseConstellationActionExecutionStrategy,
+    BaseConstellationLLMInteractionStrategy,
 )
 from ufo.galaxy.agents.processors.strategies.constellation_creation_strategy import (
-    ConstellationCreationLLMInteractionStrategy,
     ConstellationCreationActionExecutionStrategy,
+    ConstellationCreationLLMInteractionStrategy,
 )
 from ufo.galaxy.agents.processors.strategies.constellation_editing_strategy import (
-    ConstellationEditingLLMInteractionStrategy,
     ConstellationEditingActionExecutionStrategy,
+    ConstellationEditingLLMInteractionStrategy,
+)
+from ufo.galaxy.agents.processors.strategies.constellation_factory import (
+    ConstellationPrompterFactory,
+    ConstellationStrategyFactory,
 )
 from ufo.galaxy.agents.prompters.base_constellation_prompter import (
     BaseConstellationPrompter,
@@ -42,10 +43,7 @@ from ufo.galaxy.agents.prompters.constellation_creation_prompter import (
 from ufo.galaxy.agents.prompters.constellation_editing_prompter import (
     ConstellationEditingPrompter,
 )
-from ufo.agents.processors.core.processor_framework import (
-    ProcessingContext,
-    ProcessingPhase,
-)
+from ufo.galaxy.agents.schema import WeavingMode
 
 
 class TestConstellationStrategyFactory:

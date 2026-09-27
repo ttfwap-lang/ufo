@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ufo.llm.base import BaseService
 from ufo.llm.llm_result import LLMResult
@@ -9,7 +9,7 @@ class PlaceHolderService(BaseService):
     A placeholder service class.
     """
 
-    def __init__(self, config: Dict[str, Any], agent_type: str):
+    def __init__(self, config: dict[str, Any], agent_type: str):
         """
         Initialize the placeholder service.
         :param config: The configuration.
@@ -22,11 +22,11 @@ class PlaceHolderService(BaseService):
 
     async def chat_completion(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         n: int = 1,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        top_p: Optional[float] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
         **kwargs: Any,
     ) -> LLMResult:
         """

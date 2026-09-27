@@ -2,10 +2,12 @@
 Task-specific visualization handler.
 """
 import logging
-from typing import Optional
+
 from ufo.galaxy.visualization import DAGVisualizer, TaskDisplay
+
 from ...constellation import TaskConstellation
 from ...core.events import EventType, TaskEvent
+
 
 class TaskVisualizationHandler:
     """
@@ -15,7 +17,7 @@ class TaskVisualizationHandler:
     delegating actual visualization to specialized display classes.
     """
 
-    def __init__(self, visualizer: DAGVisualizer, logger: Optional[logging.Logger]=None):
+    def __init__(self, visualizer: DAGVisualizer, logger: logging.Logger | None=None):
         """
         Initialize TaskVisualizationHandler.
 

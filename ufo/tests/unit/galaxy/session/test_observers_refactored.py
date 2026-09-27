@@ -5,13 +5,15 @@ Tests the refactored observer that queues events for agent state machine
 instead of directly calling update methods.
 """
 import asyncio
-import pytest
 import time
-from unittest.mock import Mock, AsyncMock, patch
-from ufo.galaxy.session.observers import ConstellationProgressObserver
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 from ufo.galaxy.agents.galaxy_agent import MockGalaxyWeaverAgent
-from ufo.galaxy.core.events import TaskEvent, ConstellationEvent, EventType
+from ufo.galaxy.core.events import ConstellationEvent, EventType, TaskEvent
+from ufo.galaxy.session.observers import ConstellationProgressObserver
 from ufo.module.context import Context
+
 
 class TestConstellationProgressObserver:
     """Test the refactored ConstellationProgressObserver."""
@@ -174,7 +176,9 @@ class TestObserverIntegrationWithAgent:
         agent, context, observer = integrated_setup
         task_event = TaskEvent(event_type=EventType.TASK_COMPLETED, source_id='integration_test', timestamp=time.time(), data={'integration': True}, task_id='integration_task', status='completed', result={'integration': True}, error=None)
         await observer._handle_task_event(task_event)
-        from ufo.galaxy.agents.constellation_agent_states import MonitorConstellationAgentState as MonitorGalaxyAgentState
+        from ufo.galaxy.agents.constellation_agent_states import (
+            MonitorConstellationAgentState as MonitorGalaxyAgentState,
+        )
         state = MonitorGalaxyAgentState()
         await state.handle(agent, context)
         agent.update_constellation_with_lock.assert_called_once()
@@ -194,7 +198,9 @@ class TestObserverIntegrationWithAgent:
             events.append(event)
         for event in events:
             await observer._handle_task_event(event)
-        from ufo.galaxy.agents.constellation_agent_states import MonitorConstellationAgentState as MonitorGalaxyAgentState
+        from ufo.galaxy.agents.constellation_agent_states import (
+            MonitorConstellationAgentState as MonitorGalaxyAgentState,
+        )
         state = MonitorGalaxyAgentState()
         processed_tasks = []
         for _ in range(3):

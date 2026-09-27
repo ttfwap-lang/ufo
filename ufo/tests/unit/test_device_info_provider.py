@@ -4,8 +4,9 @@ Unit Tests for Device Info Provider
 Tests the device information collection functionality.
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
 from ufo.client.device_info_provider import DeviceInfoProvider, DeviceSystemInfo
 
 

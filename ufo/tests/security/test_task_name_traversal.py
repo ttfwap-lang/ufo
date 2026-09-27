@@ -16,7 +16,6 @@ import types
 import unittest
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -157,7 +156,6 @@ class HttpApiDispatchRejectionTests(unittest.TestCase):
     def _build_client(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-
         from ufo.server.services.api import create_api_router
 
         class _StubSessionManager:

@@ -9,10 +9,10 @@ Single responsibility: Status and information coordination.
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any
 
-from ..device_manager import ConstellationDeviceManager
 from ..config_loader import ConstellationConfig
+from ..device_manager import ConstellationDeviceManager
 
 
 class StatusManager:
@@ -25,7 +25,7 @@ class StatusManager:
         self,
         device_manager: ConstellationDeviceManager,
         config: ConstellationConfig,
-        pending_task_tracker: Optional[Dict[str, Any]] = None,
+        pending_task_tracker: dict[str, Any] | None = None,
     ):
         """
         Initialize the status manager.
@@ -39,7 +39,7 @@ class StatusManager:
         self.pending_task_tracker = pending_task_tracker or {}
         self.logger = logging.getLogger(f"{__name__}.StatusManager")
 
-    def get_device_status(self, device_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_device_status(self, device_id: str | None = None) -> dict[str, Any]:
         """
         Get device status information.
 
@@ -51,7 +51,7 @@ class StatusManager:
         else:
             return self._get_all_devices_status()
 
-    def _get_single_device_status(self, device_id: str) -> Dict[str, Any]:
+    def _get_single_device_status(self, device_id: str) -> dict[str, Any]:
         """
         Get status for a single device.
 
@@ -84,7 +84,7 @@ class StatusManager:
         else:
             return {"error": f"Device {device_id} not found"}
 
-    def _get_all_devices_status(self) -> Dict[str, Any]:
+    def _get_all_devices_status(self) -> dict[str, Any]:
         """
         Get status for all devices.
 
@@ -96,11 +96,11 @@ class StatusManager:
             for device_id in all_devices.keys()
         }
 
-    def get_connected_devices(self) -> List[str]:
+    def get_connected_devices(self) -> list[str]:
         """Get list of connected device IDs."""
         return self.device_manager.get_connected_devices()
 
-    def get_constellation_info(self) -> Dict[str, Any]:
+    def get_constellation_info(self) -> dict[str, Any]:
         """
         Get constellation information and status.
 
@@ -124,7 +124,7 @@ class StatusManager:
             },
         }
 
-    def get_device_health_summary(self) -> Dict[str, Any]:
+    def get_device_health_summary(self) -> dict[str, Any]:
         """
         Get a health summary of all devices.
 
@@ -165,7 +165,7 @@ class StatusManager:
 
         return health_summary
 
-    def get_task_statistics(self) -> Dict[str, Any]:
+    def get_task_statistics(self) -> dict[str, Any]:
         """
         Get task execution statistics.
 
@@ -184,7 +184,7 @@ class StatusManager:
             "average_execution_time": 0.0,
         }
 
-    def get_performance_metrics(self) -> Dict[str, Any]:
+    def get_performance_metrics(self) -> dict[str, Any]:
         """
         Get performance metrics for the constellation.
 
@@ -217,7 +217,7 @@ class StatusManager:
         return total_attempts / len(all_devices)
 
     def _calculate_overall_health_score(
-        self, device_health: Dict[str, Any], task_stats: Dict[str, Any]
+        self, device_health: dict[str, Any], task_stats: dict[str, Any]
     ) -> float:
         """
         Calculate an overall health score (0.0 to 1.0).
@@ -240,7 +240,7 @@ class StatusManager:
 
         return round(overall_score, 3)
 
-    def get_diagnostics_report(self) -> Dict[str, Any]:
+    def get_diagnostics_report(self) -> dict[str, Any]:
         """
         Generate a comprehensive diagnostics report.
 

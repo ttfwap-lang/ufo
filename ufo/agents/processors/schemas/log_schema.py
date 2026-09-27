@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 
 @dataclass
@@ -8,17 +8,17 @@ class ControlInfoRecorder:
     The control meta information recorder for the current application window.
     """
 
-    recording_fields: ClassVar[List[str]] = [
+    recording_fields: ClassVar[list[str]] = [
         "control_text",
         "control_type",
         "control_rect",
         "source",
     ]
 
-    application_windows_info: Dict[str, Any] = field(default_factory=dict)
-    uia_controls_info: List[Dict[str, Any]] = field(default_factory=dict)
-    grounding_controls_info: List[Dict[str, Any]] = field(default_factory=dict)
-    merged_controls_info: List[Dict[str, Any]] = field(default_factory=dict)
+    application_windows_info: dict[str, Any] = field(default_factory=dict)
+    uia_controls_info: list[dict[str, Any]] = field(default_factory=dict)
+    grounding_controls_info: list[dict[str, Any]] = field(default_factory=dict)
+    merged_controls_info: list[dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass
@@ -28,13 +28,13 @@ class HostAgentRequestLog:
     """
 
     step: int
-    image_list: List[str]
-    os_info: Dict[str, str]
-    plan: List[str]
-    prev_subtask: List[str]
+    image_list: list[str]
+    os_info: dict[str, str]
+    plan: list[str]
+    prev_subtask: list[str]
     request: str
-    blackboard_prompt: List[str]
-    prompt: Dict[str, Any]
+    blackboard_prompt: list[str]
+    prompt: dict[str, Any]
 
 
 @dataclass
@@ -44,22 +44,22 @@ class AppAgentRequestLog:
     """
 
     step: int
-    dynamic_examples: List[str]
-    experience_examples: List[str]
-    demonstration_examples: List[str]
+    dynamic_examples: list[str]
+    experience_examples: list[str]
+    demonstration_examples: list[str]
     offline_docs: str
     online_docs: str
     dynamic_knowledge: str
-    image_list: List[str]
-    prev_subtask: List[str]
-    plan: List[str]
+    image_list: list[str]
+    prev_subtask: list[str]
+    plan: list[str]
     request: str
-    control_info: List[Dict[str, str]]
+    control_info: list[dict[str, str]]
     subtask: str
     current_application: str
     host_message: str
-    blackboard_prompt: List[str]
-    last_success_actions: List[Dict[str, Any]]
+    blackboard_prompt: list[str]
+    last_success_actions: list[dict[str, Any]]
     include_last_screenshot: bool
-    prompt: Dict[str, Any]
-    control_info_recording: Optional[Dict[str, Any]] = None
+    prompt: dict[str, Any]
+    control_info_recording: dict[str, Any] | None = None

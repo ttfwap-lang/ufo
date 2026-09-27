@@ -5,7 +5,7 @@ Stage R1 Handler: The Notepad Test.
 """
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from tests.eval_suite.verifiers import get_desktop_dir, resolve_log_path, verify_file_on_desktop, verify_session_logs
 
@@ -52,7 +52,7 @@ def pre_cleanup(filename: str=DEFAULT_FILENAME) -> None:
     except Exception as e:
         logger.warning(f'[Stage R1 Pre-Cleanup] Could not pre-launch Notepad: {e}')
 
-def verify_r1(task_log_dir: Optional[Union[str, Path]]=None, expected_message: str=DEFAULT_MESSAGE, target_filename: str=DEFAULT_FILENAME, dry_run: bool=False, stage_data: Optional[Union[Dict[str, Any], str, Path]]=None, output_dir: Optional[Union[str, Path]]=None) -> Dict[str, Any]:
+def verify_r1(task_log_dir: str | Path | None=None, expected_message: str=DEFAULT_MESSAGE, target_filename: str=DEFAULT_FILENAME, dry_run: bool=False, stage_data: dict[str, Any] | str | Path | None=None, output_dir: str | Path | None=None) -> dict[str, Any]:
     """
     Verify Stage R1 execution results.
 
@@ -76,7 +76,7 @@ def verify_r1(task_log_dir: Optional[Union[str, Path]]=None, expected_message: s
     overall_verified = desktop_ver['verified'] and trajectory_ver.get('verified', False)
     return {'verified': overall_verified, 'stage_id': STAGE_ID, 'dry_run': False, 'file_exists': desktop_ver['exists'], 'content_matched': desktop_ver['content_matched'], 'file_path': desktop_ver['file_path'], 'actual_content': desktop_ver.get('actual_content'), 'expected_content': expected_message, 'trajectory_verified': trajectory_ver.get('verified', False), 'details': f"File exists: {desktop_ver['exists']}, Content match: {desktop_ver['content_matched']}, Path: {desktop_ver['file_path']}"}
 
-def get_stage_config() -> Dict[str, Any]:
+def get_stage_config() -> dict[str, Any]:
     """
     Get stage configuration for Stage R1.
 

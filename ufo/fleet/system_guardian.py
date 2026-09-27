@@ -16,16 +16,12 @@ import ctypes
 import json
 import logging
 import os
-import shutil
-import signal
 import socket
-import subprocess
-import sys
 import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 
 import psutil
 
@@ -56,8 +52,8 @@ class SystemGuardian:
         self,
         poll_interval_seconds: float = 10.0,
         hung_timeout_seconds: float = 30.0,
-        log_dir: Optional[Path] = None,
-        ufo_root: Optional[Union[str, Path]] = None,
+        log_dir: Path | None = None,
+        ufo_root: str | Path | None = None,
     ):
         self.ufo_root = Path(ufo_root) if ufo_root else Path.cwd()
         self.poll_interval = poll_interval_seconds
@@ -66,8 +62,8 @@ class SystemGuardian:
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
         self._stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
-        self._hung_windows_tracked: Dict[int, float] = {}  # hwnd -> first_detected_timestamp
+        self._thread: threading.Thread | None = None
+        self._hung_windows_tracked: dict[int, float] = {}  # hwnd -> first_detected_timestamp
         self._repairs_count = 0
         self._uptime_start = 0.0
 
@@ -101,7 +97,7 @@ class SystemGuardian:
 
             self._stop_event.wait(self.poll_interval)
 
-    def run_single_sweep(self) -> Dict[str, Any]:
+    def run_single_sweep(self) -> dict[str, Any]:
         """Execute one complete health inspection and repair sweep."""
         try:
             from ufo.learner.continuous_learner import ContinuousLearner
@@ -122,11 +118,11 @@ class SystemGuardian:
     # -----------------------------------------------------------------------
     # 1. Hung Application Detection & Repair
     # -----------------------------------------------------------------------
-    def repair_hung_applications(self) -> List[Dict[str, Any]]:
+    def repair_hung_applications(self) -> list[dict[str, Any]]:
         """Find windows that have stopped responding to Windows messages and kill their process."""
         repaired = []
         current_time = time.time()
-        current_hung_hwnds: Set[int] = set()
+        current_hung_hwnds: set[int] = set()
 
         def enum_window_callback(hwnd: int, _):
             if not user32.IsWindow(hwnd) or not user32.IsWindowVisible(hwnd):
@@ -194,7 +190,7 @@ class SystemGuardian:
     # -----------------------------------------------------------------------
     # 2. Port Collision Resolution (e.g. 8080, 4000)
     # -----------------------------------------------------------------------
-    def check_and_resolve_port_conflicts(self, target_ports: Tuple[int, ...] = (8080, 4000)) -> List[Dict[str, Any]]:
+    def check_and_resolve_port_conflicts(self, target_ports: tuple[int, ...] = (8080, 4000)) -> list[dict[str, Any]]:
         """Detect if required AI ports are occupied by dead or zombie processes."""
         actions = []
         for port in target_ports:
@@ -217,7 +213,7 @@ class SystemGuardian:
     # -----------------------------------------------------------------------
     # 3. Desktop Focus & Lock Restorer
     # -----------------------------------------------------------------------
-    def verify_and_restore_desktop_focus(self) -> Dict[str, Any]:
+    def verify_and_restore_desktop_focus(self) -> dict[str, Any]:
         """Check if desktop foreground window is valid and non-zero."""
         hwnd = user32.GetForegroundWindow()
         if hwnd == 0:

@@ -20,15 +20,15 @@ Usage:
     python -m ufo.tools.migrate_config --legacy-path ufo/config --new-path config/ufo
 """
 import argparse
-import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
 from rich.table import Table
+
 console = Console()
 
 class ConfigMigrator:
@@ -72,7 +72,7 @@ class ConfigMigrator:
         """
         return self.new_path.exists() and any(self.new_path.glob('*.yaml'))
 
-    def discover_files(self) -> List[Path]:
+    def discover_files(self) -> list[Path]:
         """
         Discover all YAML files in legacy path.
 
@@ -96,7 +96,7 @@ class ConfigMigrator:
         self.backup_path = backup_path
         return backup_path
 
-    def migrate_files(self, dry_run: bool=False) -> List[Tuple[Path, Path]]:
+    def migrate_files(self, dry_run: bool=False) -> list[tuple[Path, Path]]:
         """
         Migrate files from legacy to new path.
 
@@ -117,7 +117,7 @@ class ConfigMigrator:
                 console.print(f'[blue]→[/blue] Would copy: {file.name} → {dest}')
         return migrations
 
-    def show_summary(self, migrations: List[Tuple[Path, Path]], dry_run: bool=False) -> None:
+    def show_summary(self, migrations: list[tuple[Path, Path]], dry_run: bool=False) -> None:
         """
         Show migration summary.
 

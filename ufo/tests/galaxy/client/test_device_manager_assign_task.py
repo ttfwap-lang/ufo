@@ -16,14 +16,13 @@ Tests cover:
 """
 
 import asyncio
-import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch, call
-from typing import Dict, Any
+from unittest.mock import AsyncMock, Mock
 
-from ufo.galaxy.client.device_manager import ConstellationDeviceManager
-from ufo.galaxy.client.components import DeviceStatus, AgentProfile, TaskRequest
-from ufo.galaxy.core.types import ExecutionResult
+import pytest
 from ufo.aip.messages import TaskStatus
+from ufo.galaxy.client.components import DeviceStatus
+from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+from ufo.galaxy.core.types import ExecutionResult
 
 
 class TestAssignTaskToDevice:

@@ -3,7 +3,6 @@
 
 import abc
 from importlib import import_module
-from typing import Dict, Optional
 
 from ufo.config.config_loader import get_galaxy_config, get_ufo_config
 from ufo.llm.config_helper import get_agent_config
@@ -24,7 +23,7 @@ class BaseService(abc.ABC):
         name: str,
         agent_type: str,
         model_name: str = None,
-        config: Optional[Dict] = None,
+        config: dict | None = None,
     ) -> "BaseService":
         """
         Get the service class based on the name.
@@ -100,15 +99,13 @@ class BaseService(abc.ABC):
                 "MAX_TOKENS": getattr(system_config, "MAX_TOKENS", getattr(system_config, "max_tokens", 2000)),
             }
 
-        service_name = service_map.get(name, None)
+        service_name = service_map.get(name)
         if service_name:
             if name in ["aoai", "azure_ad", "operator"]:
                 module = import_module(".openai", package="ufo.llm")
             elif service_name == "CustomService":
                 custom_model = "llava" if "llava" in model_name else model_name
-                custom_service_name = custom_service_map.get(
-                    "llava" if "llava" in custom_model else custom_model, None
-                )
+                custom_service_name = custom_service_map.get("llava" if "llava" in custom_model else custom_model)
                 if custom_service_name:
                     module = import_module("." + custom_model, package="ufo.llm")
                     service_name = custom_service_name
@@ -126,7 +123,7 @@ class BaseService(abc.ABC):
         self,
         api_type: str,
         model: str,
-        prices: Dict[str, float],
+        prices: dict[str, float],
         prompt_tokens: int,
         completion_tokens: int,
     ) -> float:

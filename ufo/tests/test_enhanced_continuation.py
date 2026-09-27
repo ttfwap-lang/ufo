@@ -2,6 +2,7 @@
 测试改进的constellation continuation机制
 """
 import asyncio
+
 import pytest
 
 pytest.skip(
@@ -10,10 +11,12 @@ pytest.skip(
     "tests/unit/galaxy/agents/test_galaxy_agent_states.py and tests/unit/test_galaxy_state_machine.py.",
     allow_module_level=True,
 )
-from unittest.mock import MagicMock, AsyncMock
-from ufo.galaxy.agents.galaxy_agent_state import MonitoringGalaxyAgentState, GalaxyAgentStatus
+from unittest.mock import MagicMock
+
+from ufo.galaxy.agents.galaxy_agent_state import GalaxyAgentStatus, MonitoringGalaxyAgentState
 from ufo.galaxy.core.events import EventType
 from ufo.module.context import Context
+
 
 class EnhancedMockGalaxyWeaverAgent:
     """Enhanced Mock GalaxyWeaverAgent for testing continuation with handle_continuation"""

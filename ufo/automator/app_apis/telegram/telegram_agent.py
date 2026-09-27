@@ -20,17 +20,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from ufo.automator.app_apis.telegram.telegram_goals import ExecutionConfig, GoalExecutor
 from ufo.automator.app_apis.telegram.telegram_gui import TelegramGUIController
-from ufo.automator.app_apis.telegram.telegram_goals import GoalExecutor, ExecutionConfig
-from ufo.automator.app_apis.telegram.telegram_memory import ChatState, TelegramMemory
-from ufo.automator.app_apis.telegram.telegram_skill import BotSkill, SKILLS_DIR, ConversationLearner
-from ufo.automator.app_apis.telegram.telegram_verifier import TelegramVerifier
 from ufo.automator.app_apis.telegram.telegram_lockout import ScreenLockout
+from ufo.automator.app_apis.telegram.telegram_memory import ChatState, TelegramMemory
 from ufo.automator.app_apis.telegram.telegram_privacy import PrivacyRedactor
+from ufo.automator.app_apis.telegram.telegram_skill import BotSkill, ConversationLearner
+from ufo.automator.app_apis.telegram.telegram_verifier import TelegramVerifier
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +44,11 @@ class AutonomousTelegramAgent:
 
     def __init__(
         self,
-        controller: Optional[TelegramGUIController] = None,
-        memory: Optional[TelegramMemory] = None,
-        config: Optional[ExecutionConfig] = None,
+        controller: TelegramGUIController | None = None,
+        memory: TelegramMemory | None = None,
+        config: ExecutionConfig | None = None,
         enable_verification: bool = True,
-        verifier: Optional[TelegramVerifier] = None,
+        verifier: TelegramVerifier | None = None,
     ):
         """Initialize the autonomous agent.
 
@@ -71,9 +70,9 @@ class AutonomousTelegramAgent:
             config=config,
             verifier=self._verifier,
         )
-        self._current_skill: Optional[BotSkill] = None
-        self._lockout: Optional[ScreenLockout] = None
-        self._privacy_redactor: Optional[PrivacyRedactor] = PrivacyRedactor()
+        self._current_skill: BotSkill | None = None
+        self._lockout: ScreenLockout | None = None
+        self._privacy_redactor: PrivacyRedactor | None = PrivacyRedactor()
 
     # ==================== Skill Management ====================
 
@@ -93,14 +92,14 @@ class AutonomousTelegramAgent:
         skill.save()
         return skill
 
-    def load_skill(self, skill_name: str) -> Optional[BotSkill]:
+    def load_skill(self, skill_name: str) -> BotSkill | None:
         """Load an existing skill."""
         skill = BotSkill.load(skill_name)
         if skill:
             self._current_skill = skill
         return skill
 
-    def list_skills(self) -> List[str]:
+    def list_skills(self) -> list[str]:
         """List available skills."""
         return BotSkill.list_available()
 
@@ -114,8 +113,8 @@ class AutonomousTelegramAgent:
     def learn_patterns_from_conversation(
         self,
         conversation_path: str,
-        skill_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        skill_name: str | None = None,
+    ) -> dict[str, Any]:
         """Learn a bot's operational PATTERNS from a Telegram export file.
 
         PRIVACY: the "context brain" is cut off. This reads NO message
@@ -157,7 +156,7 @@ class AutonomousTelegramAgent:
         self,
         skill: BotSkill,
         num_probe_messages: int = 3,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Study a bot's behavior by sending probe messages.
 
         PRIVACY POLICY: bot responses are NEVER read for context. Only
@@ -241,8 +240,8 @@ class AutonomousTelegramAgent:
         chat_name: str,
         message_template: str,
         total_messages: int,
-        skill: Optional[BotSkill] = None,
-    ) -> Dict[str, Any]:
+        skill: BotSkill | None = None,
+    ) -> dict[str, Any]:
         """Execute a long-running goal of sending repeated messages.
 
         Args:
@@ -355,10 +354,10 @@ class AutonomousTelegramAgent:
         chat_name: str,
         message_template: str,
         total_messages: int,
-        skill_name: Optional[str] = None,
+        skill_name: str | None = None,
         lockout: bool = False,
         lockout_countdown: int = 8,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run a goal fully autonomously without human intervention.
 
         Handles:
@@ -473,7 +472,7 @@ class AutonomousTelegramAgent:
         return self._executor.is_running
 
     @property
-    def current_skill(self) -> Optional[BotSkill]:
+    def current_skill(self) -> BotSkill | None:
         return self._current_skill
 
     def set_progress_callback(self, callback) -> None:
@@ -491,13 +490,13 @@ class AutonomousTelegramAgent:
     # ==================== Verification ====================
 
     @property
-    def verifier(self) -> Optional[TelegramVerifier]:
+    def verifier(self) -> TelegramVerifier | None:
         """Get the verifier for screenshot-based checks."""
         return self._verifier
 
     async def take_screenshot(
-        self, label: str = "", goal_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, label: str = "", goal_id: str | None = None
+    ) -> dict[str, Any]:
         """Take a screenshot at any moment for verification.
 
         Args:
@@ -525,7 +524,7 @@ class AutonomousTelegramAgent:
             "goal_id": goal_id,
         }
 
-    def list_evidence(self, goal_id: Optional[str] = None) -> List[Path]:
+    def list_evidence(self, goal_id: str | None = None) -> list[Path]:
         """List verification evidence files.
 
         Args:
@@ -538,7 +537,7 @@ class AutonomousTelegramAgent:
             return []
         return self._verifier.list_evidence(goal_id)
 
-    async def verify_current_state(self) -> Dict[str, Any]:
+    async def verify_current_state(self) -> dict[str, Any]:
         """Verify current state of the Telegram window.
 
         Returns:

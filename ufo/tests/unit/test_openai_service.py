@@ -74,13 +74,13 @@ class TestPydanticToResponseFormat:
 
     def test_schema_contains_required_fields(self):
         """Verify the output schema has standard JSON Schema structure."""
+
         from pydantic import BaseModel
-        from typing import Optional
 
         class DetailedResponse(BaseModel):
             function: str
             arguments: dict
-            observation: Optional[str] = None
+            observation: str | None = None
 
         from ufo.llm.openai import _pydantic_to_response_format
 
@@ -345,7 +345,6 @@ class TestServiceMap:
 
     def test_openai_service_routing(self):
         """Verify that 'openai' maps to OpenAIService."""
-        from ufo.llm.base import BaseService
 
         service_map = {
             "openai": "OpenAIService",
@@ -371,7 +370,7 @@ class TestPricesConfig:
         """Verify GPT-5.6 family pricing is in the config."""
         import yaml
 
-        with open(self._get_prices_path(), "r", encoding="utf-8") as f:
+        with open(self._get_prices_path(), encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         prices = config["PRICES"]
@@ -383,7 +382,7 @@ class TestPricesConfig:
         """Verify GPT-5.6 pricing values are reasonable."""
         import yaml
 
-        with open(self._get_prices_path(), "r", encoding="utf-8") as f:
+        with open(self._get_prices_path(), encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         prices = config["PRICES"]
@@ -399,7 +398,7 @@ class TestPricesConfig:
         """Verify legacy model pricing still exists for historical cost tracking."""
         import yaml
 
-        with open(self._get_prices_path(), "r", encoding="utf-8") as f:
+        with open(self._get_prices_path(), encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         prices = config["PRICES"]

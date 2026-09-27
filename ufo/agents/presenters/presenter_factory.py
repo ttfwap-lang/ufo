@@ -8,14 +8,10 @@ This module provides a factory for creating presenter instances,
 allowing easy extension and configuration of different output formats.
 """
 
-from typing import Optional
-
 
 from rich.console import Console
 
-
 from .base_presenter import BasePresenter
-
 from .rich_presenter import RichPresenter
 
 
@@ -41,7 +37,7 @@ class PresenterFactory:
     def create_presenter(
         cls,
         presenter_type: str = "rich",
-        console: Optional[Console] = None,
+        console: Console | None = None,
     ) -> BasePresenter:
         """
         Create a presenter instance.

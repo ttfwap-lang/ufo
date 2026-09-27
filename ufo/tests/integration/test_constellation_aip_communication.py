@@ -6,10 +6,10 @@ the refactored AIP protocol implementation.
 """
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
@@ -19,10 +19,10 @@ from ufo.aip.messages import (
     TaskStatus,
 )
 from ufo.galaxy.client.components.connection_manager import WebSocketConnectionManager
+from ufo.galaxy.client.components.device_registry import DeviceRegistry
 from ufo.galaxy.client.components.heartbeat_manager import HeartbeatManager
 from ufo.galaxy.client.components.message_processor import MessageProcessor
-from ufo.galaxy.client.components.device_registry import DeviceRegistry
-from ufo.galaxy.client.components.types import TaskRequest, AgentProfile
+from ufo.galaxy.client.components.types import AgentProfile, TaskRequest
 
 
 class MockWebSocket:
@@ -448,10 +448,9 @@ async def test_error_handling_in_aip_communication(connection_manager, message_p
     ws_url = "ws://localhost:5005/ws"
 
     # Test connection failure
-    with patch("websockets.connect", side_effect=ConnectionError("Network error")):
-        with pytest.raises(ConnectionError):
-            await connection_manager.connect_to_device(
-            AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
+    with patch("websockets.connect", side_effect=ConnectionError("Network error")), pytest.raises(ConnectionError):
+        await connection_manager.connect_to_device(
+        AgentProfile(device_id=device_id, server_url=ws_url, os="Windows"), message_processor
         )
 
     # Test send failure after connection
@@ -475,7 +474,7 @@ async def test_error_handling_in_aip_communication(connection_manager, message_p
         original_send = transport.send
 
         async def failing_send(msg):
-            raise IOError("Send failed")
+            raise OSError("Send failed")
 
         transport.send = failing_send
 

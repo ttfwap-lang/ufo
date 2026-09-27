@@ -2,14 +2,16 @@
 测试 ConstellationClient 连接真实设备的脚本
 """
 import asyncio
+import logging
 import sys
 from pathlib import Path
-import logging
+
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
-from ufo.galaxy.client.constellation_client import ConstellationClient
-from ufo.galaxy.client.config_loader import ConstellationConfig
 import pytest
+from ufo.galaxy.client.config_loader import ConstellationConfig
+from ufo.galaxy.client.constellation_client import ConstellationClient
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler()])
 
 @pytest.mark.asyncio
@@ -22,7 +24,7 @@ async def test_constellation_client():
         print('\n[1] 1. 加载配置文件...')
         config_path = 'config/constellation_sample.yaml'
         config = ConstellationConfig.from_yaml(config_path)
-        print(f'[+] 配置加载成功!')
+        print('[+] 配置加载成功!')
         print(f"   星群ID: {getattr(config, 'constellation_id', getattr(config, 'task_name', ''))}")
         print(f'   设备数量: {len(config.devices)}')
         for i, device in enumerate(config.devices, 1):

@@ -102,7 +102,7 @@ def main() -> int:
     while time.time() < deadline:
         try:
             if os.path.exists(RESULT):
-                with open(RESULT, "r", encoding="utf-8") as f:
+                with open(RESULT, encoding="utf-8") as f:
                     r = json.load(f)
                 if r.get("id") == _id:
                     print("STDOUT:\n", r.get("stdout", ""))

@@ -9,13 +9,11 @@
 """
 
 import asyncio
-
 import logging
-
-from typing import Any, Dict
-
+from typing import Any
 
 from ufo.galaxy.core.events import DeviceEvent, EventType, IEventObserver, get_event_bus
+
 # 设置日志
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -45,7 +43,7 @@ class DeviceEventMonitor(IEventObserver):
         print(f"⏰ Timestamp: {event.timestamp}")
         print(f"📍 Source: {event.source_id}")
 
-        print(f"\n📱 Device Information:")
+        print("\n📱 Device Information:")
         print(f"   Device ID: {event.device_id}")
         print(f"   Status: {event.device_status}")
 
@@ -56,21 +54,21 @@ class DeviceEventMonitor(IEventObserver):
         print(f"   Current Task: {device_info.get('current_task_id', 'None')}")
         print(f"   Connection Attempts: {device_info.get('connection_attempts', 0)}")
 
-        print(f"\n📊 Device Registry Snapshot:")
+        print("\n📊 Device Registry Snapshot:")
         print(f"   Total Devices: {len(event.all_devices)}")
 
         # 统计各状态设备数量
-        status_counts: Dict[str, int] = {}
+        status_counts: dict[str, int] = {}
         for device_id, info in event.all_devices.items():
             status = info["status"]
             status_counts[status] = status_counts.get(status, 0) + 1
 
-        print(f"\n   Status Distribution:")
+        print("\n   Status Distribution:")
         for status, count in sorted(status_counts.items()):
             print(f"      {status}: {count}")
 
         # 显示所有设备列表
-        print(f"\n   Devices List:")
+        print("\n   Devices List:")
         for device_id, info in event.all_devices.items():
             status_icon = self._get_status_icon(info["status"])
             task_info = (

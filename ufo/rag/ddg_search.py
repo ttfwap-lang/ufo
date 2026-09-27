@@ -8,7 +8,6 @@ import logging
 import re
 import urllib.parse
 import urllib.request
-from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,7 @@ def resolve_result_url(href: str) -> str:
     return href
 
 
-def parse_results(page: str, max_results: int = 5) -> List[Dict[str, str]]:
+def parse_results(page: str, max_results: int = 5) -> list[dict[str, str]]:
     """Parse a DDG HTML results page into [{name, url, snippet}]."""
     links = _RESULT_A.findall(page or "")
     snippets = _SNIPPET.findall(page or "")
@@ -90,7 +89,7 @@ def _post(url: str, query: str, timeout: float) -> str:
         return resp.read().decode("utf-8", errors="replace")
 
 
-def search(query: str, max_results: int = 5, timeout: float = 15) -> List[Dict[str, str]]:
+def search(query: str, max_results: int = 5, timeout: float = 15) -> list[dict[str, str]]:
     """Top results for query. Returns [] when DDG rate-limits this client."""
     query = (query or "").strip()
     if not query:

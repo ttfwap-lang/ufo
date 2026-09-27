@@ -1,6 +1,7 @@
-from abc import abstractmethod
 import platform
-from typing import Dict, List, Type, TYPE_CHECKING, Any
+from abc import abstractmethod
+from typing import TYPE_CHECKING, Any
+
 if TYPE_CHECKING or platform.system() == 'Windows':
     import win32com.client
     CDispatch = win32com.client.CDispatch
@@ -9,11 +10,12 @@ else:
     CDispatch = Any
 from ufo.automator.basic import CommandBasic, ReceiverBasic
 
+
 class WinCOMReceiverBasic(ReceiverBasic):
     """
     The base class for Windows COM client.
     """
-    _command_registry: Dict[str, Type[CommandBasic]] = {}
+    _command_registry: dict[str, type[CommandBasic]] = {}
 
     def __init__(self, app_root_name: str, process_name: str, clsid: str) -> None:
         """
@@ -39,15 +41,15 @@ class WinCOMReceiverBasic(ReceiverBasic):
         """
         pass
 
-    def get_suffix_mapping(self) -> Dict[str, str]:
+    def get_suffix_mapping(self) -> dict[str, str]:
         """
         Get the suffix mapping.
         :return: The suffix mapping.
         """
         suffix_mapping = {'WINWORD.EXE': 'docx', 'EXCEL.EXE': 'xlsx', 'POWERPNT.EXE': 'pptx', 'olk.exe': 'msg'}
-        return suffix_mapping.get(self.app_root_name, None)
+        return suffix_mapping.get(self.app_root_name)
 
-    def app_match(self, object_name_list: List[str]) -> str:
+    def app_match(self, object_name_list: list[str]) -> str:
         """
         Check if the process name matches the app root.
         :param object_name_list: The list of object name.

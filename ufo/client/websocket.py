@@ -1,15 +1,17 @@
 import asyncio
 import datetime
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import uuid4
+
 import websockets
-from websockets import WebSocketClientProtocol
-from ufo.aip.protocol.registration import RegistrationProtocol
+from ufo.aip.messages import ClientMessage, ClientMessageType, ServerMessage, ServerMessageType, TaskStatus
 from ufo.aip.protocol.heartbeat import HeartbeatProtocol
+from ufo.aip.protocol.registration import RegistrationProtocol
 from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.aip.transport.websocket import WebSocketTransport
-from ufo.aip.messages import ClientMessage, ClientMessageType, ServerMessage, ServerMessageType, TaskStatus
+from websockets import WebSocketClientProtocol
+
 if TYPE_CHECKING:
     from ufo.client.ufo_client import UFOClient
 
@@ -40,14 +42,14 @@ class UFOWebSocketClient:
         self.retry_count = 0
         self.timeout = timeout
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.current_task: Optional[asyncio.Task] = None
-        self.session_id: Optional[str] = None
-        self._ws: Optional[WebSocketClientProtocol] = None
+        self.current_task: asyncio.Task | None = None
+        self.session_id: str | None = None
+        self._ws: WebSocketClientProtocol | None = None
         self.connected_event = asyncio.Event()
-        self.transport: Optional[WebSocketTransport] = None
-        self.registration_protocol: Optional[RegistrationProtocol] = None
-        self.heartbeat_protocol: Optional[HeartbeatProtocol] = None
-        self.task_protocol: Optional[TaskExecutionProtocol] = None
+        self.transport: WebSocketTransport | None = None
+        self.registration_protocol: RegistrationProtocol | None = None
+        self.heartbeat_protocol: HeartbeatProtocol | None = None
+        self.task_protocol: TaskExecutionProtocol | None = None
 
     async def connect_and_listen(self):
         """
@@ -84,7 +86,7 @@ class UFOWebSocketClient:
                 self.connected_event.clear()
                 self.retry_count += 1
                 await self._maybe_retry()
-            except ConnectionRefusedError as e:
+            except ConnectionRefusedError:
                 self.logger.warning(f'[WS] Connection refused: Server not available at {self._safe_url}')
                 self.connected_event.clear()
                 self.retry_count += 1
@@ -169,7 +171,7 @@ class UFOWebSocketClient:
             try:
                 await self.heartbeat_protocol.send_heartbeat(self.ufo_client.client_id)
                 self.logger.debug('[WS] [AIP] Heartbeat sent')
-            except (ConnectionError, IOError) as e:
+            except (OSError, ConnectionError) as e:
                 self.logger.debug(f'[WS] [AIP] Heartbeat failed (connection closed): {e}')
                 break
 
@@ -267,14 +269,14 @@ class UFOWebSocketClient:
         return self.connected_event.is_set() and self._ws is not None and (not self._ws.closed)
 
     @property
-    def ws(self) -> Optional[WebSocketClientProtocol]:
+    def ws(self) -> WebSocketClientProtocol | None:
         """
         Get the current WebSocket connection.
         """
         return self._ws
 
     @ws.setter
-    def ws(self, value: Optional[WebSocketClientProtocol]):
+    def ws(self, value: WebSocketClientProtocol | None):
         """
         Set the current WebSocket connection.
         """

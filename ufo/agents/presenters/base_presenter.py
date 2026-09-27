@@ -9,7 +9,7 @@ ensuring a consistent interface for displaying agent responses.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
+from typing import Any
 
 
 class BasePresenter(ABC):
@@ -72,7 +72,7 @@ class BasePresenter(ABC):
         pass
 
     @abstractmethod
-    def present_plan(self, plan: List[str]) -> None:
+    def present_plan(self, plan: list[str]) -> None:
         """
         Present agent's plan.
         
@@ -81,7 +81,7 @@ class BasePresenter(ABC):
         pass
 
     @abstractmethod
-    def present_comment(self, comment: Optional[str]) -> None:
+    def present_comment(self, comment: str | None) -> None:
         """
         Present agent's comment/message.
         

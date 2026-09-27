@@ -3,7 +3,6 @@ from types import SimpleNamespace
 
 import pytest
 from PIL import Image
-
 from ufo.automator.ui_control.grounding import venus
 
 

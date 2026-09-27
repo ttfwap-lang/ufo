@@ -8,7 +8,7 @@ Defines the core interfaces for the command pattern implementation.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 
 class ICommand(ABC):
@@ -37,7 +37,7 @@ class ICommand(ABC):
         :return: True if command can be executed, False otherwise
         """
         pass
-    
+
     def get_cannot_execute_reason(self) -> str:
         """
         Get a detailed reason why the command cannot be executed.
@@ -104,7 +104,7 @@ class CommandExecutionError(Exception):
         self,
         command: ICommand,
         message: str,
-        original_error: Optional[Exception] = None,
+        original_error: Exception | None = None,
     ):
         self.command = command
         self.original_error = original_error
@@ -118,7 +118,7 @@ class CommandUndoError(Exception):
         self,
         command: IUndoableCommand,
         message: str,
-        original_error: Optional[Exception] = None,
+        original_error: Exception | None = None,
     ):
         self.command = command
         self.original_error = original_error

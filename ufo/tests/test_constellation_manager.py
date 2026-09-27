@@ -8,15 +8,14 @@ Tests device assignment, status tracking, and resource management
 for TaskConstellation objects.
 """
 
-import asyncio
-import pytest
-from typing import Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import Mock
 
+import pytest
+
+from ufo.galaxy.constellation.enums import DeviceType
 from ufo.galaxy.constellation.orchestrator.constellation_manager import (
     ConstellationManager,
 )
-from ufo.galaxy.constellation.enums import TaskStatus, DeviceType
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
 

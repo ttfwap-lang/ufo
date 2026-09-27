@@ -20,10 +20,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional
 
 # Error/failure indicator keywords (English + Chinese + common shop terms)
-ERROR_KEYWORDS: List[str] = [
+ERROR_KEYWORDS: list[str] = [
     # English
     "fail", "failed", "failure", "error", "exception", "sorry", "unable",
     "cannot", "can't", "could not", "could not be", "denied", "declined",
@@ -47,19 +46,19 @@ class RedactionResult:
     """Result of redacting a message."""
     is_error: bool                 # True only if error keywords matched
     safe_text: str                 # REDACTED placeholder, or the error text
-    matched_keyword: Optional[str] = None  # first keyword that matched
+    matched_keyword: str | None = None  # first keyword that matched
 
 
 class PrivacyRedactor:
     """Redacts message content unless it is an error/failure message."""
 
-    def __init__(self, extra_keywords: Optional[List[str]] = None):
+    def __init__(self, extra_keywords: list[str] | None = None):
         """Initialize with optional extra keywords appended to the default set."""
         self._keywords = list(ERROR_KEYWORDS)
         if extra_keywords:
             self._keywords.extend(extra_keywords)
 
-    def classify(self, text: Optional[str] = None) -> bool:
+    def classify(self, text: str | None = None) -> bool:
         """Return True if text is an error/failure message (may be read)."""
         if not text:
             return False
@@ -69,7 +68,7 @@ class PrivacyRedactor:
                 return True
         return False
 
-    def redact(self, text: Optional[str] = None) -> RedactionResult:
+    def redact(self, text: str | None = None) -> RedactionResult:
         """Redact message text per the privacy policy.
 
         - Error/failure text: returned as-is with keyword noted (the ONLY
@@ -86,13 +85,13 @@ class PrivacyRedactor:
                 )
         return RedactionResult(is_error=False, safe_text=REDACTED)
 
-    def safe_preview(self, text: Optional[str] = None) -> str:
+    def safe_preview(self, text: str | None = None) -> str:
         """Always-redacted preview (for chat list/metadata)."""
         if not text:
             return REDACTED
         return REDACTED
 
-    def error_phrase(self, text: Optional[str] = None) -> Optional[str]:
+    def error_phrase(self, text: str | None = None) -> str | None:
         """Extract a short error phrase for learning (error messages only)."""
         res = self.redact(text)
         if not res.is_error:

@@ -7,17 +7,18 @@ Health check router for Galaxy Web UI.
 This module defines the health check endpoint that returns server status.
 """
 
-from typing import Dict, Any
+from typing import Any
 
 from fastapi import APIRouter, Depends
 
 from ufo.galaxy.webui.dependencies import get_app_state, verify_api_key
 from ufo.galaxy.webui.models.responses import HealthResponse
+
 router = APIRouter(tags=["health"])
 
 
 @router.get("/health", response_model=HealthResponse, dependencies=[Depends(verify_api_key)])
-async def health_check() -> Dict[str, Any]:
+async def health_check() -> dict[str, Any]:
     """
     Health check endpoint.
 

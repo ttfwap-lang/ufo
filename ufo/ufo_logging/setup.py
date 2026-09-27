@@ -1,15 +1,9 @@
 import logging
-
 import os
 import sys
-
-import traceback
-
 from datetime import datetime
 
-
 import colorama
-
 
 RESET = "\033[0m"
 COLORS = {
@@ -54,12 +48,12 @@ def setup_logger(level: str = logging.INFO):
 
         root_logger.setLevel(level)
         root_logger.addHandler(console_handler)
-        
+
         # Telemetry Safety Net: Add a FileHandler for fatal crash logs
         # Ensure the logs directory exists
         log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
         os.makedirs(log_dir, exist_ok=True)
-        
+
         # 1. Crash Log (Errors only)
         crash_log_path = os.path.join(log_dir, "crash.log")
         file_handler = logging.FileHandler(crash_log_path, encoding="utf-8")
@@ -82,11 +76,11 @@ def setup_logger(level: str = logging.INFO):
             def format(self, record):
                 import json
                 msg = super().format(record)
-                
+
                 # Scrub PII
                 for pattern, repl in self.PII_PATTERNS:
                     msg = pattern.sub(repl, msg)
-                    
+
                 log_record = {
                     "timestamp": datetime.utcnow().isoformat() + "Z",
                     "level": record.levelname,
@@ -117,7 +111,7 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
-        
+
     logger = logging.getLogger("GlobalCrashHandler")
     logger.critical("Uncaught exception: %s", exc_value, exc_info=(exc_type, exc_value, exc_traceback))
 

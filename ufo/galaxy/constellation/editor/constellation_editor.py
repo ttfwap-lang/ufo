@@ -5,15 +5,29 @@ Main editor class providing high-level interface for constellation manipulation
 using the command pattern.
 """
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+
 logger = logging.getLogger(__name__)
 from ufo.galaxy.agents.schema import TaskConstellationSchema
+
 from ..task_constellation import TaskConstellation
 from ..task_star import TaskStar
 from ..task_star_line import TaskStarLine
 from .command_invoker import CommandInvoker
 from .command_registry import command_registry
-from .commands import AddDependencyCommand, AddTaskCommand, BuildConstellationCommand, ClearConstellationCommand, LoadConstellationCommand, RemoveDependencyCommand, RemoveTaskCommand, SaveConstellationCommand, UpdateDependencyCommand, UpdateTaskCommand
+from .commands import (
+    AddDependencyCommand,
+    AddTaskCommand,
+    BuildConstellationCommand,
+    ClearConstellationCommand,
+    LoadConstellationCommand,
+    RemoveDependencyCommand,
+    RemoveTaskCommand,
+    SaveConstellationCommand,
+    UpdateDependencyCommand,
+    UpdateTaskCommand,
+)
+
 
 class ConstellationEditor:
     """
@@ -23,7 +37,7 @@ class ConstellationEditor:
     constellation editing operations with undo/redo support.
     """
 
-    def __init__(self, constellation: Optional[TaskConstellation]=None, enable_history: bool=True, max_history_size: int=100):
+    def __init__(self, constellation: TaskConstellation | None=None, enable_history: bool=True, max_history_size: int=100):
         """
         Initialize constellation editor.
 
@@ -33,7 +47,7 @@ class ConstellationEditor:
         """
         self._constellation = constellation or TaskConstellation()
         self._invoker = CommandInvoker(enable_history, max_history_size)
-        self._observers: List[callable] = []
+        self._observers: list[callable] = []
 
     @property
     def constellation(self) -> TaskConstellation:
@@ -71,7 +85,7 @@ class ConstellationEditor:
             except Exception as e:
                 logger.warning(f"Observer {observer!r} raised an error on command '{command}': {e}", exc_info=True)
 
-    def add_task(self, task: Union[TaskStar, Dict[str, Any]]) -> TaskStar:
+    def add_task(self, task: TaskStar | dict[str, Any]) -> TaskStar:
         """
         Add a task to the constellation.
 
@@ -128,7 +142,7 @@ class ConstellationEditor:
         self._notify_observers('update_task', result)
         return result
 
-    def get_task(self, task_id: str) -> Optional[TaskStar]:
+    def get_task(self, task_id: str) -> TaskStar | None:
         """
         Get a task by ID.
 
@@ -137,7 +151,7 @@ class ConstellationEditor:
         """
         return self._constellation.get_task(task_id)
 
-    def list_tasks(self) -> List[TaskStar]:
+    def list_tasks(self) -> list[TaskStar]:
         """
         Get all tasks in the constellation.
 
@@ -145,7 +159,7 @@ class ConstellationEditor:
         """
         return self._constellation.get_all_tasks()
 
-    def add_dependency(self, dependency: Union[TaskStarLine, Dict[str, Any]]) -> TaskStarLine:
+    def add_dependency(self, dependency: TaskStarLine | dict[str, Any]) -> TaskStarLine:
         """
         Add a dependency to the constellation.
 
@@ -205,7 +219,7 @@ class ConstellationEditor:
         self._notify_observers('update_dependency', result)
         return result
 
-    def get_dependency(self, dependency_id: str) -> Optional[TaskStarLine]:
+    def get_dependency(self, dependency_id: str) -> TaskStarLine | None:
         """
         Get a dependency by ID.
 
@@ -214,7 +228,7 @@ class ConstellationEditor:
         """
         return self._constellation.get_dependency(dependency_id)
 
-    def list_dependencies(self) -> List[TaskStarLine]:
+    def list_dependencies(self) -> list[TaskStarLine]:
         """
         Get all dependencies in the constellation.
 
@@ -222,7 +236,7 @@ class ConstellationEditor:
         """
         return self._constellation.get_all_dependencies()
 
-    def get_task_dependencies(self, task_id: str) -> List[TaskStarLine]:
+    def get_task_dependencies(self, task_id: str) -> list[TaskStarLine]:
         """
         Get dependencies for a specific task.
 
@@ -248,7 +262,7 @@ class ConstellationEditor:
         self._constellation = result
         return result
 
-    def build_from_tasks_and_dependencies(self, tasks: List[Dict[str, Any]], dependencies: List[Dict[str, Any]], clear_existing: bool=True, metadata: Optional[Dict[str, Any]]=None) -> TaskConstellation:
+    def build_from_tasks_and_dependencies(self, tasks: list[dict[str, Any]], dependencies: list[dict[str, Any]], clear_existing: bool=True, metadata: dict[str, Any] | None=None) -> TaskConstellation:
         """
         Build constellation from task and dependency lists.
 
@@ -301,7 +315,7 @@ class ConstellationEditor:
         self._notify_observers('save_constellation', result)
         return result
 
-    def load_from_dict(self, data: Dict[str, Any]) -> TaskConstellation:
+    def load_from_dict(self, data: dict[str, Any]) -> TaskConstellation:
         """
         Load constellation from dictionary data.
 
@@ -355,11 +369,11 @@ class ConstellationEditor:
         """Check if redo is available."""
         return self._invoker.can_redo()
 
-    def get_undo_description(self) -> Optional[str]:
+    def get_undo_description(self) -> str | None:
         """Get description of the command that would be undone."""
         return self._invoker.get_undo_description()
 
-    def get_redo_description(self) -> Optional[str]:
+    def get_redo_description(self) -> str | None:
         """Get description of the command that would be redone."""
         return self._invoker.get_redo_description()
 
@@ -368,7 +382,7 @@ class ConstellationEditor:
         self._invoker.clear_history()
         self._notify_observers('clear_history', None)
 
-    def get_history(self) -> List[str]:
+    def get_history(self) -> list[str]:
         """
         Get command history descriptions.
 
@@ -376,7 +390,7 @@ class ConstellationEditor:
         """
         return [cmd.description for cmd in self._invoker.get_history()]
 
-    def validate_constellation(self) -> tuple[bool, List[str]]:
+    def validate_constellation(self) -> tuple[bool, list[str]]:
         """
         Validate the constellation structure.
 
@@ -384,7 +398,7 @@ class ConstellationEditor:
         """
         return self._constellation.validate_dag()
 
-    def get_topological_order(self) -> List[str]:
+    def get_topological_order(self) -> list[str]:
         """
         Get topological ordering of tasks.
 
@@ -397,17 +411,17 @@ class ConstellationEditor:
         """Check if the constellation has any cycles."""
         return self._constellation.has_cycle()
 
-    def get_ready_tasks(self) -> List[TaskStar]:
+    def get_ready_tasks(self) -> list[TaskStar]:
         """Get tasks that are ready to execute."""
         return self._constellation.get_ready_tasks()
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get constellation statistics."""
         stats = self._constellation.get_statistics()
         stats.update({'editor_execution_count': self._invoker.execution_count, 'editor_history_size': self._invoker.history_size, 'editor_can_undo': self.can_undo(), 'editor_can_redo': self.can_redo()})
         return stats
 
-    def batch_operations(self, operations: List[callable]) -> List[Any]:
+    def batch_operations(self, operations: list[callable]) -> list[Any]:
         """
         Execute multiple operations in sequence.
 
@@ -423,7 +437,7 @@ class ConstellationEditor:
                 results.append(e)
         return results
 
-    def create_subgraph(self, task_ids: List[str]) -> 'ConstellationEditor':
+    def create_subgraph(self, task_ids: list[str]) -> 'ConstellationEditor':
         """
         Create a new editor with a subgraph containing specified tasks.
 
@@ -477,7 +491,7 @@ class ConstellationEditor:
         """
         self._constellation.display_dag(mode)
 
-    def list_available_commands(self, category: Optional[str]=None) -> Dict[str, Dict[str, Any]]:
+    def list_available_commands(self, category: str | None=None) -> dict[str, dict[str, Any]]:
         """
         List all available commands from the registry.
 
@@ -486,7 +500,7 @@ class ConstellationEditor:
         """
         return command_registry.list_commands(category)
 
-    def get_command_metadata(self, command_name: str) -> Optional[Dict[str, Any]]:
+    def get_command_metadata(self, command_name: str) -> dict[str, Any] | None:
         """
         Get metadata for a specific command.
 
@@ -509,7 +523,7 @@ class ConstellationEditor:
             raise ValueError(f"Command '{command_name}' not found in registry")
         return self._invoker.execute(command)
 
-    def get_command_categories(self) -> List[str]:
+    def get_command_categories(self) -> list[str]:
         """
         Get all available command categories.
 

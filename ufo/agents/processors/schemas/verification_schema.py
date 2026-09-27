@@ -7,7 +7,7 @@ Verification Schema Module for Live Visual Verification.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class VerificationStatus(str, Enum):
@@ -25,7 +25,7 @@ class ActionVerificationRequest:
     step_id: int
     subtask: str
     intended_action: str
-    target_control_info: Dict[str, Any]
+    target_control_info: dict[str, Any]
     pre_screenshot_path: str
     post_screenshot_path: str
     expected_outcome: str = ""
@@ -39,6 +39,6 @@ class ActionVerificationResult:
     confidence_score: float
     status: VerificationStatus
     observed_visual_changes: str
-    detected_ui_diffs: List[str] = field(default_factory=list)
-    failure_reason: Optional[str] = None
-    suggested_recovery_action: Optional[str] = None
+    detected_ui_diffs: list[str] = field(default_factory=list)
+    failure_reason: str | None = None
+    suggested_recovery_action: str | None = None

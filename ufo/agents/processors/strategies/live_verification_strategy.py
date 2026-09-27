@@ -2,18 +2,24 @@
 Live Visual Verification Strategy Module for UFO.
 """
 import asyncio
-import os
 import json
+import os
 from typing import TYPE_CHECKING, Optional
+
 from ufo import utils
 from ufo.agents.processors.context.processing_context import ProcessingContext, ProcessingPhase, ProcessingResult
 from ufo.agents.processors.core.strategy_dependency import depends_on, provides
-from ufo.agents.processors.schemas.verification_schema import ActionVerificationRequest, ActionVerificationResult, VerificationStatus
+from ufo.agents.processors.schemas.verification_schema import (
+    ActionVerificationRequest,
+    ActionVerificationResult,
+    VerificationStatus,
+)
 from ufo.agents.processors.strategies.processing_strategy import BaseProcessingStrategy
-from ufo.automator.ui_control.screenshot import PhotographerFacade
 from ufo.aip.messages import Command, ResultStatus
+from ufo.automator.ui_control.screenshot import PhotographerFacade
 from ufo.config.config_loader import LazyUFOConfig
 from ufo.llm import AgentType
+
 ufo_config = LazyUFOConfig()
 if TYPE_CHECKING:
     from ufo.agents.agent.app_agent import AppAgent

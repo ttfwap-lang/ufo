@@ -4,11 +4,14 @@ Test for List/Dict compatibility in TaskConstellationSchema.
 This test verifies that tasks and dependencies can be provided as either
 List or Dict formats and are properly converted and validated.
 """
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-from ufo.galaxy.agents.schema import TaskStarSchema, TaskStarLineSchema, TaskConstellationSchema
 import json
+
+from ufo.galaxy.agents.schema import TaskConstellationSchema, TaskStarLineSchema, TaskStarSchema
+
 
 def test_tasks_and_dependencies_as_lists():
     """Test using List format for tasks and dependencies"""
@@ -58,11 +61,11 @@ def test_conversion_methods():
     tasks_list = constellation.get_tasks_as_list()
     print(f'[PASS] Got tasks list: {len(tasks_list)} tasks')
     assert len(tasks_list) == 3
-    assert all((isinstance(task, TaskStarSchema) for task in tasks_list))
+    assert all(isinstance(task, TaskStarSchema) for task in tasks_list)
     deps_list = constellation.get_dependencies_as_list()
     print(f'[PASS] Got dependencies list: {len(deps_list)} dependencies')
     assert len(deps_list) == 2
-    assert all((isinstance(dep, TaskStarLineSchema) for dep in deps_list))
+    assert all(isinstance(dep, TaskStarLineSchema) for dep in deps_list)
     data_with_lists = constellation.to_dict_with_lists()
     print(f"[PASS] Exported as list format: tasks={type(data_with_lists['tasks']).__name__}, dependencies={type(data_with_lists['dependencies']).__name__}")
     assert isinstance(data_with_lists['tasks'], list)

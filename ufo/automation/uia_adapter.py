@@ -18,7 +18,7 @@ the package is missing.
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 from ufo.automation.desktop import Element, Rect
 
@@ -49,7 +49,7 @@ class UIADesktop:
         self._pywinauto = None
         self._application_cls = None
         self._app = None
-        self._pid: Optional[int] = None
+        self._pid: int | None = None
         # Ownership flag: did WE start this process, or merely attach to one that
         # was already running? close() only kills what we started.
         self._launched = False
@@ -58,7 +58,7 @@ class UIADesktop:
         if self._pywinauto is None:
             self._pywinauto, self._application_cls = _import_pywinauto()
 
-    async def launch(self, app: str, args: Optional[list] = None) -> int:
+    async def launch(self, app: str, args: list | None = None) -> int:
         """Launch a native application by executable path/name."""
         self._ensure_imported()
         cmd_line = app if not args else " ".join([app, *args])
@@ -131,7 +131,7 @@ class UIADesktop:
         )
 
     async def find_window(
-        self, title_re: str = ".*", class_name: Optional[str] = None
+        self, title_re: str = ".*", class_name: str | None = None
     ) -> Element:
         """Find a top-level window by title regex (and optional class name).
 
@@ -234,7 +234,7 @@ class UIADesktop:
 
         return await asyncio.to_thread(_do_get)
 
-    async def screenshot(self, window: Optional[Element] = None, region: Optional[Rect] = None) -> bytes:
+    async def screenshot(self, window: Element | None = None, region: Rect | None = None) -> bytes:
         """Capture a screenshot of a specific window (or the app's top window).
 
         Uses the window's own HWND with PrintWindow for reliability - works even
@@ -250,6 +250,7 @@ class UIADesktop:
 
         def _do_screenshot():
             import io
+
             from PIL import Image
 
             target = window.handle if window is not None else self._app.top_window()
@@ -267,9 +268,10 @@ class UIADesktop:
             #    exact window - works even when behind other windows).
             if hwnd:
                 try:
+                    import ctypes
+
                     import win32gui
                     import win32ui
-                    import ctypes
 
                     if win32gui.IsWindow(hwnd):
                         rect = win32gui.GetWindowRect(hwnd)

@@ -34,7 +34,6 @@ import math
 import random
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 
 # ==================== Measured human constants ====================
 
@@ -61,7 +60,7 @@ class MoveReport:
     peak_velocity_px_s: float = 0.0
     submovements: int = 0
     overshoot_px: float = 0.0
-    path_points: List[Tuple[float, float]] = field(default_factory=list)
+    path_points: list[tuple[float, float]] = field(default_factory=list)
 
     def summary(self) -> str:
         return (
@@ -82,7 +81,7 @@ class HumanMouse:
     def __init__(
         self,
         peak_px_s: float = TARGET_PEAK_PX_PER_S,
-        seed: Optional[int] = None,
+        seed: int | None = None,
         sample_ms: float = 6.0,
         first_move_hook=None,
     ):
@@ -118,7 +117,7 @@ class HumanMouse:
         self._maybe_warn()
         return self._move_with_submovements(tx, ty)
 
-    def click(self, x: float, y: float, down_ms: Optional[float] = None) -> None:
+    def click(self, x: float, y: float, down_ms: float | None = None) -> None:
         """move_to + a human click (button down/hold/up)."""
         self._maybe_warn()  # RULE 1: a click can be the first input of an instance
         self._move_with_submovements(x, y)
@@ -136,7 +135,7 @@ class HumanMouse:
             self._button(False)
             time.sleep(self._rng.uniform(35.0, 90.0) / 1000.0)
 
-    def drag(self, from_xy: Tuple[float, float], to_xy: Tuple[float, float]) -> None:
+    def drag(self, from_xy: tuple[float, float], to_xy: tuple[float, float]) -> None:
         """Human drag: move to start, press, move with submovements, release."""
         self._maybe_warn()
         self._move_with_submovements(*from_xy)
@@ -146,7 +145,7 @@ class HumanMouse:
         time.sleep(self._rng.uniform(40.0, 90.0) / 1000.0)
         self._button(False)
 
-    def scroll(self, steps: int, x: Optional[float] = None, y: Optional[float] = None) -> None:
+    def scroll(self, steps: int, x: float | None = None, y: float | None = None) -> None:
         """Human wheel scroll with jittered wheel events."""
         self._maybe_warn()
         if x is None or y is None:
@@ -231,7 +230,7 @@ class HumanMouse:
 
     def _inject_bezier(
         self, p0, p3, duration_s, curvature: float, rep: MoveReport, t0: float,
-        v_peak: Optional[float] = None,
+        v_peak: float | None = None,
     ) -> None:
         """Inject a bowed bezier using VELOCITY INTEGRATION.
 
@@ -359,7 +358,7 @@ class HumanMouse:
         self._user32.mouse_event(0x0001 | 0x8000, nx, ny, 0, 0)
 
 
-def _get_cursor_pos(user32) -> Tuple[float, float]:
+def _get_cursor_pos(user32) -> tuple[float, float]:
     class POINT(ctypes.Structure):
         _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
     p = POINT()

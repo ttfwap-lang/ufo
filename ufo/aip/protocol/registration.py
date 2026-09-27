@@ -5,9 +5,11 @@ Handles agent registration and capability advertisement in the AIP system.
 """
 import datetime
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
+
 from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, ServerMessage, ServerMessageType, TaskStatus
 from ufo.aip.protocol.base import AIPProtocol
+
 
 class RegistrationProtocol(AIPProtocol):
     """
@@ -25,7 +27,7 @@ class RegistrationProtocol(AIPProtocol):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger(f'{__name__}.RegistrationProtocol')
 
-    async def register_as_device(self, device_id: str, metadata: Optional[Dict[str, Any]]=None, platform: str='windows') -> bool:
+    async def register_as_device(self, device_id: str, metadata: dict[str, Any] | None=None, platform: str='windows') -> bool:
         """
         Register as a device agent.
 
@@ -54,7 +56,7 @@ class RegistrationProtocol(AIPProtocol):
             self.logger.error(f'Error during device registration: {e}', exc_info=True)
             return False
 
-    async def register_as_constellation(self, constellation_id: str, target_device: str, metadata: Optional[Dict[str, Any]]=None) -> bool:
+    async def register_as_constellation(self, constellation_id: str, target_device: str, metadata: dict[str, Any] | None=None) -> bool:
         """
         Register as a constellation client.
 
@@ -84,7 +86,7 @@ class RegistrationProtocol(AIPProtocol):
             self.logger.error(f'Error during constellation registration: {e}', exc_info=True)
             return False
 
-    async def send_registration_confirmation(self, response_id: Optional[str]=None) -> None:
+    async def send_registration_confirmation(self, response_id: str | None=None) -> None:
         """
         Send registration confirmation (server-side).
 
@@ -93,7 +95,7 @@ class RegistrationProtocol(AIPProtocol):
         confirmation = ServerMessage(type=ServerMessageType.HEARTBEAT, status=TaskStatus.OK, timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(), response_id=response_id or self._generate_response_id())
         await self.send_message(confirmation)
 
-    async def send_registration_error(self, error: str, response_id: Optional[str]=None) -> None:
+    async def send_registration_error(self, error: str, response_id: str | None=None) -> None:
         """
         Send registration error (server-side).
 

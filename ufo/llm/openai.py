@@ -7,15 +7,15 @@ import logging
 import os
 import shutil
 import sys
-from typing import Any, Callable, Dict, List, Literal, Optional
+from collections.abc import Callable
+from typing import Any, Literal
 
 import httpx
 import openai
 from openai import AzureOpenAI, OpenAI
 
-from ufo.llm import AgentType
+from ufo.llm import AgentType, endpoint_health
 from ufo.llm.base import BaseService
-from ufo.llm import endpoint_health
 from ufo.llm.endpoint import is_local_endpoint
 from ufo.llm.llm_result import LLMResult
 from ufo.llm.response_schema import AppAgentResponse, EvaluationResponse, HostAgentResponse
@@ -31,9 +31,9 @@ def _pydantic_to_response_format(schema_class):
     """
     return {'type': 'json_schema', 'json_schema': {'name': schema_class.__name__, 'schema': schema_class.model_json_schema(), 'strict': True}}
 logger = logging.getLogger(__name__)
-_PROBED_JSON_SCHEMA_MODELS: Dict[str, bool] = {}
+_PROBED_JSON_SCHEMA_MODELS: dict[str, bool] = {}
 
-def _shrink_images(messages: List[Dict[str, Any]], max_pixels: int) -> List[Dict[str, Any]]:
+def _shrink_images(messages: list[dict[str, Any]], max_pixels: int) -> list[dict[str, Any]]:
     """
     Return `messages` with every inline base64 image scaled down to at most `max_pixels` pixels.
     Bounds prefill cost, and protects servers that reject large screenshots (a Qwen3-VL checkpoint whose
@@ -41,7 +41,7 @@ def _shrink_images(messages: List[Dict[str, Any]], max_pixels: int) -> List[Dict
     is kept; the input messages are not modified. Anything that isn't a data-URL image is left as is.
     """
     from PIL import Image
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for message in messages:
         content = message.get('content')
         if not isinstance(content, list):
@@ -69,7 +69,7 @@ def _shrink_images(messages: List[Dict[str, Any]], max_pixels: int) -> List[Dict
 
 class BaseOpenAIService(BaseService):
 
-    def __init__(self, config: Dict[str, Any], agent_type: str, api_provider: str, api_base: str) -> None:
+    def __init__(self, config: dict[str, Any], agent_type: str, api_provider: str, api_base: str) -> None:
         """
         Create an OpenAI service instance.
         :param config: The configuration for the OpenAI service.
@@ -144,7 +144,7 @@ class BaseOpenAIService(BaseService):
         self.json_schema_enabled = await asyncio.to_thread(_sync_probe)
         self.config_llm['JSON_SCHEMA'] = self.json_schema_enabled
 
-    async def _chat_completion(self, messages: List[Dict[str, str]], stream: bool=False, temperature: Optional[float]=None, max_tokens: Optional[int]=None, top_p: Optional[float]=None, **kwargs: Any) -> LLMResult:
+    async def _chat_completion(self, messages: list[dict[str, str]], stream: bool=False, temperature: float | None=None, max_tokens: int | None=None, top_p: float | None=None, **kwargs: Any) -> LLMResult:
         """
         Generates completions for a given conversation using the OpenAI Chat API asynchronously.
         :param messages: The list of messages in the conversation.
@@ -213,7 +213,7 @@ class BaseOpenAIService(BaseService):
             responses = [response.choices[0].message.content]
             return LLMResult(responses=responses, cost=cost, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, model=self.model, api_type=self.api_type, agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, 'value', str(self.agent_type)))
 
-    async def _create_chat(self, params: Dict[str, Any]):
+    async def _create_chat(self, params: dict[str, Any]):
         """chat.completions.create in a worker thread, with two protections for a
         shared local server (the gx10):
 
@@ -228,7 +228,7 @@ class BaseOpenAIService(BaseService):
         api_base = getattr(self, 'api_base', None)
         limiter = endpoint_health.inflight_limiter(api_base)
 
-        def call(p: Dict[str, Any]):
+        def call(p: dict[str, Any]):
             if limiter is None:
                 return self.client.chat.completions.create(**p)
             with limiter:
@@ -247,12 +247,12 @@ class BaseOpenAIService(BaseService):
             self.model = served
             return await asyncio.to_thread(call, {**params, 'model': served})
 
-    async def _responses_completion(self, messages: List[Dict[str, str]], temperature: Optional[float]=None, max_tokens: Optional[int]=None, top_p: Optional[float]=None) -> LLMResult:
+    async def _responses_completion(self, messages: list[dict[str, str]], temperature: float | None=None, max_tokens: int | None=None, top_p: float | None=None) -> LLMResult:
         """
         Generate a completion using the Responses API asynchronously.
         """
         inputs = self._messages_to_responses_input(messages)
-        base_params: Dict[str, Any] = {'model': self.model, 'input': inputs}
+        base_params: dict[str, Any] = {'model': self.model, 'input': inputs}
         if not self.config_llm.get('REASONING_MODEL', False):
             base_params['temperature'] = temperature
             if top_p is not None and top_p > 0:
@@ -281,16 +281,16 @@ class BaseOpenAIService(BaseService):
         return LLMResult(responses=[content_text], cost=cost, prompt_tokens=input_tokens, completion_tokens=output_tokens, model=self.model, api_type=self.api_type, agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, 'value', str(self.agent_type)))
 
     @staticmethod
-    def _messages_to_responses_input(messages: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+    def _messages_to_responses_input(messages: list[dict[str, str]]) -> list[dict[str, Any]]:
         """
         Convert chat-style messages to Responses API input format.
         """
-        inputs: List[Dict[str, Any]] = []
+        inputs: list[dict[str, Any]] = []
         for msg in messages:
             role = msg.get('role', 'user')
             content = msg.get('content', '')
             if isinstance(content, list):
-                converted_parts: List[Dict[str, Any]] = []
+                converted_parts: list[dict[str, Any]] = []
                 for part in content:
                     if not isinstance(part, dict):
                         continue
@@ -310,12 +310,12 @@ class BaseOpenAIService(BaseService):
         return inputs
 
     @staticmethod
-    def _extract_responses_text(response: Dict[str, Any]) -> str:
+    def _extract_responses_text(response: dict[str, Any]) -> str:
         """
         Extract text content from a Responses API payload.
         """
         output = response.get('output', [])
-        chunks: List[str] = []
+        chunks: list[str] = []
         for item in output:
             if not isinstance(item, dict):
                 continue
@@ -323,21 +323,21 @@ class BaseOpenAIService(BaseService):
             for part in content:
                 if not isinstance(part, dict):
                     continue
-                if 'text' in part:
-                    chunks.append(part.get('text', ''))
-                elif part.get('type') in ['output_text', 'text']:
+                if 'text' in part or part.get('type') in ['output_text', 'text']:
                     chunks.append(part.get('text', ''))
         return ''.join(chunks).strip()
 
-    async def _chat_completion_operator(self, message: Dict[str, Any]={}, **kwargs: Any) -> LLMResult:
+    async def _chat_completion_operator(self, message: dict[str, Any]=None, **kwargs: Any) -> LLMResult:
         """
         Generates completions for a given conversation using the OpenAI Operator / Responses API.
         :param message: The message to send to the API.
         :return: LLMResult containing the response dict in responses[0], cost, tokens, and metadata.
         """
+        if message is None:
+            message = {}
         inputs = message.get('inputs', [])
         tools = message.get('tools', [])
-        previous_response_id = message.get('previous_response_id', None)
+        previous_response_id = message.get('previous_response_id')
         create_params = {'model': self.config_llm.get('API_MODEL'), 'input': inputs, 'tools': tools, 'previous_response_id': previous_response_id, 'truncation': 'auto', 'temperature': self.config.get('TEMPERATURE', 0), 'top_p': self.config.get('TOP_P', 0), 'timeout': self.config.get('TIMEOUT', 20)}
         raw_response = await asyncio.to_thread(self.client.responses.create, **create_params)
         response = raw_response.model_dump() if hasattr(raw_response, 'model_dump') else raw_response
@@ -351,9 +351,9 @@ class BaseOpenAIService(BaseService):
         cost = self._get_cost_estimate(self.config_llm['API_MODEL'], input_tokens, output_tokens)
         return LLMResult(responses=[response], cost=cost, prompt_tokens=input_tokens, completion_tokens=output_tokens, model=self.config_llm.get('API_MODEL', 'gpt-4o'), api_type=self.api_type, agent_type=self.agent_type if isinstance(self.agent_type, str) else getattr(self.agent_type, 'value', str(self.agent_type)))
 
-    @functools.lru_cache()
+    @functools.lru_cache
     @staticmethod
-    def get_openai_client(api_type: str, api_base: str, max_retry: int, timeout: int, api_key: Optional[str]=None, api_version: Optional[str]=None, aad_api_scope_base: Optional[str]=None, aad_tenant_id: Optional[str]=None, use_responses: bool=False) -> OpenAI:
+    def get_openai_client(api_type: str, api_base: str, max_retry: int, timeout: int, api_key: str | None=None, api_version: str | None=None, aad_api_scope_base: str | None=None, aad_tenant_id: str | None=None, use_responses: bool=False) -> OpenAI:
         """
         Create an OpenAI client based on the API type.
         :param api_type: The type of the API, one of "openai", "aoai", or "azure_ad".
@@ -386,9 +386,9 @@ class BaseOpenAIService(BaseService):
                 client = AzureOpenAI(max_retries=0, timeout=http_timeout, api_version=api_version, azure_endpoint=api_base, azure_ad_token_provider=token_provider, default_headers={'x-ms-enable-preview': 'true'} if use_responses else {}, http_client=http_client)
         return client
 
-    @functools.lru_cache()
+    @functools.lru_cache
     @staticmethod
-    def get_aad_token_provider(aad_api_scope_base: str, aad_tenant_id: str, token_cache_file: str='aoai-token-cache.bin', client_id: Optional[str]=None, client_secret: Optional[str]=None, use_azure_cli: Optional[bool]=None, use_broker_login: Optional[bool]=None, use_managed_identity: Optional[bool]=None, use_device_code: Optional[bool]=None, **kwargs) -> Callable[[], str]:
+    def get_aad_token_provider(aad_api_scope_base: str, aad_tenant_id: str, token_cache_file: str='aoai-token-cache.bin', client_id: str | None=None, client_secret: str | None=None, use_azure_cli: bool | None=None, use_broker_login: bool | None=None, use_managed_identity: bool | None=None, use_device_code: bool | None=None, **kwargs) -> Callable[[], str]:
         """
         Acquire token from Azure AD for OpenAI.
         :param aad_api_scope_base: The base scope for the Azure AD API.
@@ -425,16 +425,16 @@ class BaseOpenAIService(BaseService):
             except Exception as e:
                 print('failed to save auth record', e)
 
-        def load_auth_record() -> Optional[AuthenticationRecord]:
+        def load_auth_record() -> AuthenticationRecord | None:
             try:
                 if not os.path.exists(token_cache_file):
                     return None
-                with open(token_cache_file, 'r', encoding='utf-8') as cache_file:
+                with open(token_cache_file, encoding='utf-8') as cache_file:
                     return AuthenticationRecord.deserialize(cache_file.read())
             except Exception as e:
                 print('failed to load auth record', e)
                 return None
-        auth_record: Optional[AuthenticationRecord] = load_auth_record()
+        auth_record: AuthenticationRecord | None = load_auth_record()
         current_auth_mode: Literal['client_secret', 'managed_identity', 'az_cli', 'interactive', 'device_code', 'none'] = 'none'
         implicit_mode = not (use_managed_identity or use_azure_cli or use_broker_login or use_device_code)
         if use_managed_identity or (implicit_mode and client_id is not None):
@@ -453,11 +453,7 @@ class BaseOpenAIService(BaseService):
             identity = AzureCliCredential(tenant_id=tenant_id)
         else:
             if implicit_mode:
-                if sys.platform.startswith('darwin') or sys.platform.startswith('win32'):
-                    use_broker_login = True
-                elif os.environ.get('WSL_DISTRO_NAME', '') != '':
-                    use_broker_login = True
-                elif os.environ.get('TERM_PROGRAM', '') == 'vscode':
+                if sys.platform.startswith('darwin') or sys.platform.startswith('win32') or os.environ.get('WSL_DISTRO_NAME', '') != '' or os.environ.get('TERM_PROGRAM', '') == 'vscode':
                     use_broker_login = True
                 else:
                     use_broker_login = False
@@ -485,7 +481,7 @@ class OpenAIService(BaseOpenAIService):
     The OpenAI service class to interact with the OpenAI API.
     """
 
-    def __init__(self, config: Dict[str, Any], agent_type: str) -> None:
+    def __init__(self, config: dict[str, Any], agent_type: str) -> None:
         """
         Create an OpenAI service instance.
         :param config: The configuration for the OpenAI service.
@@ -493,7 +489,7 @@ class OpenAIService(BaseOpenAIService):
         """
         super().__init__(config, agent_type, config[agent_type]['API_TYPE'].lower(), config[agent_type]['API_BASE'])
 
-    async def chat_completion(self, messages: List[Dict[str, str]], n: int=1, stream: bool=False, temperature: Optional[float]=None, max_tokens: Optional[int]=None, top_p: Optional[float]=None, **kwargs: Any) -> LLMResult:
+    async def chat_completion(self, messages: list[dict[str, str]], n: int=1, stream: bool=False, temperature: float | None=None, max_tokens: int | None=None, top_p: float | None=None, **kwargs: Any) -> LLMResult:
         """
         Generates completions for a given conversation using the OpenAI Chat API asynchronously.
         :param messages: The list of messages in the conversation.
@@ -518,7 +514,7 @@ class OperatorServicePreview(BaseService):
     For current usage, configure with GPT-5.6 Terra or latest CUA-capable model.
     """
 
-    def __init__(self, config: Dict[str, Any], agent_type: str='operator', client=None) -> None:
+    def __init__(self, config: dict[str, Any], agent_type: str='operator', client=None) -> None:
         """
         Create an Operator service instance.
         :param config: The configuration for the Operator service.
@@ -550,7 +546,7 @@ class OperatorServicePreview(BaseService):
         client = openai.AzureOpenAI(azure_endpoint=self.config_llm.get('API_BASE'), api_key=api_key, max_retries=0, timeout=self.config.get('TIMEOUT', 20), api_version=self.config_llm.get('API_VERSION'), default_headers={'x-ms-enable-preview': 'true'})
         return client
 
-    async def chat_completion(self, message: Dict[str, Any]=None, n: int=1) -> LLMResult:
+    async def chat_completion(self, message: dict[str, Any]=None, n: int=1) -> LLMResult:
         """
         Generates completions for a given conversation using the OpenAI Responses API asynchronously.
         :param message: The message to send to the API.
@@ -589,9 +585,9 @@ class OperatorServicePreview(BaseService):
 class OpenAIError(Exception):
     request_id: str
     status_code: int
-    message: Dict[str, Any]
+    message: dict[str, Any]
 
-    def __init__(self, status_code: int, message: Dict[str, Any], request_id: str):
+    def __init__(self, status_code: int, message: dict[str, Any], request_id: str):
         """
         The OpenAI API error class.
         :param status_code: The status code of the API response.

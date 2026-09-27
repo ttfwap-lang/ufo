@@ -4,11 +4,13 @@ Constellation Client Endpoint
 Wraps the existing Galaxy constellation client with AIP protocol abstractions.
 """
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
+
 from ufo.aip.endpoints.base import AIPEndpoint
 from ufo.aip.protocol import AIPProtocol, RegistrationProtocol
 from ufo.aip.resilience import ReconnectionStrategy
 from ufo.aip.transport.websocket import WebSocketTransport
+
 
 class ConstellationEndpoint(AIPEndpoint):
     """
@@ -67,7 +69,7 @@ class ConstellationEndpoint(AIPEndpoint):
         """
         return await self.connection_manager.send_task_to_device(device_id, task_request)
 
-    async def request_device_info(self, device_id: str) -> Optional[Dict[str, Any]]:
+    async def request_device_info(self, device_id: str) -> dict[str, Any] | None:
         """
         Request device information.
 

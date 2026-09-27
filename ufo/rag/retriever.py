@@ -1,10 +1,13 @@
-from abc import ABC, abstractmethod
 import logging
 import os
+from abc import ABC, abstractmethod
+
 from langchain_community.vectorstores import FAISS
+
 from ufo.config import get_offline_learner_indexer_config
 from ufo.rag import web_search
 from ufo.utils import get_hugginface_embedding, resolve_data_path
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +49,7 @@ class RetrieverFactory:
         elif retriever_type == 'demonstration':
             return DemonstrationRetriever(*args, **kwargs)
         else:
-            raise ValueError('Invalid retriever type: {}'.format(retriever_type))
+            raise ValueError(f'Invalid retriever type: {retriever_type}')
 
 class Retriever(ABC):
     """

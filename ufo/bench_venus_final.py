@@ -80,6 +80,7 @@ def text_bench():
 def icon_bench():
     """Live benchmark against UIA rects. Needs a pinned Telegram window."""
     import asyncio
+
     import win32gui
     sys.path.insert(0, r"C:\Users\lnxzf\Desktop\projects\ufo")
     from ufo.automator.app_apis.telegram import TelegramGUIController

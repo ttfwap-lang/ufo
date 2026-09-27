@@ -17,20 +17,14 @@ Capabilities:
 4. Visual feedback settlement check (verifies screen pixel change).
 """
 
-import base64
-import ctypes
-import json
 import logging
 import os
 import re
-import tempfile
 import time
-from io import BytesIO
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-from PIL import Image, ImageStat
 import pyautogui
+from PIL import Image, ImageStat
 
 logger = logging.getLogger("UFO_UITarsBridge")
 
@@ -42,18 +36,18 @@ class UITarsBridge:
 
     def __init__(
         self,
-        endpoint_url: Optional[str] = None,
+        endpoint_url: str | None = None,
         model_name: str = "ui-tars-7b-dpo",
-        screen_width: Optional[int] = None,
-        screen_height: Optional[int] = None,
+        screen_width: int | None = None,
+        screen_height: int | None = None,
     ):
         self.endpoint_url = endpoint_url or os.environ.get("UI_TARS_ENDPOINT", "http://127.0.0.1:8080/v1")
         self.model_name = model_name
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self._last_screenshot: Optional[Image.Image] = None
+        self._last_screenshot: Image.Image | None = None
 
-    def capture_screen_area(self, hwnd: int = 0) -> Tuple[Image.Image, Tuple[int, int, int, int]]:
+    def capture_screen_area(self, hwnd: int = 0) -> tuple[Image.Image, tuple[int, int, int, int]]:
         """
         Capture the screen area for the target window or primary desktop.
         Returns (PIL Image, (left, top, width, height)).
@@ -98,9 +92,9 @@ class UITarsBridge:
     def parse_single_action(
         self,
         action_text: str,
-        screen_width: Optional[int] = None,
-        screen_height: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        screen_width: int | None = None,
+        screen_height: int | None = None,
+    ) -> dict[str, Any]:
         """Parse an individual UI-TARS action token."""
         sw = screen_width or self.screen_width or 1920
         sh = screen_height or self.screen_height or 1080
@@ -211,9 +205,9 @@ class UITarsBridge:
     def parse_action_string(
         self,
         action_text: str,
-        screen_width: Optional[int] = None,
-        screen_height: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        screen_width: int | None = None,
+        screen_height: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Parse raw UI-TARS prediction string into a list of executable action parameter dictionaries.
         Supports semicolon and newline-delimited multi-step compound actions.
@@ -230,7 +224,7 @@ class UITarsBridge:
                 parsed_actions.append(parsed)
         return parsed_actions
 
-    def _normalize_coords(self, x: int, y: int, width: int, height: int) -> Tuple[int, int]:
+    def _normalize_coords(self, x: int, y: int, width: int, height: int) -> tuple[int, int]:
         """Convert normalized 0-1000 UI-TARS coordinate tokens to absolute pixel coordinates."""
         if x <= 1000 and y <= 1000 and (width > 1000 or height > 1000):
             # Scale from 0-1000 space
@@ -239,7 +233,7 @@ class UITarsBridge:
             return actual_x, actual_y
         return x, y
 
-    def execute_parsed_action(self, parsed: Dict[str, Any], offset: Tuple[int, int] = (0, 0)) -> str:
+    def execute_parsed_action(self, parsed: dict[str, Any], offset: tuple[int, int] = (0, 0)) -> str:
         """Execute the parsed action physically on screen via PyAutoGUI."""
         atype = parsed.get("action_type")
         params = parsed.get("params", {})

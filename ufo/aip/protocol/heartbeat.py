@@ -6,10 +6,11 @@ Handles periodic keepalive messages to maintain connection health.
 import asyncio
 import datetime
 import logging
-from typing import Optional
 from uuid import uuid4
+
 from ufo.aip.messages import ClientMessage, ClientMessageType, ClientType, ServerMessage, ServerMessageType, TaskStatus
 from ufo.aip.protocol.base import AIPProtocol
+
 
 class HeartbeatProtocol(AIPProtocol):
     """
@@ -25,10 +26,10 @@ class HeartbeatProtocol(AIPProtocol):
         """Initialize heartbeat protocol."""
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger(f'{__name__}.HeartbeatProtocol')
-        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._heartbeat_task: asyncio.Task | None = None
         self._heartbeat_interval: float = 30.0
 
-    async def send_heartbeat(self, client_id: str, metadata: Optional[dict]=None, client_type: ClientType=ClientType.DEVICE) -> None:
+    async def send_heartbeat(self, client_id: str, metadata: dict | None=None, client_type: ClientType=ClientType.DEVICE) -> None:
         """
         Send a single heartbeat message (client-side).
 
@@ -41,7 +42,7 @@ class HeartbeatProtocol(AIPProtocol):
         await self.send_message(heartbeat_msg)
         self.logger.debug(f'Sent heartbeat from {client_id}')
 
-    async def send_heartbeat_ack(self, response_id: Optional[str]=None) -> None:
+    async def send_heartbeat_ack(self, response_id: str | None=None) -> None:
         """
         Send heartbeat acknowledgment (server-side).
 

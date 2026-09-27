@@ -1,11 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Any, Dict, List
 from collections import defaultdict
+from typing import Any
 
-from ufo.trajectory import parser
 import ufo.utils
+from ufo.trajectory import parser
 
 
 class ExperienceLogLoader:
@@ -28,8 +28,8 @@ class ExperienceLogLoader:
 
     @classmethod
     def group_by_subtask(
-        cls, step_log: List[Dict[str, Any]]
-    ) -> List[List[Dict[str, Any]]]:
+        cls, step_log: list[dict[str, Any]]
+    ) -> list[list[dict[str, Any]]]:
         """
         Group the logs by the value of the "Subtask" field.
         :param step_log: The step log.
@@ -62,7 +62,7 @@ class ExperienceLogLoader:
         return result
 
     @property
-    def subtask_partition(self) -> List[Dict[str, Any]]:
+    def subtask_partition(self) -> list[dict[str, Any]]:
         """
         :return: The subtask partition.
         """

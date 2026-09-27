@@ -7,7 +7,8 @@ import json
 import logging
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 
@@ -51,7 +52,7 @@ class BasicAgent(ABC):
         self.retriever_factory = retriever.RetrieverFactory()
         self._memory = Memory()
         self._host = None
-        self._processor: Optional[ProcessorTemplate] = None
+        self._processor: ProcessorTemplate | None = None
         self._state = None
         self.logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class BasicAgent(ABC):
         self._status = status
 
     @property
-    def state(self) -> Optional[AgentState]:
+    def state(self) -> AgentState | None:
         """
         Get the state of the agent.
         :return: The state of the agent.
@@ -119,7 +120,7 @@ class BasicAgent(ABC):
         return self.host.blackboard
 
     @property
-    def host(self) -> Optional["HostAgent"]:
+    def host(self) -> HostAgent | None:
         """
         Get the host of the agent.
         :return: The host of the agent.
@@ -145,7 +146,7 @@ class BasicAgent(ABC):
     @abstractmethod
     def message_constructor(
         self, *args: Any, **kwargs: Any
-    ) -> List[Dict[str, Union[str, List[Dict[str, str]]]]]:
+    ) -> list[dict[str, str | list[dict[str, str]]]]:
         """
         Construct the message.
         :return: The message.
@@ -162,8 +163,8 @@ class BasicAgent(ABC):
     @classmethod
     async def get_response(
         cls,
-        message: List[dict],
-        namescope: Optional[str] = None,
+        message: list[dict],
+        namescope: str | None = None,
         use_backup_engine: bool = True,
     ) -> LLMResult:
         """
@@ -180,7 +181,7 @@ class BasicAgent(ABC):
         )
 
     @staticmethod
-    def response_to_dict(response: str) -> Dict[str, str]:
+    def response_to_dict(response: str) -> dict[str, str]:
         """
         Convert the response to a dictionary.
         :param response: The response.
@@ -204,7 +205,7 @@ class BasicAgent(ABC):
         """
         self._step = step
 
-    def set_memory_from_list_of_dicts(self, data: List[Dict[str, str]]) -> None:
+    def set_memory_from_list_of_dicts(self, data: list[dict[str, str]]) -> None:
         """
         Set the memory from the list of dictionaries.
         :param data: The list of dictionaries.
@@ -320,7 +321,7 @@ class BasicAgent(ABC):
         pass
 
     @property
-    def processor(self) -> Optional[ProcessorTemplate]:
+    def processor(self) -> ProcessorTemplate | None:
         """
         Get the processor.
         :return: The processor.
@@ -402,7 +403,7 @@ class BasicAgent(ABC):
             AgentRegistry.register(cls.__name__)(cls)
 
     @classmethod
-    def get_cls(cls, name: str) -> Type["BasicAgent"]:
+    def get_cls(cls, name: str) -> type[BasicAgent]:
         """
         Retrieves an agent class from the registry.
         :param name: The name of the agent class.
@@ -420,7 +421,7 @@ class BasicAgent(ABC):
         pass
 
     @staticmethod
-    def get_command_string(command_name: str, params: Dict[str, str]) -> str:
+    def get_command_string(command_name: str, params: dict[str, str]) -> str:
         """
         Generate a function call string.
         :param command_name: The function name.
@@ -439,8 +440,8 @@ class AgentRegistry:
     The registry for agent classes.
     """
 
-    _registry: Dict[str, Type["BasicAgent"]] = {}
-    _third_party_agents: Set[str] = set()
+    _registry: dict[str, type[BasicAgent]] = {}
+    _third_party_agents: set[str] = set()
     logger = logging.getLogger(__name__)
     logger.propagate = True
 
@@ -448,16 +449,16 @@ class AgentRegistry:
     def register(
         cls,
         agent_name: str,
-        third_party: Optional[bool] = False,
-        processor_cls: Optional[Type["ProcessorTemplate"]] = None,
-    ) -> Callable[[Type["BasicAgent"]], Type["BasicAgent"]]:
+        third_party: bool | None = False,
+        processor_cls: type[ProcessorTemplate] | None = None,
+    ) -> Callable[[type[BasicAgent]], type[BasicAgent]]:
         """
         Decorator to register an agent class.
         :param agent_name: The name to register the agent class under.
         :return: The class itself (unchanged).
         """
 
-        def decorator(agent_cls: Type["BasicAgent"]) -> Type["BasicAgent"]:
+        def decorator(agent_cls: type[BasicAgent]) -> type[BasicAgent]:
 
             cls.logger.info(
                 f"[AgentRegistry] Registering agent class '{agent_name}': {agent_cls.__name__}"
@@ -467,7 +468,7 @@ class AgentRegistry:
                 cls._third_party_agents.add(agent_name)
 
             if processor_cls:
-                setattr(agent_cls, "_processor_cls", processor_cls)
+                agent_cls._processor_cls = processor_cls
 
                 cls.logger.info(
                     f"[AgentRegistry] Registered processor for agent '{agent_name}': {processor_cls.__name__}"
@@ -478,7 +479,7 @@ class AgentRegistry:
         return decorator
 
     @classmethod
-    def get(cls, agent_name: str) -> Type["BasicAgent"]:
+    def get(cls, agent_name: str) -> type[BasicAgent]:
         """
         Retrieve an agent class by name.
         """
@@ -494,7 +495,7 @@ class AgentRegistry:
         return cls._registry[agent_name]
 
     @classmethod
-    def list_agents(cls) -> Dict[str, Type["BasicAgent"]]:
+    def list_agents(cls) -> dict[str, type[BasicAgent]]:
         """
         List all registered agent classes.
         """

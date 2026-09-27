@@ -3,10 +3,10 @@
 
 """Unit tests for EvaluationRunner and eval_suite harness."""
 
+
 import pytest
-import asyncio
-from pathlib import Path
-from tests.eval_suite.eval_runner import EvaluationRunner, EVAL_STAGES, parse_args
+
+from tests.eval_suite.eval_runner import EVAL_STAGES, EvaluationRunner, parse_args
 
 
 def test_eval_stages_registry():
@@ -32,12 +32,12 @@ async def test_eval_runner_dry_run(tmp_path):
     """Test running evaluation suite in dry-run mode."""
     runner = EvaluationRunner(output_dir=str(tmp_path), dry_run=True)
     summary = await runner.run_suite(stages=["R1", "R2"])
-    
+
     assert summary["total_stages"] == 2
     assert summary["passed_stages"] == 2
     assert summary["failed_stages"] == 0
     assert len(summary["stage_results"]) == 2
-    
+
     # Verify report files created
     json_reports = list(tmp_path.glob("eval_results_*.json"))
     md_reports = list(tmp_path.glob("eval_summary_*.md"))

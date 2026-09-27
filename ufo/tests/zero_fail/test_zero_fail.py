@@ -1,9 +1,8 @@
 # Unit tests for Zero-Fail Phase implementations
 
-import asyncio
 import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
 
 class TestLLMWatchdogHealthCheck(unittest.TestCase):
@@ -12,7 +11,8 @@ class TestLLMWatchdogHealthCheck(unittest.TestCase):
     def test_watchdog_init(self):
         """Test watchdog can be instantiated with default config."""
         from unittest.mock import patch
-        from ufo.utils.llm_resilience import LLMWatchdog, DEFAULT_SERVERS
+
+        from ufo.utils.llm_resilience import DEFAULT_SERVERS, LLMWatchdog
         local_llama = {"HOST_AGENT": {"API_BASE": "http://127.0.0.1:8080/v1"}, "APP_AGENT": {"API_BASE": "http://localhost:8081/v1"}}
         with patch("ufo.llm.config_helper.resolve_backend_profile", return_value=local_llama):
             watchdog = LLMWatchdog()
@@ -23,6 +23,7 @@ class TestLLMWatchdogHealthCheck(unittest.TestCase):
     def test_watchdog_ignores_ports_the_backend_does_not_use(self):
         """A DGX/Ollama backend never serves :8080/:8081; watching them caused a false cloud failover."""
         from unittest.mock import patch
+
         from ufo.utils.llm_resilience import LLMWatchdog
         dgx = {"HOST_AGENT": {"API_BASE": "http://127.0.0.1:11434"}, "EVALUATION_AGENT": {"API_BASE": "http://127.0.0.1:8000/v1"}}
         with patch("ufo.llm.config_helper.resolve_backend_profile", return_value=dgx):
@@ -38,14 +39,14 @@ class TestLLMWatchdogHealthCheck(unittest.TestCase):
     @patch("urllib.request.urlopen")
     def test_health_check_success(self, mock_urlopen):
         """Test successful health check."""
-        from ufo.utils.llm_resilience import LLMWatchdog, LLMServerConfig
-        
+        from ufo.utils.llm_resilience import LLMServerConfig, LLMWatchdog
+
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.__enter__ = MagicMock(return_value=mock_response)
         mock_response.__exit__ = MagicMock(return_value=False)
         mock_urlopen.return_value = mock_response
-        
+
         server = LLMServerConfig(name="test", port=8080, model_path="dummy.gguf")
         watchdog = LLMWatchdog(servers=[server])
         self.assertTrue(watchdog._check_health(server))
@@ -53,20 +54,20 @@ class TestLLMWatchdogHealthCheck(unittest.TestCase):
     @patch("urllib.request.urlopen", side_effect=ConnectionRefusedError)
     def test_health_check_failure(self, mock_urlopen):
         """Test failed health check."""
-        from ufo.utils.llm_resilience import LLMWatchdog, LLMServerConfig
-        
+        from ufo.utils.llm_resilience import LLMServerConfig, LLMWatchdog
+
         server = LLMServerConfig(name="test", port=8080, model_path="dummy.gguf")
         watchdog = LLMWatchdog(servers=[server])
         self.assertFalse(watchdog._check_health(server))
 
     def test_max_restarts_triggers_failover(self):
         """Test that exceeding max restarts triggers cloud failover."""
-        from ufo.utils.llm_resilience import LLMWatchdog, LLMServerConfig
-        
+        from ufo.utils.llm_resilience import LLMServerConfig, LLMWatchdog
+
         server = LLMServerConfig(name="test", port=8080, model_path="dummy.gguf")
         server.max_restarts = 2
         server.restart_count = 2  # Already at max
-        
+
         watchdog = LLMWatchdog(servers=[server])
         with patch.object(watchdog, '_trigger_cloud_failover') as mock_failover:
             watchdog._handle_unhealthy(server)
@@ -96,8 +97,8 @@ class TestDynamicRecoveryNodeInjection(unittest.TestCase):
 
     def test_recovery_node_creation(self):
         """Test that a recovery TaskStar can be created."""
-        from ufo.galaxy.constellation.task_star import TaskStar, TaskPriority
-        
+        from ufo.galaxy.constellation.task_star import TaskStar
+
         failed = TaskStar(
             task_id="failed_001",
             name="Open Notepad",
@@ -105,7 +106,7 @@ class TestDynamicRecoveryNodeInjection(unittest.TestCase):
             target_device_id="local",
             retry_count=0,
         )
-        
+
         recovery = TaskStar(
             task_id="recovery_failed_0_abc123",
             name=f"Recovery: {failed.name}",
@@ -114,7 +115,7 @@ class TestDynamicRecoveryNodeInjection(unittest.TestCase):
             priority=failed.priority,
             retry_count=1,
         )
-        
+
         self.assertIn("RECOVERY NODE", recovery.description)
         self.assertEqual(recovery.target_device_id, "local")
         self.assertEqual(recovery._retry_count, 1)
@@ -125,39 +126,39 @@ class TestTaskStarRetry(unittest.TestCase):
 
     def test_should_retry_true(self):
         """Test should_retry returns True when retries remain."""
-        from ufo.galaxy.constellation.task_star import TaskStar
         from ufo.galaxy.constellation.enums import TaskStatus
-        
+        from ufo.galaxy.constellation.task_star import TaskStar
+
         task = TaskStar(task_id="t1", retry_count=3)
         task._status = TaskStatus.FAILED
         task._current_retry = 0
-        
+
         self.assertTrue(task.should_retry())
 
     def test_should_retry_false_exhausted(self):
         """Test should_retry returns False when retries exhausted."""
-        from ufo.galaxy.constellation.task_star import TaskStar
         from ufo.galaxy.constellation.enums import TaskStatus
-        
+        from ufo.galaxy.constellation.task_star import TaskStar
+
         task = TaskStar(task_id="t1", retry_count=3)
         task._status = TaskStatus.FAILED
         task._current_retry = 3
-        
+
         self.assertFalse(task.should_retry())
 
     def test_retry_resets_state(self):
         """Test that retry() resets task state properly."""
-        from ufo.galaxy.constellation.task_star import TaskStar
         from ufo.galaxy.constellation.enums import TaskStatus
-        
+        from ufo.galaxy.constellation.task_star import TaskStar
+
         task = TaskStar(task_id="t1", retry_count=3)
         task._status = TaskStatus.FAILED
         task._current_retry = 0
         task._error = Exception("test")
         task._execution_start_time = datetime.now(timezone.utc)
-        
+
         task.retry()
-        
+
         self.assertEqual(task._status, TaskStatus.PENDING)
         self.assertIsNone(task._error)
         self.assertIsNone(task._execution_start_time)

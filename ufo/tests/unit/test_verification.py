@@ -1,12 +1,10 @@
 """Deterministic goal checks: request -> checks planning, check semantics, and
 HostAgent using them before (instead of) the LLM verifier."""
 import asyncio
-import os
 import time
 from types import SimpleNamespace
 
 import pytest
-
 from ufo.verification import checks, registry
 from ufo.verification.checks import CheckResult
 

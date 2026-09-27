@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, Optional, Type
+from typing import TYPE_CHECKING
 
 from ufo.agents.states.basic import AgentState, AgentStateManager
 from ufo.config.config_loader import LazyUFOConfig
@@ -36,7 +36,7 @@ class HostAgentStateManager(AgentStateManager):
     The class to manage the states of the host agent.
     """
 
-    _state_mapping: Dict[str, Type[HostAgentState]] = {}
+    _state_mapping: dict[str, type[HostAgentState]] = {}
 
     @property
     def none_state(self) -> AgentState:
@@ -52,7 +52,7 @@ class HostAgentState(AgentState):
     """
 
     async def handle(
-        self, agent: "HostAgent", context: Optional["Context"] = None
+        self, agent: HostAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -62,7 +62,7 @@ class HostAgentState(AgentState):
         pass
 
     @classmethod
-    def agent_class(cls) -> Type[HostAgent]:
+    def agent_class(cls) -> type[HostAgent]:
         """
         Handle the agent for the current step.
         """
@@ -70,7 +70,7 @@ class HostAgentState(AgentState):
 
         return HostAgent
 
-    def next_state(self, agent: "HostAgent") -> AgentState:
+    def next_state(self, agent: HostAgent) -> AgentState:
         """
         Get the next state of the agent.
         :param agent: The current agent.
@@ -80,7 +80,7 @@ class HostAgentState(AgentState):
         state = HostAgentStateManager().get_state(status)
         return state
 
-    def next_agent(self, agent: "HostAgent") -> HostAgent:
+    def next_agent(self, agent: HostAgent) -> HostAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -125,7 +125,7 @@ class ContinueHostAgentState(HostAgentState):
     """
 
     async def handle(
-        self, agent: "HostAgent", context: Optional["Context"] = None
+        self, agent: HostAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -134,7 +134,7 @@ class ContinueHostAgentState(HostAgentState):
         """
         await agent.process(context)
 
-    def next_state(self, agent: "HostAgent") -> AppAgentState:
+    def next_state(self, agent: HostAgent) -> AppAgentState:
         """
         Get the next state of the agent.
         :param agent: The current agent.
@@ -146,7 +146,7 @@ class ContinueHostAgentState(HostAgentState):
 
         return super().next_state(agent)
 
-    def next_agent(self, agent: "HostAgent") -> AppAgent:
+    def next_agent(self, agent: HostAgent) -> AppAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -178,7 +178,7 @@ class AssignHostAgentState(HostAgentState):
     """
 
     async def handle(
-        self, agent: "HostAgent", context: Optional["Context"] = None
+        self, agent: HostAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -187,7 +187,7 @@ class AssignHostAgentState(HostAgentState):
         """
         agent.create_subagent(context)
 
-    def next_state(self, agent: "HostAgent") -> AppAgentState:
+    def next_state(self, agent: HostAgent) -> AppAgentState:
         """
         Get the next state of the agent.
         :param agent: The current agent.
@@ -211,7 +211,7 @@ class AssignHostAgentState(HostAgentState):
 
             return ContinueAppAgentState()
 
-    def next_agent(self, agent: "HostAgent") -> AppAgent:
+    def next_agent(self, agent: HostAgent) -> AppAgent:
         """
         Get the agent for the next step.
         :param agent: The agent for the current step.
@@ -243,7 +243,7 @@ class PendingHostAgentState(HostAgentState):
     """
 
     async def handle(
-        self, agent: "HostAgent", context: Optional["Context"] = None
+        self, agent: HostAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.

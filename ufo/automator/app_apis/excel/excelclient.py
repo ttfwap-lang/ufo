@@ -1,15 +1,18 @@
 import os
-from typing import Any, Dict, List, Type, Union
+from typing import Any
+
 import pandas as pd
+
 from ufo.automator.app_apis.basic import WinCOMCommand, WinCOMReceiverBasic
 from ufo.automator.basic import CommandBasic
 from ufo.automator.path_validator import validate_save_path
+
 
 class ExcelWinCOMReceiver(WinCOMReceiverBasic):
     """
     The base class for Windows COM client.
     """
-    _command_registry: Dict[str, Type[CommandBasic]] = {}
+    _command_registry: dict[str, type[CommandBasic]] = {}
 
     def get_object_from_process_name(self) -> None:
         """
@@ -23,7 +26,7 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
                 return doc
         return None
 
-    def table2markdown(self, sheet_name: Union[str, int]) -> str:
+    def table2markdown(self, sheet_name: str | int) -> str:
         """
         Convert the table in the sheet to a markdown table string.
         :param sheet_name: The sheet name (str), or the sheet index (int), starting from 1.
@@ -51,7 +54,7 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
         except Exception as e:
             raise RuntimeError(f'Error occurred while converting table to markdown: {e}')
 
-    def insert_excel_table(self, sheet_name: str, table: List[List[Any]], start_row: int, start_col: int) -> str:
+    def insert_excel_table(self, sheet_name: str, table: list[list[Any]], start_row: int, start_col: int) -> str:
         """
         Insert a table into the sheet.
         :param sheet_name: The sheet name.
@@ -100,7 +103,7 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
         except Exception as e:
             raise RuntimeError(f'Error occurred while selecting range: {e}')
 
-    def reorder_columns(self, sheet_name: str, desired_order: List[str]=None) -> str:
+    def reorder_columns(self, sheet_name: str, desired_order: list[str]=None) -> str:
         """
         Reorder only non-empty columns based on desired_order.
         Empty columns remain in their original positions.
@@ -153,7 +156,7 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
         except Exception as e:
             raise RuntimeError(f'Error occurred while reordering columns: {e}')
 
-    def get_range_values(self, sheet_name: str, start_row: int, start_col: int, end_row: int=-1, end_col: int=-1) -> List[List[Any]]:
+    def get_range_values(self, sheet_name: str, start_row: int, start_col: int, end_row: int=-1, end_col: int=-1) -> list[list[Any]]:
         """
         Get values from Excel sheet starting at (start_row, start_col) to (end_row, end_col).
         If end_row or end_col is -1, it automatically extends to the last used row or column.
@@ -224,7 +227,7 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
         return number
 
     @staticmethod
-    def get_nth_non_empty_position(target_idx: int, empty_cols: List[int]) -> int:
+    def get_nth_non_empty_position(target_idx: int, empty_cols: list[int]) -> int:
         """
         Get the Nth available column index in the sheet, skipping empty columns.
         :param target_idx: The target index of the non-empty column.
@@ -248,16 +251,16 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
         :return: The converted string.
         """
         if isinstance(value, (int, float)):
-            return '{:.0f}'.format(value)
+            return f'{value:.0f}'
         return value
 
-    def _sheet(self, sheet_name: Union[str, int]):
+    def _sheet(self, sheet_name: str | int):
         try:
             return self.com_object.Sheets(sheet_name)
         except Exception:
             raise ValueError(f'Sheet {sheet_name!r} not found. Sheets: {[s.Name for s in self.com_object.Sheets]}')
 
-    def set_cell_values(self, sheet_name: Union[str, int], start_cell: str, values: List[List[Any]]) -> str:
+    def set_cell_values(self, sheet_name: str | int, start_cell: str, values: list[list[Any]]) -> str:
         """Write a 2-D block of values starting at start_cell (e.g. 'B2')."""
         if not values or not isinstance(values, list):
             raise ValueError('values must be a non-empty list of rows.')
@@ -273,7 +276,7 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
         target.Value = tuple(tuple(r) for r in rows)
         return f'Wrote {len(rows)}x{width} values to {target.Address}.'
 
-    def set_formula(self, sheet_name: Union[str, int], cell: str, formula: str) -> str:
+    def set_formula(self, sheet_name: str | int, cell: str, formula: str) -> str:
         """Set a formula (e.g. '=SUM(B2:B10)') in a cell or range and return the computed value."""
         if not formula.startswith('='):
             formula = '=' + formula
@@ -289,7 +292,7 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
         sheet.Name = name
         return f"Added sheet '{sheet.Name}'."
 
-    def create_chart(self, sheet_name: Union[str, int], data_range: str, chart_type: str = 'column', title: str = '') -> str:
+    def create_chart(self, sheet_name: str | int, data_range: str, chart_type: str = 'column', title: str = '') -> str:
         """Create a chart from data_range (e.g. 'A1:B6', header row included) on the same sheet."""
         types = {'column': 51, 'bar': 57, 'line': 4, 'pie': 5, 'scatter': -4169, 'area': 1}
         if chart_type not in types:
@@ -306,7 +309,7 @@ class ExcelWinCOMReceiver(WinCOMReceiverBasic):
             chart.ChartTitle.Text = title
         return f"Created a {chart_type} chart from {data_range}{' titled ' + repr(title) if title else ''}."
 
-    def sort_range(self, sheet_name: Union[str, int], data_range: str, key_column: int, ascending: bool = True, has_header: bool = True) -> str:
+    def sort_range(self, sheet_name: str | int, data_range: str, key_column: int, ascending: bool = True, has_header: bool = True) -> str:
         """Sort data_range by its key_column-th column (1-based)."""
         rng = self._sheet(sheet_name).Range(data_range)
         key = rng.Columns(key_column)

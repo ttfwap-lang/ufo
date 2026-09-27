@@ -1,11 +1,13 @@
 import logging
-from abc import ABC, abstractmethod
-from typing import List, Optional, Protocol, TYPE_CHECKING
 import time
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Protocol
+
 from ufo.agents.processors.context.processing_context import ProcessingContext, ProcessingPhase, ProcessingResult
+
 if TYPE_CHECKING:
-    from ufo.agents.processors.core.strategy_dependency import StrategyDependency
     from ufo.agents.agent.basic import BasicAgent
+    from ufo.agents.processors.core.strategy_dependency import StrategyDependency
 
 class ProcessingStrategy(Protocol):
     """
@@ -21,7 +23,7 @@ class BaseProcessingStrategy(ABC):
     Base class for processing strategies.
     """
 
-    def __init__(self, name: Optional[str]=None, fail_fast: bool=True):
+    def __init__(self, name: str | None=None, fail_fast: bool=True):
         """
         Initialize the processing strategy.
         :param name: Optional custom name for the strategy. If not provided, uses class name.
@@ -31,7 +33,7 @@ class BaseProcessingStrategy(ABC):
         self.fail_fast = fail_fast
         self.logger = logging.getLogger(f'{self.__class__.__name__}.{self.name}')
 
-    def get_dependencies(self) -> List['StrategyDependency']:
+    def get_dependencies(self) -> list['StrategyDependency']:
         """
         Declare dependencies that this strategy requires.
         Override this method in subclasses to declare dependencies.
@@ -40,7 +42,7 @@ class BaseProcessingStrategy(ABC):
         """
         return []
 
-    def get_provides(self) -> List[str]:
+    def get_provides(self) -> list[str]:
         """
         Declare what fields this strategy provides to subsequent strategies.
         Override this method in subclasses to declare outputs.
@@ -49,7 +51,7 @@ class BaseProcessingStrategy(ABC):
         """
         return []
 
-    def validate_dependencies(self, context: ProcessingContext) -> List[str]:
+    def validate_dependencies(self, context: ProcessingContext) -> list[str]:
         """
         Validate that all dependencies are satisfied in the context.
 
@@ -120,7 +122,7 @@ class ComposedStrategy(BaseProcessingStrategy):
     - Dynamic dependency and provides declaration
     """
 
-    def __init__(self, strategies: List[BaseProcessingStrategy], name: str='', fail_fast: bool=True, phase: ProcessingPhase=ProcessingPhase.DATA_COLLECTION) -> None:
+    def __init__(self, strategies: list[BaseProcessingStrategy], name: str='', fail_fast: bool=True, phase: ProcessingPhase=ProcessingPhase.DATA_COLLECTION) -> None:
         """
         Initialize generic composed strategy.
 
@@ -153,7 +155,7 @@ class ComposedStrategy(BaseProcessingStrategy):
         self._collected_dependencies = all_dependencies
         self._collected_provides = list(all_provides)
 
-    def get_dependencies(self) -> List['StrategyDependency']:
+    def get_dependencies(self) -> list['StrategyDependency']:
         """
         Return the collected dependencies from all component strategies.
 
@@ -161,7 +163,7 @@ class ComposedStrategy(BaseProcessingStrategy):
         """
         return self._collected_dependencies
 
-    def get_provides(self) -> List[str]:
+    def get_provides(self) -> list[str]:
         """
         Return the collected provides from all component strategies.
 
@@ -207,7 +209,7 @@ class ComposedStrategy(BaseProcessingStrategy):
                     else:
                         self.logger.warning(f"Continuing with remaining strategies despite exception in '{strategy_name}'")
             total_time = time.time() - start_time
-            successful_strategies = sum((1 for result in execution_results if result.success))
+            successful_strategies = sum(1 for result in execution_results if result.success)
             overall_success = successful_strategies > 0
             if not self.fail_fast:
                 overall_success = successful_strategies > 0

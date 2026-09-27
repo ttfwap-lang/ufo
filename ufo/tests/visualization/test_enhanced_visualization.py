@@ -3,15 +3,16 @@ Test script to verify enhanced DAGVisualizationObserver functionality.
 """
 import asyncio
 import logging
+
 import pytest
-from typing import List
+from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+from ufo.galaxy.constellation.orchestrator.orchestrator import TaskConstellationOrchestrator
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
 from ufo.galaxy.constellation.task_star_line import TaskStarLine
-from ufo.galaxy.constellation.orchestrator.orchestrator import TaskConstellationOrchestrator
-from ufo.galaxy.core.events import get_event_bus, Event, EventType, TaskEvent, ConstellationEvent, IEventObserver
-from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+from ufo.galaxy.core.events import ConstellationEvent, EventType, get_event_bus
 from ufo.galaxy.session.observers import DAGVisualizationObserver
+
 logging.basicConfig(level=logging.INFO)
 
 class MockDevice:
@@ -33,7 +34,7 @@ class MockDeviceManager(ConstellationDeviceManager):
         self.devices = {'device_1': MockDevice('device_1'), 'device_2': MockDevice('device_2')}
         self.device_registry = type('MockRegistry', (), {'get_all_devices': lambda: [{'device_id': 'device_1', 'device_type': 'mobile', 'status': 'available'}, {'device_id': 'device_2', 'device_type': 'desktop', 'status': 'available'}]})()
 
-    async def get_available_devices(self) -> List[dict]:
+    async def get_available_devices(self) -> list[dict]:
         """Get list of available devices."""
         return [{'device_id': 'device_1', 'device_type': 'mobile', 'status': 'available'}, {'device_id': 'device_2', 'device_type': 'desktop', 'status': 'available'}]
 

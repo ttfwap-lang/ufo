@@ -3,10 +3,11 @@ Galaxy Session Test Runner
 
 Convenient script to run all Galaxy Session tests from the tests directory.
 """
+import os
 import subprocess
 import sys
-import os
 from pathlib import Path
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 def run_test(test_file, description):

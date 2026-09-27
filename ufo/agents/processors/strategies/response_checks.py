@@ -3,7 +3,8 @@
 Each problem found is turned into feedback for one more model attempt, instead
 of executing a call that is guaranteed to fail.
 """
-from typing import Any, Iterable, List, Optional, Set
+from collections.abc import Iterable
+from typing import Any
 
 _CONTROL_ID_FUNCTIONS = {"set_edit_text", "click_input", "texts", "keyboard_input", "wheel_mouse_input"}
 _TERMINAL_STATUSES = {"FINISH", "FAIL", "PENDING", "CONFIRM"}
@@ -11,11 +12,11 @@ _TERMINAL_STATUSES = {"FINISH", "FAIL", "PENDING", "CONFIRM"}
 
 def app_response_problems(
     actions: Iterable[Any],
-    status: Optional[str],
-    valid_control_ids: Set[str],
-    valid_tool_names: Optional[Set[str]] = None,
-) -> List[str]:
-    problems: List[str] = []
+    status: str | None,
+    valid_control_ids: set[str],
+    valid_tool_names: set[str] | None = None,
+) -> list[str]:
+    problems: list[str] = []
     actions = [a for a in actions if a]
     status = (status or "").upper()
     if not any(getattr(a, "function", None) for a in actions) and status not in _TERMINAL_STATUSES:
@@ -43,7 +44,7 @@ def app_response_problems(
     return problems
 
 
-def feedback_text(problems: List[str]) -> str:
+def feedback_text(problems: list[str]) -> str:
     return (
         "Your previous reply cannot be executed:\n- "
         + "\n- ".join(problems)

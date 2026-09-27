@@ -26,13 +26,15 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix='/api/telemetry', tags=['telemetry'])
 
-def decode_snapshot_screenshot(snapshot_filename: str, key: str='post', snapshot_dir: Optional[str]=None) -> Optional[bytes]:
+def decode_snapshot_screenshot(snapshot_filename: str, key: str='post', snapshot_dir: str | None=None) -> bytes | None:
     """
     Load a DLQ snapshot file and decode a Base64 screenshot.
 
@@ -56,7 +58,7 @@ def decode_snapshot_screenshot(snapshot_filename: str, key: str='post', snapshot
         logger.error(f'[TelemetryViewer] Screenshot decode failed: {e}')
         return None
 
-def save_decoded_screenshot(snapshot_filename: str, key: str='post', output_path: Optional[str]=None, snapshot_dir: Optional[str]=None) -> Optional[str]:
+def save_decoded_screenshot(snapshot_filename: str, key: str='post', output_path: str | None=None, snapshot_dir: str | None=None) -> str | None:
     """
     Decode a Base64 screenshot from a DLQ snapshot and save to disk.
 
@@ -139,16 +141,16 @@ async def get_cost_history(days: int=Query(default=7, le=30)):
         history = []
         for log_file in sorted(log_dir.glob('costs_*.json'), reverse=True)[:days]:
             try:
-                with open(log_file, 'r', encoding='utf-8') as f:
+                with open(log_file, encoding='utf-8') as f:
                     day_data = json.load(f)
                     history.append({'date': log_file.stem.replace('costs_', ''), 'data': day_data})
             except Exception:
                 continue
-        return {'days': history, 'total_usd': sum((d['data'].get('spent_today_usd', 0.0) for d in history))}
+        return {'days': history, 'total_usd': sum(d['data'].get('spent_today_usd', 0.0) for d in history)}
     except Exception as e:
         return {'error': str(e)}
 
-def get_fleet_metrics() -> Dict[str, Any]:
+def get_fleet_metrics() -> dict[str, Any]:
     """
     Aggregate fleet-wide metrics for dashboard display.
 

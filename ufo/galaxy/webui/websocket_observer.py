@@ -5,11 +5,15 @@ This observer subscribes to all Galaxy events and pushes them to connected WebSo
 Provides efficient event serialization and broadcasting capabilities.
 """
 import logging
+from collections.abc import Callable
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Set, Type
+from typing import Any
+
 from fastapi import WebSocket
+
 from ufo.galaxy.core.events import AgentEvent, ConstellationEvent, DeviceEvent, Event, IEventObserver, TaskEvent
+
 
 class EventSerializer:
     """
@@ -22,9 +26,9 @@ class EventSerializer:
     def __init__(self) -> None:
         """Initialize the event serializer with cached imports and type handlers."""
         self.logger: logging.Logger = logging.getLogger(__name__)
-        self._cached_types: Dict[str, Optional[Type]] = {}
+        self._cached_types: dict[str, type | None] = {}
         self._initialize_type_cache()
-        self._type_handlers: Dict[Type, Callable[[Any], Any]] = {}
+        self._type_handlers: dict[type, Callable[[Any], Any]] = {}
         self._register_handlers()
 
     def _initialize_type_cache(self) -> None:
@@ -61,7 +65,7 @@ class EventSerializer:
         if task_constellation_type:
             self._type_handlers[task_constellation_type] = self._serialize_constellation
 
-    def serialize_event(self, event: Event) -> Dict[str, Any]:
+    def serialize_event(self, event: Event) -> dict[str, Any]:
         """
         Convert an Event object to a JSON-serializable dictionary.
 
@@ -79,7 +83,7 @@ class EventSerializer:
             base_dict.update(self._serialize_device_event_fields(event))
         return base_dict
 
-    def _serialize_task_event_fields(self, event: TaskEvent) -> Dict[str, Any]:
+    def _serialize_task_event_fields(self, event: TaskEvent) -> dict[str, Any]:
         """
         Extract task-specific fields from a TaskEvent.
 
@@ -88,7 +92,7 @@ class EventSerializer:
         """
         return {'task_id': event.task_id, 'status': event.status, 'result': self.serialize_value(event.result), 'error': str(event.error) if event.error else None}
 
-    def _serialize_constellation_event_fields(self, event: ConstellationEvent) -> Dict[str, Any]:
+    def _serialize_constellation_event_fields(self, event: ConstellationEvent) -> dict[str, Any]:
         """
         Extract constellation-specific fields from a ConstellationEvent.
 
@@ -97,7 +101,7 @@ class EventSerializer:
         """
         return {'constellation_id': event.constellation_id, 'constellation_state': event.constellation_state, 'new_ready_tasks': event.new_ready_tasks or []}
 
-    def _serialize_agent_event_fields(self, event: AgentEvent) -> Dict[str, Any]:
+    def _serialize_agent_event_fields(self, event: AgentEvent) -> dict[str, Any]:
         """
         Extract agent-specific fields from an AgentEvent.
 
@@ -106,7 +110,7 @@ class EventSerializer:
         """
         return {'agent_name': event.agent_name, 'agent_type': event.agent_type, 'output_type': event.output_type, 'output_data': self.serialize_value(event.output_data)}
 
-    def _serialize_device_event_fields(self, event: DeviceEvent) -> Dict[str, Any]:
+    def _serialize_device_event_fields(self, event: DeviceEvent) -> dict[str, Any]:
         """
         Extract device-specific fields from a DeviceEvent.
 
@@ -155,7 +159,7 @@ class EventSerializer:
                 self.logger.debug(f'Failed to serialize using to_dict: {e}')
         return str(value)
 
-    def _serialize_task_star_line(self, value: Any) -> Dict[str, Any]:
+    def _serialize_task_star_line(self, value: Any) -> dict[str, Any]:
         """
         Serialize a TaskStarLine object.
 
@@ -168,7 +172,7 @@ class EventSerializer:
             self.logger.warning(f'Failed to serialize TaskStarLine: {e}')
             return str(value)
 
-    def _serialize_constellation(self, value: Any) -> Dict[str, Any]:
+    def _serialize_constellation(self, value: Any) -> dict[str, Any]:
         """
         Serialize a TaskConstellation object.
 
@@ -187,7 +191,7 @@ class EventSerializer:
             self.logger.warning(f'Failed to serialize TaskConstellation: {e}')
             return str(value)
 
-    def _serialize_constellation_tasks(self, tasks: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _serialize_constellation_tasks(self, tasks: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """
         Serialize all tasks in a constellation.
 
@@ -204,7 +208,7 @@ class EventSerializer:
                 serialized_tasks[task_id] = {'task_id': task_id, 'error': str(e)}
         return serialized_tasks
 
-    def _serialize_dependencies(self, dependencies: Dict[str, Any]) -> Dict[str, List[str]]:
+    def _serialize_dependencies(self, dependencies: dict[str, Any]) -> dict[str, list[str]]:
         """
         Convert TaskStarLine dependencies to frontend format.
 
@@ -214,7 +218,7 @@ class EventSerializer:
         :param dependencies: Dictionary of TaskStarLine objects keyed by line_id
         :return: Dictionary mapping child task IDs to lists of parent task IDs
         """
-        result: Dict[str, List[str]] = {}
+        result: dict[str, list[str]] = {}
         for dep in dependencies.values():
             try:
                 child_id = dep.to_task_id
@@ -238,7 +242,7 @@ class EventSerializer:
         return value.value if hasattr(value, 'value') else str(value)
 
     @staticmethod
-    def _serialize_datetime(dt: Optional[datetime]) -> Optional[str]:
+    def _serialize_datetime(dt: datetime | None) -> str | None:
         """
         Serialize a datetime object to ISO format string.
 
@@ -258,7 +262,7 @@ class WebSocketObserver(IEventObserver):
     def __init__(self) -> None:
         """Initialize the WebSocket observer."""
         self.logger: logging.Logger = logging.getLogger(__name__)
-        self._connections: Set[WebSocket] = set()
+        self._connections: set[WebSocket] = set()
         self._event_count: int = 0
         self._serializer: EventSerializer = EventSerializer()
 
@@ -270,13 +274,13 @@ class WebSocketObserver(IEventObserver):
         """
         try:
             self._event_count += 1
-            event_data: Dict[str, Any] = self._serializer.serialize_event(event)
+            event_data: dict[str, Any] = self._serializer.serialize_event(event)
             self.logger.debug(f'Broadcasting event #{self._event_count}: {event.event_type.value} to {len(self._connections)} clients')
-            disconnected: Set[WebSocket] = set()
+            disconnected: set[WebSocket] = set()
             for connection in self._connections:
                 try:
                     await connection.send_json(event_data)
-                    self.logger.debug(f'Successfully sent event to client')
+                    self.logger.debug('Successfully sent event to client')
                 except Exception as e:
                     self.logger.warning(f'Failed to send event to client: {e}, marking for removal')
                     disconnected.add(connection)

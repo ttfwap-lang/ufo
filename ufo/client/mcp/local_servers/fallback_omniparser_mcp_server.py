@@ -6,9 +6,11 @@ import json
 import logging
 import os
 import tempfile
+
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from ufo.client.mcp.mcp_registry import MCPRegistry
+
 logger = logging.getLogger(__name__)
 
 @MCPRegistry.register_factory_decorator('FallbackOmniparserExecutor')
@@ -37,9 +39,9 @@ def create_fallback_omniparser_mcp_server(*args, **kwargs) -> FastMCP:
         if not endpoint or 'xxx' in endpoint:
             raise ToolError('OmniParser endpoint is not configured. Update OMNIPARSER.ENDPOINT in config/ufo/system.yaml with a valid OmniParser service URL.')
         try:
-            from ufo.llm.grounding_model.omniparser_service import get_omniparser
             from ufo.automator.ui_control.grounding.omniparser import OmniparserGrounding
             from ufo.automator.ui_control.screenshot import PhotographerFacade
+            from ufo.llm.grounding_model.omniparser_service import get_omniparser
             photographer = PhotographerFacade()
             screenshot_path = os.path.join(tempfile.gettempdir(), 'ufo_omniparser_screenshot.png')
             photographer.capture_desktop_screen_screenshot(screenshot_path)

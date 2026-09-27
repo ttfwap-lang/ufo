@@ -2,14 +2,16 @@
 Test script for the Constellation Editor MCP Server.
 Tests only the available MCP tools.
 """
-import sys
 import asyncio
-import os
 import json
+import os
+import sys
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 ufo_path = os.path.dirname(current_dir)
 sys.path.insert(0, ufo_path)
 from ufo.client.mcp.local_servers.constellation_mcp_server import create_constellation_mcp_server
+
 
 def test_mcp_server():
     """Test all available MCP server tools."""
@@ -24,7 +26,7 @@ def test_mcp_server():
         tools_list = asyncio.run(mcp_server._list_tools())
     tools_dict = {t.name: t for t in tools_list}
     print(f'\nAvailable tools: {len(tools_dict)}')
-    for tool_name in tools_dict.keys():
+    for tool_name in tools_dict:
         print(f'  - {tool_name}')
 
     def call_tool(tool_name, *args, **kwargs):
@@ -61,7 +63,7 @@ def test_mcp_server():
     try:
         updated_dep_result = call_tool('update_dependency', dependency_id=dep_id, condition_description='Updated condition: Task2 must wait for Task1 to complete successfully with full validation and verification of results before proceeding with its own execution.')
         updated_dep = json.loads(updated_dep_result)
-        print(f'   ✓ Updated dependency condition')
+        print('   ✓ Updated dependency condition')
     except Exception as e:
         print(f'   ✗ Failed to update dependency: {e}')
         return False
@@ -86,7 +88,7 @@ def test_mcp_server():
             remove_dep_result = call_tool('remove_dependency', dependency_id=valid_dep_id)
             print(f'   ✓ Removed dependency: {remove_dep_result}')
         else:
-            print(f'   ⚠ Skipped remove_dependency test (no dependencies found)')
+            print('   ⚠ Skipped remove_dependency test (no dependencies found)')
     except Exception as e:
         print(f'   ✗ Failed to remove dependency: {e}')
         return False

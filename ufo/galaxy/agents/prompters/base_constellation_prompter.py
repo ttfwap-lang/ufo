@@ -4,16 +4,17 @@ Base Constellation Agent Prompter.
 This module provides the base prompter class for Constellation Agents with
 shared functionality between different weaving modes.
 """
-from abc import ABC
 import json
-from typing import Dict, List, Optional, Type
-from ufo.config.config_loader import LazyGalaxyConfig, get_galaxy_config
+from abc import ABC
+
 from ufo.aip.messages import MCPToolInfo
+from ufo.config.config_loader import LazyGalaxyConfig
 from ufo.galaxy.agents.schema import WeavingMode
 from ufo.galaxy.client.components.types import AgentProfile, DeviceStatus
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.prompter.basic import BasicPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
+
 galaxy_config = LazyGalaxyConfig()
 
 class BaseConstellationPrompter(BasicPrompter, ABC):
@@ -33,7 +34,7 @@ class BaseConstellationPrompter(BasicPrompter, ABC):
         """
         super().__init__(None, prompt_template, example_prompt_template)
 
-    def load_prompt_template(self, template_path: str, is_visual: Optional[bool]=None) -> Dict:
+    def load_prompt_template(self, template_path: str, is_visual: bool | None=None) -> dict:
         """
         Load the prompt template from the specified path.
 
@@ -48,11 +49,11 @@ class BaseConstellationPrompter(BasicPrompter, ABC):
             return super().load_prompt_template(template_path, is_visual)
         return {'system': template_path, 'user': template_path, 'template': template_path}
 
-    def get_prompt_template(self) -> Dict:
+    def get_prompt_template(self) -> dict:
         """Get the prompt template."""
         return getattr(self, 'prompt_template', {})
 
-    def _format_agent_profile(self, device_info: Dict[str, AgentProfile]) -> str:
+    def _format_agent_profile(self, device_info: dict[str, AgentProfile]) -> str:
         """
         Format device information for prompt inclusion.
 
@@ -126,7 +127,7 @@ class BaseConstellationPrompter(BasicPrompter, ABC):
                 if error:
                     lines.append(f'    Error: {error}')
                 if task_id in modifiable_task_ids:
-                    lines.append(f'    💡 Hint: This task can be modified (description, tips, device assignment, etc.)')
+                    lines.append('    💡 Hint: This task can be modified (description, tips, device assignment, etc.)')
                 lines.append('')
         dependencies = constellation_dict.get('dependencies', {})
         if dependencies:
@@ -141,7 +142,7 @@ class BaseConstellationPrompter(BasicPrompter, ABC):
                     dependency_line += f' - {condition_desc}'
                 lines.append(dependency_line)
                 if dep_id in modifiable_dep_ids:
-                    lines.append(f'    💡 Hint: This dependency can be modified (condition, type, etc.)')
+                    lines.append('    💡 Hint: This dependency can be modified (condition, type, etc.)')
             lines.append('')
         total_tasks = len(tasks)
         total_deps = len(dependencies)
@@ -156,7 +157,7 @@ class BaseConstellationPrompter(BasicPrompter, ABC):
         result = '\n'.join(lines)
         return result
 
-    def user_content_construction(self, request: str, device_info: Dict[str, AgentProfile], constellation: TaskConstellation) -> List[Dict[str, str]]:
+    def user_content_construction(self, request: str, device_info: dict[str, AgentProfile], constellation: TaskConstellation) -> list[dict[str, str]]:
         """
         Construct the prompt for LLMs.
         :param request: The user request.
@@ -176,7 +177,7 @@ class BaseConstellationPrompter(BasicPrompter, ABC):
         apis = self.api_prompt_template
         return self.prompt_template['system'].format(examples=examples, apis=apis)
 
-    def user_prompt_construction(self, request: str, device_info: Dict[str, AgentProfile], constellation: TaskConstellation) -> str:
+    def user_prompt_construction(self, request: str, device_info: dict[str, AgentProfile], constellation: TaskConstellation) -> str:
         """
         Construct the prompt for LLMs.
         :param request: The user request.
@@ -204,7 +205,7 @@ class BaseConstellationPrompter(BasicPrompter, ABC):
             example_list.append(example_str)
         return self.retrieved_documents_prompt_helper(header, separator, example_list)
 
-    def create_api_prompt_template(self, tools: List[MCPToolInfo]):
+    def create_api_prompt_template(self, tools: list[MCPToolInfo]):
         """
         Create the API prompt template.
         :param tools: The list of tools.
@@ -226,10 +227,10 @@ class ConstellationPrompterFactory:
     - Easy extensibility for new modes
     - Consistent parameter handling
     """
-    _prompter_classes: Dict[WeavingMode, Type[BasicPrompter]] = {}
+    _prompter_classes: dict[WeavingMode, type[BasicPrompter]] = {}
 
     @classmethod
-    def create_prompter(cls, weaving_mode: WeavingMode, prompt_template: Optional[str]=None, example_prompt_template: Optional[str]=None, *args, **kwargs) -> BasicPrompter:
+    def create_prompter(cls, weaving_mode: WeavingMode, prompt_template: str | None=None, example_prompt_template: str | None=None, *args, **kwargs) -> BasicPrompter:
         """
         Create prompter based on weaving mode.
 

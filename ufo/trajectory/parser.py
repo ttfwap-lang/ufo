@@ -6,7 +6,7 @@ import logging
 import os
 import re
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from PIL import Image
 from rich.console import Console
@@ -51,7 +51,7 @@ class Trajectory:
         self._structured_data = self._load_all_data()
         self.logger = logging.getLogger(__name__)
 
-    def _load_response_data(self) -> List[Dict[str, Any]]:
+    def _load_response_data(self) -> list[dict[str, Any]]:
         """
         Load the textual data from the file.
         :return: The textual data.
@@ -59,7 +59,7 @@ class Trajectory:
 
         step_data = []
 
-        with open(self.response_file_path, "r", encoding="utf-8") as file:
+        with open(self.response_file_path, encoding="utf-8") as file:
             textual_logs = file.readlines()
 
         for log in textual_logs:
@@ -77,7 +77,7 @@ class Trajectory:
 
         return step_data
 
-    def _load_all_data(self) -> Dict[str, Any]:
+    def _load_all_data(self) -> dict[str, Any]:
         """
         Load all the data from the file.
         :return: The data.
@@ -106,8 +106,8 @@ class Trajectory:
         return image
 
     def _load_single_screenshot(
-        self, step_log: Dict[str, Any], key: str
-    ) -> Optional[Image.Image]:
+        self, step_log: dict[str, Any], key: str
+    ) -> Image.Image | None:
         """
         Load a single screenshot from the file.
         :param step_log: The step log.
@@ -133,8 +133,8 @@ class Trajectory:
         return None
 
     def _load_step_screenshots(
-        self, step_log: Dict[str, Any]
-    ) -> Dict[str, Image.Image]:
+        self, step_log: dict[str, Any]
+    ) -> dict[str, Image.Image]:
         """
         Load the screenshot data from the file.
         :param step_log: The step log.
@@ -147,7 +147,7 @@ class Trajectory:
 
         return screenshot_data
 
-    def _load_evaluation_data(self) -> Dict[str, Any]:
+    def _load_evaluation_data(self) -> dict[str, Any]:
         """
         Load the evaluation data from the file.
         :return: The evaluation data.
@@ -155,7 +155,7 @@ class Trajectory:
         evaluation_log_path = os.path.join(self.file_path, self._evaluation_file)
 
         if os.path.exists(evaluation_log_path):
-            with open(evaluation_log_path, "r", encoding="utf-8") as file:
+            with open(evaluation_log_path, encoding="utf-8") as file:
 
                 try:
                     evaluation_data = json.load(file)
@@ -168,7 +168,7 @@ class Trajectory:
 
         return evaluation_data
 
-    def _load_round_screenshot(self, round_number: int) -> Optional[Image.Image]:
+    def _load_round_screenshot(self, round_number: int) -> Image.Image | None:
         """
         Load the screenshot for a specific round.
         :param round_number: The round number.
@@ -214,7 +214,7 @@ class Trajectory:
         return round_screenshots
 
     @property
-    def round_screenshots(self) -> Dict[int, Dict[str, Any]]:
+    def round_screenshots(self) -> dict[int, dict[str, Any]]:
         """
         :return: The round screenshots.
         """
@@ -272,21 +272,21 @@ class Trajectory:
         return self._response_file_path
 
     @property
-    def step_log(self) -> List[Dict[str, Any]]:
+    def step_log(self) -> list[dict[str, Any]]:
         """
         :return: The step log.
         """
         return self._step_log
 
     @property
-    def evaluation_log(self) -> Dict[str, Any]:
+    def evaluation_log(self) -> dict[str, Any]:
         """
         :return: The evaluation log.
         """
         return self._evaluation_log
 
     @property
-    def host_agent_log(self) -> Dict[str, Any]:
+    def host_agent_log(self) -> dict[str, Any]:
         """
         :return: The host agent log.
         """
@@ -300,7 +300,7 @@ class Trajectory:
         return host_agent_log
 
     @property
-    def app_agent_log(self) -> Dict[str, Any]:
+    def app_agent_log(self) -> dict[str, Any]:
         """
         :return: The app agent log.
         """
@@ -362,7 +362,7 @@ class Trajectory:
         return max(step_numbers) + 1
 
     @property
-    def structured_data(self) -> Dict[str, Any]:
+    def structured_data(self) -> dict[str, Any]:
         """
         :return: The structured data of the entire trajectory.
         """
@@ -371,14 +371,7 @@ class Trajectory:
     def to_markdown(
         self,
         output_path: str,
-        key_shown: List[str] = [
-            "request",
-            "subtask",
-            "thought",
-            "status",
-            "action",
-            "error",
-        ],
+        key_shown: list[str] = None,
     ) -> None:
         """
         Save the structured data to a markdown file.
@@ -386,6 +379,8 @@ class Trajectory:
         :param key_shown: The keys to show at each step.
         """
 
+        if key_shown is None:
+            key_shown = ["request", "subtask", "thought", "status", "action", "error"]
         if len(self.step_log) == 0:
             logger.warning(
                 "No step data to export to markdown. The trajectory appears to be empty."
@@ -439,7 +434,7 @@ class Trajectory:
                                 )
                                 file.write(f"- **Result**: {value[0].get('result')}\n")
                             else:
-                                file.write(f"- **Action**: None\n")
+                                file.write("- **Action**: None\n")
                         else:
                             file.write(f"- **{key.title()}**: {value}\n")
                 file.write("\n")

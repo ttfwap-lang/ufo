@@ -6,8 +6,13 @@ implementing the abstract methods defined in the base strategies.
 """
 import asyncio
 import time
-from typing import TYPE_CHECKING, List
-from ufo.galaxy.agents.processors.strategies.base_constellation_strategy import BaseConstellationActionExecutionStrategy, ConstellationLLMInteractionStrategy
+from typing import TYPE_CHECKING
+
+from ufo.galaxy.agents.processors.strategies.base_constellation_strategy import (
+    BaseConstellationActionExecutionStrategy,
+    ConstellationLLMInteractionStrategy,
+)
+
 
 class ConstellationCreationLLMInteractionStrategy(ConstellationLLMInteractionStrategy):
     """LLM interaction strategy for constellation creation mode."""
@@ -16,13 +21,14 @@ class ConstellationCreationLLMInteractionStrategy(ConstellationLLMInteractionStr
         super().__init__(fail_fast=fail_fast)
         self.name = 'constellation_llm_interaction_creation'
         self.weaving_mode = WeavingMode.CREATION
-from ufo.galaxy.agents.schema import ConstellationAgentResponse, WeavingMode
-from ufo.galaxy.constellation.task_constellation import TaskConstellation
-from ufo.galaxy.core.events import AgentEvent, EventType, get_event_bus
 from ufo.agents.processors.context.processing_context import ProcessingContext
 from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
 from ufo.aip.messages import Result
+from ufo.galaxy.agents.schema import ConstellationAgentResponse, WeavingMode
+from ufo.galaxy.constellation.task_constellation import TaskConstellation
+from ufo.galaxy.core.events import AgentEvent, EventType, get_event_bus
 from ufo.module.context import ContextNames
+
 if TYPE_CHECKING:
     from ufo.galaxy.agents.constellation_agent import ConstellationAgent
 
@@ -42,7 +48,7 @@ class ConstellationCreationActionExecutionStrategy(BaseConstellationActionExecut
         """
         super().__init__(weaving_mode=WeavingMode.CREATION, fail_fast=fail_fast)
 
-    async def _create_mode_specific_action_info(self, agent: 'ConstellationAgent', parsed_response: ConstellationAgentResponse) -> List[ActionCommandInfo]:
+    async def _create_mode_specific_action_info(self, agent: 'ConstellationAgent', parsed_response: ConstellationAgentResponse) -> list[ActionCommandInfo]:
         """
         Create creation-specific action information for constellation building.
         """
@@ -83,7 +89,7 @@ class ConstellationCreationActionExecutionStrategy(BaseConstellationActionExecut
         event = AgentEvent(event_type=EventType.AGENT_ACTION, source_id=agent.name, timestamp=time.time(), data={}, agent_name=agent.name, agent_type='constellation', output_type='action', output_data={'actions': [{'function': 'build_constellation', 'arguments': {'task_count': task_count, 'dependency_count': dep_count}, 'status': 'success', 'result': {'status': 'success'}}], 'status': status})
         asyncio.create_task(get_event_bus().publish_event(event))
 
-    def sync_constellation(self, results: List[Result], context: ProcessingContext) -> None:
+    def sync_constellation(self, results: list[Result], context: ProcessingContext) -> None:
         """
         Synchronize the constellation state. Do nothing for editing mode.
         :param results: List of execution results

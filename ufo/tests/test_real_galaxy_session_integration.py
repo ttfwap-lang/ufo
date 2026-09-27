@@ -14,19 +14,18 @@ pytestmark = pytest.mark.skipif(
     not os.environ.get("UFO_LIVE_LLM_TESTS"),
     reason="needs a live LLM backend; set UFO_LIVE_LLM_TESTS=1",
 )
-import asyncio
 import logging
+import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-import tempfile
-import os
-from unittest.mock import Mock, AsyncMock, patch
-from ufo.galaxy.galaxy_client import GalaxyClient
-from ufo.galaxy.session.galaxy_session import GalaxySession
+from unittest.mock import AsyncMock, Mock
+
 from ufo.galaxy.client.components.types import AgentProfile, DeviceStatus
-from ufo.galaxy.client.config_loader import ConstellationConfig, DeviceConfig
 from ufo.galaxy.client.constellation_client import ConstellationClient
 from ufo.galaxy.core.types import ExecutionResult, TaskStatus
+from ufo.galaxy.session.galaxy_session import GalaxySession
+
 
 class TestRealGalaxySessionWithMockDevices:
     """Test real GalaxySession execution with mock AgentProfile to find bugs."""
@@ -166,15 +165,15 @@ class TestRealGalaxySessionWithMockDevices:
         print(f"   Session state: {getattr(session, 'state', 'unknown')}")
         constellation = getattr(session, '_current_constellation', None)
         if constellation:
-            print(f'   Constellation created: ✅')
+            print('   Constellation created: ✅')
             print(f"   Constellation ID: {getattr(constellation, 'constellation_id', 'unknown')}")
             print(f"   Task count: {len(getattr(constellation, 'tasks', []))}")
             print(f"   Dependency count: {len(getattr(constellation, 'dependencies', []))}")
         else:
-            print(f'   Constellation created: ❌')
+            print('   Constellation created: ❌')
         rounds = getattr(session, '_rounds', [])
         if rounds:
-            print(f'\n🔄 Round Details:')
+            print('\n🔄 Round Details:')
             for i, round_info in enumerate(rounds, 1):
                 round_type = type(round_info).__name__ if hasattr(round_info, '__class__') else str(type(round_info))
                 print(f'   Round {i}: {round_type}')
@@ -182,19 +181,19 @@ class TestRealGalaxySessionWithMockDevices:
                     print(f'     ❌ Error: {round_info.error}')
                 if hasattr(round_info, 'status'):
                     print(f'     📊 Status: {round_info.status}')
-        print(f'\n🔧 Device Interaction Analysis:')
+        print('\n🔧 Device Interaction Analysis:')
         assign_task_calls = mock_constellation_client.device_manager.assign_task_to_device.call_count
         print(f'   Total device task executions: {assign_task_calls}')
         if assign_task_calls > 0:
-            print(f'   Device tasks executed: ✅')
+            print('   Device tasks executed: ✅')
             for call in mock_constellation_client.device_manager.assign_task_to_device.call_args_list:
                 args, kwargs = call
                 device_id = args[1] if len(args) > 1 else kwargs.get('device_id', 'unknown')
                 task_description = args[2] if len(args) > 2 else kwargs.get('task_description', 'unknown')
                 print(f'     • {device_id}: {task_description}')
         else:
-            print(f'   Device tasks executed: ❌ (No device interactions detected)')
-        print(f'\n🐛 Bug Detection:')
+            print('   Device tasks executed: ❌ (No device interactions detected)')
+        print('\n🐛 Bug Detection:')
         issues_found = []
         if not hasattr(session, '_rounds') or len(session._rounds) == 0:
             issues_found.append('No rounds were executed')
@@ -213,21 +212,21 @@ class TestRealGalaxySessionWithMockDevices:
         if unused_devices:
             issues_found.append(f'Unused devices: {unused_devices}')
         if issues_found:
-            print(f'   ❌ Issues detected:')
+            print('   ❌ Issues detected:')
             for issue in issues_found:
                 print(f'     • {issue}')
         else:
-            print(f'   ✅ No obvious issues detected')
-        print(f'\n⚡ Performance Analysis:')
+            print('   ✅ No obvious issues detected')
+        print('\n⚡ Performance Analysis:')
         print(f'   Execution time: {execution_time:.2f}s')
         if execution_time > 30:
-            print(f'   ⚠️  Slow execution (>30s)')
+            print('   ⚠️  Slow execution (>30s)')
         elif execution_time > 10:
-            print(f'   ⚠️  Moderate execution time (>10s)')
+            print('   ⚠️  Moderate execution time (>10s)')
         else:
-            print(f'   ✅ Fast execution (<10s)')
-        print(f'\n🎯 Test Summary:')
-        print(f'   Real session execution: ✅ Completed')
+            print('   ✅ Fast execution (<10s)')
+        print('\n🎯 Test Summary:')
+        print('   Real session execution: ✅ Completed')
         print(f'   Issues found: {len(issues_found)}')
         print(f'   Device interactions: {assign_task_calls}')
         print(f'   Execution time: {execution_time:.2f}s')
@@ -252,8 +251,8 @@ class TestRealGalaxySessionWithMockDevices:
                     result = {'request': request[:100], 'success': False, 'rounds': len(getattr(session, '_rounds', [])), 'error': str(e)}
                     print(f'   ❌ Failed: {e}')
                 results.append(result)
-            print(f'\n📈 Request Type Analysis:')
-            success_count = sum((1 for r in results if r['success']))
+            print('\n📈 Request Type Analysis:')
+            success_count = sum(1 for r in results if r['success'])
             print(f'   Success rate: {success_count}/{len(results)} ({success_count / len(results) * 100:.1f}%)')
             for i, result in enumerate(results, 1):
                 status = '✅' if result['success'] else '❌'
@@ -279,10 +278,10 @@ class TestRealGalaxySessionWithMockDevices:
             mock_constellation_client.device_manager.assign_task_to_device = AsyncMock(side_effect=failing_assign_task)
             error_request = 'Execute a fail_test task on any device to test error handling'
             session = GalaxySession(task='error_handling_test', should_evaluate=False, id='error_test_session', client=mock_constellation_client, initial_request=error_request)
-            print(f'\n🚨 Testing error handling with failing task...')
+            print('\n🚨 Testing error handling with failing task...')
             try:
                 await session.run()
-                print(f'   ⚠️  Session completed despite errors (error recovery working)')
+                print('   ⚠️  Session completed despite errors (error recovery working)')
             except Exception as e:
                 print(f'   ❌ Session failed with error: {e}')
                 print(f'   Error type: {type(e).__name__}')

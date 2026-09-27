@@ -6,12 +6,14 @@ import platform as platform_module
 import sys
 import tracemalloc
 import urllib.parse
+
 from ufo.client.computer import ComputerManager
 from ufo.client.mcp.mcp_server_manager import MCPServerManager
 from ufo.client.ufo_client import UFOClient
 from ufo.client.websocket import UFOWebSocketClient
 from ufo.config.config_loader import get_ufo_config
 from ufo.ufo_logging.setup import setup_logger
+
 tracemalloc.start()
 parser = argparse.ArgumentParser(description='UFO Web Client')
 parser.add_argument('--client-id', dest='client_id', default='client_001', help='Client ID for the UFO Web Client (default: client_001)')

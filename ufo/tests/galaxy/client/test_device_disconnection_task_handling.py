@@ -9,14 +9,13 @@ disconnection messages when device disconnects during execution.
 """
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-import websockets
+from unittest.mock import patch
 
-from ufo.galaxy.client.device_manager import ConstellationDeviceManager
-from ufo.galaxy.client.components import DeviceStatus
-from ufo.galaxy.core.types import ExecutionResult
+import pytest
 from ufo.aip.messages import TaskStatus
+from ufo.galaxy.client.components import DeviceStatus
+from ufo.galaxy.client.device_manager import ConstellationDeviceManager
+from ufo.galaxy.core.types import ExecutionResult
 
 
 @pytest.fixture

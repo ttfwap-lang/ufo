@@ -14,10 +14,12 @@ import os
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any
+
 from fastmcp import FastMCP
 from pydantic import Field
 from ufo.agents.processors.schemas.target import TargetInfo, TargetKind
+
 
 class MobileServerState:
     """
@@ -30,33 +32,33 @@ class MobileServerState:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(MobileServerState, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
         if not self._initialized:
-            self.installed_apps: Optional[List[TargetInfo]] = None
-            self.installed_apps_timestamp: Optional[float] = None
-            self.current_controls: Optional[List[TargetInfo]] = None
-            self.current_controls_timestamp: Optional[float] = None
-            self.ui_tree_xml: Optional[str] = None
-            self.ui_tree_timestamp: Optional[float] = None
-            self.device_info: Optional[Dict[str, Any]] = None
-            self.device_info_timestamp: Optional[float] = None
-            self.control_dict: Optional[Dict[str, TargetInfo]] = None
+            self.installed_apps: list[TargetInfo] | None = None
+            self.installed_apps_timestamp: float | None = None
+            self.current_controls: list[TargetInfo] | None = None
+            self.current_controls_timestamp: float | None = None
+            self.ui_tree_xml: str | None = None
+            self.ui_tree_timestamp: float | None = None
+            self.device_info: dict[str, Any] | None = None
+            self.device_info_timestamp: float | None = None
+            self.control_dict: dict[str, TargetInfo] | None = None
             self.apps_cache_duration = 300
             self.controls_cache_duration = 5
             self.ui_tree_cache_duration = 5
             self.device_info_cache_duration = 60
             MobileServerState._initialized = True
 
-    def set_installed_apps(self, apps: List[TargetInfo]) -> None:
+    def set_installed_apps(self, apps: list[TargetInfo]) -> None:
         """Cache the installed apps list."""
         import time
         self.installed_apps = apps
         self.installed_apps_timestamp = time.time()
 
-    def get_installed_apps(self) -> Optional[List[TargetInfo]]:
+    def get_installed_apps(self) -> list[TargetInfo] | None:
         """Get cached installed apps if not expired."""
         import time
         if self.installed_apps is None or self.installed_apps_timestamp is None:
@@ -65,14 +67,14 @@ class MobileServerState:
             return None
         return self.installed_apps
 
-    def set_current_controls(self, controls: List[TargetInfo]) -> None:
+    def set_current_controls(self, controls: list[TargetInfo]) -> None:
         """Cache the current screen controls and build control dictionary."""
         import time
         self.current_controls = controls
         self.current_controls_timestamp = time.time()
         self.control_dict = {control.id: control for control in controls}
 
-    def get_current_controls(self) -> Optional[List[TargetInfo]]:
+    def get_current_controls(self) -> list[TargetInfo] | None:
         """Get cached screen controls if not expired."""
         import time
         if self.current_controls is None or self.current_controls_timestamp is None:
@@ -81,7 +83,7 @@ class MobileServerState:
             return None
         return self.current_controls
 
-    def get_control_by_id(self, control_id: str) -> Optional[TargetInfo]:
+    def get_control_by_id(self, control_id: str) -> TargetInfo | None:
         """Get a control by its ID from cache."""
         if self.control_dict is None:
             return None
@@ -93,7 +95,7 @@ class MobileServerState:
         self.ui_tree_xml = xml
         self.ui_tree_timestamp = time.time()
 
-    def get_ui_tree(self) -> Optional[str]:
+    def get_ui_tree(self) -> str | None:
         """Get cached UI tree if not expired."""
         import time
         if self.ui_tree_xml is None or self.ui_tree_timestamp is None:
@@ -102,13 +104,13 @@ class MobileServerState:
             return None
         return self.ui_tree_xml
 
-    def set_device_info(self, info: Dict[str, Any]) -> None:
+    def set_device_info(self, info: dict[str, Any]) -> None:
         """Cache the device information."""
         import time
         self.device_info = info
         self.device_info_timestamp = time.time()
 
-    def get_device_info(self) -> Optional[Dict[str, Any]]:
+    def get_device_info(self) -> dict[str, Any] | None:
         """Get cached device info if not expired."""
         import time
         if self.device_info is None or self.device_info_timestamp is None:
@@ -157,7 +159,7 @@ async def _search_app_by_name(app_name: str, adb_path: str, include_system_apps:
                 packages.append(pkg)
         for pkg in packages:
             parts = pkg.split('.')
-            if any((app_name.lower() == part.lower() for part in parts)):
+            if any(app_name.lower() == part.lower() for part in parts):
                 return pkg
         for pkg in packages:
             if app_name.lower() in pkg.lower():
@@ -166,7 +168,7 @@ async def _search_app_by_name(app_name: str, adb_path: str, include_system_apps:
     except Exception:
         return None
 
-def create_mobile_data_collection_server(host: str='', port: int=8020, adb_path: Optional[str]=None) -> None:
+def create_mobile_data_collection_server(host: str='', port: int=8020, adb_path: str | None=None) -> None:
     """
     Create an MCP server for Mobile data collection operations.
     Handles: screenshots, UI tree, device info, app list, controls list, cache status.
@@ -202,7 +204,7 @@ def create_mobile_data_collection_server(host: str='', port: int=8020, adb_path:
             raise Exception(f'Error capturing screenshot: {str(e)}')
 
     @mcp.tool()
-    async def get_ui_tree() -> Annotated[Dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'ui_tree' (str XML), 'format' (str), or 'error' (str)")]:
+    async def get_ui_tree() -> Annotated[dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'ui_tree' (str XML), 'format' (str), or 'error' (str)")]:
         """
         Get the UI hierarchy tree in XML format.
         Useful for finding element positions and properties.
@@ -224,7 +226,7 @@ def create_mobile_data_collection_server(host: str='', port: int=8020, adb_path:
             return {'success': False, 'error': str(e)}
 
     @mcp.tool()
-    async def get_device_info() -> Annotated[Dict[str, Any], Field(description='Dictionary with device information: model, android_version, sdk_version, screen_size, battery, etc.')]:
+    async def get_device_info() -> Annotated[dict[str, Any], Field(description='Dictionary with device information: model, android_version, sdk_version, screen_size, battery, etc.')]:
         """
         Get comprehensive Android device information.
         Includes model, Android version, screen resolution, battery status.
@@ -264,7 +266,7 @@ def create_mobile_data_collection_server(host: str='', port: int=8020, adb_path:
             return {'success': False, 'error': str(e)}
 
     @mcp.tool()
-    async def get_mobile_app_target_info(filter: Annotated[str, Field(description="Filter pattern for package names (optional, e.g., 'com.android')")]='', include_system_apps: Annotated[bool, Field(description='Whether to include system apps (default: False, only show user-installed apps)')]=False, force_refresh: Annotated[bool, Field(description='Force refresh from device, ignoring cache (default: False)')]=False) -> Annotated[List[TargetInfo], Field(description='List of TargetInfo objects representing installed applications')]:
+    async def get_mobile_app_target_info(filter: Annotated[str, Field(description="Filter pattern for package names (optional, e.g., 'com.android')")]='', include_system_apps: Annotated[bool, Field(description='Whether to include system apps (default: False, only show user-installed apps)')]=False, force_refresh: Annotated[bool, Field(description='Force refresh from device, ignoring cache (default: False)')]=False) -> Annotated[list[TargetInfo], Field(description='List of TargetInfo objects representing installed applications')]:
         """
         Get information about installed application packages as TargetInfo list.
         Returns app package name, label (display name), and version if available.
@@ -300,7 +302,7 @@ def create_mobile_data_collection_server(host: str='', port: int=8020, adb_path:
             raise Exception(f'Failed to get mobile app target info: {str(e)}')
 
     @mcp.tool()
-    async def get_app_window_controls_target_info(force_refresh: Annotated[bool, Field(description='Force refresh from device, ignoring cache (default: False)')]=False) -> Annotated[List[TargetInfo], Field(description='List of TargetInfo objects representing UI controls on the current screen')]:
+    async def get_app_window_controls_target_info(force_refresh: Annotated[bool, Field(description='Force refresh from device, ignoring cache (default: False)')]=False) -> Annotated[list[TargetInfo], Field(description='List of TargetInfo objects representing UI controls on the current screen')]:
         """
         Get UI controls information as TargetInfo list.
         Returns a list of TargetInfo objects for all meaningful controls on the screen.
@@ -359,7 +361,7 @@ def create_mobile_data_collection_server(host: str='', port: int=8020, adb_path:
             return []
     mcp.run(transport='streamable-http', host=host, port=port, json_response=True, stateless_http=False)
 
-def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional[str]=None) -> None:
+def create_mobile_action_server(host: str='', port: int=8021, adb_path: str | None=None) -> None:
     """
     Create an MCP server for Mobile action operations.
     Handles: tap, swipe, type_text, launch_app, press_key, click_control, wait, invalidate_cache.
@@ -370,7 +372,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
     mcp = FastMCP('Mobile Action MCP Server', instructions='MCP server for controlling Android devices via ADB (tap, swipe, type, launch apps, etc.).')
 
     @mcp.tool()
-    async def tap(x: Annotated[int, Field(description='X coordinate to tap (pixels from left)')], y: Annotated[int, Field(description='Y coordinate to tap (pixels from top)')]) -> Annotated[Dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), 'output' (str), or 'error' (str)")]:
+    async def tap(x: Annotated[int, Field(description='X coordinate to tap (pixels from left)')], y: Annotated[int, Field(description='Y coordinate to tap (pixels from top)')]) -> Annotated[dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), 'output' (str), or 'error' (str)")]:
         """
         Tap/click at specified coordinates on the screen.
         Coordinates are in pixels, origin (0,0) is top-left corner.
@@ -386,7 +388,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
             return {'success': False, 'error': str(e)}
 
     @mcp.tool()
-    async def swipe(start_x: Annotated[int, Field(description='Starting X coordinate')], start_y: Annotated[int, Field(description='Starting Y coordinate')], end_x: Annotated[int, Field(description='Ending X coordinate')], end_y: Annotated[int, Field(description='Ending Y coordinate')], duration: Annotated[int, Field(description='Duration of swipe in milliseconds (default 300)')]=300) -> Annotated[Dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), or 'error' (str)")]:
+    async def swipe(start_x: Annotated[int, Field(description='Starting X coordinate')], start_y: Annotated[int, Field(description='Starting Y coordinate')], end_x: Annotated[int, Field(description='Ending X coordinate')], end_y: Annotated[int, Field(description='Ending Y coordinate')], duration: Annotated[int, Field(description='Duration of swipe in milliseconds (default 300)')]=300) -> Annotated[dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), or 'error' (str)")]:
         """
         Perform swipe gesture from start to end coordinates.
         Useful for scrolling, dragging, and gesture navigation.
@@ -402,7 +404,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
             return {'success': False, 'error': str(e)}
 
     @mcp.tool()
-    async def type_text(text: Annotated[str, Field(description='Text to input. Spaces and special characters are automatically escaped.')], control_id: Annotated[str, Field(description='REQUIRED: The precise annotated ID of the control to type into (from get_app_window_controls_target_info). The control will be clicked before typing to ensure focus.')], control_name: Annotated[str, Field(description='REQUIRED: The precise name of the control to type into, must match the selected control_id.')], clear_current_text: Annotated[bool, Field(description='Whether to clear existing text before typing. If True, selects all text (Ctrl+A) and deletes it first.')]=False) -> Annotated[Dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), 'message' (str), or 'error' (str)")]:
+    async def type_text(text: Annotated[str, Field(description='Text to input. Spaces and special characters are automatically escaped.')], control_id: Annotated[str, Field(description='REQUIRED: The precise annotated ID of the control to type into (from get_app_window_controls_target_info). The control will be clicked before typing to ensure focus.')], control_name: Annotated[str, Field(description='REQUIRED: The precise name of the control to type into, must match the selected control_id.')], clear_current_text: Annotated[bool, Field(description='Whether to clear existing text before typing. If True, selects all text (Ctrl+A) and deletes it first.')]=False) -> Annotated[dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), 'message' (str), or 'error' (str)")]:
         """
         Type text into a specific input field control.
         Always clicks the target control first to ensure it's focused before typing.
@@ -456,7 +458,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
             return {'success': False, 'error': str(e)}
 
     @mcp.tool()
-    async def launch_app(package_name: Annotated[str, Field(description="Package name of the app to launch (e.g., 'com.android.settings')")], id: Annotated[Optional[str], Field(description='Optional: The precise annotated ID of the app from get_mobile_app_target_info.')]=None) -> Annotated[Dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'message' (str), or 'error' (str)")]:
+    async def launch_app(package_name: Annotated[str, Field(description="Package name of the app to launch (e.g., 'com.android.settings')")], id: Annotated[str | None, Field(description='Optional: The precise annotated ID of the app from get_mobile_app_target_info.')]=None) -> Annotated[dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'message' (str), or 'error' (str)")]:
         """
         Launch an application by package name or app ID.
 
@@ -474,7 +476,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
             if id:
                 cached_apps = mobile_state.get_installed_apps()
                 if cached_apps is None:
-                    return {'success': False, 'error': f'App cache is empty. Please call get_mobile_app_target_info first.'}
+                    return {'success': False, 'error': 'App cache is empty. Please call get_mobile_app_target_info first.'}
                 target_app = None
                 for app in cached_apps:
                     if app.id == id:
@@ -506,7 +508,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
             return {'success': False, 'error': str(e)}
 
     @mcp.tool()
-    async def press_key(key_code: Annotated[str, Field(description='Key code to press. Common codes: KEYCODE_HOME, KEYCODE_BACK, KEYCODE_ENTER, KEYCODE_MENU')]) -> Annotated[Dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), or 'error' (str)")]:
+    async def press_key(key_code: Annotated[str, Field(description='Key code to press. Common codes: KEYCODE_HOME, KEYCODE_BACK, KEYCODE_ENTER, KEYCODE_MENU')]) -> Annotated[dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), or 'error' (str)")]:
         """
         Press a hardware or software key.
         Useful for navigation (back, home) and system actions.
@@ -519,7 +521,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
             return {'success': False, 'error': str(e)}
 
     @mcp.tool()
-    async def click_control(control_id: Annotated[str, Field(description='The precise annotated ID of the control to click (from get_app_window_controls_target_info)')], control_name: Annotated[str, Field(description='The precise name of the control to click, must match the selected control_id')]) -> Annotated[Dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), 'message' (str), or 'error' (str)")]:
+    async def click_control(control_id: Annotated[str, Field(description='The precise annotated ID of the control to click (from get_app_window_controls_target_info)')], control_name: Annotated[str, Field(description='The precise name of the control to click, must match the selected control_id')]) -> Annotated[dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), 'message' (str), or 'error' (str)")]:
         """
         Click a UI control by its id and name.
         First call get_app_window_controls_target_info to get the list of controls,
@@ -550,7 +552,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
             return {'success': False, 'error': str(e)}
 
     @mcp.tool()
-    async def wait(seconds: Annotated[float, Field(description='Number of seconds to wait (can be decimal, e.g., 0.5 for 500ms)')]=1.0) -> Annotated[Dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), 'message' (str)")]:
+    async def wait(seconds: Annotated[float, Field(description='Number of seconds to wait (can be decimal, e.g., 0.5 for 500ms)')]=1.0) -> Annotated[dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'action' (str), 'message' (str)")]:
         """
         Wait for a specified number of seconds.
         Useful for waiting for UI transitions, animations, or app loading.
@@ -571,7 +573,7 @@ def create_mobile_action_server(host: str='', port: int=8021, adb_path: Optional
             return {'success': False, 'error': str(e)}
 
     @mcp.tool()
-    async def invalidate_cache(cache_type: Annotated[str, Field(description="Type of cache to invalidate: 'controls', 'apps', 'ui_tree', 'device_info', or 'all'")]='all') -> Annotated[Dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'message' (str), or 'error' (str)")]:
+    async def invalidate_cache(cache_type: Annotated[str, Field(description="Type of cache to invalidate: 'controls', 'apps', 'ui_tree', 'device_info', or 'all'")]='all') -> Annotated[dict[str, Any], Field(description="Dictionary with keys: 'success' (bool), 'message' (str), or 'error' (str)")]:
         """
         Manually invalidate cached data to force refresh on next query.
         Useful when you know the state has changed significantly.
@@ -626,7 +628,7 @@ def _run_both_servers_sync(host: str, data_port: int, action_port: int, adb_path
     """
     import threading
     import time
-    print(f'\n✅ Starting both servers in same process (shared MobileServerState)')
+    print('\n✅ Starting both servers in same process (shared MobileServerState)')
     print(f'   - Data Collection Server: {host}:{data_port}')
     print(f'   - Action Server: {host}:{action_port}')
     print('\n' + '=' * 70)
@@ -635,10 +637,10 @@ def _run_both_servers_sync(host: str, data_port: int, action_port: int, adb_path
     data_thread = threading.Thread(target=create_mobile_data_collection_server, kwargs={'host': host, 'port': data_port, 'adb_path': adb_path}, name='DataCollectionServer', daemon=False)
     action_thread = threading.Thread(target=create_mobile_action_server, kwargs={'host': host, 'port': action_port, 'adb_path': adb_path}, name='ActionServer', daemon=False)
     data_thread.start()
-    print(f'✅ Data Collection Server thread started')
+    print('✅ Data Collection Server thread started')
     time.sleep(0.5)
     action_thread.start()
-    print(f'✅ Action Server thread started')
+    print('✅ Action Server thread started')
     print('\n' + '=' * 70)
     print('Both servers are running. Press Ctrl+C to stop.')
     print('=' * 70 + '\n')
@@ -682,7 +684,6 @@ def main():
         print('   Servers will start but may not function properly.')
     print('=' * 70)
     if args.server == 'both':
-        import uvicorn
         print(f'\n🚀 Starting both servers on {args.host} (shared state)')
         print(f'   - Data Collection Server: port {args.data_port}')
         print(f'   - Action Server: port {args.action_port}')

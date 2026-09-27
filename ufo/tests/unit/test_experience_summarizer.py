@@ -5,8 +5,9 @@
 Unit test for ExperienceSummarizer async get_summary with supported AgentType.APP.
 """
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from ufo.experience.summarizer import ExperienceSummarizer
 from ufo.llm import AgentType
 from ufo.llm.llm_result import LLMResult

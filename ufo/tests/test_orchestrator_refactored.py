@@ -8,15 +8,13 @@ Tests orchestration functionality with separated responsibilities
 using ConstellationParser and ConstellationManager.
 """
 
-import asyncio
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from typing import Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from ufo.galaxy.constellation.orchestrator.orchestrator import (
     TaskConstellationOrchestrator,
 )
-from ufo.galaxy.constellation.enums import TaskStatus, DeviceType
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
 

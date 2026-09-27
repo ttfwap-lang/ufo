@@ -3,7 +3,6 @@ import time
 from types import SimpleNamespace
 
 import pytest
-
 from ufo.automator.app_apis.office_com import OfficeComError, OfficeComSession
 
 

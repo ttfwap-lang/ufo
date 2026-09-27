@@ -1,15 +1,15 @@
 """Telegram Commands - exported for UFO automator."""
 
 from ufo.automator.app_apis.telegram.telegram_receiver import (
-    SendMessageCommand,
-    OpenChatCommand,
-    SearchChatsCommand,
-    ReadMessagesCommand,
     ClickElementCommand,
-    TypeTextCommand,
+    OpenChatCommand,
     PressKeyCommand,
-    TakeScreenshotCommand,
+    ReadMessagesCommand,
+    SearchChatsCommand,
+    SendMessageCommand,
     SendMultilineMessageCommand,
+    TakeScreenshotCommand,
+    TypeTextCommand,
 )
 
 __all__ = [

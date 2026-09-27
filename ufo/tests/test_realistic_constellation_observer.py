@@ -1,16 +1,17 @@
 """
 Integration test to debug why ConstellationAgent logging doesn't work in real galaxy session.
 """
-import asyncio
 import logging
-import pytest
 import time
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from typing import Dict, Any
-from ufo.galaxy.session.observers.base_observer import ConstellationProgressObserver
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
 from ufo.galaxy.agents.constellation_agent import ConstellationAgent
-from ufo.galaxy.core.events import TaskEvent, EventType, get_event_bus
 from ufo.galaxy.constellation.orchestrator.orchestrator import TaskConstellationOrchestrator
+from ufo.galaxy.core.events import EventType, TaskEvent, get_event_bus
+from ufo.galaxy.session.observers.base_observer import ConstellationProgressObserver
+
 
 class TestRealisticsConstellationObserverLogger:
     """Test class to verify logging behavior in realistic conditions."""
@@ -31,7 +32,7 @@ class TestRealisticsConstellationObserverLogger:
     @pytest.mark.asyncio
     async def test_realistic_scenario_with_logging_levels(self, mock_orchestrator, task_event, caplog):
         """Test with realistic logging level configurations."""
-        print(f'\n=== TESTING REALISTIC LOGGING SCENARIO ===')
+        print('\n=== TESTING REALISTIC LOGGING SCENARIO ===')
         caplog.set_level(logging.DEBUG)
         event_bus = get_event_bus()
         constellation_agent = ConstellationAgent(orchestrator=mock_orchestrator)
@@ -42,13 +43,13 @@ class TestRealisticsConstellationObserverLogger:
         caplog.clear()
         constellation_agent.logger.setLevel(logging.INFO)
         observer.logger.setLevel(logging.INFO)
-        print(f'After setting INFO level:')
+        print('After setting INFO level:')
         print(f'Agent logger effective level: {constellation_agent.logger.getEffectiveLevel()}')
         print(f'Observer logger effective level: {observer.logger.getEffectiveLevel()}')
         await observer.on_event(task_event)
         observer_logs = [record for record in caplog.records if 'Task progress:' in record.message]
         agent_logs = [record for record in caplog.records if 'Added task event for task' in record.message]
-        print(f'\n=== CAPTURED LOGS WITH INFO LEVEL ===')
+        print('\n=== CAPTURED LOGS WITH INFO LEVEL ===')
         for i, record in enumerate(caplog.records):
             print(f'{i + 1}. [{record.levelname}] {record.name}:{record.filename}:{record.lineno} - {record.message}')
         print(f'\nObserver logs: {len(observer_logs)}')
@@ -61,7 +62,7 @@ class TestRealisticsConstellationObserverLogger:
     @pytest.mark.asyncio
     async def test_with_method_wrapping_to_check_calls(self, mock_orchestrator, task_event, caplog):
         """Test by wrapping the add_task_completion_event method to see if it's called."""
-        print(f'\n=== TESTING WITH METHOD WRAPPING ===')
+        print('\n=== TESTING WITH METHOD WRAPPING ===')
         caplog.set_level(logging.INFO)
         caplog.clear()
         constellation_agent = ConstellationAgent(orchestrator=mock_orchestrator)
@@ -76,12 +77,12 @@ class TestRealisticsConstellationObserverLogger:
             print(f'🔍 Task ID: {event.task_id}')
             print(f'🔍 Status: {event.status}')
             result = await original_method(event)
-            print(f'🔍 Original method completed')
+            print('🔍 Original method completed')
             return result
         constellation_agent.add_task_completion_event = wrapped_add_task_completion_event
         observer = ConstellationProgressObserver(agent=constellation_agent)
         await observer.on_event(task_event)
-        print(f'\n=== RESULTS ===')
+        print('\n=== RESULTS ===')
         print(f'Method called {call_count} times')
         if call_count == 0:
             print('❌ CRITICAL: add_task_completion_event was never called!')
@@ -94,7 +95,7 @@ class TestRealisticsConstellationObserverLogger:
     @pytest.mark.asyncio
     async def test_exception_handling_in_observer(self, mock_orchestrator, task_event, caplog):
         """Test if exceptions in add_task_completion_event are silently caught."""
-        print(f'\n=== TESTING EXCEPTION HANDLING ===')
+        print('\n=== TESTING EXCEPTION HANDLING ===')
         caplog.set_level(logging.INFO)
         caplog.clear()
         constellation_agent = ConstellationAgent(orchestrator=mock_orchestrator)
@@ -111,7 +112,7 @@ class TestRealisticsConstellationObserverLogger:
     @pytest.mark.asyncio
     async def test_event_type_filtering(self, mock_orchestrator, caplog):
         """Test if event filtering is working correctly."""
-        print(f'\n=== TESTING EVENT TYPE FILTERING ===')
+        print('\n=== TESTING EVENT TYPE FILTERING ===')
         caplog.set_level(logging.INFO)
         caplog.clear()
         constellation_agent = ConstellationAgent(orchestrator=mock_orchestrator)

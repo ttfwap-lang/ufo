@@ -8,7 +8,7 @@ This module defines Pydantic models for all incoming requests,
 both HTTP API requests and WebSocket messages.
 """
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -52,16 +52,16 @@ class DeviceAddRequest(BaseModel):
     os: str = Field(
         ..., description="Operating system of the device (e.g., 'Windows', 'Linux')"
     )
-    capabilities: List[str] = Field(
+    capabilities: list[str] = Field(
         ..., description="List of capabilities the device supports"
     )
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: dict[str, Any] | None = Field(
         None, description="Additional metadata about the device"
     )
-    auto_connect: Optional[bool] = Field(
+    auto_connect: bool | None = Field(
         True, description="Whether to automatically connect to the device"
     )
-    max_retries: Optional[int] = Field(
+    max_retries: int | None = Field(
         5, description="Maximum number of connection retry attempts"
     )
 
@@ -75,7 +75,7 @@ class WebSocketMessage(BaseModel):
     """
 
     type: WebSocketMessageType = Field(..., description="Type of the WebSocket message")
-    data: Optional[Dict[str, Any]] = Field(
+    data: dict[str, Any] | None = Field(
         None, description="Optional data payload for the message"
     )
 

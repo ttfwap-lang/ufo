@@ -6,9 +6,9 @@ refactored AIP protocol implementation.
 """
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,

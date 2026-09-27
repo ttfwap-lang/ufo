@@ -50,9 +50,11 @@ print(__doc__)
 import json
 import sys
 from pathlib import Path
+
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
+
 
 def test_working_vs_broken():
     """Test both working and broken cases"""
@@ -60,7 +62,7 @@ def test_working_vs_broken():
     if not log_file.exists():
         import pytest
         pytest.skip(f'needs a recorded Galaxy session log at {log_file}')
-    with open(log_file, 'r', encoding='utf-8') as f:
+    with open(log_file, encoding='utf-8') as f:
         lines = f.readlines()
     print('\n' + '=' * 80)
     print('ACTUAL TEST RESULTS')
@@ -70,7 +72,7 @@ def test_working_vs_broken():
     const_after_str = log1['constellation_after']
     try:
         constellation = TaskConstellation.from_json(json_data=const_after_str)
-        print(f'  Successfully parsed!')
+        print('  Successfully parsed!')
         print(f'  - ID: {constellation.constellation_id}')
         print(f'  - Tasks: {constellation.task_count}')
         print(f'  - State: {constellation.state.value}\n')
@@ -81,7 +83,7 @@ def test_working_vs_broken():
     const_before_str = log2['constellation_before']
     try:
         constellation = TaskConstellation.from_json(json_data=const_before_str)
-        print(f'  Unexpectedly succeeded!\n')
+        print('  Unexpectedly succeeded!\n')
     except Exception as e:
         print(f'  Failed as expected: {type(e).__name__}: {e}\n')
     print('=' * 80)

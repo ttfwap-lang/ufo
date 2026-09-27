@@ -4,17 +4,18 @@ Validates serialization and deserialization functionality.
 """
 
 import json
-import pytest
 from datetime import datetime
+
+import pytest
 
 from ufo.galaxy.constellation.parsers.constellation_serializer import (
     ConstellationSerializer,
 )
 from ufo.galaxy.constellation.task_constellation import (
-    TaskConstellation,
     ConstellationState,
+    TaskConstellation,
 )
-from ufo.galaxy.constellation.task_star import TaskStar, TaskPriority, TaskStatus
+from ufo.galaxy.constellation.task_star import TaskPriority, TaskStar, TaskStatus
 from ufo.galaxy.constellation.task_star_line import TaskStarLine
 
 

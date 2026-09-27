@@ -8,18 +8,13 @@ Tests protocol implementations including registration, task execution, and heart
 """
 
 import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from ufo.aip.messages import (
     ClientMessage,
     ClientMessageType,
-    ClientType,
     Command,
-    Result,
-    ResultStatus,
     ServerMessage,
     ServerMessageType,
     TaskStatus,

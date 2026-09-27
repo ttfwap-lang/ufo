@@ -1,5 +1,5 @@
-import urllib.request
 import urllib.error
+import urllib.request
 
 BASES = ["http://100.113.176.84:9301", "http://100.81.31.74:9301",
          "http://192.168.4.103:9301"]

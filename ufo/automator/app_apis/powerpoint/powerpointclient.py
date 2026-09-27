@@ -1,14 +1,15 @@
 import os
-from typing import Dict, Type, List
+
 from ufo.automator.app_apis.basic import WinCOMCommand, WinCOMReceiverBasic
 from ufo.automator.basic import CommandBasic
 from ufo.automator.path_validator import validate_save_path
+
 
 class PowerPointWinCOMReceiver(WinCOMReceiverBasic):
     """
     The base class for Windows COM client.
     """
-    _command_registry: Dict[str, Type[CommandBasic]] = {}
+    _command_registry: dict[str, type[CommandBasic]] = {}
 
     def get_object_from_process_name(self) -> None:
         """
@@ -22,7 +23,7 @@ class PowerPointWinCOMReceiver(WinCOMReceiverBasic):
                 return presentation
         return None
 
-    def set_background_color(self, color: str, slide_index: List[int]=None) -> str:
+    def set_background_color(self, color: str, slide_index: list[int]=None) -> str:
         """
         Set the background color of the slide(s).
         :param color: The hex color code (in RGB format) to set the background color.
@@ -67,9 +68,9 @@ class PowerPointWinCOMReceiver(WinCOMReceiverBasic):
         file_dir = validate_save_path(file_dir, document_dir)
         file_path = os.path.join(file_dir, file_name + file_ext)
         try:
-            if self.com_object.Slides.Count == 1 and file_ext in ppt_ext_to_formatstr.keys():
+            if self.com_object.Slides.Count == 1 and file_ext in ppt_ext_to_formatstr:
                 self.com_object.Slides(1).Export(file_path, ppt_ext_to_formatstr.get(file_ext, 'PNG'))
-            elif current_slide_only and file_ext in ppt_ext_to_formatstr.keys():
+            elif current_slide_only and file_ext in ppt_ext_to_formatstr:
                 current_slide_idx = self._current_slide_index()
                 self.com_object.Slides(current_slide_idx).Export(file_path, ppt_ext_to_formatstr.get(file_ext, 'PNG'))
             else:

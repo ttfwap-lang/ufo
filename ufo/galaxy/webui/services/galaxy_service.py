@@ -6,8 +6,10 @@ including request processing, session management, and task control.
 """
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
+
 from ufo.galaxy.webui.dependencies import AppState
+
 
 class GalaxyService:
     """
@@ -61,7 +63,7 @@ class GalaxyService:
             self.logger.error(f'❌ Error processing request #{counter}: {e}', exc_info=True)
             raise
 
-    async def reset_session(self) -> Dict[str, Any]:
+    async def reset_session(self) -> dict[str, Any]:
         """
         Reset the current Galaxy session.
 
@@ -83,7 +85,7 @@ class GalaxyService:
             self.logger.error(f'Failed to reset session: {e}', exc_info=True)
             raise
 
-    async def create_next_session(self) -> Dict[str, Any]:
+    async def create_next_session(self) -> dict[str, Any]:
         """
         Create a new Galaxy session.
 
@@ -105,7 +107,7 @@ class GalaxyService:
             self.logger.error(f'Failed to create next session: {e}', exc_info=True)
             raise
 
-    async def stop_task_and_restart(self) -> Dict[str, Any]:
+    async def stop_task_and_restart(self) -> dict[str, Any]:
         """
         Stop the current task and restart the Galaxy client.
 

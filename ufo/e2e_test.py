@@ -12,7 +12,6 @@ any stage fails, so it can gate a deploy.
 """
 from __future__ import annotations
 
-import base64
 import json
 import os
 import sys

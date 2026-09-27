@@ -2,17 +2,17 @@
 Web Research MCP Server for Microsoft UFO
 Provides tools for web searches and fetching HTML/text from public URLs.
 """
-from ufo.rag import ddg_search
-import json
 import logging
-import urllib.request
-import urllib.parse
 import re
-from typing import Annotated, Optional
+import urllib.parse
+import urllib.request
+from typing import Annotated
+
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
 from ufo.client.mcp.mcp_registry import MCPRegistry
+from ufo.rag import ddg_search
 
 logger = logging.getLogger(__name__)
 

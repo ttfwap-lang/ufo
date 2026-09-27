@@ -8,7 +8,6 @@ import os
 import winreg
 
 import pytest
-
 from ufo.automator.app_apis.excel.excelclient import ExcelWinCOMReceiver
 from ufo.automator.app_apis.office_com import OfficeComSession
 from ufo.automator.app_apis.powerpoint.powerpointclient import PowerPointWinCOMReceiver
@@ -23,7 +22,7 @@ pytestmark = pytest.mark.skipif(
 
 def _registered(progid):
     try:
-        winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, progid + "\CLSID").Close()
+        winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, progid + r"\CLSID").Close()
         return True
     except OSError:
         return False

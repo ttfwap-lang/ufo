@@ -12,13 +12,11 @@ Tests ensure that:
 """
 
 import unittest
-from unittest.mock import Mock, MagicMock, patch, call
-from io import StringIO
-import sys
+from unittest.mock import MagicMock, Mock, patch
 
-from ufo.agents.presenters import BasePresenter, RichPresenter, PresenterFactory
-from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
-from ufo.aip.messages import Result, ResultStatus
+from ufo.agents.presenters import BasePresenter, PresenterFactory, RichPresenter
+from ufo.agents.processors.schemas.actions import ActionCommandInfo
+from ufo.aip.messages import ResultStatus
 
 
 class TestPresenterFactory(unittest.TestCase):
@@ -87,10 +85,10 @@ class TestRichPresenter(unittest.TestCase):
         """Test presenting thought"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
         presenter.present_thought("Test thought")
-        
+
         # Verify console.print was called with Panel
         self.assertTrue(mock_console.print.called)
         call_args = mock_console.print.call_args
@@ -101,10 +99,10 @@ class TestRichPresenter(unittest.TestCase):
         """Test presenting observation"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
         presenter.present_observation("Test observation")
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -113,10 +111,10 @@ class TestRichPresenter(unittest.TestCase):
         """Test presenting FINISH status"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
         presenter.present_status("FINISH")
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -125,10 +123,10 @@ class TestRichPresenter(unittest.TestCase):
         """Test presenting FAIL status"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
         presenter.present_status("FAIL")
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -137,11 +135,11 @@ class TestRichPresenter(unittest.TestCase):
         """Test presenting plan"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
         plan = ["Step 1", "Step 2", "Step 3"]
         presenter.present_plan(plan)
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -150,10 +148,10 @@ class TestRichPresenter(unittest.TestCase):
         """Test presenting comment"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
         presenter.present_comment("Test comment")
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -162,10 +160,10 @@ class TestRichPresenter(unittest.TestCase):
         """Test presenting results"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
         presenter.present_results({"result": "success"})
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -174,11 +172,11 @@ class TestRichPresenter(unittest.TestCase):
         """Test that long results are truncated"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
         long_result = "x" * 1000  # Create a result longer than 500 chars
         presenter.present_results(long_result)
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -191,9 +189,9 @@ class TestAppAgentPresentation(unittest.TestCase):
         """Test presenting AppAgent response"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         # Create mock response
         mock_response = Mock()
         mock_response.observation = "Test observation"
@@ -201,16 +199,16 @@ class TestAppAgentPresentation(unittest.TestCase):
         mock_response.plan = ["Step 1", "Step 2"]
         mock_response.comment = "Test comment"
         mock_response.save_screenshot = {"save": False}
-        
+
         # Create mock action
         mock_action = Mock(spec=ActionCommandInfo)
         mock_action.function = "test_function"
         mock_action.arguments = {"arg1": "value1"}
         mock_action.status = "pending"
         mock_response.action = mock_action
-        
+
         presenter.present_app_agent_response(mock_response, print_action=True)
-        
+
         # Verify console.print was called multiple times (for obs, thought, actions, plan, comment)
         self.assertTrue(mock_console.print.called)
         self.assertGreaterEqual(mock_console.print.call_count, 4)
@@ -220,9 +218,9 @@ class TestAppAgentPresentation(unittest.TestCase):
         """Test presenting AppAgent response with screenshot notice"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         # Create mock response
         mock_response = Mock()
         mock_response.observation = "Test observation"
@@ -231,9 +229,9 @@ class TestAppAgentPresentation(unittest.TestCase):
         mock_response.comment = None
         mock_response.save_screenshot = {"save": True, "reason": "Important moment"}
         mock_response.action = []
-        
+
         presenter.present_app_agent_response(mock_response, print_action=False)
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -246,9 +244,9 @@ class TestHostAgentPresentation(unittest.TestCase):
         """Test presenting HostAgent response"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         # Create mock response
         mock_response = Mock()
         mock_response.observation = "Test observation"
@@ -260,11 +258,11 @@ class TestHostAgentPresentation(unittest.TestCase):
         mock_response.message = ["Message 1", "Message 2"]
         mock_response.status = "CONTINUE"
         mock_response.comment = None
-        
+
         # Pass action_str as parameter instead of setting it on response
         action_str = "test_function(arg1=value1)"
         presenter.present_host_agent_response(mock_response, action_str=action_str)
-        
+
         # Verify console.print was called multiple times
         self.assertTrue(mock_console.print.called)
         self.assertGreaterEqual(mock_console.print.call_count, 5)
@@ -274,9 +272,9 @@ class TestHostAgentPresentation(unittest.TestCase):
         """Test presenting HostAgent response without pre-formatted action string"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         # Create mock response
         mock_response = Mock()
         mock_response.observation = "Test observation"
@@ -288,10 +286,10 @@ class TestHostAgentPresentation(unittest.TestCase):
         mock_response.message = None
         mock_response.status = "CONTINUE"
         mock_response.comment = None
-        
+
         # Call without action_str - should use default formatting
         presenter.present_host_agent_response(mock_response)
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -300,9 +298,9 @@ class TestHostAgentPresentation(unittest.TestCase):
         """Test presenting HostAgent response with application selection"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         # Create mock response
         mock_response = Mock()
         mock_response.observation = "Test observation"
@@ -315,9 +313,9 @@ class TestHostAgentPresentation(unittest.TestCase):
         mock_response.status = "CONTINUE"
         mock_response.comment = None
         mock_response._formatted_action = "select_application_window(name=TestApp)"
-        
+
         presenter.present_host_agent_response(mock_response)
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -330,9 +328,9 @@ class TestConstellationAgentPresentation(unittest.TestCase):
         """Test presenting ConstellationAgent response"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         # Create mock response
         mock_response = Mock()
         mock_response.thought = "Test thought"
@@ -340,9 +338,9 @@ class TestConstellationAgentPresentation(unittest.TestCase):
         mock_response.constellation = None
         mock_response.action = None
         mock_response.results = None
-        
+
         presenter.present_constellation_agent_response(mock_response, print_action=False)
-        
+
         # Verify console.print was called at least twice (thought + status)
         self.assertTrue(mock_console.print.called)
         self.assertGreaterEqual(mock_console.print.call_count, 2)
@@ -352,15 +350,15 @@ class TestConstellationAgentPresentation(unittest.TestCase):
         """Test presenting constellation with tasks and dependencies"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         # Create mock constellation
         mock_constellation = Mock()
         mock_constellation.constellation_id = "test-constellation-123"
         mock_constellation.name = "Test Constellation"
         mock_constellation.state = "PENDING"
-        
+
         # Create mock tasks
         mock_task = Mock()
         mock_task.name = "Test Task"
@@ -368,14 +366,14 @@ class TestConstellationAgentPresentation(unittest.TestCase):
         mock_task.description = "Test description"
         mock_task.tips = ["Tip 1", "Tip 2"]
         mock_constellation.tasks = {"task-1": mock_task}
-        
+
         # Create mock dependencies
         mock_dep = Mock()
         mock_dep.from_task_id = "task-1"
         mock_dep.to_task_id = "task-2"
         mock_dep.condition_description = "After completion"
         mock_constellation.dependencies = {"dep-1": mock_dep}
-        
+
         # Create mock response
         mock_response = Mock()
         mock_response.thought = "Creating constellation"
@@ -383,9 +381,9 @@ class TestConstellationAgentPresentation(unittest.TestCase):
         mock_response.constellation = mock_constellation
         mock_response.action = None
         mock_response.results = None
-        
+
         presenter.present_constellation_agent_response(mock_response, print_action=False)
-        
+
         # Verify console.print was called multiple times
         self.assertTrue(mock_console.print.called)
         # Should print: thought, status, constellation info, task details, dependencies
@@ -400,28 +398,28 @@ class TestActionListPresentation(unittest.TestCase):
         """Test presenting action list"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         # Create mock actions
         mock_action1 = Mock()
         mock_action1.to_representation = Mock(return_value="Action 1")
         mock_action1.arguments = {}
         mock_action1.result = Mock()
         mock_action1.result.status = ResultStatus.SUCCESS
-        
+
         mock_action2 = Mock()
         mock_action2.to_representation = Mock(return_value="Action 2")
         mock_action2.arguments = {}
         mock_action2.result = Mock()
         mock_action2.result.status = ResultStatus.FAILURE
-        
+
         mock_action_list = Mock()
         mock_action_list.actions = [mock_action1, mock_action2]
         mock_action_list.status = "COMPLETED"
-        
+
         presenter.present_action_list(mock_action_list, success_only=False)
-        
+
         # Verify console.print was called (for actions and final status)
         self.assertTrue(mock_console.print.called)
 
@@ -430,28 +428,28 @@ class TestActionListPresentation(unittest.TestCase):
         """Test presenting only successful actions"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         # Create mock actions
         mock_action1 = Mock()
         mock_action1.to_representation = Mock(return_value="Action 1")
         mock_action1.arguments = {}
         mock_action1.result = Mock()
         mock_action1.result.status = ResultStatus.SUCCESS
-        
+
         mock_action2 = Mock()
         mock_action2.to_representation = Mock(return_value="Action 2")
         mock_action2.arguments = {}
         mock_action2.result = Mock()
         mock_action2.result.status = ResultStatus.FAILURE
-        
+
         mock_action_list = Mock()
         mock_action_list.actions = [mock_action1, mock_action2]
         mock_action_list.status = "COMPLETED"
-        
+
         presenter.present_action_list(mock_action_list, success_only=True)
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -464,9 +462,9 @@ class TestConstellationEditingActionsPresentation(unittest.TestCase):
         """Test presenting constellation editing actions"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         # Create mock actions
         mock_action = Mock()
         mock_action.function = "add_task"
@@ -474,13 +472,13 @@ class TestConstellationEditingActionsPresentation(unittest.TestCase):
         mock_action.result = Mock()
         mock_action.result.status = ResultStatus.SUCCESS
         mock_action.result.error = None
-        
+
         mock_action_list = Mock()
         mock_action_list.actions = [mock_action]
         mock_action_list.status = "CONTINUE"
-        
+
         presenter.present_constellation_editing_actions(mock_action_list)
-        
+
         # Verify console.print was called
         self.assertTrue(mock_console.print.called)
 
@@ -489,25 +487,25 @@ class TestConstellationEditingActionsPresentation(unittest.TestCase):
         """Test presenting empty constellation editing actions"""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
-        
+
         presenter = RichPresenter(console=mock_console)
-        
+
         mock_action_list = Mock()
         mock_action_list.actions = []
-        
+
         presenter.present_constellation_editing_actions(mock_action_list)
-        
+
         # Verify console.print was called (to show "No actions" message)
         self.assertTrue(mock_console.print.called)
 
     def test_format_constellation_operation_add_task(self):
         """Test formatting add_task operation"""
         presenter = RichPresenter()
-        
+
         mock_action = Mock()
         mock_action.function = "add_task"
         mock_action.arguments = {"task_id": "task-1", "name": "Test Task"}
-        
+
         result = presenter._format_constellation_operation(mock_action)
         self.assertIn("Add Task", result)
         self.assertIn("task-1", result)
@@ -515,11 +513,11 @@ class TestConstellationEditingActionsPresentation(unittest.TestCase):
     def test_format_constellation_operation_remove_task(self):
         """Test formatting remove_task operation"""
         presenter = RichPresenter()
-        
+
         mock_action = Mock()
         mock_action.function = "remove_task"
         mock_action.arguments = {"task_id": "task-1"}
-        
+
         result = presenter._format_constellation_operation(mock_action)
         self.assertIn("Remove Task", result)
         self.assertIn("task-1", result)
@@ -527,7 +525,7 @@ class TestConstellationEditingActionsPresentation(unittest.TestCase):
     def test_format_constellation_operation_add_dependency(self):
         """Test formatting add_dependency operation"""
         presenter = RichPresenter()
-        
+
         mock_action = Mock()
         mock_action.function = "add_dependency"
         mock_action.arguments = {
@@ -535,7 +533,7 @@ class TestConstellationEditingActionsPresentation(unittest.TestCase):
             "from_task_id": "task-1",
             "to_task_id": "task-2"
         }
-        
+
         result = presenter._format_constellation_operation(mock_action)
         self.assertIn("Add Dependency", result)
         self.assertIn("task-1", result)

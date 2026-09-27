@@ -4,18 +4,20 @@ Unit tests for refactored GalaxyRound with state machine integration.
 Tests cover the integration between GalaxyRound and the agent state machine,
 ensuring proper coordination and event handling.
 """
-import asyncio
-import pytest
 import time
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from ufo.galaxy.session.galaxy_session import GalaxyRound
-from ufo.galaxy.agents.galaxy_agent import MockGalaxyWeaverAgent
-from ufo.galaxy.agents.galaxy_agent_states import StartGalaxyAgentState, MonitorGalaxyAgentState, FinishGalaxyAgentState, FailGalaxyAgentState
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+from ufo.galaxy.agents.galaxy_agent_states import (
+    FinishGalaxyAgentState,
+    MonitorGalaxyAgentState,
+    StartGalaxyAgentState,
+)
 from ufo.galaxy.constellation import TaskConstellation, TaskStar
-from ufo.galaxy.constellation.enums import ConstellationState, TaskPriority
-from ufo.galaxy.constellation import TaskConstellationOrchestrator
-from ufo.galaxy.core.events import TaskEvent, EventType
+from ufo.galaxy.constellation.enums import TaskPriority
+from ufo.galaxy.session.galaxy_session import GalaxyRound
 from ufo.module.context import Context, ContextNames
+
 
 @pytest.fixture
 def mock_agent():

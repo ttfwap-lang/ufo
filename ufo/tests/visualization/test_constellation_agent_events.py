@@ -2,18 +2,21 @@
 Test script for ConstellationAgent event publishing functionality.
 """
 import asyncio
-import pytest
-import time
-import sys
 import os
-from unittest.mock import AsyncMock, MagicMock
+import sys
+from unittest.mock import MagicMock
+
+import pytest
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from tests.galaxy.mocks import MockConstellationAgent
 from ufo.galaxy.constellation import TaskConstellation, TaskStar
 from ufo.galaxy.constellation.orchestrator.orchestrator import TaskConstellationOrchestrator
-from ufo.galaxy.core.events import ConstellationEvent, EventType, EventBus
+from ufo.galaxy.core.events import EventType
 from ufo.galaxy.session.observers import DAGVisualizationObserver
 from ufo.module.context import Context, ContextNames
+
+from tests.galaxy.mocks import MockConstellationAgent
+
 
 class MockEventObserver:
     """Test observer to capture published events."""
@@ -69,10 +72,10 @@ async def test_constellation_agent_event_publishing():
     print('=== Test 1: ConstellationAgent process_editing with event publishing ===')
     try:
         result = await agent.process_editing(context=context)
-        print(f'✅ Process editing completed successfully')
+        print('✅ Process editing completed successfully')
         print(f'   Returned constellation: {result.constellation_id}')
         print(f'   Agent status: {agent.status}')
-        print(f'\n📊 Event Publishing Results:')
+        print('\n📊 Event Publishing Results:')
         print(f'   Events captured by test observer: {len(test_observer.received_events)}')
         if test_observer.received_events:
             event = test_observer.received_events[0]

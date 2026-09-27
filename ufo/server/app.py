@@ -2,7 +2,6 @@ import argparse
 import logging
 import os
 import secrets
-import sys
 
 
 # Parse arguments FIRST before importing other modules
@@ -63,12 +62,11 @@ else:
 
 # Now import other modules after logging is configured
 import uvicorn
-from fastapi import FastAPI, WebSocket, Query
+from fastapi import FastAPI, Query, WebSocket
 from starlette.status import WS_1008_POLICY_VIOLATION
-
 from ufo.server.services.api import create_api_router
-from ufo.server.services.session_manager import SessionManager
 from ufo.server.services.client_connection_manager import ClientConnectionManager
+from ufo.server.services.session_manager import SessionManager
 from ufo.server.ws.handler import UFOWebSocketHandler
 
 

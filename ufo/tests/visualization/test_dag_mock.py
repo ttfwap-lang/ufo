@@ -1,13 +1,14 @@
 """
 Simplified DAG visualization test without full dependencies.
 """
-import sys
 import os
+import sys
 from datetime import datetime
-from typing import Dict, Any, Optional
+
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, project_root)
-from ufo.galaxy.constellation.enums import TaskStatus, ConstellationState, DependencyType
+from ufo.galaxy.constellation.enums import ConstellationState, DependencyType, TaskStatus
+
 
 class TaskStar:
 
@@ -47,12 +48,12 @@ class SimpleTaskConstellation:
         self.constellation_id = constellation_id or f"test_constellation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self.name = name or self.constellation_id
         self.state = ConstellationState.CREATED
-        self._tasks: Dict[str, TaskStar] = {}
-        self._dependencies: Dict[str, TaskStarLine] = {}
+        self._tasks: dict[str, TaskStar] = {}
+        self._dependencies: dict[str, TaskStarLine] = {}
         self._created_at = datetime.now()
         self._updated_at = self._created_at
-        self._execution_start_time: Optional[datetime] = None
-        self._execution_end_time: Optional[datetime] = None
+        self._execution_start_time: datetime | None = None
+        self._execution_end_time: datetime | None = None
         self._enable_visualization = enable_visualization
         self._visualizer = None
         if enable_visualization:
@@ -172,10 +173,10 @@ class SimpleTaskConstellation:
     def get_statistics(self):
         """Return constellation statistics."""
         total_tasks = len(self._tasks)
-        completed_tasks = sum((1 for task in self._tasks.values() if task.status == TaskStatus.COMPLETED))
-        failed_tasks = sum((1 for task in self._tasks.values() if task.status == TaskStatus.FAILED))
-        pending_tasks = sum((1 for task in self._tasks.values() if task.status == TaskStatus.PENDING))
-        running_tasks = sum((1 for task in self._tasks.values() if task.status == TaskStatus.RUNNING))
+        completed_tasks = sum(1 for task in self._tasks.values() if task.status == TaskStatus.COMPLETED)
+        failed_tasks = sum(1 for task in self._tasks.values() if task.status == TaskStatus.FAILED)
+        pending_tasks = sum(1 for task in self._tasks.values() if task.status == TaskStatus.PENDING)
+        running_tasks = sum(1 for task in self._tasks.values() if task.status == TaskStatus.RUNNING)
         ready_tasks = len(self.get_ready_tasks())
         success_rate = None
         if completed_tasks + failed_tasks > 0:
@@ -191,7 +192,7 @@ class SimpleTaskConstellation:
                 if not task_dependencies:
                     ready_tasks.append(task)
                 else:
-                    all_deps_completed = all((self._tasks[dep.source_task_id].status == TaskStatus.COMPLETED for dep in task_dependencies))
+                    all_deps_completed = all(self._tasks[dep.source_task_id].status == TaskStatus.COMPLETED for dep in task_dependencies)
                     if all_deps_completed:
                         ready_tasks.append(task)
         return ready_tasks

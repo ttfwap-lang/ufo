@@ -4,22 +4,24 @@ End-to-end integration test for the Galaxy framework constellation system.
 This test validates the complete flow from task constellation creation through execution,
 including DAG visualization at each step.
 """
+import json
 import os
 import sys
-import json
 import time
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
+
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, project_root)
+import logging
+
+import pytest
+from ufo.galaxy.constellation.enums import ConstellationState, TaskPriority, TaskStatus
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
 from ufo.galaxy.constellation.task_star_line import TaskStarLine
-from ufo.galaxy.constellation.enums import ConstellationState, TaskPriority, TaskStatus
-import logging
-import pytest
 
 
 @pytest.fixture(autouse=True, scope='module')
@@ -134,7 +136,7 @@ def test_error_handling():
     assert failed_count > 0 and completed_count > 0, "Error handling didn't work as expected"
     print('✅ Error handling test completed - mixed results as expected')
 
-def save_test_results(results: Dict[str, Any]):
+def save_test_results(results: dict[str, Any]):
     """Save test results to JSON file."""
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f'e2e_test_results_{timestamp}.json'

@@ -6,31 +6,32 @@ containing shared logic while allowing for mode-specific customization.
 """
 import asyncio
 import json
-import time
 import traceback
 from abc import abstractmethod
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Any, Dict, List
-from ufo.galaxy.agents.processors.processor_context import ConstellationProcessorContext
-from ufo.galaxy.agents.schema import ConstellationAgentResponse, ConstellationRequestLog, WeavingMode
-from ufo.galaxy.client.components.types import AgentProfile
-from ufo.galaxy.constellation.task_constellation import TaskConstellation
-from ufo.galaxy.core.events import AgentEvent, EventType, get_event_bus
+from typing import TYPE_CHECKING, Any
+
 from ufo.agents.memory.memory import MemoryItem
 from ufo.agents.processors.core.processor_framework import ProcessingContext, ProcessingPhase, ProcessingResult
 from ufo.agents.processors.core.strategy_dependency import depends_on, provides
 from ufo.agents.processors.schemas.actions import ActionCommandInfo, ListActionCommandInfo
 from ufo.agents.processors.strategies.processing_strategy import BaseProcessingStrategy
 from ufo.aip.messages import Command, Result
+from ufo.config.config_loader import LazyUFOConfig
+from ufo.galaxy.agents.processors.processor_context import ConstellationProcessorContext
+from ufo.galaxy.agents.schema import ConstellationAgentResponse, ConstellationRequestLog, WeavingMode
+from ufo.galaxy.client.components.types import AgentProfile
+from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.llm import AgentType
 from ufo.llm.llm_result import LLMResult
 from ufo.module.context import Context
 from ufo.module.dispatcher import BasicCommandDispatcher
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
+
 ufo_config = LazyUFOConfig()
 if TYPE_CHECKING:
     from ufo.galaxy.agents.constellation_agent import ConstellationAgent
 from ufo.module.basic import FileWriter
+
 
 @provides('parsed_response', 'response_text', 'llm_cost', 'prompt_message', 'status')
 class ConstellationLLMInteractionStrategy(BaseProcessingStrategy):
@@ -51,7 +52,7 @@ class ConstellationLLMInteractionStrategy(BaseProcessingStrategy):
         Initialize base Constellation LLM interaction strategy.
         :param fail_fast: Whether to raise exceptions immediately on errors
         """
-        super().__init__(name=f'constellation_llm_interaction', fail_fast=fail_fast)
+        super().__init__(name='constellation_llm_interaction', fail_fast=fail_fast)
 
     async def execute(self, agent: 'ConstellationAgent', context: ProcessingContext) -> ProcessingResult:
         """
@@ -73,14 +74,14 @@ class ConstellationLLMInteractionStrategy(BaseProcessingStrategy):
             response_text, llm_cost = await self._get_llm_response_with_retry(agent, prompt_message)
             self.logger.info('Parsing LLM response')
             parsed_response = self._parse_and_validate_response(agent, response_text)
-            self.logger.info(f'Constellation LLM interaction completed successfully')
+            self.logger.info('Constellation LLM interaction completed successfully')
             return ProcessingResult(success=True, data={'parsed_response': parsed_response, 'response_text': response_text, 'llm_cost': llm_cost, 'prompt_message': prompt_message, **parsed_response.model_dump()}, phase=ProcessingPhase.LLM_INTERACTION)
         except Exception as e:
             error_msg = f'constellation LLM interaction failed: {str(traceback.format_exc())}'
             self.logger.error(error_msg)
             return self.handle_error(e, ProcessingPhase.LLM_INTERACTION, context)
 
-    async def _build_comprehensive_prompt(self, agent: 'ConstellationAgent', device_info: Dict[str, AgentProfile], constellation: TaskConstellation, request: str, session_step: int, weaving_mode: str, request_logger: 'FileWriter') -> Dict[str, Any]:
+    async def _build_comprehensive_prompt(self, agent: 'ConstellationAgent', device_info: dict[str, AgentProfile], constellation: TaskConstellation, request: str, session_step: int, weaving_mode: str, request_logger: 'FileWriter') -> dict[str, Any]:
         """
         Build comprehensive prompt message with all available context information.
         Delegates mode-specific logic to subclasses.
@@ -90,10 +91,10 @@ class ConstellationLLMInteractionStrategy(BaseProcessingStrategy):
             constellation_json = constellation.to_json() if constellation else ''
             self._log_request_data(session_step=session_step, device_info=device_info, constellation_json=constellation_json, request=request, prompt_message=prompt_message, weaving_mode=weaving_mode, request_logger=request_logger)
             return prompt_message
-        except Exception as e:
+        except Exception:
             raise Exception(f'Failed to build prompt message: {str(traceback.format_exc())}')
 
-    def _log_request_data(self, session_step: int, device_info: Dict[str, AgentProfile], constellation_json: str, request: str, weaving_mode: str, prompt_message: Dict[str, Any], request_logger: 'FileWriter') -> None:
+    def _log_request_data(self, session_step: int, device_info: dict[str, AgentProfile], constellation_json: str, request: str, weaving_mode: str, prompt_message: dict[str, Any], request_logger: 'FileWriter') -> None:
         """
         Log request data for debugging and analysis.
         """
@@ -105,7 +106,7 @@ class ConstellationLLMInteractionStrategy(BaseProcessingStrategy):
         except Exception as e:
             self.logger.warning(f'Failed to log request data: {str(e)}')
 
-    async def _get_llm_response_with_retry(self, agent: 'ConstellationAgent', prompt_message: Dict[str, Any]) -> tuple[str, float]:
+    async def _get_llm_response_with_retry(self, agent: 'ConstellationAgent', prompt_message: dict[str, Any]) -> tuple[str, float]:
         """
         Get LLM response with retry logic for JSON parsing failures.
         """
@@ -207,7 +208,7 @@ class BaseConstellationActionExecutionStrategy(BaseProcessingStrategy):
             return self.handle_error(e, ProcessingPhase.ACTION_EXECUTION, context)
 
     @abstractmethod
-    async def _create_mode_specific_action_info(self, agent: 'ConstellationAgent', parsed_response: ConstellationAgentResponse) -> ActionCommandInfo | List[ActionCommandInfo]:
+    async def _create_mode_specific_action_info(self, agent: 'ConstellationAgent', parsed_response: ConstellationAgentResponse) -> ActionCommandInfo | list[ActionCommandInfo]:
         """
         Create mode-specific action information. Must be implemented by subclasses.
         """
@@ -224,7 +225,7 @@ class BaseConstellationActionExecutionStrategy(BaseProcessingStrategy):
         pass
 
     @abstractmethod
-    def sync_constellation(self, results: List[Result], context: ProcessingContext) -> None:
+    def sync_constellation(self, results: list[Result], context: ProcessingContext) -> None:
         """
         Synchronize the constellation state.
         :param results: List of execution results
@@ -232,7 +233,7 @@ class BaseConstellationActionExecutionStrategy(BaseProcessingStrategy):
         """
         pass
 
-    async def _execute_constellation_action(self, command_dispatcher: BasicCommandDispatcher, actions: ActionCommandInfo | List[ActionCommandInfo]) -> List[Result]:
+    async def _execute_constellation_action(self, command_dispatcher: BasicCommandDispatcher, actions: ActionCommandInfo | list[ActionCommandInfo]) -> list[Result]:
         """
         Execute the specific action from the response.
         """
@@ -260,7 +261,7 @@ class BaseConstellationActionExecutionStrategy(BaseProcessingStrategy):
         """
         return Command(tool_name=action.function, parameters=action.arguments or {}, tool_type='action')
 
-    def _create_action_info(self, actions: ActionCommandInfo | List[ActionCommandInfo], execution_results: List[Result]) -> List[ActionCommandInfo]:
+    def _create_action_info(self, actions: ActionCommandInfo | list[ActionCommandInfo], execution_results: list[Result]) -> list[ActionCommandInfo]:
         """
         Create action information for memory tracking.
         """
@@ -344,7 +345,7 @@ class ConstellationMemoryUpdateStrategy(BaseProcessingStrategy):
                     constellation_context.results = [info.result.result for info in action_info.actions]
             constellation_context.agent_name = agent.name
             return constellation_context
-        except Exception as e:
+        except Exception:
             raise Exception(f'Failed to create additional memory data: {str(traceback.format_exc())}')
 
     def _create_and_populate_memory_item(self, parsed_response: ConstellationAgentResponse, additional_memory: 'ConstellationProcessorContext') -> MemoryItem:
@@ -357,7 +358,7 @@ class ConstellationMemoryUpdateStrategy(BaseProcessingStrategy):
                 memory_item.add_values_from_dict(parsed_response.model_dump())
             memory_item.add_values_from_dict(additional_memory.to_dict(selective=True))
             return memory_item
-        except Exception as e:
+        except Exception:
             import traceback
             raise Exception(f'Failed to create and populate memory item: {str(traceback.format_exc())}')
 

@@ -10,9 +10,8 @@ This test verifies that the update lock prevents race conditions between:
 """
 
 import asyncio
+
 import pytest
-from typing import List
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 pytest.skip(
     "Superseded design: TaskConstellation no longer carries an _update_lock. The "
@@ -22,9 +21,9 @@ pytest.skip(
     allow_module_level=True,
 )
 
+from ufo.galaxy.constellation.enums import DeviceType, TaskPriority, TaskStatus
 from ufo.galaxy.constellation.task_constellation import TaskConstellation
 from ufo.galaxy.constellation.task_star import TaskStar
-from ufo.galaxy.constellation.enums import TaskStatus, TaskPriority, DeviceType
 
 
 class TestConstellationUpdateLock:
@@ -201,7 +200,7 @@ class TestConstellationUpdateLock:
                 if task2 in ready_tasks:
                     results["orchestrator_got_task2"] = True
                     results["task2_status_when_orchestrator_checked"] = task2.status
-                    
+
                     # Record task2's description at the time orchestrator checked
                     # With the lock, either:
                     # 1. Agent hasn't modified yet (description is "Task 2")
@@ -232,16 +231,16 @@ class TestConstellationUpdateLock:
         # The key test: if agent modified the task, and orchestrator got it,
         # then orchestrator must have seen it either before OR after modification,
         # but not during the modification (which would be inconsistent state)
-        
+
         # With proper locking, operations are serialized:
         # Either agent->orchestrator or orchestrator->agent
         # Both orderings are valid, no race condition
-        
+
         # If agent modified, task description should be "Modified Task 2"
         if results["agent_modified_task2"]:
             assert task2.description == "Modified Task 2", \
                 "Agent modification was not applied correctly"
-        
+
         # The fact that we got here without exceptions proves the lock worked
         # No intermediate/inconsistent state was observed
 
@@ -308,7 +307,7 @@ class TestConstellationUpdateLock:
                 # If task1 was removed, it should not be in ready_tasks
                 if task1.task_id not in [t.task_id for t in ready_tasks]:
                     safely_skipped_removed_task = True
-                    
+
                 for task in ready_tasks:
                     if task.status == TaskStatus.PENDING:
                         # Safe to execute

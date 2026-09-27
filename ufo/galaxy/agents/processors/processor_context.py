@@ -1,14 +1,9 @@
-from dataclasses import dataclass, field
-
 import json
-
-from typing import Any, Dict, List, Optional
-
+from dataclasses import dataclass, field
+from typing import Any
 
 from ufo.agents.processors.context.processing_context import BasicProcessorContext
-
 from ufo.agents.processors.schemas.actions import ActionCommandInfo
-
 from ufo.agents.processors.schemas.target import TargetInfo
 
 
@@ -25,19 +20,19 @@ class ConstellationProcessorContext(BasicProcessorContext):
     agent_type: str = "ConstellationAgent"
     weaving_mode: str = "CREATION"
 
-    device_info: List[Dict] = field(default_factory=list)
+    device_info: list[dict] = field(default_factory=list)
 
-    constellation_before: Optional[str] = None
+    constellation_before: str | None = None
 
-    constellation_after: Optional[str] = None
+    constellation_after: str | None = None
 
     # Action and control information
-    action_info: Optional[ActionCommandInfo] = None
+    action_info: ActionCommandInfo | None = None
 
-    target: Optional[TargetInfo] = None
+    target: TargetInfo | None = None
 
     agent_step: int = 0
-    action: List[Dict[str, Any]] = field(default_factory=list)
+    action: list[dict[str, Any]] = field(default_factory=list)
 
     agent_name: str = ""
 
@@ -50,7 +45,7 @@ class ConstellationProcessorContext(BasicProcessorContext):
     log_path: str = ""
 
     @property
-    def selected_keys(self) -> List[str]:
+    def selected_keys(self) -> list[str]:
         """
         The list of selected keys for to dict.
         Returns fields corresponding to HostAgentAdditionalMemory.
@@ -79,7 +74,7 @@ class ConstellationProcessorContext(BasicProcessorContext):
             "weaving_mode",
         ]
 
-    def to_dict(self, selective: bool = True) -> Dict[str, Any]:
+    def to_dict(self, selective: bool = True) -> dict[str, Any]:
         """
         Convert context to dictionary, properly handling JSON string fields.
 

@@ -9,12 +9,12 @@ import sys
 if platform.system() != 'Windows':
     logging.warning(f'ppt_wincom_mcp_server.py requires Windows platform. Current: {platform.system()}. Skipping module initialization.')
     sys.exit(0)
-from typing import Annotated, Any, Callable, List, Optional
+from collections.abc import Callable
+from typing import Annotated, Any
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
-
 from ufo.automator.app_apis.office_com import OfficeComSession
 from ufo.automator.app_apis.powerpoint.powerpointclient import PowerPointWinCOMReceiver
 from ufo.client.mcp.mcp_registry import MCPRegistry
@@ -59,7 +59,7 @@ def create_powerpoint_mcp_server(process_name: str = '', *args, **kwargs) -> Fas
         return run(lambda r: r.insert_image(slide_index, image_path, left, top, width))
 
     @mcp.tool(tags={'AppAgent'})
-    def set_background_color(color: Annotated[str, Field(description="Hex RGB color, e.g. 'FFFFFF'.")], slide_index: Annotated[Optional[List[int]], Field(description='Slide numbers to change; None for all slides.')] = None) -> str:
+    def set_background_color(color: Annotated[str, Field(description="Hex RGB color, e.g. 'FFFFFF'.")], slide_index: Annotated[list[int] | None, Field(description='Slide numbers to change; None for all slides.')] = None) -> str:
         """Set the background color of slides."""
         return run(lambda r: r.set_background_color(color, slide_index))
 

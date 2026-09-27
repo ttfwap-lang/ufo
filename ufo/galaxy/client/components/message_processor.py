@@ -7,14 +7,20 @@ Single responsibility: Message handling and routing.
 import asyncio
 import json
 import logging
-from typing import Dict, Any, Optional, Callable, TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Optional
+
 import websockets
+
 from ufo.aip.messages import ServerMessage, ServerMessageType, TaskStatus
+
 from .device_registry import DeviceRegistry
 from .heartbeat_manager import HeartbeatManager
+
 if TYPE_CHECKING:
     from .connection_manager import WebSocketConnectionManager
 from ufo.aip.transport.websocket import WebSocketTransport
+
 
 class MessageProcessor:
     """
@@ -38,9 +44,9 @@ class MessageProcessor:
         self.device_registry = device_registry
         self.heartbeat_manager = heartbeat_manager
         self.connection_manager = connection_manager
-        self._message_handlers: Dict[str, asyncio.Task] = {}
-        self._handler_transports: Dict[str, Any] = {}
-        self._disconnection_handler: Optional[Callable] = None
+        self._message_handlers: dict[str, asyncio.Task] = {}
+        self._handler_transports: dict[str, Any] = {}
+        self._disconnection_handler: Callable | None = None
         self.logger = logging.getLogger(f'{__name__}.MessageProcessor')
 
     def set_connection_manager(self, connection_manager: 'WebSocketConnectionManager') -> None:
@@ -313,7 +319,7 @@ class MessageProcessor:
                 self.connection_manager.complete_device_info_response(request_id, device_info)
                 self.logger.debug(f'🔄 Completed device info response Future for request {request_id}')
             else:
-                self.logger.warning(f'⚠️ ConnectionManager not set, cannot complete device info response')
+                self.logger.warning('⚠️ ConnectionManager not set, cannot complete device info response')
         except Exception as e:
             self.logger.error(f'❌ Error handling device info response from {device_id}: {e}', exc_info=True)
 

@@ -16,13 +16,16 @@ Usage:
   python astro_step.py paste                  Ctrl+V + Enter (clipboard preset)
   python astro_step.py shot                   screenshot evidence
 """
-import sys, asyncio
+import asyncio
+import sys
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, "C:\\Users\\lnxzf\\Desktop\\projects\\ufo")
-from ufo.automator.app_apis.telegram import TelegramGUIController
-from ufo.automation.factory import get_desktop_automation
-from ufo.automation.desktop import Rect
 import ctypes
+
+from ufo.automation.desktop import Rect
+from ufo.automation.factory import get_desktop_automation
+from ufo.automator.app_apis.telegram import TelegramGUIController
 
 
 def get_scale() -> float:
@@ -203,9 +206,9 @@ async def main():
         # Click at OCR word center (bitmap coords -> physical)
         # Usage: clickocr <word_text>  -- finds first matching word, clicks its center
         target = sys.argv[2].lower()
-        import subprocess, json
-        result = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", 
-                                 r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\ocr_shot.ps1"], 
+        import subprocess
+        result = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                                 r"C:\Users\lnxzf\Desktop\projects\ufo\ufo\ocr_shot.ps1"],
                                 capture_output=True, text=True, timeout=60)
         for line in result.stdout.splitlines():
             if line.startswith("WORD "):

@@ -31,9 +31,9 @@ import json
 import logging
 import os
 import time
-import traceback
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
 class DeadLetterQueueManager:
@@ -48,7 +48,7 @@ class DeadLetterQueueManager:
         MAX_SNAPSHOTS: 100
     """
 
-    def __init__(self, base_dir: Optional[str]=None) -> None:
+    def __init__(self, base_dir: str | None=None) -> None:
         self._enabled: bool = True
         self._snapshot_dir: str = base_dir or 'logs/dlq/snapshots'
         self._webhook_url: str = ''
@@ -69,7 +69,7 @@ class DeadLetterQueueManager:
         except Exception as e:
             logger.debug(f'Using default DLQ config: {e}')
 
-    def capture_failure(self, task_id: str, error_chain: str='', dag_state: Optional[Dict[str, Any]]=None, uia_tree: Optional[Dict[str, Any]]=None, screenshots: Optional[Dict[str, str]]=None, agent_config: Optional[Dict[str, Any]]=None, metadata: Optional[Dict[str, Any]]=None) -> Optional[str]:
+    def capture_failure(self, task_id: str, error_chain: str='', dag_state: dict[str, Any] | None=None, uia_tree: dict[str, Any] | None=None, screenshots: dict[str, str] | None=None, agent_config: dict[str, Any] | None=None, metadata: dict[str, Any] | None=None) -> str | None:
         """
         Capture a comprehensive diagnostic snapshot on total fallback exhaustion.
 
@@ -104,7 +104,7 @@ class DeadLetterQueueManager:
             self._trigger_alert(snapshot_path, task_id, error_chain)
         return snapshot_path
 
-    def list_snapshots(self) -> List[Dict[str, Any]]:
+    def list_snapshots(self) -> list[dict[str, Any]]:
         """List all DLQ snapshots with basic metadata."""
         snapshot_dir = Path(self._snapshot_dir)
         if not snapshot_dir.exists():
@@ -118,19 +118,19 @@ class DeadLetterQueueManager:
                 continue
         return snapshots
 
-    def load_snapshot(self, filename: str) -> Optional[Dict[str, Any]]:
+    def load_snapshot(self, filename: str) -> dict[str, Any] | None:
         """Load and return a specific DLQ snapshot."""
         path = Path(self._snapshot_dir) / filename
         if not path.exists():
             return None
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f'Failed to load DLQ snapshot {filename}: {e}')
             return None
 
-    def _save_snapshot(self, filename: str, snapshot: Dict[str, Any]) -> Optional[str]:
+    def _save_snapshot(self, filename: str, snapshot: dict[str, Any]) -> str | None:
         """Save snapshot to disk."""
         try:
             snapshot_dir = Path(self._snapshot_dir)
@@ -181,14 +181,14 @@ class DeadLetterQueueManager:
             logger.warning(f'[DLQ] Webhook alert failed: {e}')
 
     @staticmethod
-    def _collect_system_info() -> Dict[str, Any]:
+    def _collect_system_info() -> dict[str, Any]:
         """Collect basic system info for the snapshot."""
         import platform
         import sys
         return {'python_version': sys.version, 'platform': platform.platform(), 'hostname': os.environ.get('COMPUTERNAME', 'unknown'), 'pid': os.getpid()}
-_default_dlq: Optional[DeadLetterQueueManager] = None
+_default_dlq: DeadLetterQueueManager | None = None
 
-def serialize_fatal_failure(graph: Any, failed_node_id: str, screenshot_path: str, pruned_uia_tree: Optional[Dict[str, Any]]=None, exception_trace: str='') -> Optional[str]:
+def serialize_fatal_failure(graph: Any, failed_node_id: str, screenshot_path: str, pruned_uia_tree: dict[str, Any] | None=None, exception_trace: str='') -> str | None:
     """
     Module-level convenience function for serializing a fatal DAG failure.
 

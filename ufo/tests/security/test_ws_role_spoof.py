@@ -20,15 +20,13 @@ same way the published PoC does.
 from __future__ import annotations
 
 import asyncio
-import os
 import importlib
 import sys
 import types
 import unittest
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List
-
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -129,9 +127,9 @@ class RecorderProtocol:
     """In-memory stand-in for an AIP TaskExecutionProtocol."""
 
     label: str
-    acks: List[str] = field(default_factory=list)
-    task_ends: List[Dict[str, Any]] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
+    acks: list[str] = field(default_factory=list)
+    task_ends: list[dict[str, Any]] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
     async def send_ack(self, session_id: str) -> None:
         self.acks.append(session_id)
@@ -147,7 +145,7 @@ class RecordingSessionManager:
     """Captures ``execute_task_async`` invocations without running any."""
 
     def __init__(self) -> None:
-        self.calls: List[Dict[str, Any]] = []
+        self.calls: list[dict[str, Any]] = []
 
     async def execute_task_async(
         self,

@@ -8,18 +8,17 @@ Tests the binary transfer capabilities of the Agent Interaction Protocol,
 including adapters, transport, and protocol layers.
 """
 
-import asyncio
 import os
 import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from ufo.aip.messages import (
     BinaryMetadata,
     ChunkMetadata,
-    FileTransferStart,
     FileTransferComplete,
+    FileTransferStart,
 )
 from ufo.aip.protocol import AIPProtocol
 from ufo.aip.transport import WebSocketTransport
@@ -28,7 +27,6 @@ from ufo.aip.transport.adapters import (
     WebSocketAdapter,
     WebSocketsLibAdapter,
 )
-
 
 # ============================================================================
 # Adapter Tests

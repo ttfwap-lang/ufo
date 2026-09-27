@@ -2,9 +2,8 @@
 # Licensed under the MIT License.
 
 import json
-from typing import Any, Dict, List
+from typing import Any
 
-from ufo.config.config_loader import get_ufo_config
 from ufo.prompter.agent_prompter import AppAgentPrompter
 from ufo.prompter.prompt_sanitizer import sanitize_user_input
 
@@ -27,13 +26,15 @@ class MobileAgentPrompter(AppAgentPrompter):
         super().__init__(None, prompt_template, example_prompt_template)
         self.api_prompt_template = None
 
-    def system_prompt_construction(self, additional_examples: List[str] = []) -> str:
+    def system_prompt_construction(self, additional_examples: list[str] = None) -> str:
         """
         Construct the system prompt for mobile agent.
         :param additional_examples: The additional examples added to the prompt.
         return: The system prompt for mobile agent.
         """
 
+        if additional_examples is None:
+            additional_examples = []
         apis = self.api_prompt_helper(verbose=1)
         examples = self.examples_prompt_helper(additional_examples=additional_examples)
 
@@ -41,12 +42,12 @@ class MobileAgentPrompter(AppAgentPrompter):
 
     def user_prompt_construction(
         self,
-        prev_plan: List[str],
+        prev_plan: list[str],
         user_request: str,
-        installed_apps: List[Dict[str, Any]],
-        current_controls: List[Dict[str, Any]],
+        installed_apps: list[dict[str, Any]],
+        current_controls: list[dict[str, Any]],
         retrieved_docs: str = "",
-        last_success_actions: List[Dict[str, Any]] = [],
+        last_success_actions: list[dict[str, Any]] = None,
     ) -> str:
         """
         Construct the user prompt for action selection.
@@ -58,6 +59,8 @@ class MobileAgentPrompter(AppAgentPrompter):
         :param last_success_actions: The list of successful actions in the last step.
         return: The prompt for action selection.
         """
+        if last_success_actions is None:
+            last_success_actions = []
         prompt = self.prompt_template["user"].format(
             prev_plan=json.dumps(prev_plan),
             user_request=sanitize_user_input(user_request, "user_request"),
@@ -71,15 +74,15 @@ class MobileAgentPrompter(AppAgentPrompter):
 
     def user_content_construction(
         self,
-        prev_plan: List[str],
+        prev_plan: list[str],
         user_request: str,
-        installed_apps: List[Dict[str, Any]],
-        current_controls: List[Dict[str, Any]],
+        installed_apps: list[dict[str, Any]],
+        current_controls: list[dict[str, Any]],
         screenshot_url: str = None,
         annotated_screenshot_url: str = None,
         retrieved_docs: str = "",
-        last_success_actions: List[Dict[str, Any]] = [],
-    ) -> List[Dict[str, str]]:
+        last_success_actions: list[dict[str, Any]] = None,
+    ) -> list[dict[str, str]]:
         """
         Construct the prompt content for LLMs with screenshots and control information.
         :param prev_plan: The previous plan.
@@ -93,6 +96,8 @@ class MobileAgentPrompter(AppAgentPrompter):
         return: The prompt content for LLMs.
         """
 
+        if last_success_actions is None:
+            last_success_actions = []
         user_content = []
 
         # Add screenshots if available
@@ -133,7 +138,7 @@ class MobileAgentPrompter(AppAgentPrompter):
         self,
         header: str = "## Response Examples",
         separator: str = "Example",
-        additional_examples: List[Dict[str, Any]] = [],
+        additional_examples: list[dict[str, Any]] = None,
     ) -> str:
         """
         Construct the prompt for examples.
@@ -143,6 +148,8 @@ class MobileAgentPrompter(AppAgentPrompter):
         return: The prompt for examples.
         """
 
+        if additional_examples is None:
+            additional_examples = []
         template = """
         [User Request]:
             {request}

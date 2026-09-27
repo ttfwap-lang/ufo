@@ -3,7 +3,6 @@ import asyncio
 from types import SimpleNamespace
 
 from PIL import Image
-
 from ufo.agents.processors.schemas.verification_schema import ActionVerificationRequest, VerificationStatus
 from ufo.agents.processors.strategies import live_verification_strategy as lv
 

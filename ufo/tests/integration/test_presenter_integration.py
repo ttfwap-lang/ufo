@@ -4,13 +4,15 @@ Integration tests for Presenter layer with Agents.
 Tests ensure that the refactored presenter system works correctly
 with actual Agent instances and produces the same output as before.
 """
-import unittest
-from unittest.mock import Mock, MagicMock, patch
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import MagicMock, Mock, patch
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-from ufo.agents.presenters import RichPresenter, PresenterFactory
+from ufo.agents.presenters import PresenterFactory, RichPresenter
 from ufo.config import Config
+
 
 class TestAgentPresenterIntegration(unittest.TestCase):
     """Integration tests for agents using presenters"""
@@ -61,8 +63,8 @@ class TestAgentPresenterIntegration(unittest.TestCase):
     @patch('ufo.agents.presenters.rich_presenter.Console')
     def test_app_agent_print_response(self, mock_console_class):
         """Test that AppAgent's print_response uses presenter correctly"""
-        from ufo.agents.processors.schemas.response_schema import AppAgentResponse
         from ufo.agents.processors.schemas.actions import ActionCommandInfo
+        from ufo.agents.processors.schemas.response_schema import AppAgentResponse
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
         response = Mock(spec=AppAgentResponse)

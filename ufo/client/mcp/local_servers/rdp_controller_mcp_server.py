@@ -7,9 +7,11 @@ import logging
 import os
 import subprocess
 import time
+
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from ufo.client.mcp.mcp_registry import MCPRegistry
+
 logger = logging.getLogger(__name__)
 
 def _run_cmd(args: list, timeout: int=30, check: bool=True) -> str:
@@ -51,9 +53,7 @@ def _find_mstsc_window(host: str='', pid: int=0):
                 except Exception:
                     pass
             title_lower = title.lower()
-            if host and host.lower() in title_lower:
-                results.append((hwnd, title))
-            elif 'remote desktop' in title_lower or 'mstsc' in title_lower:
+            if host and host.lower() in title_lower or 'remote desktop' in title_lower or 'mstsc' in title_lower:
                 results.append((hwnd, title))
         win32gui.EnumWindows(_enum_cb, None)
         if results:
@@ -69,8 +69,8 @@ def _focus_window(hwnd: int) -> bool:
     if not hwnd:
         return False
     try:
-        import win32gui
         import win32con
+        import win32gui
         if win32gui.IsIconic(hwnd):
             win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
         win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
@@ -148,7 +148,7 @@ def create_rdp_controller_mcp_server(*args, **kwargs) -> FastMCP:
         host = 'unknown'
         username = 'unknown'
         try:
-            with open(rdp_file_path, 'r', encoding='utf-8') as f:
+            with open(rdp_file_path, encoding='utf-8') as f:
                 for line in f:
                     if line.startswith('full address:s:'):
                         host = line.split(':s:', 1)[1].strip()
@@ -233,10 +233,10 @@ def create_rdp_controller_mcp_server(*args, **kwargs) -> FastMCP:
         _auto_focus_rdp(_active_sessions, host=host)
         time.sleep(0.3)
         try:
-            import pyautogui
-            from PIL import Image
             import base64
             from io import BytesIO
+
+            import pyautogui
             screenshot = pyautogui.screenshot()
             if save_path:
                 screenshot.save(save_path)

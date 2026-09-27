@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from abc import ABC, ABCMeta, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, Optional, Type
+from typing import TYPE_CHECKING
 
 from ufo.module.context import Context
 
@@ -50,14 +50,14 @@ class AgentStateManager(ABC, metaclass=SingletonABCMeta):
     A abstract class to manage the states of the agent.
     """
 
-    _state_mapping: Dict[str, Type[AgentState]] = {}
+    _state_mapping: dict[str, type[AgentState]] = {}
 
     def __init__(self):
         """
         Initialize the state manager.
         """
 
-        self._state_instance_mapping: Dict[str, AgentState] = {}
+        self._state_instance_mapping: dict[str, AgentState] = {}
 
     def get_state(self, status: str) -> AgentState:
         """
@@ -87,7 +87,7 @@ class AgentStateManager(ABC, metaclass=SingletonABCMeta):
         self.state_map[status] = state
 
     @property
-    def state_map(self) -> Dict[str, AgentState]:
+    def state_map(self) -> dict[str, AgentState]:
         """
         The state mapping of status to state.
         :return: The state mapping.
@@ -95,7 +95,7 @@ class AgentStateManager(ABC, metaclass=SingletonABCMeta):
         return self._state_instance_mapping
 
     @classmethod
-    def register(cls, state_class: Type[AgentState]) -> Type[AgentState]:
+    def register(cls, state_class: type[AgentState]) -> type[AgentState]:
         """
         Decorator to register the state class to the state manager.
         :param state_class: The state class to be registered.
@@ -120,7 +120,7 @@ class AgentState(ABC):
 
     @abstractmethod
     async def handle(
-        self, agent: BasicAgent, context: Optional["Context"] = None
+        self, agent: BasicAgent, context: Context | None = None
     ) -> None:
         """
         Handle the agent for the current step.
@@ -165,7 +165,7 @@ class AgentState(ABC):
 
     @classmethod
     @abstractmethod
-    def agent_class(cls) -> Type[BasicAgent]:
+    def agent_class(cls) -> type[BasicAgent]:
         """
         The class of the agent.
         :return: The class of the agent.

@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Dict, Iterable, List, Optional
+from collections.abc import Iterable
 
 # The self-chat. Always spelled with the space - this is the one constant every
 # caller, test and tool should import rather than retyping.
@@ -40,7 +40,7 @@ SAVED_MESSAGES = "Saved Messages"
 # Aliases seen in the wild (LLM output, older tests, ad-hoc scripts) mapped to
 # the exact spelling Telegram displays. Keys are compared via `chat_key`, so
 # case and spacing in the alias do not matter.
-_ALIASES: Dict[str, str] = {
+_ALIASES: dict[str, str] = {
     "savedmessages": SAVED_MESSAGES,
     "myaccount": SAVED_MESSAGES,
     "cloudchats": "Cloud Chats",
@@ -101,7 +101,7 @@ def _split_camel(value: str) -> str:
     return _CAMEL_BOUNDARY.sub(" ", value)
 
 
-def canonical_chat_name(name: Optional[str]) -> str:
+def canonical_chat_name(name: str | None) -> str:
     """Return the exact spelling Telegram displays for `name`.
 
     Resolution order:
@@ -130,7 +130,7 @@ def canonical_chat_name(name: Optional[str]) -> str:
     return _split_camel(cleaned).strip()
 
 
-def chat_key(name: Optional[str]) -> str:
+def chat_key(name: str | None) -> str:
     """Loose key for comparing chat names, for MATCHING only.
 
     Every spelling that means the same chat collapses to one key: the display
@@ -149,12 +149,12 @@ def chat_key(name: Optional[str]) -> str:
     return _WS.sub("", canonical).casefold()
 
 
-def is_saved_messages(name: Optional[str]) -> bool:
+def is_saved_messages(name: str | None) -> bool:
     """True when `name` refers to the self-chat, however it was spelled."""
     return chat_key(name) == chat_key(SAVED_MESSAGES)
 
 
-def pick_best_match(query: str, candidates: Iterable[str]) -> Optional[str]:
+def pick_best_match(query: str, candidates: Iterable[str]) -> str | None:
     """Choose the candidate that best matches `query`, spacing-agnostically.
 
     Used to reconcile a caller-supplied name against the names actually visible
@@ -165,7 +165,7 @@ def pick_best_match(query: str, candidates: Iterable[str]) -> Optional[str]:
     Preserves the caller's original spelling of the winner, because that is the
     text Telegram will accept in its search box.
     """
-    cands: List[str] = [c for c in candidates if c]
+    cands: list[str] = [c for c in candidates if c]
     if not cands:
         return None
 

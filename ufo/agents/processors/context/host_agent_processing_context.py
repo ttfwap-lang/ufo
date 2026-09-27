@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ufo.agents.processors.context.processing_context import BasicProcessorContext
 from ufo.agents.processors.schemas.actions import ActionCommandInfo
@@ -19,33 +19,33 @@ class HostAgentProcessorContext(BasicProcessorContext):
     agent_type: str = "HostAgent"
 
     # Plan and subtask management
-    prev_plan: List[str] = field(default_factory=list)
-    previous_subtasks: List[str] = field(default_factory=list)
-    current_plan: List[str] = field(default_factory=list)
+    prev_plan: list[str] = field(default_factory=list)
+    previous_subtasks: list[str] = field(default_factory=list)
+    current_plan: list[str] = field(default_factory=list)
 
     # Target and application state
-    target_info_list: List[Dict[str, TargetInfo]] = field(default_factory=list)
-    selected_application_root: Optional[str] = None
-    selected_target_id: Optional[str] = None
-    assigned_third_party_agent: Optional[str] = None
+    target_info_list: list[dict[str, TargetInfo]] = field(default_factory=list)
+    selected_application_root: str | None = None
+    selected_target_id: str | None = None
+    assigned_third_party_agent: str | None = None
 
     # Screenshot and visual data
-    desktop_screenshot_url: Optional[str] = None
-    screenshot_paths: Dict[str, str] = field(default_factory=dict)
+    desktop_screenshot_url: str | None = None
+    screenshot_paths: dict[str, str] = field(default_factory=dict)
 
     # Action and control information
-    action_info: Optional[ActionCommandInfo] = None
+    action_info: ActionCommandInfo | None = None
 
-    target: Optional[TargetInfo] = None
+    target: TargetInfo | None = None
 
     agent_step: int = 0
     subtask_index: int = -1
-    action: List[Dict[str, Any]] = field(default_factory=list)
+    action: list[dict[str, Any]] = field(default_factory=list)
 
     agent_name: str = ""
     application: str = ""
 
-    control_log: Dict[str, Any] = field(default_factory=dict)
+    control_log: dict[str, Any] = field(default_factory=dict)
 
     # LLM and cost tracking
     llm_cost: float = 0.0
@@ -56,7 +56,7 @@ class HostAgentProcessorContext(BasicProcessorContext):
     log_path: str = ""
 
     @property
-    def selected_keys(self) -> List[str]:
+    def selected_keys(self) -> list[str]:
         """
         The list of selected keys for to dict.
         Returns fields corresponding to HostAgentAdditionalMemory.

@@ -17,7 +17,7 @@ import logging
 import re
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from PIL import Image, ImageDraw
 
@@ -46,7 +46,7 @@ class GroundingResult:
     confirmed: bool
 
 
-def extract_point(text: str) -> Optional[Tuple[float, float]]:
+def extract_point(text: str) -> tuple[float, float] | None:
     """Parse UI-Venus output into a 0-1000 point; None when infeasible or unparseable."""
     text = (text or "").strip()
     m = re.search(r"\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]", text)
@@ -88,7 +88,7 @@ class VenusGrounder:
             client = OpenAI(base_url=endpoint, api_key=api_key, timeout=timeout)
         self.client = client
         self.model = model
-        self._cache: "OrderedDict[tuple, Optional[GroundingResult]]" = OrderedDict()
+        self._cache: OrderedDict[tuple, GroundingResult | None] = OrderedDict()
 
     def _ask(self, img: Image.Image, text: str, max_tokens: int) -> str:
         r = self.client.chat.completions.create(
@@ -103,7 +103,7 @@ class VenusGrounder:
         )
         return r.choices[0].message.content or ""
 
-    def locate(self, image_path: str, description: str, confirm: bool = True) -> Optional[GroundingResult]:
+    def locate(self, image_path: str, description: str, confirm: bool = True) -> GroundingResult | None:
         """Return the confirmed point for `description`, or None if not found/not confirmed."""
         with open(image_path, "rb") as f:
             data = f.read()
@@ -114,7 +114,7 @@ class VenusGrounder:
         img = Image.open(io.BytesIO(data)).convert("RGB")
         raw = self._ask(img, LOCATE_PROMPT.format(instruction=description), 64)
         point = extract_point(raw)
-        result: Optional[GroundingResult] = None
+        result: GroundingResult | None = None
         if point is not None:
             fx, fy = min(max(point[0] / 1000.0, 0.0), 1.0), min(max(point[1] / 1000.0, 0.0), 1.0)
             confirmed = True
@@ -130,10 +130,10 @@ class VenusGrounder:
         return result
 
 
-_grounder: Optional[VenusGrounder] = None
+_grounder: VenusGrounder | None = None
 
 
-def get_grounder(config: Optional[Dict[str, Any]]) -> Optional[VenusGrounder]:
+def get_grounder(config: dict[str, Any] | None) -> VenusGrounder | None:
     """Shared grounder built from the GROUNDING_MODEL config block, or None if disabled."""
     global _grounder
     if not config or not config.get("ENABLED") or not config.get("ENDPOINT"):

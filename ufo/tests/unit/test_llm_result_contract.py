@@ -5,8 +5,9 @@
 Unit tests for LLMResult contract across all LLM providers and agents.
 """
 
-import pytest
 from dataclasses import FrozenInstanceError
+
+import pytest
 from ufo.llm.llm_result import LLMResult
 
 

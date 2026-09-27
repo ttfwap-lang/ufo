@@ -5,19 +5,18 @@
 Test to verify why ConstellationProgressObserver logs but ConstellationAgent add_task_completion_event doesn't log.
 """
 
-import asyncio
 import logging
-import pytest
 import time
-from unittest.mock import Mock, AsyncMock, patch
-from typing import Dict, Any
+from unittest.mock import AsyncMock, Mock
 
-from ufo.galaxy.session.observers.base_observer import ConstellationProgressObserver
+import pytest
+
 from ufo.galaxy.agents.constellation_agent import ConstellationAgent
-from ufo.galaxy.core.events import TaskEvent, EventType
 from ufo.galaxy.constellation.orchestrator.orchestrator import (
     TaskConstellationOrchestrator,
 )
+from ufo.galaxy.core.events import EventType, TaskEvent
+from ufo.galaxy.session.observers.base_observer import ConstellationProgressObserver
 
 
 class TestConstellationObserverLogger:
@@ -97,17 +96,17 @@ class TestConstellationObserverLogger:
             if "Added task event for task" in record.message
         ]
 
-        print(f"\n=== ALL CAPTURED LOGS ===")
+        print("\n=== ALL CAPTURED LOGS ===")
         for i, record in enumerate(caplog.records):
             print(
                 f"{i+1}. {record.name}:{record.filename}:{record.lineno} - {record.message}"
             )
 
-        print(f"\n=== OBSERVER LOGS ===")
+        print("\n=== OBSERVER LOGS ===")
         for log in observer_logs:
             print(f"Observer: {log.message}")
 
-        print(f"\n=== AGENT LOGS ===")
+        print("\n=== AGENT LOGS ===")
         for log in agent_logs:
             print(f"Agent: {log.message}")
 
@@ -135,7 +134,7 @@ class TestConstellationObserverLogger:
         caplog.set_level(logging.INFO)
         caplog.clear()
 
-        print(f"\n=== TESTING DIRECT CALL TO add_task_completion_event ===")
+        print("\n=== TESTING DIRECT CALL TO add_task_completion_event ===")
         print(f"Agent logger name: {constellation_agent.logger.name}")
         print(f"Agent logger level: {constellation_agent.logger.level}")
         print(
@@ -154,7 +153,7 @@ class TestConstellationObserverLogger:
             if "Added task event for task" in record.message
         ]
 
-        print(f"\n=== ALL CAPTURED LOGS FROM DIRECT CALL ===")
+        print("\n=== ALL CAPTURED LOGS FROM DIRECT CALL ===")
         for i, record in enumerate(caplog.records):
             print(
                 f"{i+1}. {record.name}:{record.filename}:{record.lineno} - {record.message}"
@@ -177,16 +176,16 @@ class TestConstellationObserverLogger:
     ):
         """Compare logger configurations between observer and agent."""
 
-        print(f"\n=== LOGGER CONFIGURATION COMPARISON ===")
+        print("\n=== LOGGER CONFIGURATION COMPARISON ===")
 
-        print(f"\nObserver logger:")
+        print("\nObserver logger:")
         print(f"  Name: {observer.logger.name}")
         print(f"  Level: {observer.logger.level}")
         print(f"  Effective level: {observer.logger.getEffectiveLevel()}")
         print(f"  Handlers: {observer.logger.handlers}")
         print(f"  Propagate: {observer.logger.propagate}")
 
-        print(f"\nAgent logger:")
+        print("\nAgent logger:")
         print(f"  Name: {constellation_agent.logger.name}")
         print(f"  Level: {constellation_agent.logger.level}")
         print(f"  Effective level: {constellation_agent.logger.getEffectiveLevel()}")
@@ -211,7 +210,7 @@ class TestConstellationObserverLogger:
             if "Agent logger test message" in record.message
         ]
 
-        print(f"\nTest message results:")
+        print("\nTest message results:")
         print(f"  Observer test logs captured: {len(observer_test_logs)}")
         print(f"  Agent test logs captured: {len(agent_test_logs)}")
 

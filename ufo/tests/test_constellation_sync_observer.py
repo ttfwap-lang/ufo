@@ -15,24 +15,24 @@ This test suite covers:
 
 import asyncio
 import logging
-import time
-import sys
 import os
+import sys
+import time
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from ufo.galaxy.core.events import (
+    ConstellationEvent,
+    EventType,
+    TaskEvent,
+)
 from ufo.galaxy.session.observers.constellation_sync_observer import (
     ConstellationModificationSynchronizer,
 )
-from ufo.galaxy.core.events import (
-    TaskEvent,
-    ConstellationEvent,
-    EventType,
-)
-
 
 # Configure logging for tests
 logging.basicConfig(level=logging.DEBUG)

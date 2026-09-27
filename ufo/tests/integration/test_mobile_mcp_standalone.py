@@ -18,8 +18,9 @@ import asyncio
 import os
 import subprocess
 import sys
-from typing import Any, Dict
+
 from fastmcp import Client
+
 
 def find_adb():
     """Auto-detect ADB path"""
@@ -41,7 +42,7 @@ async def check_adb_connection() -> bool:
     try:
         result = subprocess.run([adb_path, 'devices'], capture_output=True, text=True, timeout=5)
         if result.returncode != 0:
-            print(f'❌ ADB not found or not working properly')
+            print('❌ ADB not found or not working properly')
             print(f'   Tried: {adb_path}')
             return False
         devices = [line for line in result.stdout.split('\n') if '\tdevice' in line]
@@ -78,7 +79,7 @@ async def test_data_collection_server():
             device_info = result.data
             if device_info and device_info.get('success'):
                 info = device_info['device_info']
-                print(f'✅ Device Info:')
+                print('✅ Device Info:')
                 print(f"   Model: {info.get('model', 'N/A')}")
                 print(f"   Android Version: {info.get('android_version', 'N/A')}")
                 print(f"   Screen: {info.get('screen_size', 'N/A')}")
@@ -89,7 +90,7 @@ async def test_data_collection_server():
             result = await client.call_tool('capture_screenshot', {'format': 'base64'})
             screenshot = result.data
             if screenshot and screenshot.get('success'):
-                print(f'✅ Screenshot captured:')
+                print('✅ Screenshot captured:')
                 print(f"   Size: {screenshot['width']}x{screenshot['height']}")
                 print(f"   Format: {screenshot['format']}")
                 print(f"   Data length: {len(screenshot['image'])} chars")
@@ -99,7 +100,7 @@ async def test_data_collection_server():
             result = await client.call_tool('get_ui_tree', {})
             ui_tree = result.data
             if ui_tree and ui_tree.get('success'):
-                print(f'✅ UI tree retrieved:')
+                print('✅ UI tree retrieved:')
                 print(f"   Length: {len(ui_tree['ui_tree'])} characters")
                 print(f"   Format: {ui_tree['format']}")
             else:
@@ -120,7 +121,7 @@ async def test_data_collection_server():
                 print(f'✅ Found {len(controls)} controls on current screen')
                 if controls:
                     sample = controls[0]
-                    print(f'   Sample control:')
+                    print('   Sample control:')
                     print(f"     ID: {sample.get('id', 'N/A')}")
                     print(f"     Name: {sample.get('name', 'N/A')}")
                     print(f"     Type: {sample.get('type', 'N/A')}")
@@ -201,7 +202,7 @@ async def test_shared_state():
             if controls and isinstance(controls, list):
                 print(f'✅ Retrieved {len(controls)} controls (cache populated)')
             else:
-                print(f'❌ Failed to get controls')
+                print('❌ Failed to get controls')
                 return False
         print('\n2️⃣ Invalidating cache from action server...')
         async with Client(action_url) as action_client:
@@ -210,7 +211,7 @@ async def test_shared_state():
             if cache_result and cache_result.get('success'):
                 print(f"✅ Cache invalidated from action server: {cache_result['message']}")
             else:
-                print(f'❌ Failed to invalidate cache')
+                print('❌ Failed to invalidate cache')
                 return False
         print('\n3️⃣ Getting controls again from data collection server...')
         async with Client(data_url) as data_client:
@@ -220,7 +221,7 @@ async def test_shared_state():
                 print(f'✅ Retrieved {len(controls)} controls')
                 print('✅ Shared state verified - cache was properly invalidated!')
             else:
-                print(f'❌ Failed to get controls')
+                print('❌ Failed to get controls')
                 return False
         print('\n✅ Shared State: TEST PASSED')
         return True

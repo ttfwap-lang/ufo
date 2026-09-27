@@ -44,13 +44,14 @@ import logging
 import os
 import threading
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
-def _load_audit_config() -> Dict[str, Any]:
+def _load_audit_config() -> dict[str, Any]:
     """Load audit logger config from system.yaml."""
     defaults = {'ENABLED': True, 'SINK_URL': '', 'SINK_TOKEN': '', 'SINK_TYPE': 'generic', 'LOCAL_LOG_DIR': 'logs/audit', 'CHAIN_ALGORITHM': 'sha256'}
     try:
@@ -75,7 +76,7 @@ class ImmutableAuditLogger:
     """
     GENESIS_HASH = '0' * 64
 
-    def __init__(self, sink_url: Optional[str]=None, sink_token: Optional[str]=None, local_log_dir: Optional[str]=None) -> None:
+    def __init__(self, sink_url: str | None=None, sink_token: str | None=None, local_log_dir: str | None=None) -> None:
         self._config = _load_audit_config()
         self._enabled = self._config.get('ENABLED', True)
         self._sink_url = sink_url or self._config.get('SINK_URL', '')
@@ -85,12 +86,12 @@ class ImmutableAuditLogger:
         self._local_log_dir = local_log_dir or self._config.get('LOCAL_LOG_DIR', 'logs/audit')
         self._lock = threading.Lock()
         self._last_hash: str = self.GENESIS_HASH
-        self._local_records: List[Dict[str, Any]] = []
+        self._local_records: list[dict[str, Any]] = []
         self._record_count: int = 0
         self._log_file_path = self._init_local_log()
         self._recover_chain_state()
 
-    def log_dag_execution(self, workflow_id: str, node_id: str, action_payload: Dict[str, Any], status: str, metadata: Optional[Dict[str, Any]]=None) -> Optional[str]:
+    def log_dag_execution(self, workflow_id: str, node_id: str, action_payload: dict[str, Any], status: str, metadata: dict[str, Any] | None=None) -> str | None:
         """
         Record an execution event with cryptographic hash chaining.
 
@@ -119,7 +120,7 @@ class ImmutableAuditLogger:
             logger.info(f"[Audit] #{audit_record['sequence']} {current_hash[:12]} ← {audit_record['previous_hash'][:12]} | {workflow_id}/{node_id} → {status}")
             return current_hash
 
-    def verify_chain(self, records: Optional[List[Dict[str, Any]]]=None) -> bool:
+    def verify_chain(self, records: list[dict[str, Any]] | None=None) -> bool:
         """
         Verify the integrity of the entire hash chain.
 
@@ -146,7 +147,7 @@ class ImmutableAuditLogger:
         logger.info(f'[Audit] Chain verified: {len(chain)} records, integrity OK.')
         return True
 
-    def verify_chain_from_file(self, filepath: Optional[str]=None) -> bool:
+    def verify_chain_from_file(self, filepath: str | None=None) -> bool:
         """
         Verify chain integrity from the local WORM log file.
 
@@ -158,7 +159,7 @@ class ImmutableAuditLogger:
             logger.warning('[Audit] No log file to verify.')
             return True
         records = []
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if line:
@@ -168,11 +169,11 @@ class ImmutableAuditLogger:
                         continue
         return self.verify_chain(records)
 
-    def get_chain_summary(self) -> Dict[str, Any]:
+    def get_chain_summary(self) -> dict[str, Any]:
         """Get summary stats about the audit chain."""
         return {'record_count': self._record_count, 'last_hash': self._last_hash, 'genesis_hash': self.GENESIS_HASH, 'algorithm': self._algorithm, 'log_file': self._log_file_path, 'sink_configured': bool(self._sink_url), 'enabled': self._enabled}
 
-    def _compute_hash(self, record: Dict[str, Any]) -> str:
+    def _compute_hash(self, record: dict[str, Any]) -> str:
         """
         Compute a deterministic SHA-256 hash of a record.
 
@@ -188,7 +189,7 @@ class ImmutableAuditLogger:
         else:
             return hashlib.sha256(canonical).hexdigest()
 
-    def _init_local_log(self) -> Optional[str]:
+    def _init_local_log(self) -> str | None:
         """Initialize the local WORM log file."""
         try:
             log_dir = Path(self._local_log_dir)
@@ -200,7 +201,7 @@ class ImmutableAuditLogger:
             logger.warning(f'[Audit] Failed to init local log: {e}')
             return None
 
-    def _append_to_local_log(self, record: Dict[str, Any]) -> None:
+    def _append_to_local_log(self, record: dict[str, Any]) -> None:
         """Append a record to the local WORM JSONL file."""
         if not self._log_file_path:
             return
@@ -217,7 +218,7 @@ class ImmutableAuditLogger:
         try:
             last_record = None
             count = 0
-            with open(self._log_file_path, 'r', encoding='utf-8') as f:
+            with open(self._log_file_path, encoding='utf-8') as f:
                 for line in f:
                     line = line.strip()
                     if line:
@@ -233,7 +234,7 @@ class ImmutableAuditLogger:
         except Exception as e:
             logger.warning(f'[Audit] Chain recovery failed: {e}')
 
-    def _dispatch_to_secure_sink(self, record: Dict[str, Any]) -> None:
+    def _dispatch_to_secure_sink(self, record: dict[str, Any]) -> None:
         """
         POST the audit record to an external SIEM / log aggregator.
 
@@ -262,7 +263,7 @@ class ImmutableAuditLogger:
             logger.warning(f"[Audit] Sink dispatch failed for record #{record.get('sequence', '?')}: {e}")
         except Exception as e:
             logger.warning(f'[Audit] Sink dispatch error: {e}')
-_default_audit: Optional[ImmutableAuditLogger] = None
+_default_audit: ImmutableAuditLogger | None = None
 
 def get_audit_logger() -> ImmutableAuditLogger:
     """Get or create the default audit logger singleton."""
@@ -271,7 +272,7 @@ def get_audit_logger() -> ImmutableAuditLogger:
         _default_audit = ImmutableAuditLogger()
     return _default_audit
 
-def audit_dag_event(workflow_id: str, node_id: str, action_payload: Dict[str, Any], status: str, metadata: Optional[Dict[str, Any]]=None) -> Optional[str]:
+def audit_dag_event(workflow_id: str, node_id: str, action_payload: dict[str, Any], status: str, metadata: dict[str, Any] | None=None) -> str | None:
     """
     Module-level convenience function for audit logging.
 

@@ -1,7 +1,6 @@
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from ufo.config.config_loader import LazyUFOConfig, get_ufo_config
-from ufo.module.sessions.platform_session import WindowsBaseSession
+from ufo.config.config_loader import LazyUFOConfig
 from ufo.module.context import ContextNames
 from ufo.module.dispatcher import WebSocketCommandDispatcher
 from ufo.module.sessions.session import Session

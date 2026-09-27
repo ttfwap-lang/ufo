@@ -2,6 +2,7 @@
 测试constellation完成后继续添加新任务的场景
 """
 import asyncio
+
 import pytest
 
 pytest.skip(
@@ -10,10 +11,12 @@ pytest.skip(
     "tests/unit/galaxy/agents/test_galaxy_agent_states.py and tests/unit/test_galaxy_state_machine.py.",
     allow_module_level=True,
 )
-from unittest.mock import MagicMock, AsyncMock
-from ufo.galaxy.agents.galaxy_agent_state import MonitoringGalaxyAgentState, GalaxyAgentStatus
+from unittest.mock import MagicMock
+
+from ufo.galaxy.agents.galaxy_agent_state import GalaxyAgentStatus, MonitoringGalaxyAgentState
 from ufo.galaxy.core.events import EventType
 from ufo.module.context import Context
+
 
 class MockGalaxyWeaverAgent:
     """Mock GalaxyWeaverAgent for testing constellation continuation"""

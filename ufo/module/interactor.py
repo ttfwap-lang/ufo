@@ -1,17 +1,14 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from .. import utils
+
 
 from art import text2art
-from typing import Tuple
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Confirm, Prompt
 from rich.text import Text
-from rich.align import Align
-from rich import box
-
 
 console = Console()
 
@@ -67,7 +64,7 @@ def first_request() -> str:
     return request
 
 
-def new_request() -> Tuple[str, bool]:
+def new_request() -> tuple[str, bool]:
     """
     Ask for a new request.
     :return: The new request and whether the conversation is complete.

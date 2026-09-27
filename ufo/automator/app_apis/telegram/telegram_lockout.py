@@ -18,7 +18,7 @@ import ctypes
 import logging
 import threading
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +37,10 @@ class ScreenLockout:
 
     def __init__(
         self,
-        on_stop: Optional[Callable] = None,
-        on_pause: Optional[Callable] = None,
-        stop_key: Optional[object] = None,
-        pause_key: Optional[int] = None,
+        on_stop: Callable | None = None,
+        on_pause: Callable | None = None,
+        stop_key: object | None = None,
+        pause_key: int | None = None,
         stop_key_label: str = "Ctrl+Shift+Q",
         pause_key_label: str = "P",
         cancel_via_esc: bool = True,
@@ -93,14 +93,14 @@ class ScreenLockout:
         self._pause_label = pause_key_label
         self._cancel_via_esc = cancel_via_esc
         self._state = "idle"  # idle | countdown | locked | paused | stopping | released
-        self._tk_thread: Optional[threading.Thread] = None
+        self._tk_thread: threading.Thread | None = None
         self._root = None
         self._card = None
         self._title = None
         self._subtitle = None
         self._footer = None
-        self._focus_keeper: Optional[threading.Thread] = None
-        self._hotkey_thread: Optional[threading.Thread] = None
+        self._focus_keeper: threading.Thread | None = None
+        self._hotkey_thread: threading.Thread | None = None
         self._keep_running = False
         self._in_input_burst = False
         self._status_text = ""            # live progress line (preserved across state changes)
@@ -309,7 +309,8 @@ class ScreenLockout:
             # Card window must stay topmost too - keep both in the keeper
             self._card_hwnd = None
             try:
-                import win32gui, win32con
+                import win32con
+                import win32gui
                 # Bring card above the backdrop
                 card_root.update()
                 h = card_root.winfo_id()
@@ -447,8 +448,8 @@ class ScreenLockout:
 
     def _keep_focus(self) -> None:
         """Keep overlay topmost-dim; own foreground except during AI bursts."""
-        import win32gui
         import win32con
+        import win32gui
 
         while self._keep_running and self._state != "released":
             try:
@@ -512,7 +513,6 @@ class ScreenLockout:
         64-bit ctypes requires explicit argtypes/restype for win32 calls -
         otherwise pointer args/returns silently truncate to 32 bits.
         """
-        import ctypes
         from ctypes import wintypes
 
         user32 = ctypes.windll.user32

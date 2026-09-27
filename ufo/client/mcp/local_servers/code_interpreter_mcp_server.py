@@ -3,14 +3,16 @@ Code Interpreter MCP Server
 Provides MCP server for executing arbitrary Python code to manipulate files, PDFs, etc.
 """
 import logging
+import os
 import shutil
 import subprocess
+import sys
 import tempfile
-import os
+
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from ufo.client.mcp.mcp_registry import MCPRegistry
-import sys
+
 logger = logging.getLogger(__name__)
 
 @MCPRegistry.register_factory_decorator('CodeInterpreterExecutor')

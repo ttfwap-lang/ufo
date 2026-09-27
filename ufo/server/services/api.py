@@ -1,14 +1,13 @@
 import logging
 import secrets
-from typing import Any, Dict
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-
 from ufo.aip.protocol.task_execution import TaskExecutionProtocol
 from ufo.aip.transport.websocket import WebSocketTransport
-from ufo.server.services.session_manager import SessionManager
 from ufo.server.services.client_connection_manager import ClientConnectionManager
+from ufo.server.services.session_manager import SessionManager
 from ufo.utils import is_safe_task_name
 
 logger = logging.getLogger(__name__)
@@ -44,7 +43,7 @@ def create_api_router(
         return {"online_clients": client_manager.list_clients()}
 
     @router.post("/api/dispatch", dependencies=[Depends(auth)])
-    async def dispatch_task_api(data: Dict[str, Any]):
+    async def dispatch_task_api(data: dict[str, Any]):
 
         client_id = data.get("client_id")
         user_request = data.get("request", "")

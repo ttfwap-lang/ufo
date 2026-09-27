@@ -14,9 +14,10 @@ import asyncio
 import logging
 import random
 import time
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from ufo.automator.app_apis.telegram.telegram_memory import (
     ChatState,
@@ -51,7 +52,7 @@ class GoalExecutor:
         self,
         memory: TelegramMemory,
         controller=None,
-        config: Optional[ExecutionConfig] = None,
+        config: ExecutionConfig | None = None,
         verifier=None,
     ):
         """Initialize the goal executor.
@@ -71,19 +72,19 @@ class GoalExecutor:
         self._running = False
         self._paused = False
         self._cancelled = False
-        self._current_goal: Optional[GoalState] = None
-        self._message_timestamps: List[float] = []
+        self._current_goal: GoalState | None = None
+        self._message_timestamps: list[float] = []
         # Callbacks
-        self._on_progress: Optional[Callable] = None
-        self._on_error: Optional[Callable] = None
-        self._on_goal_complete: Optional[Callable] = None
+        self._on_progress: Callable | None = None
+        self._on_error: Callable | None = None
+        self._on_goal_complete: Callable | None = None
         # Verification stats
         self._verified_sends = 0
         self._failed_verifications = 0
 
     # ==================== Goal Management ====================
 
-    def create_goal(self, goal_id: str, description: str, milestones: List[str]) -> GoalState:
+    def create_goal(self, goal_id: str, description: str, milestones: list[str]) -> GoalState:
         """Create a new goal with milestones.
 
         Args:
@@ -115,11 +116,11 @@ class GoalExecutor:
         self._memory.save_goal(goal)
         return goal
 
-    def load_goal(self, goal_id: str) -> Optional[GoalState]:
+    def load_goal(self, goal_id: str) -> GoalState | None:
         """Load a goal from memory."""
         return self._memory.load_goal(goal_id)
 
-    def list_goals(self) -> Dict[str, GoalState]:
+    def list_goals(self) -> dict[str, GoalState]:
         """List all goals in memory."""
         return self._memory.load_all_goals()
 
@@ -174,8 +175,8 @@ class GoalExecutor:
         chat_name: str,
         message_template: str,
         total_messages: int,
-        chat_state: Optional[ChatState] = None,
-    ) -> Dict[str, Any]:
+        chat_state: ChatState | None = None,
+    ) -> dict[str, Any]:
         """Execute a goal autonomously.
 
         Args:
@@ -336,7 +337,7 @@ class GoalExecutor:
             self._running = False
 
     async def _send_with_retry(
-        self, chat_name: str, message: str, chat_state: Optional[ChatState] = None
+        self, chat_name: str, message: str, chat_state: ChatState | None = None
     ) -> bool:
         """Send a message with retry logic (stop-interruptible).
 

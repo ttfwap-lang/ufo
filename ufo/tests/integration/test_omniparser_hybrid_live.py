@@ -11,7 +11,6 @@ from types import SimpleNamespace
 
 import pytest
 from PIL import Image
-
 from ufo.agents.processors.schemas.target import TargetInfo, TargetKind
 from ufo.agents.processors.strategies import app_agent_processing_strategy as m
 

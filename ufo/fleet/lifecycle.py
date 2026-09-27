@@ -46,10 +46,12 @@ import signal
 import sys
 import threading
 import time
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
-def _load_lifecycle_config() -> Dict[str, Any]:
+def _load_lifecycle_config() -> dict[str, Any]:
     """Load lifecycle config from system.yaml."""
     defaults = {'MAX_DRAIN_SECONDS': 300, 'FORCE_KILL_AFTER': 600}
     try:
@@ -76,7 +78,7 @@ class GracefulKiller:
     should_shutdown flag is checked from worker threads.
     """
 
-    def __init__(self, dispatcher: Any=None, max_drain_seconds: Optional[int]=None, force_kill_after: Optional[int]=None, on_shutdown: Optional[Callable[[], None]]=None) -> None:
+    def __init__(self, dispatcher: Any=None, max_drain_seconds: int | None=None, force_kill_after: int | None=None, on_shutdown: Callable[[], None] | None=None) -> None:
         """
         :param dispatcher: GlobalDispatcher or UFOEventDaemon instance.
                           Must have stop_accepting_tasks() or stop() method.
@@ -90,8 +92,8 @@ class GracefulKiller:
         self._force_kill = force_kill_after or int(self._config.get('FORCE_KILL_AFTER', 600))
         self._on_shutdown = on_shutdown
         self._kill_now = False
-        self._shutdown_requested_at: Optional[float] = None
-        self._active_workflow_id: Optional[str] = None
+        self._shutdown_requested_at: float | None = None
+        self._active_workflow_id: str | None = None
         self._active_workflow_safe = threading.Event()
         self._active_workflow_safe.set()
         self._lock = threading.Lock()
@@ -103,7 +105,7 @@ class GracefulKiller:
         return self._kill_now
 
     @property
-    def active_workflow_id(self) -> Optional[str]:
+    def active_workflow_id(self) -> str | None:
         """The currently executing workflow, if any."""
         return self._active_workflow_id
 
@@ -264,10 +266,10 @@ class GracefulKiller:
         except Exception as e:
             logger.warning(f'[Lifecycle] Lock release failed: {e}')
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get current lifecycle status for telemetry/dashboard."""
         return {'shutdown_requested': self._kill_now, 'shutdown_requested_at': self._shutdown_requested_at, 'seconds_draining': self.seconds_since_shutdown_request, 'active_workflow': self._active_workflow_id, 'max_drain_seconds': self._max_drain, 'force_kill_after': self._force_kill}
-_default_killer: Optional[GracefulKiller] = None
+_default_killer: GracefulKiller | None = None
 
 def get_lifecycle_manager(dispatcher: Any=None, **kwargs: Any) -> GracefulKiller:
     """Get or create the default lifecycle manager singleton."""

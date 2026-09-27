@@ -3,13 +3,13 @@
 通过检查服务器日志来验证是否正确区分了客户端类型
 """
 import asyncio
-import json
 import logging
-import sys
-import websockets
 from datetime import datetime, timezone
-from ufo.aip.messages import ClientMessage, ClientMessageType, TaskStatus
+
 import pytest
+import websockets
+from ufo.aip.messages import ClientMessage, ClientMessageType, TaskStatus
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 

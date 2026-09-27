@@ -15,12 +15,10 @@ the configured ``base_directory``.
 from __future__ import annotations
 
 import importlib.util
-import os
 import sys
 import types
 import unittest
 from pathlib import Path
-
 
 # ---------------------------------------------------------------------------
 # Load ``shell_client`` in isolation so we don't need to import the whole

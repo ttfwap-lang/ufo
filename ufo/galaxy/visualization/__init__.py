@@ -8,6 +8,10 @@ This module provides modular visualization capabilities for the Galaxy framework
 including DAG topology display, progress tracking, and rich console output.
 """
 
+from .change_detector import VisualizationChangeDetector
+from .client_display import ClientDisplay
+from .constellation_display import ConstellationDisplay
+from .constellation_formatter import ConstellationFormatter, format_constellation_result
 from .dag_visualizer import (
     DAGVisualizer,
     display_constellation_creation,
@@ -16,14 +20,6 @@ from .dag_visualizer import (
     visualize_dag,
 )
 from .task_display import TaskDisplay
-
-from .constellation_display import ConstellationDisplay
-
-from .constellation_formatter import ConstellationFormatter, format_constellation_result
-
-from .change_detector import VisualizationChangeDetector
-
-from .client_display import ClientDisplay
 
 __all__ = [
     "DAGVisualizer",

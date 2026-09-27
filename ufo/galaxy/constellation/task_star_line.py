@@ -5,10 +5,13 @@ This module defines the TaskStarLine class, representing directed dependency
 relationships between tasks with conditional logic support.
 """
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
 from ..core.interfaces import IDependency
 from .enums import DependencyType
+
 if TYPE_CHECKING:
     from ufo.galaxy.agents.schema import TaskStarLineSchema
 
@@ -25,7 +28,7 @@ class TaskStarLine(IDependency):
     Implements IDependency interface for consistent dependency operations.
     """
 
-    def __init__(self, from_task_id: str, to_task_id: str, dependency_type: DependencyType=DependencyType.UNCONDITIONAL, condition_description: Optional[str]=None, condition_evaluator: Optional[Callable[[Any], bool]]=None, line_id: Optional[str]=None, metadata: Optional[Dict[str, Any]]=None) -> None:
+    def __init__(self, from_task_id: str, to_task_id: str, dependency_type: DependencyType=DependencyType.UNCONDITIONAL, condition_description: str | None=None, condition_evaluator: Callable[[Any], bool] | None=None, line_id: str | None=None, metadata: dict[str, Any] | None=None) -> None:
         """
         Initialize a TaskStarLine.
 
@@ -43,13 +46,13 @@ class TaskStarLine(IDependency):
         self._to_task_id: str = to_task_id
         self._dependency_type: DependencyType = dependency_type
         self._condition_description: str = condition_description or ''
-        self._condition_evaluator: Optional[Callable[[Any], bool]] = condition_evaluator
-        self._metadata: Dict[str, Any] = metadata or {}
+        self._condition_evaluator: Callable[[Any], bool] | None = condition_evaluator
+        self._metadata: dict[str, Any] = metadata or {}
         self._created_at: datetime = datetime.now(timezone.utc)
         self._updated_at: datetime = self._created_at
         self._is_satisfied: bool = False
-        self._last_evaluation_result: Optional[bool] = None
-        self._last_evaluation_time: Optional[datetime] = None
+        self._last_evaluation_result: bool | None = None
+        self._last_evaluation_time: datetime | None = None
 
     @property
     def line_id(self) -> str:
@@ -100,7 +103,7 @@ class TaskStarLine(IDependency):
         self._condition_description = value
         self._updated_at = datetime.now(timezone.utc)
 
-    def is_satisfied(self, completed_tasks: Optional[List[str]]=None) -> bool:
+    def is_satisfied(self, completed_tasks: list[str] | None=None) -> bool:
         """
         Check if the dependency is satisfied.
 
@@ -112,12 +115,12 @@ class TaskStarLine(IDependency):
         return self._is_satisfied
 
     @property
-    def last_evaluation_result(self) -> Optional[bool]:
+    def last_evaluation_result(self) -> bool | None:
         """Get the last condition evaluation result."""
         return self._last_evaluation_result
 
     @property
-    def last_evaluation_time(self) -> Optional[datetime]:
+    def last_evaluation_time(self) -> datetime | None:
         """Get the time of last condition evaluation."""
         return self._last_evaluation_time
 
@@ -132,11 +135,11 @@ class TaskStarLine(IDependency):
         return self._updated_at
 
     @property
-    def metadata(self) -> Dict[str, Any]:
+    def metadata(self) -> dict[str, Any]:
         """Get a copy of the metadata."""
         return self._metadata.copy()
 
-    def update_metadata(self, metadata: Dict[str, Any]) -> None:
+    def update_metadata(self, metadata: dict[str, Any]) -> None:
         """
         Update the metadata.
 
@@ -183,7 +186,7 @@ class TaskStarLine(IDependency):
             self._last_evaluation_result = result
             self._is_satisfied = result
             return result
-        except Exception as e:
+        except Exception:
             self._last_evaluation_result = False
             self._is_satisfied = False
             return False
@@ -202,7 +205,7 @@ class TaskStarLine(IDependency):
         self._last_evaluation_time = None
         self._updated_at = datetime.now(timezone.utc)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert the TaskStarLine to a dictionary representation.
 
@@ -227,7 +230,7 @@ class TaskStarLine(IDependency):
             return DependencyType.UNCONDITIONAL
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'TaskStarLine':
+    def from_dict(cls, data: dict[str, Any]) -> 'TaskStarLine':
         """
         Create a TaskStarLine from a dictionary representation.
 
@@ -269,7 +272,7 @@ class TaskStarLine(IDependency):
         data = self.to_dict()
         return TaskStarLineSchema(**data)
 
-    def to_json(self, save_path: Optional[str]=None) -> str:
+    def to_json(self, save_path: str | None=None) -> str:
         """
         Convert the TaskStarLine to a JSON string representation.
 
@@ -286,10 +289,10 @@ class TaskStarLine(IDependency):
                 with open(save_path, 'w', encoding='utf-8') as f:
                     f.write(json_str)
             except Exception as e:
-                raise IOError(f'Failed to save TaskStarLine to {save_path}: {e}')
+                raise OSError(f'Failed to save TaskStarLine to {save_path}: {e}')
         return json_str
 
-    def _ensure_json_serializable(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _ensure_json_serializable(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Ensure all values in the dictionary are JSON serializable.
 
@@ -317,7 +320,7 @@ class TaskStarLine(IDependency):
         return serializable_data
 
     @classmethod
-    def from_json(cls, json_data: Optional[str]=None, file_path: Optional[str]=None) -> 'TaskStarLine':
+    def from_json(cls, json_data: str | None=None, file_path: str | None=None) -> 'TaskStarLine':
         """
         Create a TaskStarLine from a JSON string or JSON file.
 
@@ -336,12 +339,12 @@ class TaskStarLine(IDependency):
             raise ValueError('Only one of json_data or file_path should be provided')
         if file_path:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, encoding='utf-8') as f:
                     data = json.load(f)
             except FileNotFoundError:
                 raise FileNotFoundError(f'JSON file not found: {file_path}')
             except Exception as e:
-                raise IOError(f'Failed to read JSON file {file_path}: {e}')
+                raise OSError(f'Failed to read JSON file {file_path}: {e}')
         else:
             try:
                 data = json.loads(json_data)

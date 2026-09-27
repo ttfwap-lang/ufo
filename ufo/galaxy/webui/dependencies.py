@@ -15,9 +15,11 @@ from typing import TYPE_CHECKING, Optional
 from fastapi import Header, HTTPException
 
 from ufo.galaxy.webui.websocket_observer import WebSocketObserver
+
 if TYPE_CHECKING:
-    from ufo.galaxy.galaxy_client import GalaxyClient    
+    from ufo.galaxy.galaxy_client import GalaxyClient
 from ufo.galaxy.session.galaxy_session import GalaxySession
+
 
 class AppState:
     """
@@ -37,20 +39,20 @@ class AppState:
         self.logger: logging.Logger = logging.getLogger(__name__)
 
         # API key for authenticating HTTP and WebSocket requests
-        self._api_key: Optional[str] = None
+        self._api_key: str | None = None
 
         # WebSocket observer for broadcasting events to clients
-        self._websocket_observer: Optional[WebSocketObserver] = None
+        self._websocket_observer: WebSocketObserver | None = None
 
         # Galaxy session and client instances
-        self._galaxy_session: Optional["GalaxySession"] = None
-        self._galaxy_client: Optional["GalaxyClient"] = None
+        self._galaxy_session: GalaxySession | None = None
+        self._galaxy_client: GalaxyClient | None = None
 
         # Counter for generating unique task names in Web UI mode
         self._request_counter: int = 0
 
     @property
-    def api_key(self) -> Optional[str]:
+    def api_key(self) -> str | None:
         """Get the API key."""
         return self._api_key
 
@@ -60,7 +62,7 @@ class AppState:
         self._api_key = key
 
     @property
-    def websocket_observer(self) -> Optional[WebSocketObserver]:
+    def websocket_observer(self) -> WebSocketObserver | None:
         """
         Get the WebSocket observer instance.
 

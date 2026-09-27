@@ -56,8 +56,9 @@ def test_host_agent_gets_host_agent_block(monkeypatch):
 
 
 def _resolved_for_root(root_name, monkeypatch):
-    import yaml
     from pathlib import Path
+
+    import yaml
     cfg = yaml.safe_load((Path(__file__).resolve().parents[2] / "config" / "ufo" / "mcp.yaml").read_text(encoding="utf-8"))
     captured = {}
     import ufo.client.computer as mod
