@@ -44,7 +44,7 @@ core = [
     "beautifulsoup4>=4.15", "defusedxml>=0.7", "pypdf>=6.16", "networkx>=3.4",
     "matplotlib>=3.10", "pandas>=2.3", "art>=6.5", "opencv-python>=5.0",
     "langchain-core>=1.6", "langchain-text-splitters>=1.1", "google-genai>=2.17",
-    "msal>=1.37", "azure-identity>=1.25", "huggingface-hub>=1.28",
+    "msal>=1.37", "azure-identity>=1.25", "huggingface-hub>=1.28", "html2text>=2024.2",
 ]
 windows = ["playwright>=1.48"]
 dgx = ["ollama>=0.4", "openai>=1.0", "httpx>=0.28"]
@@ -78,7 +78,7 @@ all = [
     "beautifulsoup4>=4.15", "defusedxml>=0.7", "pypdf>=6.16", "networkx>=3.4",
     "matplotlib>=3.10", "pandas>=2.3", "art>=6.5", "opencv-python>=5.0",
     "langchain-core>=1.6", "langchain-text-splitters>=1.1", "google-genai>=2.17",
-    "msal>=1.37", "azure-identity>=1.25", "huggingface-hub>=1.28", "PyAutoGUI>=0.9.54",
+    "msal>=1.37", "azure-identity>=1.25", "huggingface-hub>=1.28", "html2text>=2024.2", "PyAutoGUI>=0.9.54",
     "playwright>=1.48",
     "ollama>=0.4", "openai>=1.0",
     "fastapi>=0.115", "uvicorn>=0.32",
@@ -112,6 +112,12 @@ ignore = ["E501", "E402", "SIM102", "SIM103"]
 "**/galaxy_agent_state.py" = ["F401"]
 "**/galaxy_agent_states.py" = ["F401"]
 "**/constellation_factory.py" = ["F401"]
+# These modules expose imported names as module-level attributes that the test
+# suite monkeypatches (e.g. ui_mcp_server.get_grounder); F401 autofix stripped
+# them and broke the patches on 2026-09-27.
+"**/ui_mcp_server.py" = ["F401"]
+"**/app_agent_processing_strategy.py" = ["F401"]
+"**/omniparser_service.py" = ["F401"]
 
 [tool.ruff.format]
 quote-style = "double"

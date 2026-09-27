@@ -8,31 +8,28 @@ Both servers share the same UI state for coordinated operations.
 """
 import platform
 import sys
-
 if platform.system() != 'Windows':
     import logging
     logging.warning(f'ui_mcp_server.py requires Windows platform. Current: {platform.system()}. Skipping module initialization.')
     sys.exit(0)
 import logging
 import os
-from typing import Annotated, Any
-
+from typing import Annotated, Any, Dict, List, Optional
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
 from pywinauto.controls.uiawrapper import UIAWrapper
 from ufo.agents.processors.schemas.actions import ActionCommandInfo
 from ufo.agents.processors.schemas.target import TargetInfo, TargetKind
-from ufo.aip.messages import ControlInfo, Rect, WindowInfo
 from ufo.automator.action_execution import ActionExecutor
 from ufo.automator.puppeteer import AppPuppeteer
 from ufo.automator.ui_control import ui_tree
-from ufo.automator.ui_control.grounding.venus import get_grounder
 from ufo.automator.ui_control.inspector import ControlInspectorFacade
 from ufo.automator.ui_control.screenshot import PhotographerFacade
+from ufo.automator.ui_control.grounding.venus import get_grounder
 from ufo.client.mcp.mcp_registry import MCPRegistry
-from ufo.config import LazyUFOConfig
-
+from ufo.config import LazyUFOConfig, get_config
+from ufo.aip.messages import ControlInfo, Rect, WindowInfo
 configs = LazyUFOConfig()
 
 def _get_control_backend() -> list:
@@ -50,7 +47,7 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 logger = logging.getLogger(__name__)
 
-def _get_control_rectangle(control: UIAWrapper) -> Rect | None:
+def _get_control_rectangle(control: UIAWrapper) -> Optional[Rect]:
     """
     Helper method to extract rectangle coordinates from a control.
     :param control: The UIAWrapper control to extract rectangle from.
@@ -64,7 +61,7 @@ def _get_control_rectangle(control: UIAWrapper) -> Rect | None:
         pass
     return None
 
-def _window2window_info(window: UIAWrapper, annotation_id: str | None=None) -> WindowInfo:
+def _window2window_info(window: UIAWrapper, annotation_id: Optional[str]=None) -> WindowInfo:
     """
     Convert a UIAWrapper window to a WindowInfo object.
     :param window: The UIAWrapper window to convert.
@@ -72,7 +69,7 @@ def _window2window_info(window: UIAWrapper, annotation_id: str | None=None) -> W
     """
     return WindowInfo(annotation_id=annotation_id, name=window.element_info.name if hasattr(window, 'element_info') else None, title=window.window_text(), handle=window.handle, class_name=window.class_name(), process_id=window.process_id(), is_visible=window.is_visible(), is_minimized=window.is_minimized(), is_maximized=window.is_maximized(), is_active=window.is_active(), rectangle=_get_control_rectangle(window), text_content=window.window_text(), control_type=window.element_info.control_type if hasattr(window, 'element_info') else None)
 
-def _control2control_info(control: UIAWrapper, annotation_id: str | None=None) -> ControlInfo:
+def _control2control_info(control: UIAWrapper, annotation_id: Optional[str]=None) -> ControlInfo:
     """
     Convert a UIAWrapper control to a ControlInfo object.
     :param control: The UIAWrapper control to convert.
@@ -88,7 +85,7 @@ def _rect_tuple(control: UIAWrapper):
         return None
 
 
-def _snapshot_rects(control_dict: dict[str, UIAWrapper]) -> dict[str, Any]:
+def _snapshot_rects(control_dict: Dict[str, UIAWrapper]) -> Dict[str, Any]:
     """Position of each control when the control list was collected (for check_ui_stable)."""
     return {cid: _rect_tuple(ctl) for cid, ctl in (control_dict or {}).items()}
 
@@ -99,20 +96,20 @@ class UIServerState:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            cls._instance = super(UIServerState, cls).__new__(cls)
         return cls._instance
 
     def __init__(self):
         if not self._initialized:
             self.photographer = PhotographerFacade()
             self.control_inspector = ControlInspectorFacade(_get_backend())
-            self.selected_app_window: UIAWrapper | None = None
-            self.selected_app_window_controls: dict[str, UIAWrapper] | None = None
-            self.puppeteer: AppPuppeteer | None = None
-            self.last_app_windows: dict[str, UIAWrapper] | None = None
+            self.selected_app_window: Optional[UIAWrapper] = None
+            self.selected_app_window_controls: Optional[Dict[str, UIAWrapper]] = None
+            self.puppeteer: Optional[AppPuppeteer] = None
+            self.last_app_windows: Optional[Dict[str, UIAWrapper]] = None
             self.grounding_service = None
-            self.control_dict: dict[str, UIAWrapper] | None = None
-            self.control_rects: dict[str, Any] = {}
+            self.control_dict: Optional[Dict[str, UIAWrapper]] = None
+            self.control_rects: Dict[str, Any] = {}
             UIServerState._initialized = True
             self.logger = logging.getLogger(__name__)
 
@@ -127,7 +124,7 @@ class UIServerState:
         self.logger.info(f'Initialized AppPuppeteer for window: {window.window_text()}')
         self.logger.info(f'Available commands: {self.puppeteer.list_commands()}')
 
-def _verify_id(id: str, name: str, control_dict: dict[str, UIAWrapper]):
+def _verify_id(id: str, name: str, control_dict: Dict[str, UIAWrapper]):
     if not id:
         raise ToolError('Window id is required for select_application_window')
     if not control_dict:
@@ -147,7 +144,7 @@ def create_host_action_mcp_server(*args, **kwargs) -> FastMCP:
     action_mcp = FastMCP('UFO UI HostAgent Action MCP Server')
 
     @action_mcp.tool(tags={'HostAgent'})
-    def select_application_window(id: Annotated[str, 'Specify the precise label of the application or third-party agents to be selected for the current sub-task, adhering strictly to the provided options in the field of id in the application information.'], name: Annotated[str, 'Specify the precise name of the application or third-party agents to be selected for the current sub-task, adhering strictly to the provided options and matching the selected id.']) -> dict[str, Any]:
+    def select_application_window(id: Annotated[str, 'Specify the precise label of the application or third-party agents to be selected for the current sub-task, adhering strictly to the provided options in the field of id in the application information.'], name: Annotated[str, 'Specify the precise name of the application or third-party agents to be selected for the current sub-task, adhering strictly to the provided options and matching the selected id.']) -> Dict[str, Any]:
         """
         Select an application window for UI automation.
         :return: Information about the selected window.
@@ -227,6 +224,7 @@ def create_app_action_mcp_server(*args, **kwargs) -> FastMCP:
         grounder = get_grounder(configs.get('GROUNDING_MODEL') if configs else None)
         if grounder is None:
             raise ToolError('Grounding model is not configured (GROUNDING_MODEL in config/ufo/system.yaml).')
+        import os
         import tempfile
         shot_path = os.path.join(tempfile.gettempdir(), 'ufo_grounding_window.png')
         ui_state.photographer.capture_app_window_screenshot(ui_state.selected_app_window, save_path=shot_path)
@@ -238,7 +236,7 @@ def create_app_action_mcp_server(*args, **kwargs) -> FastMCP:
         return f"Clicked '{description}' at window fraction ({found.fx:.3f}, {found.fy:.3f}). {result}"
 
     @action_mcp.tool(tags={'AppAgent'}, exclude_args=[])
-    def drag_on_coordinates(start_x: Annotated[float, Field(description='The relative fractional x-coordinate of the starting point to drag from, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], start_y: Annotated[float, Field(description='The relative fractional y-coordinate of the starting point to drag from, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], end_x: Annotated[float, Field(description='The relative fractional x-coordinate of the ending point to drag to, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], end_y: Annotated[float, Field(description='The relative fractional y-coordinate of the ending point to drag to, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], button: Annotated[str, Field(description="Mouse button to use ('left', 'right', 'middle')")]='left', duration: Annotated[float, Field(description='Duration of the drag operation in seconds')]=1.0, key_hold: Annotated[str | None, Field(description="Key to hold during drag operation (e.g., 'ctrl', 'shift')")]=None) -> Annotated[str, Field(description='The result of the drag action.')]:
+    def drag_on_coordinates(start_x: Annotated[float, Field(description='The relative fractional x-coordinate of the starting point to drag from, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], start_y: Annotated[float, Field(description='The relative fractional y-coordinate of the starting point to drag from, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], end_x: Annotated[float, Field(description='The relative fractional x-coordinate of the ending point to drag to, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], end_y: Annotated[float, Field(description='The relative fractional y-coordinate of the ending point to drag to, ranging from 0.0 to 1.0. The origin is the top-left corner of the application window.')], button: Annotated[str, Field(description="Mouse button to use ('left', 'right', 'middle')")]='left', duration: Annotated[float, Field(description='Duration of the drag operation in seconds')]=1.0, key_hold: Annotated[Optional[str], Field(description="Key to hold during drag operation (e.g., 'ctrl', 'shift')")]=None) -> Annotated[str, Field(description='The result of the drag action.')]:
         """
         Drag from one point to another point in the application window, instead of dragging a specific control item.
         This API is useful when the control item is not available in the control item list and screenshot, but you want to drag from one point to another point in the application window.
@@ -336,7 +334,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
     data_mcp = FastMCP('UFO UI Data MCP Server')
 
     @data_mcp.tool()
-    def get_desktop_app_info(remove_empty: bool=True, refresh_app_windows: bool=True) -> list:
+    def get_desktop_app_info(remove_empty: bool=True, refresh_app_windows: bool=True) -> List:
         """
         Get information about all application windows currently open on the desktop.
         :param remove_empty: Whether to remove windows with no visible content.
@@ -356,7 +354,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
         return revised_desktop_windows_info
 
     @data_mcp.tool()
-    def get_desktop_app_target_info(remove_empty: bool=True, refresh_app_windows: bool=True) -> list:
+    def get_desktop_app_target_info(remove_empty: bool=True, refresh_app_windows: bool=True) -> List:
         """
         Get information about all application windows currently open on the desktop.
         :param remove_empty: Whether to remove windows with no visible content.
@@ -376,7 +374,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
         return revised_desktop_windows_info
 
     @data_mcp.tool()
-    def get_app_window_info(field_list: list[str]) -> dict[str, Any]:
+    def get_app_window_info(field_list: List[str]) -> Dict[str, Any]:
         """
         Get information about the currently selected application window.
         :param field_list: List of fields to retrieve from the window info.
@@ -388,7 +386,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
         return window_info
 
     @data_mcp.tool()
-    def get_app_window_controls_info(field_list: list[str]) -> list:
+    def get_app_window_controls_info(field_list: List[str]) -> List:
         """
         Get information about controls in the currently selected application window.
         :param field_list: List of fields to retrieve from the control info.
@@ -404,7 +402,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
         return result
 
     @data_mcp.tool()
-    def get_app_window_controls_target_info(field_list: list[str]) -> list:
+    def get_app_window_controls_target_info(field_list: List[str]) -> List:
         """
         Get information about controls in the currently selected application window.
         :param field_list: List of fields to retrieve from the control info.
@@ -473,7 +471,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
             return ui_state.photographer._empty_image_string
 
     @data_mcp.tool()
-    def check_ui_stable(control_id: str) -> dict[str, Any]:
+    def check_ui_stable(control_id: str) -> Dict[str, Any]:
         """
         Check, between actions of one multi-action step, that the selected window is still in the
         foreground and that control_id is still visible at the position it had when the control
@@ -505,7 +503,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
         return {'stable': True, 'reason': ''}
 
     @data_mcp.tool()
-    def get_ui_tree() -> dict[str, Any]:
+    def get_ui_tree() -> Dict[str, Any]:
         """
         Get the UI tree for currently selected application window.
         """
@@ -518,7 +516,7 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
             return {'error': f'Error getting UI tree: {str(e)}'}
 
     @data_mcp.tool()
-    def add_control_list(control_list: list[dict[str, Any]]) -> str:
+    def add_control_list(control_list: List[Dict[str, Any]]) -> str:
         """
         Add a list of control elements from grounding results to the control dictionary.
         :param control_list: List of control element dictionaries (TargetInfo dicts) to add.
@@ -584,8 +582,8 @@ def create_data_mcp_server(*args, **kwargs) -> FastMCP:
             raise ToolError(error_msg)
     return data_mcp
 if __name__ == '__main__':
-    import logging
     import sys
+    import logging
     logging.basicConfig(level=logging.ERROR)
     mcp = create_app_action_mcp_server()
     mcp.run()
