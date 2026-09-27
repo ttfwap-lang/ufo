@@ -2,14 +2,14 @@
 # gx10_model_swap.sh - resident UI-Venus plus ONE on-demand big model.
 #
 #   gx10_model_swap.sh 27b      serve the Qwen3.8 27B (llama.cpp, :8004, existing container)
-#   gx10_model_swap.sh 42b      serve the Qwen3-42B-A3B TOTAL-RECALL coder (llama.cpp, :8006)
 #   gx10_model_swap.sh tongyi   serve Tongyi-DeepResearch-30B-A3B (llama.cpp, :8007)
 #   gx10_model_swap.sh venus    stop the on-demand model, make sure UI-Venus (:8002) is up
 #   gx10_model_swap.sh status   what is up, and free memory
 #
-# Layout since 2026-09-27: UI-Venus is the resident model (it replaced the 27B at the user's
-# request). At most one of {27B, 42B, Tongyi} runs on demand beside it. The 35B brain and
-# qwen3-0.6b are never touched here.
+# Layout since 2026-09-27 (user requests): the brain on :8000 is the Qwen3-42B-A3B
+# TOTAL-RECALL coder (container qwen3-42b-coder, llama.cpp; the 35B qwen-abliterated is
+# stopped, kept for rollback). UI-Venus is resident. At most one of {27B, Tongyi} runs on
+# demand beside them. The brain and qwen3-0.6b are never touched here.
 #
 # Memory (121 GB unified): the check runs BEFORE anything is stopped, against the
 # gx10_budget.env floor/target (gx10_guard.sh). To make room it stops, in order and only as
@@ -24,13 +24,12 @@ IMG=ghcr.io/ggml-org/llama.cpp:server-cuda
 GGUF=/srv/models/gguf
 RESIDENT=ui-venus
 RESIDENT_PORT=8002
-ONDEMAND="qwen38-27b-turbo qwen3-42b-coder tongyi-30b"
+ONDEMAND="qwen38-27b-turbo tongyi-30b"
 
 # name port need_gb [gguf ctx sampler...]  (27b has no gguf: its container already exists)
 spec() {
   case "$1" in
     27b) echo "qwen38-27b-turbo 8004 43" ;;
-    42b) echo "qwen3-42b-coder 8006 57 Qwen3-42B-A3B-2507-Thinking-Abliterated-uncensored-TOTAL-RECALL-v2-Medium-MASTER-CODER.Q8_0.gguf 131072 --temp 0.5 --top-p 0.95 --top-k 20 --min-p 0.05 --repeat-penalty 1.0" ;;
     tongyi) echo "tongyi-30b 8007 41 Alibaba-NLP_Tongyi-DeepResearch-30B-A3B-Q8_0.gguf 131072 --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --repeat-penalty 1.0" ;;
     *) return 1 ;;
   esac
@@ -77,7 +76,7 @@ lock() {
 
 status() {
   local c
-  for c in $RESIDENT $ONDEMAND $(port_squatters qwen38-27b-turbo 8004); do
+  for c in qwen3-42b-coder $RESIDENT $ONDEMAND $(port_squatters qwen38-27b-turbo 8004); do
     if running "$c"; then echo "  up    $c ($(held_gb "$c") GB)"; else echo "  down  $c"; fi
   done
   echo "  free: $(avail_gb) GB ($(pct "$(avail_gb)")%)"
@@ -91,7 +90,7 @@ resident_up() {
 
 up() {
   local s name port need file ctx sampler c free stop="" squat
-  s=$(spec "$1") || { echo "usage: $0 27b|42b|tongyi|venus|status" >&2; exit 2; }
+  s=$(spec "$1") || { echo "usage: $0 27b|tongyi|venus|status (the 42B is the brain on :8000)" >&2; exit 2; }
   read -r name port need file ctx sampler <<<"$s"
   [ -n "${file:-}" ] && [ ! -f "$GGUF/$file" ] && { echo "swap: $GGUF/$file not downloaded yet" >&2; exit 1; }
   lock
