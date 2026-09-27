@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 """llm_hub.py - one OpenAI-compatible endpoint that aggregates every model server
-running on the Spark, so any machine on the LAN/tailnet auto-discovers them.
+running on the Spark PLUS a curated set of Featherless cloud models, so any machine
+on the LAN/tailnet auto-discovers them all from one base_url.
 
-WHY: the model servers bind 127.0.0.1 on the box and are otherwise reached on
-scattered per-model tunnel ports (18000/18002/...). A coding tool wants ONE
-base_url whose GET /v1/models lists everything available. This is that: it probes
-the known upstream ports, unions their /v1/models, and routes each request to the
-port that actually serves the requested model. Models that are down simply drop
-out of the list ("all AVAILABLE llms, always"), and swapped-in ones appear with
-no client change.
+Local models: probes the known upstream ports, unions their /v1/models, routes each
+request to the port that serves it. Models that are down drop out of the list.
 
-Bind 0.0.0.0 so LAN + tailnet peers reach it; there is NO auth (any header/key is
-accepted and ignored) - it is meant for a trusted home network only. Do not route
-this to the internet.
+Cloud models (Featherless): a fixed friendly-name -> real-id map, served only when
+FEATHERLESS_API_KEY is set (via the systemd EnvironmentFile). Requests for these are
+rewritten to the real Featherless id and forwarded with the key + a browser UA
+(Featherless sits behind Cloudflare, which 1010-blocks default UAs). The key is
+read from the environment ONLY - never hard-coded, logged, or returned.
 
-    python3 llm_hub.py 4000          # listen on 0.0.0.0:4000, probe default ports
-    LLM_HUB_UPSTREAMS="8000 8002 8004 8005 8007" python3 llm_hub.py 4000
+Bind 0.0.0.0 so LAN + tailnet peers reach it; NO client auth (trusted home network
+only). NOTE: exposing the cloud models here means any LAN peer can spend Featherless
+quota - that is the operator's explicit choice.
+
+    python3 llm_hub.py 4000
 """
 import json
 import os
 import sys
-import threading
 import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -28,21 +28,28 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 4000
 UPSTREAM_PORTS = [int(p) for p in os.environ.get("LLM_HUB_UPSTREAMS", "8000 8002 8004 8005 8007").split()]
 UPSTREAM_HOST = "127.0.0.1"
-_lock = threading.Lock()
-_map: dict[str, str] = {}          # model id -> "host:port"
+
+FEATHERLESS_KEY = os.environ.get("FEATHERLESS_API_KEY", "").strip()
+FEATHERLESS_URL = "https://api.featherless.ai/v1/chat/completions"
+# friendly name served by the hub -> real Featherless model id
+REMOTE_MODELS = {
+    "deepseek-v4-pro": "deepseek-ai/DeepSeek-V4-Pro",
+    "deepseek-v4.1-flash": "deepseek-ai/DeepSeek-V4.1-Flash",
+    "qwen3-coder-480b": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+}
+_lock = __import__("threading").Lock()
+_map: dict[str, str] = {}
 _map_ts = 0.0
-_MAP_TTL = 15.0                     # re-probe at most every 15 s
+_MAP_TTL = 15.0
 
 
 def _probe():
-    """Build model-id -> upstream by asking each port's /v1/models."""
     m = {}
     for port in UPSTREAM_PORTS:
-        base = f"http://{UPSTREAM_HOST}:{port}"
         try:
-            with urllib.request.urlopen(base + "/v1/models", timeout=2) as r:
-                for entry in json.loads(r.read()).get("data", []):
-                    mid = entry.get("id")
+            with urllib.request.urlopen(f"http://{UPSTREAM_HOST}:{port}/v1/models", timeout=2) as r:
+                for e in json.loads(r.read()).get("data", []):
+                    mid = e.get("id")
                     if mid and mid not in m:
                         m[mid] = f"{UPSTREAM_HOST}:{port}"
         except Exception:
@@ -75,13 +82,21 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _all_ids(self):
+        ids = set(_model_map().keys())
+        if FEATHERLESS_KEY:
+            ids |= set(REMOTE_MODELS.keys())
+        return sorted(ids)
+
     def do_GET(self):
-        if self.path.rstrip("/").endswith("/v1/models") or self.path.rstrip("/").endswith("/models"):
-            ids = sorted(_model_map().keys())
-            data = [{"id": i, "object": "model", "created": int(time.time()), "owned_by": "gx10"} for i in ids]
+        p = self.path.rstrip("/")
+        if p.endswith("/v1/models") or p.endswith("/models"):
+            data = [{"id": i, "object": "model", "created": int(time.time()),
+                     "owned_by": "featherless" if i in REMOTE_MODELS else "gx10"} for i in self._all_ids()]
             self._send(200, json.dumps({"object": "list", "data": data}).encode())
-        elif self.path.rstrip("/").endswith("/health") or self.path == "/":
-            self._send(200, json.dumps({"status": "ok", "models": sorted(_model_map().keys())}).encode())
+        elif p.endswith("/health") or self.path == "/":
+            self._send(200, json.dumps({"status": "ok", "models": self._all_ids(),
+                                        "cloud": bool(FEATHERLESS_KEY)}).encode())
         else:
             self._send(404, b'{"error":"not found"}')
 
@@ -89,30 +104,41 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(length) if length else b""
         try:
-            model = json.loads(raw).get("model", "")
+            body = json.loads(raw)
+            model = body.get("model", "")
         except Exception:
-            model = ""
-        mp = _model_map()
-        target = mp.get(model) or (mp.get(model, None) if model in mp else None)
-        if not target:
-            # unknown/absent model: re-probe once (it may have just swapped in)
-            mp = _model_map(force=True)
-            target = mp.get(model)
-        if not target:
-            self._send(404, json.dumps({"error": {
-                "message": f"model '{model}' is not available on the Spark. Available: {sorted(mp.keys())}",
-                "type": "model_not_found"}}).encode())
+            body, model = {}, ""
+
+        # cloud (Featherless) route
+        if model in REMOTE_MODELS:
+            if not FEATHERLESS_KEY:
+                self._send(503, json.dumps({"error": {"message": "cloud models unavailable: FEATHERLESS_API_KEY not set", "type": "config"}}).encode())
+                return
+            body["model"] = REMOTE_MODELS[model]
+            data = json.dumps(body).encode()
+            req = urllib.request.Request(FEATHERLESS_URL, data=data, method="POST", headers={
+                "Content-Type": "application/json", "User-Agent": "Mozilla/5.0",
+                "Authorization": "Bearer " + FEATHERLESS_KEY})
+            self._forward(req)
             return
-        # forward (streaming pass-through) to the owning upstream
+
+        # local route
+        mp = _model_map()
+        target = mp.get(model) or _model_map(force=True).get(model)
+        if not target:
+            self._send(404, json.dumps({"error": {"message": f"model '{model}' not available. Have: {self._all_ids()}", "type": "model_not_found"}}).encode())
+            return
         up = f"http://{target}{self.path if self.path.startswith('/v1') else '/v1/chat/completions'}"
-        req = urllib.request.Request(up, data=raw, method="POST",
-                                     headers={"Content-Type": "application/json"})
+        req = urllib.request.Request(up, data=raw, method="POST", headers={"Content-Type": "application/json"})
+        self._forward(req)
+
+    def _forward(self, req):
         try:
             with urllib.request.urlopen(req, timeout=900) as r:
                 self.send_response(r.status)
-                self.send_header("Content-Type", r.headers.get("Content-Type", "application/json"))
-                te = (r.headers.get("Transfer-Encoding") or "").lower()
-                streaming = "chunked" in te or "text/event-stream" in (r.headers.get("Content-Type") or "")
+                ct = r.headers.get("Content-Type", "application/json")
+                self.send_header("Content-Type", ct)
+                streaming = "chunked" in (r.headers.get("Transfer-Encoding") or "").lower() or "text/event-stream" in ct
                 if streaming:
                     self.send_header("Transfer-Encoding", "chunked")
                     self.end_headers()
@@ -124,17 +150,19 @@ class Handler(BaseHTTPRequestHandler):
                         self.wfile.write(f"{len(chunk):x}\r\n".encode() + chunk + b"\r\n")
                         self.wfile.flush()
                 else:
-                    body = r.read()
-                    self.send_header("Content-Length", str(len(body)))
+                    b = r.read()
+                    self.send_header("Content-Length", str(len(b)))
                     self.end_headers()
-                    self.wfile.write(body)
+                    self.wfile.write(b)
         except urllib.error.HTTPError as e:
-            body = e.read()
-            self._send(e.code, body if body else json.dumps({"error": str(e)}).encode())
+            b = e.read()
+            self._send(e.code, b if b else json.dumps({"error": str(e)}).encode())
         except Exception as e:
-            self._send(502, json.dumps({"error": {"message": f"upstream {target}: {e}", "type": "bad_gateway"}}).encode())
+            self._send(502, json.dumps({"error": {"message": str(e), "type": "bad_gateway"}}).encode())
 
 
 if __name__ == "__main__":
-    print(f"llm_hub on 0.0.0.0:{PORT}; upstreams {UPSTREAM_PORTS}; models now: {sorted(_model_map().keys())}", flush=True)
+    print(f"llm_hub on 0.0.0.0:{PORT}; local ports {UPSTREAM_PORTS}; "
+          f"cloud={'on' if FEATHERLESS_KEY else 'off'} ({sorted(REMOTE_MODELS)}); "
+          f"models now: {sorted(_model_map().keys())}", flush=True)
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
