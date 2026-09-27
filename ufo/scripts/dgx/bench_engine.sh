@@ -60,7 +60,7 @@ case "$ENGINE" in
     docker run -d --name "$BENCH" --network host --ipc host --gpus all \
       -v "$MODEL_DIR:/model:ro" "$IMG" \
       vllm serve /model --served-model-name qwen3-42b-coder --host 127.0.0.1 --port $PORT \
-      --quantization fp8 --kv-cache-dtype fp8 --max-model-len 32768 \
+      --quantization fp8 --kv-cache-dtype fp8 --max-model-len 65536 \
       --gpu-memory-utilization 0.42 --enable-prefix-caching --trust-remote-code >>"$LOG" 2>&1
     ;;
   sglang)
@@ -70,7 +70,7 @@ case "$ENGINE" in
       -v "$MODEL_DIR:/model:ro" "$IMG" \
       python3 -m sglang.launch_server --model-path /model --served-model-name qwen3-42b-coder \
       --host 127.0.0.1 --port $PORT --quantization fp8 --kv-cache-dtype fp8 \
-      --context-length 32768 --mem-fraction-static 0.42 --trust-remote-code >>"$LOG" 2>&1
+      --context-length 65536 --mem-fraction-static 0.42 --trust-remote-code >>"$LOG" 2>&1
     ;;
   *) echo "usage: $0 vllm|sglang"; exit 2 ;;
 esac
