@@ -4,44 +4,71 @@ model_list:
   # currently serving, so host/app/all point at it; the cloud entries below
   # are the intended fallbacks and stay inert until their keys are valid.
   #
-  # `chat_template_kwargs: {enable_thinking: false}` is REQUIRED: without it
-  # qwen38-27b-turbo emits a long `reasoning_content` block that consumes the
-  # whole completion budget and returns an empty `content`.
+  # THINKING CANNOT BE TURNED OFF (measured 2026-09-27 against the current
+  # brain, qwen3-42b-coder / Qwen3-42B-A3B TOTAL-RECALL, on the gx10):
+  #   chat_template_kwargs: {enable_thinking: false}  -> NO EFFECT. Verified by
+  #     sending the same request with the flag true, false and absent: all three
+  #     returned byte-identical reasoning_content (rsn=1423 chars).
+  #   a literal "/no_think" suffix                     -> NO EFFECT either
+  #     (rsn 1423 -> 1100 chars; the template still thinks, just less).
+  #   The old 35B qwen-abliterated (vLLM) DID honour the flag. That is why the
+  #   note below used to read "REQUIRED". It no longer applies to this GGUF.
+  #
+  # CONSEQUENCE: every brain call spends ~250-550 completion tokens on
+  # `reasoning_content` BEFORE any answer, at ~5-13 s for a trivial prompt.
+  # `max_tokens` must therefore cover reasoning + reply, or `content` comes
+  # back EMPTY WITH HTTP 200 and a healthy-looking usage block. Measured:
+  #   max_tokens=32  -> content=''    rsn=144 chars  (silent failure)
+  #   max_tokens=2000-> content='Paris' ct=295        (short replies OK)
+  #   agent-shaped prompt at 2000 -> ct=538            (tight for JSON replies)
+  # The ufo-*/gx10-* brain entries below are set to 8192 for that reason.
+  # NEVER lower a brain entry's max_tokens without re-running
+  # scripts/gateway_selftest.py, which asserts non-empty content.
   - model_name: "ufo-host-model"
     litellm_params:
       model: "openai/qwen38-27b-turbo"
       api_base: "http://127.0.0.1:8000/v1"
       api_key: "sk-local"
       rpm: 10000
-      max_tokens: 2000
+      # 8192, not 2000: the brain always reasons before answering and cannot be
+      # told to stop, so max_tokens must cover reasoning + reply or `content`
+      # comes back empty with HTTP 200. See the header note.
+      # request_timeout: 600 - the box has been observed wedged mid-request;
+      # a long timeout plus retries is better than a fast spurious failure.
+      max_tokens: 8192
       temperature: 0.0
       num_retries: 2
-      extra_body:
-        chat_template_kwargs:
-          enable_thinking: false
+      request_timeout: 600
   - model_name: "ufo-app-model"
     litellm_params:
       model: "openai/qwen38-27b-turbo"
       api_base: "http://127.0.0.1:8000/v1"
       api_key: "sk-local"
       rpm: 10000
-      max_tokens: 2000
+      # 8192, not 2000: the brain always reasons before answering and cannot be
+      # told to stop, so max_tokens must cover reasoning + reply or `content`
+      # comes back empty with HTTP 200. See the header note.
+      # request_timeout: 600 - the box has been observed wedged mid-request;
+      # a long timeout plus retries is better than a fast spurious failure.
+      max_tokens: 8192
       temperature: 0.0
       num_retries: 2
-      extra_body:
-        chat_template_kwargs:
-          enable_thinking: false
+      request_timeout: 600
   - model_name: "ufo-model"
     litellm_params:
       model: "openai/qwen38-27b-turbo"
       api_base: "http://127.0.0.1:8000/v1"
       api_key: "sk-local"
       rpm: 10000
-      max_tokens: 2000
+      # 8192, not 2000: the brain always reasons before answering and cannot be
+      # told to stop, so max_tokens must cover reasoning + reply or `content`
+      # comes back empty with HTTP 200. See the header note.
+      # request_timeout: 600 - the box has been observed wedged mid-request;
+      # a long timeout plus retries is better than a fast spurious failure.
+      max_tokens: 8192
       temperature: 0.0
-      extra_body:
-        chat_template_kwargs:
-          enable_thinking: false
+      num_retries: 2
+      request_timeout: 600
   # NOTE: LiteLLM's "os.environ/VAR" substitution replaces an entire field value,
   # it cannot interpolate a var into part of a string (unlike UFO's own
   # config_loader._expand_env_vars used for agents_dgx.yaml). So api_base here
@@ -61,32 +88,51 @@ model_list:
       api_base: "http://127.0.0.1:8000/v1"
       api_key: "sk-local"
       rpm: 10000
-      max_tokens: 2000
+      # 8192, not 2000: the brain always reasons before answering and cannot be
+      # told to stop, so max_tokens must cover reasoning + reply or `content`
+      # comes back empty with HTTP 200. See the header note.
+      # request_timeout: 600 - the box has been observed wedged mid-request;
+      # a long timeout plus retries is better than a fast spurious failure.
+      max_tokens: 8192
       temperature: 0.0
-      extra_body:
-        chat_template_kwargs:
-          enable_thinking: false
+      num_retries: 2
+      request_timeout: 600
   - model_name: "ufo-dgx-app-model"
     litellm_params:
       model: "openai/qwen38-27b-turbo"
       api_base: "http://127.0.0.1:8000/v1"
       api_key: "sk-local"
       rpm: 10000
-      max_tokens: 2000
+      # 8192, not 2000: the brain always reasons before answering and cannot be
+      # told to stop, so max_tokens must cover reasoning + reply or `content`
+      # comes back empty with HTTP 200. See the header note.
+      # request_timeout: 600 - the box has been observed wedged mid-request;
+      # a long timeout plus retries is better than a fast spurious failure.
+      max_tokens: 8192
       temperature: 0.0
-      extra_body:
-        chat_template_kwargs:
-          enable_thinking: false
+      num_retries: 2
+      request_timeout: 600
   # Two more gx10 models. Both bind 127.0.0.1 on the box (like the brain), so
   # they are reached through ufo-tunnel.service's TAILNET-ONLY forwards
   # (100.67.13.78:18004/18005 -> 127.0.0.1:8004/8005; ufw allows 100.64.0.0/10
   # only), the same way Venus is reached on :18002. See ufo-tunnel.service.
   #
-  # :8004 is the REAL Qwen3.8 27B (llama.cpp, Q8_0 GGUF) since 2026-09-27; it
-  # replaced qwen35-9b-defiant in that slot. NOTE the name clash: the brain on
-  # :8000 (qwen-abliterated, a 35B-A3B) ALSO answers to the name
-  # "qwen38-27b-turbo" as a served-model alias, so the ufo-* entries above that
-  # say "openai/qwen38-27b-turbo" at :8000 get the 35B, not this 27B.
+  # WARNING - THIS ALIAS IS CURRENTLY LYING (verified 2026-09-27).
+  # It claims to be the Qwen3.8 27B, but :8004 is held by qwen35-9b-defiant
+  # and the 27B container is stopped. Proof, from the box and the tailnet:
+  #   $ curl -s http://127.0.0.1:8004/v1/models   -> {"name":"qwen35-9b-defiant"}
+  #   $ curl -s http://100.67.13.78:18004/v1/models -> {"name":"qwen35-9b-defiant"}
+  #   $ docker ps -a | grep 27b  -> qwen38-27b-turbo  Exited (0)
+  # llama-server answers WHATEVER model name a request sends, so asking for
+  # "qwen38-27b-turbo" gets a clean HTTP 200 from the 9B instead. Nothing
+  # errors; you just silently get a weaker model than you asked for. This is
+  # the same trap as the ufo-* entries above, which send "qwen38-27b-turbo"
+  # to :8000 and therefore reach the 42B brain.
+  #
+  # TO FIX: run `gx10_model_swap.sh 27b` on the box, which evicts the squatter
+  # and starts the 27B on :8004, then re-run scripts/gateway_selftest.py. That
+  # script asserts each alias serves the model it names - this alias is exactly
+  # the failure it was written to catch.
   - model_name: "gx10-qwen38-27b"
     litellm_params:
       model: "openai/qwen38-27b-turbo"
@@ -99,9 +145,14 @@ model_list:
       max_tokens: 16384
       temperature: 0.6
       top_p: 0.95
+      num_retries: 1
+      request_timeout: 300
       extra_body:
         top_k: 20
         min_p: 0.0
+        # Kept although it is a proven no-op on the current llama.cpp GGUFs
+        # (see header note): a future swap-in to a vLLM-backed model would
+        # honour it again, and it costs nothing when ignored.
         chat_template_kwargs:
           enable_thinking: false
   # The 42B IS the brain since 2026-09-27 (llama.cpp on the box's :8000, replacing
@@ -116,9 +167,19 @@ model_list:
       max_tokens: 32768
       temperature: 0.5
       top_p: 0.95
+      num_retries: 1
+      request_timeout: 600
       extra_body:
         top_k: 20
         min_p: 0.05
+  # The 42B is TEXT-ONLY. Verified 2026-09-27 by sending a real base64 PNG:
+  #   HTTP 500 {"error":{"message":"image input is not supported - hint: if
+  #   this is unexpected, you may need to provide the mmproj"}}
+  # and its /v1/models advertises capabilities ["completion"] only, whereas the
+  # 9B defiant on :8004 advertises ["completion","multimodal"] and answers
+  # image questions correctly. Anything that sends screenshots (VISUAL_MODE in
+  # config/ufo/agents_dgx.yaml) CANNOT use this model - see
+  # config/ufo/profiles/agents_dgx.yaml for the split that works.
   # On-demand (scripts/dgx/gx10_model_swap.sh 27b|tongyi|venus): one at a time,
   # so gx10-qwen38-27b and gx10-tongyi-30b answer only while swapped in.
   - model_name: "gx10-tongyi-30b"
@@ -130,6 +191,38 @@ model_list:
       max_tokens: 32768
       temperature: 0.6
       top_p: 0.95
+      num_retries: 1
+      # Short on purpose: Tongyi is ON DEMAND (gx10_model_swap.sh tongyi) and is
+      # usually NOT running, so the connection is refused instantly. Do not let
+      # a caller wait 600 s on a port nobody is listening on.
+      request_timeout: 120
+      extra_body:
+        top_k: 20
+  # NON-CODING TIER (added 2026-09-27). Point general / research / writing /
+  # summarising work at this alias and it lands on Tongyi DeepResearch 30B.
+  # Coding work should keep using ufo-model (the 42B coder).
+  #
+  # WHY THIS IS AN ALIAS AND NOT A CLASSIFIER: LiteLLM's router can order
+  # deployments and fall back on error, but it cannot inspect a prompt and
+  # decide "this is not coding". Automatic task-type routing needs a classifier
+  # in the request path, which costs a round trip per call and can itself be
+  # wrong. Choosing the alias at the call site is deterministic, free, and
+  # debuggable - so config/ufo/profiles/agents_general.yaml selects it.
+  #
+  # Tongyi is on demand, so this alias FAILS FAST when it is not swapped in and
+  # the fallbacks below take over: the request still completes, on the brain.
+  # That is why request_timeout is 120 s here, not 600.
+  - model_name: "ufo-general-model"
+    litellm_params:
+      model: "openai/tongyi-30b"
+      api_base: "http://100.67.13.78:18007/v1"
+      api_key: "sk-local"
+      rpm: 10000
+      max_tokens: 16384
+      temperature: 0.6
+      top_p: 0.95
+      num_retries: 0
+      request_timeout: 120
       extra_body:
         top_k: 20
   - model_name: "gx10-qwen3-0.6b"
@@ -138,8 +231,14 @@ model_list:
       api_base: "http://100.67.13.78:18005/v1"
       api_key: "sk-local"
       rpm: 10000
+      # 1000 is fine for a 0.6B, but it is the one model on vLLM here and
+      # vLLM DOES honour enable_thinking:false, so the flag below is real.
+      # The 0.6B is also the weakest thing in the pool: asked "the capital of
+      # France" it answered "the", so never point an agent role at it.
       max_tokens: 1000
       temperature: 0.0
+      num_retries: 1
+      request_timeout: 60
       extra_body:
         chat_template_kwargs:
           enable_thinking: false
@@ -154,33 +253,93 @@ model_list:
       api_key: "os.environ/DEEPSEEK_API_KEY"
       max_tokens: 8000
 
+  # Featherless: the serverless open-model tier. All three IDs below were
+  # REPLACED 2026-09-27 - the previous ones
+  #   mlabonne/Qwen2.5-72B-Instruct-abliterated
+  #   hugging-quants/Qwen2-72B-Instruct-abliterated
+  #   failpy/Qwen2.5-Coder-32B-Instruct-abliterated
+  # do not exist on Featherless and every call returned HTTP 404
+  # ("The model ... does not exist"), which made EVERY fallback chain ending in
+  # a featherless-* target dead on arrival. Verified working with a real
+  # completion on 2026-09-27 (latency / reasoning length in comments).
+  # NOTE: api.featherless.ai sits behind Cloudflare, which rejects a default
+  # Python-urllib User-Agent with "error code: 1010". LiteLLM's httpx client
+  # gets through, so a direct urllib probe of this endpoint looks broken when it
+  # is not. Use a browser UA when testing by hand.
   - model_name: "featherless-qwen-primary"
     litellm_params:
-      model: "openai/mlabonne/Qwen2.5-72B-Instruct-abliterated"
+      # general-purpose tier, chosen because it does NOT think: 0.6 s,
+      # rsn=0, so it cannot reproduce the empty-content trap.
+      model: "openai/Qwen/Qwen3-30B-A3B-Instruct-2507"
       api_base: "https://api.featherless.ai/v1"
       api_key: "os.environ/FEATHERLESS_API_KEY"
       rpm: 1000
       max_tokens: 4000
+      temperature: 0.0
+      num_retries: 1
+      request_timeout: 120
   - model_name: "featherless-qwen-secondary"
     litellm_params:
-      model: "openai/hugging-quants/Qwen2-72B-Instruct-abliterated"
+      # coding tier: 3.9 s, rsn=0, clean single-word replies.
+      model: "openai/Qwen/Qwen2.5-Coder-32B-Instruct"
       api_base: "https://api.featherless.ai/v1"
       api_key: "os.environ/FEATHERLESS_API_KEY"
       rpm: 1000
       max_tokens: 4000
+      temperature: 0.0
+      num_retries: 1
+      request_timeout: 120
   - model_name: "featherless-qwen-tertiary"
     litellm_params:
-      model: "openai/failpy/Qwen2.5-Coder-32B-Instruct-abliterated"
+      # heaviest verified tier: 3.3 s, rsn=0. Chosen over
+      # Qwen/Qwen2.5-72B-Instruct, which answered "Paris!!!!!!!!!!!!!!!" and
+      # over meta-llama/Llama-3.3-70B-Instruct, which is gated (HTTP 403).
+      model: "openai/Qwen/Qwen3-235B-A22B"
       api_base: "https://api.featherless.ai/v1"
       api_key: "os.environ/FEATHERLESS_API_KEY"
       rpm: 1000
       max_tokens: 4000
+      temperature: 0.0
+      num_retries: 1
+      request_timeout: 120
 
 router_settings:
+  # Every chain here was rewritten 2026-09-27. Two things were wrong with the
+  # old ones, both verified by calling every alias through the live gateway:
+  #
+  # 1. THE CLOUD TARGETS WERE DEAD, so the whole chain was dead. Every
+  #    featherless-* entry pointed at a model that does not exist on
+  #    Featherless (HTTP 404) and claude-3-7-sonnet / deepseek-r1 both return
+  #    HTTP 401 because ANTHROPIC_API_KEY and DEEPSEEK_API_KEY are not set on
+  #    this machine. The only alias that ever answered was the primary model.
+  #    In other words: if the brain had gone down, EVERY agent call would have
+  #    hard-failed. The featherless IDs are now verified working.
+  #
+  # 2. claude-3-7-sonnet was FIRST in every chain, so each fallback burned a
+  #    guaranteed 401 round trip before reaching anything useful. The
+  #    keyless cloud entries now sit LAST, where they cost nothing until the
+  #    local and Featherless tiers have all failed.
+  #
+  # HONEST LIMIT: ufo-host-model, ufo-app-model, ufo-model, ufo-dgx-model and
+  # ufo-dgx-app-model ALL resolve to the same api_base (127.0.0.1:8000). They
+  # are five names for one endpoint, so falling back between them is COSMETIC -
+  # it buys no redundancy. Real redundancy starts at featherless-qwen-primary.
+  # If the brain goes down, expect the first fallback to cost one Featherless
+  # round trip (~1-4 s) and then succeed.
   fallbacks:
-    - {"ufo-host-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
-    - {"ufo-app-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
-    - {"ufo-model": ["claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
-    - {"ufo-dgx-model": ["ufo-dgx-app-model", "claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
-    - {"ufo-dgx-app-model": ["ufo-dgx-model", "claude-3-7-sonnet", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+    - {"ufo-host-model": ["featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary", "claude-3-7-sonnet", "deepseek-r1"]}
+    - {"ufo-app-model": ["featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary", "claude-3-7-sonnet", "deepseek-r1"]}
+    - {"ufo-model": ["featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary", "claude-3-7-sonnet", "deepseek-r1"]}
+    - {"ufo-dgx-model": ["featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary", "claude-3-7-sonnet", "deepseek-r1"]}
+    - {"ufo-dgx-app-model": ["featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary", "claude-3-7-sonnet", "deepseek-r1"]}
+    # Non-coding work: Tongyi first, and if it is not swapped in the brain
+    # answers instead. A refused connection on :18007 raises, so the fallback
+    # fires - the caller never sees a hard failure.
+    - {"ufo-general-model": ["ufo-model", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+    # The gx10-* aliases had NO fallbacks at all before this. Every one of them
+    # reported "No fallback model group found for original model_group=...".
+    - {"gx10-qwen3-42b": ["ufo-general-model", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+    - {"gx10-qwen38-27b": ["gx10-qwen3-42b", "featherless-qwen-secondary", "featherless-qwen-primary", "featherless-qwen-tertiary"]}
+    - {"gx10-tongyi-30b": ["ufo-general-model", "featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+    - {"gx10-qwen3-0.6b": ["featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
 
