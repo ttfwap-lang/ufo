@@ -319,6 +319,42 @@ model_list:
       temperature: 0.0
       num_retries: 1
       request_timeout: 120
+  # Frontier cloud coders added 2026-09-27 (all verified live on Featherless).
+  # featherless-deepseek = the flagship DeepSeek V4-Pro. It is a THINKING model:
+  # max_tokens must cover reasoning + reply or content comes back empty (verified
+  # empty at 30 tokens). 16000 and temperature 0.6 (DeepSeek's coding default).
+  - model_name: "featherless-deepseek"
+    litellm_params:
+      model: "openai/deepseek-ai/DeepSeek-V4-Pro"
+      api_base: "https://api.featherless.ai/v1"
+      api_key: "os.environ/FEATHERLESS_API_KEY"
+      rpm: 1000
+      max_tokens: 16000
+      temperature: 0.6
+      num_retries: 1
+      request_timeout: 300
+  # DeepSeek V4.1-Flash: newest, fast (~2 s), non-thinking - the practical default.
+  - model_name: "featherless-deepseek-flash"
+    litellm_params:
+      model: "openai/deepseek-ai/DeepSeek-V4.1-Flash"
+      api_base: "https://api.featherless.ai/v1"
+      api_key: "os.environ/FEATHERLESS_API_KEY"
+      rpm: 1000
+      max_tokens: 8000
+      temperature: 0.3
+      num_retries: 1
+      request_timeout: 180
+  # Qwen3-Coder-480B-A35B: the strongest pure open coder on Featherless (~0.9 s, clean).
+  - model_name: "featherless-qwen3-coder"
+    litellm_params:
+      model: "openai/Qwen/Qwen3-Coder-480B-A35B-Instruct"
+      api_base: "https://api.featherless.ai/v1"
+      api_key: "os.environ/FEATHERLESS_API_KEY"
+      rpm: 1000
+      max_tokens: 8000
+      temperature: 0.3
+      num_retries: 1
+      request_timeout: 180
 
 router_settings:
   # Every chain here was rewritten 2026-09-27. Two things were wrong with the
@@ -365,4 +401,8 @@ router_settings:
     # failure, and the caller should treat a text-tier answer to an image
     # request as a degraded result, not a correct one.
     - {"ufo-vision-model": ["featherless-qwen-primary", "featherless-qwen-secondary", "featherless-qwen-tertiary"]}
+    # Frontier cloud coders: cross-fall between the three, then the qwen tiers.
+    - {"featherless-deepseek": ["featherless-deepseek-flash", "featherless-qwen3-coder", "featherless-qwen-secondary"]}
+    - {"featherless-deepseek-flash": ["featherless-qwen3-coder", "featherless-deepseek", "featherless-qwen-secondary"]}
+    - {"featherless-qwen3-coder": ["featherless-deepseek-flash", "featherless-qwen-secondary", "featherless-qwen-primary"]}
 
