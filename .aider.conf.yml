@@ -1,0 +1,33 @@
+# Aider - Multi-Agent Config (architect/editor split)
+# Updated 2026-09-27
+
+# Multi-agent architecture
+architect: true
+model: anthropic/claude-opus-5-5
+model: openai/featherless-deepseek
+model: openai/gx10-qwen3-42b
+
+# Editor model (local coder on gx10)
+editor-model: openai/gx10-qwen3-42b
+
+# Planner model (cloud, no Anthropic key needed)
+planner: deepseek-v4-pro
+
+# Hub configuration
+hub_port: 4000
+hub_upstreams: 8000 8002 8004 8005 8007
+
+# Local models (network-wide via hub)
+local_models:
+  - deepseek-ai/DeepSeek-V4-Pro
+  - openai/featherless-ai/deepseek-v4-pro
+  - openai/gx10-qwen3-42b
+
+# System settings
+swappiness: 1
+vm_memory_swap: 12G
+
+# Gateway
+  # Featherless API Key
+  FEATHERLESS_API_KEY: rc_38c953cbec577b127f444d436238d3442551e5355d00ca13a3c5ef82b8a96534
+liteLLM_gateway: 127.0.0.1:8000
