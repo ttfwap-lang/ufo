@@ -1,0 +1,14 @@
+[Unit]
+Description=LLM Hub - one OpenAI-compatible endpoint aggregating all Spark model servers for LAN/tailnet peers
+After=network-online.target
+
+[Service]
+# stdlib-only; no venv/deps. Aggregates 127.0.0.1:{8000,8002,8004,8005,8007} and
+# serves them on 0.0.0.0:4000 so any machine on the network auto-discovers models
+# via GET /v1/models. NO AUTH - trusted LAN/tailnet only.
+ExecStart=/usr/bin/python3 %h/ufo-galaxy/llm_hub.py 4000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
