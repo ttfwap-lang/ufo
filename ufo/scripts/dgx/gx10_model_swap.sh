@@ -49,7 +49,8 @@ wait_ready() {  # port name
   local i
   for i in $(seq 1 120); do
     running "$2" || { echo "swap: $2 exited during load:" >&2; docker logs --tail 15 "$2" >&2; return 1; }
-    curl -sf --max-time 3 "http://127.0.0.1:$1/v1/models" >/dev/null && { echo "swap: $2 ready on :$1 after $((i * 5))s"; return 0; }
+    # /health, not /v1/models: llama-server answers /v1/models while still loading weights
+    curl -sf --max-time 3 "http://127.0.0.1:$1/health" >/dev/null && { echo "swap: $2 ready on :$1 after $((i * 5))s"; return 0; }
     sleep 5
   done
   echo "swap: $2 not ready after 600s" >&2; return 1
@@ -100,11 +101,28 @@ up() {
   status
 }
 
+# Running containers other than $1 whose command line serves --port $2. While the 27B is
+# swapped out, another controller has been seen filling :8004 (2026-09-27: SparkDeck's
+# qwen35-9b-defiant-q6 profile, the model the 27B replaced), and the 27B then crash-loops on
+# "couldn't bind HTTP server socket".
+port_squatters() {
+  local c
+  for c in $(docker ps --format '{{.Names}}'); do
+    [ "$c" = "$1" ] && continue
+    docker inspect -f '{{join .Args " "}}' "$c" 2>/dev/null | grep -qE -- "--port[ =]$2( |\$)" && echo "$c"
+  done
+  return 0
+}
+
 back() {
   exec 9>"${GX10_LOCK:-/tmp/ufo-gx10-models.lock}"
   flock -w 900 9 || { echo "swap: another model launch holds the lock" >&2; exit 3; }
   local c
   for c in $ONDEMAND; do running "$c" && { echo "swap: stopping $c"; docker rm -f "$c" >/dev/null; }; done
+  for c in $(port_squatters "$ALWAYS_ON" 8004); do
+    echo "swap: $c is holding :8004 (started by another controller while the 27B was out); stopping it"
+    docker stop "$c" >/dev/null
+  done
   running "$ALWAYS_ON" || docker start "$ALWAYS_ON" >/dev/null
   wait_ready 8004 "$ALWAYS_ON" && status
 }
