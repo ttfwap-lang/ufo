@@ -60,6 +60,14 @@ ufo.env
 # completion rather than an error - the kind of thing that reaches production
 # unnoticed and is then very hard to see.
 !scripts/verify_venus.py
+# gateway_selftest.py: three-phase guard on the LiteLLM gateway - (1) every alias
+# returns non-empty content, (2) every deployment's /v1/models matches the model
+# name the config claims, (3) a tiny max_tokens trap. Phase 2 exists because
+# llama-server answers whatever `model` name it is sent, so a config pointing at
+# the wrong checkpoint produces correct-looking output forever. The same
+# rationale as verify_venus.py above: a check that is not committed cannot be
+# re-run when the pool is next rearranged.
+!scripts/gateway_selftest.py
 
 # Don't ignore the example files
 !vectordb/docs/example/
