@@ -1,9 +1,22 @@
 # =============================================================================
 # UFO Local Vision LLM Configuration — Dream Team
 # =============================================================================
-# Uses two local vision models via LiteLLM proxy:
-#   HOST_AGENT → Qwen3-VL-8B    (strategist, full desktop vision)
-#   APP_AGENT  → Gemma 4 12B    (executor, encoder-free vision)
+# Uses local models via the LiteLLM proxy on 127.0.0.1:4000.
+#
+# THE VISION ROLES USED TO BE BROKEN (fixed 2026-09-27). They pointed at
+# ufo-host-model / ufo-app-model, which resolve to the 42B coder on the gx10's
+# :8000 - and that model is TEXT-ONLY. Every screenshot produced:
+#   HTTP 500 {"error":{"message":"image input is not supported - hint: if this
+#   is unexpected, you may need to provide the mmproj"}}
+# The visual roles now use ufo-vision-model, which is ui-venus: a multimodal
+# Qwen2.5-VL derivative on the gx10's :8002, verified 2026-09-27 to answer
+# grounding ("Click the red button" -> "467,634"), description, counting and
+# colour questions correctly - not just coordinates.
+# The text-only roles keep the 42B, which is the stronger coder.
+#
+# If Venus is too weak to plan multi-step GUI actions, the alternative is the
+# Qwen3.8 27B, which is also multimodal (it mounts mmproj-F16.gguf) but costs
+# ~43 GB and is not resident. See scripts/dgx/gx10_model_swap.sh.
 #
 # To switch to this config:
 #   copy agents_local_vision.yaml agents.yaml
@@ -18,7 +31,7 @@ HOST_AGENT:
   API_TYPE: openai
   API_BASE: "http://127.0.0.1:4000"
   API_KEY: "sk-local"
-  API_MODEL: ufo-host-model
+  API_MODEL: ufo-vision-model
   PROMPT: ufo/prompts/share/base/host_agent.yaml
   EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/host_agent_example.yaml
 APP_AGENT:
@@ -27,7 +40,7 @@ APP_AGENT:
   API_TYPE: openai
   API_BASE: "http://127.0.0.1:4000"
   API_KEY: "sk-local"
-  API_MODEL: ufo-app-model
+  API_MODEL: ufo-vision-model
   PROMPT: ufo/prompts/share/base/app_agent.yaml
   EXAMPLE_PROMPT: ufo/prompts/examples/{mode}/app_agent_example.yaml
   EXAMPLE_PROMPT_AS: ufo/prompts/examples/{mode}/app_agent_example_as.yaml
@@ -36,21 +49,23 @@ BACKUP_AGENT:
   API_TYPE: openai
   API_BASE: "http://127.0.0.1:4000"
   API_KEY: "sk-local"
-  API_MODEL: ufo-host-model
+  API_MODEL: ufo-vision-model
 EVALUATION_AGENT:
   VISUAL_MODE: false
   REASONING_MODEL: false
   API_TYPE: openai
   API_BASE: "http://127.0.0.1:4000"
   API_KEY: "sk-local"
-  API_MODEL: ufo-app-model
+  API_MODEL: ufo-model
 OMNIPARSER:
   ENDPOINT: ''
   BOX_THRESHOLD: 0.02
   IOU_THRESHOLD: 0.1
   USE_PADDLEOCR: true
   IMGSZ: 1024
-MAX_TOKENS: 2000
+# 8192, not 2000. The 42B cannot be told to stop reasoning (~250-550 tokens
+# before every reply), so a small budget yields EMPTY content with HTTP 200.
+MAX_TOKENS: 8192
 MAX_RETRY: 3
 TEMPERATURE: 0.0
 TOP_P: 0.0

@@ -1,22 +1,53 @@
 # =============================================================================
 # UFO DGX Network LLM Configuration
 # =============================================================================
-# Connects to the models running on the NVIDIA DGX Spark (gx10), all reached
-# through the SSH tunnel on 127.0.0.1 (see scripts/gx10_tunnel_*.ps1):
-#   - qwen38-27b-turbo (llama.cpp OpenAI-compat server on :8000) is the agent LLM
-#       and serves every role: HOST_AGENT, APP_AGENT, BACKUP_AGENT and EVALUATION_AGENT.
-#       The underlying checkpoint (Qwen3.6-35B-A3B-abliterated, NVFP4) is multimodal
-#       (Qwen3_5MoeForConditionalGeneration, has a vision tower), so VISUAL_MODE works.
-#       EXTRA_BODY is REQUIRED, not cosmetic: without enable_thinking:false the model
-#       emits a long reasoning block that eats the entire completion budget and
-#       returns an empty `content`. With it, a short reply is 3 tokens instead of 34.
-#   - ui-venus (vLLM on :8002) is the pixel grounder behind click_on_description; it is
-#     configured in system.yaml (GROUNDING_MODEL), not here. scripts/dgx/venus_run.sh.
-#     It is ALSO a thinking model and needs the same enable_thinking:false override;
-#     venus_client.py sets it automatically.
-#   - OmniParser V2 (:7861, POST /api/parse) is the vision-fallback rank. It runs on
-#     CPU on the GB10 because the unified memory is fully used by the two LLM pools.
-#   - Ollama (:11434) is not used by this profile and currently has no models pulled.
+# Every model is on the NVIDIA DGX Spark (gx10), reached through the SSH tunnel
+# on 127.0.0.1 (see scripts/gx10_tunnel_*.ps1).
+#
+# ROLES ARE SPLIT BY CAPABILITY, NOT BY SIZE  (changed 2026-09-27)
+# ------------------------------------------------------------------
+# HOST_AGENT, APP_AGENT and BACKUP_AGENT have VISUAL_MODE: true, so they send
+# screenshots. The model behind them MUST have a vision tower.
+#
+# The brain on :8000 is qwen3-42b-coder (llama.cpp, Q8_0 GGUF) and it is
+# TEXT-ONLY. Verified by sending a real base64 PNG to :8000 - every vision
+# request returns:
+#   HTTP 500 {"error":{"message":"image input is not supported - hint: if this
+#   is unexpected, you may need to provide the mmproj"}}
+# and its /v1/models advertises capabilities ["completion"] only.
+#
+# So the visual roles point at ui-venus on :8002 instead, and the text-only
+# roles keep the 42B. Venus is a 9B Qwen2.5-VL derivative (vLLM) and was
+# verified on 2026-09-27 to handle BOTH kinds of question, not just grounding:
+#   grounding  "Click the red button"      -> "467,634"  (0-1000 grid)
+#   description "Describe this window"     -> accurate (title bar, panes)
+#   counting    "How many buttons"         -> "3"        (correct)
+#   reading     "What colour is leftmost"  -> "Blue"     (correct)
+#
+# IF VENUS PROVES TOO WEAK for HOST_AGENT planning, the alternative is the
+# Qwen3.8 27B, which IS multimodal - its container mounts
+# /srv/models/gguf/mmproj-F16.gguf and passes --mmproj /model/mmproj.gguf.
+# It costs ~43 GB, so it is not resident alongside the 42B. See
+# scripts/dgx/gx10_model_swap.sh.
+#
+# enable_thinking IS MODEL-SPECIFIC - do not generalise from one to the other:
+#   * Venus and qwen3-0.6b (both vLLM) DO honour it, and it is REQUIRED.
+#     Without it Venus spends the entire completion budget thinking and returns
+#     an empty answer. venus_client.py sets it automatically.
+#   * The 42B (llama.cpp, a Qwen3 GGUF) IGNORES it completely. Verified by
+#     sending the flag true, false and absent: all three returned
+#     byte-identical reasoning_content. A literal "/no_think" in the prompt
+#     barely helped either. The GGUF always reasons first, ~250-550 completion
+#     tokens, so MAX_TOKENS below must cover reasoning PLUS the reply or you
+#     get EMPTY content with HTTP 200 and a healthy-looking usage block.
+#
+#   - qwen3-42b-coder (llama.cpp on :8000) is the TEXT agent LLM: it serves
+#     EVALUATION_AGENT and any role with VISUAL_MODE: false.
+#   - ui-venus (vLLM on :8002) is the VISION model for the screenshot roles,
+#     and is ALSO the pixel grounder behind click_on_description (GROUNDING_MODEL
+#     in system.yaml, not here). scripts/dgx/venus_run.sh.
+#   - OmniParser V2 (:7861, POST /api/parse) is the vision-fallback rank.
+#   - Ollama (:11434) is not used by this profile and has no models pulled.
 #
 # Set the DGX host via environment variable (127.0.0.1 through the tunnel). The
 # Tailscale IP 100.111.170.95 is NOT reachable from this host (connections time
@@ -30,9 +61,10 @@ HOST_AGENT:
   VISUAL_MODE: true
   REASONING_MODEL: false
   API_TYPE: openai
-  API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
+  API_BASE: "http://${UFO_DGX_HOST}:8002/v1"
   API_KEY: "sk-local"
-  API_MODEL: "qwen38-27b-turbo"
+  API_MODEL: "ui-venus"
+  # REQUIRED for Venus (vLLM honours it). Omitting it returns empty content.
   EXTRA_BODY: {chat_template_kwargs: {enable_thinking: false}}
   MAX_IMAGE_PIXELS: 1800000  # bounds screenshot prefill cost (~1.8k image tokens each). Not a correctness limit: the model's tokenizer.json once truncated at 2048 tokens (fixed on the DGX, backup tokenizer.json.bak-20260922)
   PROMPT: ufo/prompts/share/base/host_agent.yaml
@@ -42,9 +74,10 @@ APP_AGENT:
   VISUAL_MODE: true
   REASONING_MODEL: false
   API_TYPE: openai
-  API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
+  API_BASE: "http://${UFO_DGX_HOST}:8002/v1"
   API_KEY: "sk-local"
-  API_MODEL: "qwen38-27b-turbo"
+  API_MODEL: "ui-venus"
+  # REQUIRED for Venus (vLLM honours it). Omitting it returns empty content.
   EXTRA_BODY: {chat_template_kwargs: {enable_thinking: false}}
   MAX_IMAGE_PIXELS: 1800000  # bounds screenshot prefill cost (~1.8k image tokens each). Not a correctness limit: the model's tokenizer.json once truncated at 2048 tokens (fixed on the DGX, backup tokenizer.json.bak-20260922)
   PROMPT: ufo/prompts/share/base/app_agent.yaml
@@ -54,19 +87,22 @@ APP_AGENT:
 BACKUP_AGENT:
   VISUAL_MODE: true
   API_TYPE: openai
-  API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
+  API_BASE: "http://${UFO_DGX_HOST}:8002/v1"
   API_KEY: "sk-local"
-  API_MODEL: "qwen38-27b-turbo"
+  API_MODEL: "ui-venus"
+  # REQUIRED for Venus (vLLM honours it). Omitting it returns empty content.
   EXTRA_BODY: {chat_template_kwargs: {enable_thinking: false}}
   MAX_IMAGE_PIXELS: 1800000  # bounds screenshot prefill cost (~1.8k image tokens each). Not a correctness limit: the model's tokenizer.json once truncated at 2048 tokens (fixed on the DGX, backup tokenizer.json.bak-20260922)
 
+# Text-only role, so it can have the stronger 42B coder. No EXTRA_BODY: the
+# flag is a no-op on this model and setting it would only look meaningful.
 EVALUATION_AGENT:
   VISUAL_MODE: false
   REASONING_MODEL: false
   API_TYPE: openai
   API_BASE: "http://${UFO_DGX_HOST}:8000/v1"
   API_KEY: "sk-local"
-  API_MODEL: "qwen38-27b-turbo"
+  API_MODEL: "qwen3-42b-coder"
 
 OMNIPARSER:
   ENDPOINT: ''
@@ -75,6 +111,8 @@ OMNIPARSER:
   USE_PADDLEOCR: true
   IMGSZ: 1024
 
+# 8192, not 2000: the 42B always reasons before answering (~250-550 tokens) and
+# cannot be told to stop, so the budget has to cover reasoning plus the reply.
 MAX_TOKENS: 8192
 MAX_RETRY: 3
 TEMPERATURE: 0.0
