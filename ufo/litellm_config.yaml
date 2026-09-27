@@ -117,26 +117,18 @@ model_list:
   # (100.67.13.78:18004/18005 -> 127.0.0.1:8004/8005; ufw allows 100.64.0.0/10
   # only), the same way Venus is reached on :18002. See ufo-tunnel.service.
   #
-  # WARNING - THIS ALIAS IS CURRENTLY LYING (verified 2026-09-27).
-  # It claims to be the Qwen3.8 27B, but :8004 is held by qwen35-9b-defiant
-  # and the 27B container is stopped. Proof, from the box and the tailnet:
-  #   $ curl -s http://127.0.0.1:8004/v1/models   -> {"name":"qwen35-9b-defiant"}
-  #   $ curl -s http://100.67.13.78:18004/v1/models -> {"name":"qwen35-9b-defiant"}
-  #   $ docker ps -a | grep 27b  -> qwen38-27b-turbo  Exited (0)
-  # llama-server answers WHATEVER model name a request sends, so asking for
-  # "qwen38-27b-turbo" gets a clean HTTP 200 from the 9B instead. Nothing
-  # errors; you just silently get a weaker model than you asked for. This is
-  # the same trap as the ufo-* entries above, which send "qwen38-27b-turbo"
-  # to :8000 and therefore reach the 42B brain.
-  #
-  # TO FIX: run `gx10_model_swap.sh 27b` on the box, which evicts the squatter
-  # and starts the 27B on :8004, then re-run scripts/gateway_selftest.py. That
-  # script asserts each alias serves the model it names - this alias is exactly
-  # the failure it was written to catch.
+  # AUDIT #2 FIX (2026-09-27): this alias used to point at :18004, which is held by
+  # qwen35-9b-defiant - the 27B is swapped out because Venus is the resident model
+  # by the user's choice. llama-server answers ANY model name with a clean HTTP 200,
+  # so a request for the 27B silently returned the weaker 9B (no error). Repointed to
+  # :18000, the running 42B brain/coder, so this alias now serves a capable coder
+  # instead of a mislabeled 9B. To restore an actual 27B here, run
+  # `gx10_model_swap.sh 27b` on the box (NOTE: that evicts Venus) and set api_base
+  # back to :18004. scripts/gateway_selftest.py still flags the name/served mismatch.
   - model_name: "gx10-qwen38-27b"
     litellm_params:
       model: "openai/qwen38-27b-turbo"
-      api_base: "http://100.67.13.78:18004/v1"
+      api_base: "http://100.67.13.78:18000/v1"
       api_key: "sk-local"
       rpm: 10000
       # Coding sampler from the model card (DavidAU TURBO-Fable 735-882);
